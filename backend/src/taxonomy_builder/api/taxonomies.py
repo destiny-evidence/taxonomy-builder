@@ -33,3 +33,13 @@ async def create_taxonomy(taxonomy_data: TaxonomyCreate) -> Taxonomy:
         if "already exists" in str(e):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+
+@router.get("", response_model=list[Taxonomy])
+async def list_taxonomies() -> list[Taxonomy]:
+    """List all taxonomies.
+
+    Returns:
+        List of all taxonomies
+    """
+    return _taxonomy_service.list_taxonomies()

@@ -142,3 +142,39 @@ def test_create_taxonomy_with_description(taxonomy_service, mock_repository):
     result = taxonomy_service.create_taxonomy(taxonomy_data)
 
     assert result.description == "A test taxonomy"
+
+
+def test_list_taxonomies_returns_all(taxonomy_service, mock_repository):
+    """Test that list_taxonomies returns all taxonomies from repository."""
+    from datetime import UTC
+
+    taxonomies = [
+        Taxonomy(
+            id="tax1",
+            name="Taxonomy 1",
+            uri_prefix="http://example.org/tax1/",
+            created_at=datetime.now(UTC),
+        ),
+        Taxonomy(
+            id="tax2",
+            name="Taxonomy 2",
+            uri_prefix="http://example.org/tax2/",
+            created_at=datetime.now(UTC),
+        ),
+    ]
+    mock_repository.get_all.return_value = taxonomies
+
+    result = taxonomy_service.list_taxonomies()
+
+    assert result == taxonomies
+    mock_repository.get_all.assert_called_once()
+
+
+def test_list_taxonomies_returns_empty_list(taxonomy_service, mock_repository):
+    """Test that list_taxonomies returns empty list when no taxonomies exist."""
+    mock_repository.get_all.return_value = []
+
+    result = taxonomy_service.list_taxonomies()
+
+    assert result == []
+    mock_repository.get_all.assert_called_once()

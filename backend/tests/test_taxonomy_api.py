@@ -153,3 +153,45 @@ def test_post_taxonomy_description_is_optional():
     assert response.status_code == 201
     data = response.json()
     assert data["description"] is None or "description" not in data
+
+
+def test_get_taxonomies_returns_200_and_empty_list():
+    """Test that GET /api/taxonomies returns 200 with empty list initially."""
+    # Note: This assumes fresh state or tests run in isolation
+    response = client.get("/api/taxonomies")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+def test_get_taxonomies_returns_created_taxonomies():
+    """Test that GET /api/taxonomies returns all created taxonomies."""
+    # Create some taxonomies
+    client.post(
+        "/api/taxonomies",
+        json={
+            "id": "list-test-1",
+            "name": "List Test 1",
+            "uri_prefix": "http://example.org/list1/",
+        },
+    )
+    client.post(
+        "/api/taxonomies",
+        json={
+            "id": "list-test-2",
+            "name": "List Test 2",
+            "uri_prefix": "http://example.org/list2/",
+        },
+    )
+
+    response = client.get("/api/taxonomies")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 2
+    # Check that our created taxonomies are in the list
+    ids = [t["id"] for t in data]
+    assert "list-test-1" in ids
+    assert "list-test-2" in ids

@@ -117,14 +117,42 @@ taxonomy-builder/
    - ID is user-provided slug (e.g., "climate-health-2024")
    - Later phases may use internal primary keys for persistence, but externally we use the slug
 
-7. **List & Get Taxonomy - Test First**
-   - Write test: GET /api/taxonomies returns list
-   - Write test: GET /api/taxonomies/{id} returns specific taxonomy
-   - Write test: GET /api/taxonomies/{id} returns 404 if not found
-   - Make tests fail
-   - Implement endpoints
-   - Make tests pass
-   - Refactor
+7. **List Taxonomies - Test First**
+
+   **Part A: GET /api/taxonomies (list all)**
+
+   1. Write unit tests for `TaxonomyService.list_taxonomies()`:
+      - `test_list_taxonomies_returns_all()` - Returns all taxonomies
+      - `test_list_taxonomies_returns_empty_list()` - Returns [] when none exist
+   2. Write integration tests for GET /api/taxonomies:
+      - `test_get_taxonomies_returns_200_and_empty_list()` - Returns 200 with []
+      - `test_get_taxonomies_returns_created_taxonomies()` - Returns all created items
+   3. Run tests (RED)
+   4. Add `get_all()` to TaxonomyRepository
+   5. Implement `TaxonomyService.list_taxonomies()`
+   6. Add GET /api/taxonomies endpoint
+   7. Run tests (GREEN)
+   8. Refactor
+
+   **Part B: GET /api/taxonomies/{id} (get by ID)**
+
+   1. Write unit tests for `TaxonomyService.get_taxonomy(id)`:
+      - `test_get_taxonomy_by_id_returns_taxonomy()` - Finds and returns taxonomy
+      - `test_get_taxonomy_by_id_raises_when_not_found()` - Raises ValueError
+   2. Write integration tests for GET /api/taxonomies/{id}:
+      - `test_get_taxonomy_by_id_returns_200()` - Returns 200 with taxonomy
+      - `test_get_taxonomy_by_id_returns_404_when_not_found()` - Returns 404
+   3. Run tests (RED)
+   4. Add `get_by_id()` to TaxonomyRepository
+   5. Implement `TaxonomyService.get_taxonomy(id)` - raises ValueError if not found
+   6. Add GET /api/taxonomies/{id} endpoint - catches ValueError → 404
+   7. Run tests (GREEN)
+   8. Refactor
+
+   **Response Models**:
+   - List endpoint returns `list[Taxonomy]`
+   - Get endpoint returns single `Taxonomy`
+   - 404 response: `{"detail": "Taxonomy with ID 'x' not found"}`
 
 8. **Update & Delete Taxonomy - Test First**
    - Write test: PUT /api/taxonomies/{id} updates taxonomy

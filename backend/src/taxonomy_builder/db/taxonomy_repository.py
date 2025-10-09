@@ -18,6 +18,11 @@ class TaxonomyRepository(ABC):
         """Check if a taxonomy with the given ID exists."""
         pass
 
+    @abstractmethod
+    def get_all(self) -> list[Taxonomy]:
+        """Get all taxonomies."""
+        pass
+
 
 class InMemoryTaxonomyRepository(TaxonomyRepository):
     """In-memory implementation of taxonomy repository."""
@@ -34,3 +39,7 @@ class InMemoryTaxonomyRepository(TaxonomyRepository):
     def exists(self, taxonomy_id: str) -> bool:
         """Check if a taxonomy exists in the store."""
         return taxonomy_id in self._taxonomies
+
+    def get_all(self) -> list[Taxonomy]:
+        """Get all taxonomies from the store."""
+        return list(self._taxonomies.values())

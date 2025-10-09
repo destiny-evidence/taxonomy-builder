@@ -40,3 +40,11 @@ class TaxonomyService:
 
         # Save to repository
         return self.repository.save(taxonomy)
+
+    def list_taxonomies(self) -> list[Taxonomy]:
+        """List all taxonomies.
+
+        Returns:
+            List of all taxonomies
+        """
+        return self.repository.get_all()
