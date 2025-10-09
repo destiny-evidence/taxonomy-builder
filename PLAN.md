@@ -580,77 +580,593 @@ taxonomy-builder/
 
 ### Phase 6: Frontend Initialization
 
-16. **Initialize TypeScript project**
-    - Create `frontend/` directory
-    - Initialize npm/pnpm project
-    - Set up Vite as build tool
-    - Configure TypeScript with strict settings
-    - Add ESLint and Prettier
+16. **Initialize Vite + TypeScript project**
+    - Run `npm create vite@latest frontend -- --template vanilla-ts` in project root
+    - Navigate to `frontend/` directory
+    - Run `npm install` to install base dependencies
+    - Verify dev server works: `npm run dev`
+    - This creates:
+      - `package.json` with Vite scripts
+      - `tsconfig.json` with TypeScript config
+      - `vite.config.ts` for Vite configuration
+      - `src/main.ts` - entry point
+      - `index.html` - main HTML file
+      - `src/style.css` - base styles
 
-17. **Install frontend dependencies**
-    - Vite for development and building
-    - TypeScript
-    - Fetch API or axios for HTTP requests
-    - D3.js or similar for visualization (tree/hierarchy layout)
-    - NO CSS framework (vanilla CSS)
+17. **Configure TypeScript strict mode**
+    - Update `tsconfig.json`:
+      ```json
+      {
+        "compilerOptions": {
+          "target": "ES2020",
+          "useDefineForClassFields": true,
+          "module": "ESNext",
+          "lib": ["ES2020", "DOM", "DOM.Iterable"],
+          "skipLibCheck": true,
+          "strict": true,
+          "noUnusedLocals": true,
+          "noUnusedParameters": true,
+          "noFallthroughCasesInSwitch": true,
+          "moduleResolution": "bundler",
+          "allowImportingTsExtensions": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "noEmit": true,
+          "esModuleInterop": true,
+          "forceConsistentCasingInFileNames": true
+        },
+        "include": ["src"]
+      }
+      ```
 
-18. **Create frontend structure**
-    - `src/main.ts` - entry point
-    - `src/api/` - API client for backend
-    - `src/components/` - UI components
-    - `src/visualization/` - taxonomy visualization logic
-    - `src/types/` - TypeScript type definitions
-    - `index.html` - main HTML file
+18. **Install additional dependencies**
+    - Testing: `npm install -D vitest @vitest/ui jsdom @testing-library/dom @testing-library/user-event`
+    - HTTP client: `npm install ky` (modern fetch wrapper)
+    - Visualization: `npm install d3 @types/d3`
+    - Dev tools: `npm install -D @types/node`
+    - Create `vitest.config.ts`:
+      ```typescript
+      import { defineConfig } from 'vitest/config'
+
+      export default defineConfig({
+        test: {
+          environment: 'jsdom',
+          globals: true,
+        },
+      })
+      ```
+
+19. **Configure linting and formatting**
+    - Install ESLint: `npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin`
+    - Install Prettier: `npm install -D prettier eslint-config-prettier`
+    - Create `.eslintrc.json`:
+      ```json
+      {
+        "parser": "@typescript-eslint/parser",
+        "extends": [
+          "eslint:recommended",
+          "plugin:@typescript-eslint/recommended",
+          "prettier"
+        ],
+        "plugins": ["@typescript-eslint"],
+        "env": {
+          "browser": true,
+          "es2020": true
+        },
+        "rules": {
+          "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
+        }
+      }
+      ```
+    - Create `.prettierrc`:
+      ```json
+      {
+        "semi": false,
+        "singleQuote": true,
+        "trailingComma": "es5",
+        "printWidth": 100
+      }
+      ```
+    - Update `package.json` scripts:
+      ```json
+      {
+        "scripts": {
+          "dev": "vite",
+          "build": "tsc && vite build",
+          "preview": "vite preview",
+          "test": "vitest",
+          "test:ui": "vitest --ui",
+          "lint": "eslint src --ext ts,tsx",
+          "format": "prettier --write src"
+        }
+      }
+      ```
+
+20. **Create frontend directory structure**
+    - Create directories:
+      ```
+      frontend/src/
+      ├── api/              # API client
+      │   ├── client.ts     # Base HTTP client
+      │   ├── taxonomies.ts # Taxonomy API methods
+      │   ├── schemes.ts    # ConceptScheme API methods
+      │   └── concepts.ts   # Concept API methods
+      ├── components/       # UI components
+      │   ├── taxonomies/   # Taxonomy management
+      │   ├── schemes/      # Scheme management
+      │   ├── concepts/     # Concept management
+      │   └── shared/       # Shared components (forms, buttons, etc.)
+      ├── visualization/    # D3.js visualization
+      │   └── hierarchy.ts  # Taxonomy hierarchy visualization
+      ├── types/            # TypeScript types
+      │   └── models.ts     # Domain models (Taxonomy, ConceptScheme, Concept)
+      ├── utils/            # Utilities
+      │   └── dom.ts        # DOM helpers
+      └── main.ts           # Entry point
+      ```
+    - Create `tests/` directory structure mirroring `src/`:
+      ```
+      frontend/tests/
+      ├── api/
+      ├── components/
+      ├── visualization/
+      └── utils/
+      ```
+
+21. **Set up API base URL configuration**
+    - Create `src/config.ts`:
+      ```typescript
+      export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      ```
+    - Create `.env.development`:
+      ```
+      VITE_API_BASE_URL=http://localhost:8000
+      ```
+    - Create `.env.production`:
+      ```
+      VITE_API_BASE_URL=/api
+      ```
+    - Add `.env*` to `.gitignore` (except `.env.example`)
+
+22. **Configure Vite proxy for development**
+    - Update `vite.config.ts`:
+      ```typescript
+      import { defineConfig } from 'vite'
+
+      export default defineConfig({
+        server: {
+          proxy: {
+            '/api': {
+              target: 'http://localhost:8000',
+              changeOrigin: true,
+            },
+          },
+        },
+      })
+      ```
+    - This allows frontend to call `/api/taxonomies` instead of `http://localhost:8000/api/taxonomies`
+
+23. **Verify setup**
+    - Run `npm run lint` - should pass with no errors
+    - Run `npm run format` - should format all files
+    - Run `npm run test` - should run with 0 tests (no tests yet)
+    - Run `npm run dev` - should start dev server
+    - Commit initial frontend setup
 
 ### Phase 7: Frontend Implementation (TDD)
 
-19. **Build API client - Test First**
-    - Write tests for API client methods
-    - Test error handling and loading states
-    - Make tests fail
-    - Implement type-safe client for backend API
-    - Make tests pass
-    - Refactor
+**Overview**: Build frontend incrementally following TDD. Start with type definitions, then API client, then UI components.
 
-20. **Create taxonomy management UI - Test First**
-    - Write tests for taxonomy list component
-    - Write tests for create/edit/delete taxonomy forms
-    - Make tests fail
-    - Implement UI components
-    - Make tests pass
-    - Refactor
+24. **Define TypeScript Types - Test First**
 
-21. **Build concept scheme management - Test First**
-    - Write tests for scheme components
-    - Make tests fail
-    - Implement add/edit/delete concept schemes UI
-    - Make tests pass
-    - Refactor
+    **Part A: Domain Models**
 
-22. **Implement concept management - Test First**
-    - Write tests for concept CRUD UI
-    - Write tests for hierarchy relationship management
-    - Make tests fail
-    - Implement components
-    - Make tests pass
-    - Refactor
+    1. Create `src/types/models.ts` with TypeScript interfaces matching backend:
+       ```typescript
+       export interface Taxonomy {
+         id: string
+         name: string
+         uri_prefix: string
+         description?: string
+         created_at: string
+       }
 
-23. **Create visualization component - Test First**
-    - Write tests for hierarchy rendering
-    - Write tests for interactive navigation
-    - Make tests fail
-    - Implement tree/hierarchy visualization with D3.js
-    - Add collapsible nodes
-    - Make tests pass
-    - Refactor
+       export interface TaxonomyCreate {
+         id: string
+         name: string
+         uri_prefix: string
+         description?: string
+       }
 
-24. **Add smart discovery features - Test First**
-    - Write tests for concept search
-    - Write tests for highlighting similar concepts
-    - Make tests fail
-    - Implement search and similarity features
-    - Make tests pass
-    - Refactor
+       export interface TaxonomyUpdate {
+         name?: string
+         uri_prefix?: string
+         description?: string
+       }
+
+       // Similar for ConceptScheme and Concept
+       ```
+    2. Write validation tests in `tests/types/models.test.ts`:
+       - `test_taxonomy_interface_matches_api()` - Verify structure
+       - `test_optional_fields_work()` - description can be undefined
+    3. Run tests (RED)
+    4. Ensure types compile with `npm run build`
+    5. Run tests (GREEN)
+
+    **Part B: API Response Types**
+
+    1. Create `src/types/api.ts`:
+       ```typescript
+       export interface ApiError {
+         detail: string
+       }
+
+       export interface ApiResponse<T> {
+         data?: T
+         error?: ApiError
+       }
+       ```
+    2. Write type tests
+    3. Run tests (RED → GREEN)
+
+25. **Build API Client - Test First**
+
+    **Part A: Base HTTP Client**
+
+    1. Write tests for `src/api/client.ts` in `tests/api/client.test.ts`:
+       - `test_get_request_returns_data()` - GET request succeeds
+       - `test_post_request_sends_json()` - POST sends correct body
+       - `test_put_request_updates()` - PUT sends updates
+       - `test_delete_request_succeeds()` - DELETE works
+       - `test_404_error_handling()` - Handles 404 responses
+       - `test_409_error_handling()` - Handles 409 conflicts
+       - `test_422_validation_error()` - Handles validation errors
+       - `test_network_error_handling()` - Handles network failures
+    2. Run tests (RED)
+    3. Implement base client using `ky`:
+       ```typescript
+       import ky from 'ky'
+       import { API_BASE_URL } from '../config'
+
+       export const client = ky.create({
+         prefixUrl: API_BASE_URL,
+         headers: {
+           'Content-Type': 'application/json',
+         },
+       })
+       ```
+    4. Implement error handling wrapper
+    5. Run tests (GREEN)
+    6. Refactor
+
+    **Part B: Taxonomy API Client**
+
+    1. Write tests for `src/api/taxonomies.ts` in `tests/api/taxonomies.test.ts`:
+       - `test_create_taxonomy_posts_to_api()` - POST /api/taxonomies
+       - `test_create_taxonomy_returns_created()` - Returns Taxonomy object
+       - `test_list_taxonomies_gets_from_api()` - GET /api/taxonomies
+       - `test_get_taxonomy_by_id()` - GET /api/taxonomies/{id}
+       - `test_update_taxonomy_puts_to_api()` - PUT /api/taxonomies/{id}
+       - `test_delete_taxonomy_calls_api()` - DELETE /api/taxonomies/{id}
+       - `test_handles_duplicate_id_error()` - 409 → error message
+       - `test_handles_not_found_error()` - 404 → error message
+    2. Run tests (RED)
+    3. Implement taxonomy API client:
+       ```typescript
+       import { client } from './client'
+       import type { Taxonomy, TaxonomyCreate, TaxonomyUpdate } from '../types/models'
+
+       export const taxonomyApi = {
+         create: (data: TaxonomyCreate) =>
+           client.post('api/taxonomies', { json: data }).json<Taxonomy>(),
+         list: () =>
+           client.get('api/taxonomies').json<Taxonomy[]>(),
+         get: (id: string) =>
+           client.get(`api/taxonomies/${id}`).json<Taxonomy>(),
+         update: (id: string, data: TaxonomyUpdate) =>
+           client.put(`api/taxonomies/${id}`, { json: data }).json<Taxonomy>(),
+         delete: (id: string) =>
+           client.delete(`api/taxonomies/${id}`),
+       }
+       ```
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part C: ConceptScheme & Concept API Clients**
+
+    1. Write tests for `src/api/schemes.ts` following same pattern
+    2. Write tests for `src/api/concepts.ts` including relationship endpoints:
+       - `test_add_broader_relationship()` - POST /api/concepts/{id}/broader/{broader_id}
+       - `test_remove_broader_relationship()` - DELETE /api/concepts/{id}/broader/{broader_id}
+    3. Run tests (RED)
+    4. Implement scheme and concept API clients
+    5. Run tests (GREEN)
+    6. Refactor
+
+26. **Create Taxonomy Management UI - Test First**
+
+    **Part A: Taxonomy List Component**
+
+    1. Write tests for `src/components/taxonomies/TaxonomyList.ts` in `tests/components/taxonomies/TaxonomyList.test.ts`:
+       - `test_renders_empty_state()` - Shows "No taxonomies" message
+       - `test_renders_taxonomy_list()` - Displays taxonomies in list
+       - `test_displays_taxonomy_properties()` - Shows id, name, uri_prefix
+       - `test_loading_state_shown()` - Shows loading indicator during fetch
+       - `test_error_state_shown()` - Shows error message on API failure
+       - `test_click_taxonomy_navigates()` - Clicking taxonomy shows details
+    2. Run tests (RED)
+    3. Implement `TaxonomyList` class:
+       ```typescript
+       export class TaxonomyList {
+         private container: HTMLElement
+         private taxonomies: Taxonomy[] = []
+
+         constructor(container: HTMLElement) {
+           this.container = container
+         }
+
+         async render() {
+           this.container.innerHTML = '<div class="loading">Loading...</div>'
+           try {
+             this.taxonomies = await taxonomyApi.list()
+             this.renderList()
+           } catch (error) {
+             this.renderError(error)
+           }
+         }
+
+         private renderList() {
+           // Render taxonomy list
+         }
+       }
+       ```
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part B: Create Taxonomy Form**
+
+    1. Write tests for `src/components/taxonomies/TaxonomyForm.ts` in `tests/components/taxonomies/TaxonomyForm.test.ts`:
+       - `test_renders_form_fields()` - Renders id, name, uri_prefix, description inputs
+       - `test_validates_required_fields()` - Shows errors for missing fields
+       - `test_validates_id_format()` - Validates slug format (lowercase-with-hyphens)
+       - `test_validates_uri_format()` - Validates URI prefix format
+       - `test_submits_valid_data()` - Calls API with form data
+       - `test_shows_duplicate_error()` - Shows error for 409 response
+       - `test_clears_form_on_success()` - Resets form after successful create
+       - `test_emits_success_event()` - Dispatches custom event on success
+    2. Run tests (RED)
+    3. Implement `TaxonomyForm` class with validation
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part C: Edit & Delete Taxonomy**
+
+    1. Write tests for edit functionality:
+       - `test_form_populates_with_existing_data()` - Loads taxonomy for editing
+       - `test_id_field_readonly_in_edit_mode()` - ID cannot be changed
+       - `test_update_calls_put_endpoint()` - Calls PUT /api/taxonomies/{id}
+    2. Write tests for delete functionality:
+       - `test_delete_button_shows_confirmation()` - Confirms before delete
+       - `test_delete_calls_api()` - Calls DELETE endpoint
+       - `test_delete_removes_from_list()` - Updates UI after delete
+    3. Run tests (RED)
+    4. Implement edit and delete features
+    5. Run tests (GREEN)
+    6. Refactor
+
+27. **Build ConceptScheme Management - Test First**
+
+    **Part A: Scheme List Component**
+
+    1. Write tests for `src/components/schemes/SchemeList.ts`:
+       - `test_renders_schemes_for_taxonomy()` - Shows schemes for selected taxonomy
+       - `test_empty_state_for_new_taxonomy()` - Shows "No schemes" message
+       - `test_displays_scheme_properties()` - Shows id, name, uri, description
+       - `test_click_scheme_shows_concepts()` - Navigates to concept view
+    2. Run tests (RED)
+    3. Implement `SchemeList` component
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part B: Create Scheme Form**
+
+    1. Write tests for `src/components/schemes/SchemeForm.ts`:
+       - `test_requires_taxonomy_context()` - Must be associated with taxonomy
+       - `test_validates_scheme_id_format()` - Slug validation
+       - `test_submits_to_correct_endpoint()` - POST /api/taxonomies/{taxonomy_id}/schemes
+       - `test_shows_generated_uri()` - Displays computed URI from taxonomy prefix
+    2. Run tests (RED)
+    3. Implement `SchemeForm` component
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part C: Edit & Delete Scheme**
+
+    1. Write tests for edit/delete (similar pattern to taxonomies)
+    2. Run tests (RED)
+    3. Implement edit and delete
+    4. Run tests (GREEN)
+    5. Refactor
+
+28. **Implement Concept Management - Test First**
+
+    **Part A: Concept List Component**
+
+    1. Write tests for `src/components/concepts/ConceptList.ts`:
+       - `test_renders_concepts_for_scheme()` - Shows concepts for selected scheme
+       - `test_displays_concept_properties()` - Shows pref_label, definition, alt_labels
+       - `test_displays_hierarchy_indicators()` - Shows broader/narrower counts
+       - `test_click_concept_shows_details()` - Shows detail view
+    2. Run tests (RED)
+    3. Implement `ConceptList` component
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part B: Create Concept Form**
+
+    1. Write tests for `src/components/concepts/ConceptForm.ts`:
+       - `test_requires_scheme_context()` - Must be associated with scheme
+       - `test_validates_pref_label_required()` - prefLabel is required
+       - `test_handles_alt_labels_array()` - Multiple alt labels supported
+       - `test_definition_optional()` - Definition not required
+       - `test_submits_to_correct_endpoint()` - POST /api/schemes/{scheme_id}/concepts
+    2. Run tests (RED)
+    3. Implement `ConceptForm` component
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part C: Hierarchy Relationship Management**
+
+    1. Write tests for `src/components/concepts/RelationshipManager.ts`:
+       - `test_shows_current_broader_concepts()` - Lists broader concepts
+       - `test_shows_current_narrower_concepts()` - Lists narrower concepts
+       - `test_add_broader_concept_selector()` - Dropdown to select broader concept
+       - `test_add_broader_calls_api()` - POST /api/concepts/{id}/broader/{broader_id}
+       - `test_remove_broader_calls_api()` - DELETE /api/concepts/{id}/broader/{broader_id}
+       - `test_prevents_self_reference()` - Cannot add self as broader
+       - `test_shows_cycle_error()` - Displays error for cycle detection
+       - `test_bidirectional_update()` - Shows relationship from both sides
+    2. Run tests (RED)
+    3. Implement `RelationshipManager` component
+    4. Run tests (GREEN)
+    5. Refactor
+
+29. **Create Visualization Component - Test First**
+
+    **Part A: Basic Hierarchy Rendering**
+
+    1. Write tests for `src/visualization/HierarchyTree.ts`:
+       - `test_renders_svg_container()` - Creates SVG element
+       - `test_renders_tree_from_concepts()` - Converts flat concept list to tree
+       - `test_positions_nodes_hierarchically()` - Uses D3 tree layout
+       - `test_draws_links_between_nodes()` - Connects broader/narrower
+       - `test_displays_concept_labels()` - Shows pref_label on nodes
+    2. Run tests (RED)
+    3. Implement basic D3 tree visualization:
+       ```typescript
+       import * as d3 from 'd3'
+       import type { Concept } from '../types/models'
+
+       export class HierarchyTree {
+         private svg: d3.Selection<SVGSVGElement, unknown, null, undefined>
+         private width: number
+         private height: number
+
+         constructor(container: HTMLElement, width: number, height: number) {
+           this.width = width
+           this.height = height
+           this.svg = d3.select(container)
+             .append('svg')
+             .attr('width', width)
+             .attr('height', height)
+         }
+
+         render(concepts: Concept[]) {
+           const root = this.buildHierarchy(concepts)
+           const treeLayout = d3.tree().size([this.height, this.width])
+           // ... render tree
+         }
+
+         private buildHierarchy(concepts: Concept[]): d3.HierarchyNode<Concept> {
+           // Build tree from flat concept list using broader/narrower
+         }
+       }
+       ```
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part B: Interactive Features**
+
+    1. Write tests for interactivity:
+       - `test_nodes_are_clickable()` - Click handler attached
+       - `test_click_emits_event()` - Dispatches custom event with concept
+       - `test_hover_highlights_path()` - Highlights path to root on hover
+       - `test_zoom_and_pan_enabled()` - D3 zoom behavior works
+    2. Run tests (RED)
+    3. Implement click handlers and zoom
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part C: Collapsible Nodes**
+
+    1. Write tests for collapse functionality:
+       - `test_nodes_with_children_collapsible()` - Shows expand/collapse icon
+       - `test_click_collapse_icon_hides_children()` - Collapses subtree
+       - `test_collapsed_state_persisted()` - Remembers collapsed nodes
+       - `test_expand_shows_children()` - Re-expands collapsed nodes
+    2. Run tests (RED)
+    3. Implement collapse/expand with animation
+    4. Run tests (GREEN)
+    5. Refactor
+
+30. **Add Smart Discovery Features - Test First**
+
+    **Part A: Concept Search**
+
+    1. Write tests for `src/components/concepts/ConceptSearch.ts`:
+       - `test_renders_search_input()` - Search box displayed
+       - `test_filters_by_pref_label()` - Searches concept labels
+       - `test_filters_by_definition()` - Searches definitions
+       - `test_filters_by_alt_labels()` - Searches alternative labels
+       - `test_highlights_search_results()` - Highlights matches in visualization
+       - `test_clears_search()` - Clear button resets filter
+    2. Run tests (RED)
+    3. Implement search filtering
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part B: Similar Concept Highlighting**
+
+    1. Write tests for similarity detection:
+       - `test_finds_lexically_similar()` - Finds concepts with similar labels (Levenshtein distance)
+       - `test_highlights_similar_concepts()` - Highlights in different color
+       - `test_shows_similarity_score()` - Displays similarity percentage
+       - `test_configurable_threshold()` - Adjustable similarity threshold
+    2. Run tests (RED)
+    3. Implement lexical similarity using string distance algorithm
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Note**: Semantic similarity (using embeddings) is deferred to future phase
+
+31. **Main Application Integration - Test First**
+
+    **Part A: Application Shell**
+
+    1. Write tests for `src/main.ts` / app initialization:
+       - `test_renders_navigation()` - Shows taxonomy/scheme/concept nav
+       - `test_taxonomy_view_default()` - Shows taxonomy list by default
+       - `test_navigation_switches_views()` - Click nav changes active view
+       - `test_breadcrumb_navigation()` - Shows current location (taxonomy > scheme > concept)
+    2. Run tests (RED)
+    3. Implement app shell with routing
+    4. Run tests (GREEN)
+    5. Refactor
+
+    **Part B: State Management**
+
+    1. Write tests for simple state manager:
+       - `test_stores_selected_taxonomy()` - Tracks current taxonomy
+       - `test_stores_selected_scheme()` - Tracks current scheme
+       - `test_state_change_emits_event()` - Notifies listeners
+       - `test_components_react_to_state()` - Components update on state change
+    2. Run tests (RED)
+    3. Implement simple pub/sub state manager (no external library)
+    4. Run tests (GREEN)
+    5. Refactor
+
+32. **Styling and UX Polish**
+
+    1. Create CSS files:
+       - `src/styles/base.css` - Reset, typography, colors
+       - `src/styles/components.css` - Component styles
+       - `src/styles/visualization.css` - D3 tree styles
+    2. Implement responsive layout (mobile-friendly)
+    3. Add loading states and transitions
+    4. Error message styling
+    5. Accessibility (ARIA labels, keyboard navigation)
+
+    **No tests required for styling** - manual testing in browser
 
 ### Phase 8: Integration & Polish
 
