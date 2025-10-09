@@ -28,6 +28,11 @@ class TaxonomyRepository(ABC):
         """Get a taxonomy by ID. Returns None if not found."""
         pass
 
+    @abstractmethod
+    def update(self, taxonomy_id: str, taxonomy: Taxonomy) -> Taxonomy:
+        """Update a taxonomy. Assumes taxonomy exists."""
+        pass
+
 
 class InMemoryTaxonomyRepository(TaxonomyRepository):
     """In-memory implementation of taxonomy repository."""
@@ -52,3 +57,8 @@ class InMemoryTaxonomyRepository(TaxonomyRepository):
     def get_by_id(self, taxonomy_id: str) -> Taxonomy | None:
         """Get a taxonomy by ID. Returns None if not found."""
         return self._taxonomies.get(taxonomy_id)
+
+    def update(self, taxonomy_id: str, taxonomy: Taxonomy) -> Taxonomy:
+        """Update a taxonomy. Assumes taxonomy exists."""
+        self._taxonomies[taxonomy_id] = taxonomy
+        return taxonomy

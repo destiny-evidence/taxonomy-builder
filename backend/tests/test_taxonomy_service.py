@@ -204,3 +204,74 @@ def test_get_taxonomy_by_id_raises_when_not_found(taxonomy_service, mock_reposit
 
     with pytest.raises(ValueError, match="not found"):
         taxonomy_service.get_taxonomy("nonexistent")
+
+
+def test_update_taxonomy_returns_updated_taxonomy(taxonomy_service, mock_repository):
+    """Test that update_taxonomy returns the updated taxonomy."""
+    from datetime import UTC
+
+    from taxonomy_builder.models.taxonomy import TaxonomyUpdate
+
+    existing = Taxonomy(
+        id="test-id",
+        name="Original Name",
+        uri_prefix="http://example.org/original/",
+        created_at=datetime.now(UTC),
+    )
+    updated = Taxonomy(
+        id="test-id",
+        name="Updated Name",
+        uri_prefix="http://example.org/updated/",
+        created_at=existing.created_at,
+    )
+    mock_repository.get_by_id.return_value = existing
+    mock_repository.update.return_value = updated
+
+    update_data = TaxonomyUpdate(name="Updated Name", uri_prefix="http://example.org/updated/")
+    result = taxonomy_service.update_taxonomy("test-id", update_data)
+
+    assert result == updated
+    mock_repository.update.assert_called_once()
+
+
+def test_update_taxonomy_raises_when_not_found(taxonomy_service, mock_repository):
+    """Test that update_taxonomy raises ValueError when taxonomy not found."""
+    from taxonomy_builder.models.taxonomy import TaxonomyUpdate
+
+    mock_repository.get_by_id.return_value = None
+
+    update_data = TaxonomyUpdate(name="New Name")
+    with pytest.raises(ValueError, match="not found"):
+        taxonomy_service.update_taxonomy("nonexistent", update_data)
+
+
+def test_update_taxonomy_allows_partial_updates(taxonomy_service, mock_repository):
+    """Test that update_taxonomy allows updating individual fields."""
+    from datetime import UTC
+
+    from taxonomy_builder.models.taxonomy import TaxonomyUpdate
+
+    existing = Taxonomy(
+        id="test-id",
+        name="Original Name",
+        uri_prefix="http://example.org/original/",
+        description="Original description",
+        created_at=datetime.now(UTC),
+    )
+    mock_repository.get_by_id.return_value = existing
+    # Mock update to return a copy with just the name changed
+    mock_repository.update.side_effect = lambda id, data: Taxonomy(
+        id=existing.id,
+        name=data.name if data.name else existing.name,
+        uri_prefix=data.uri_prefix if data.uri_prefix else existing.uri_prefix,
+        description=data.description if data.description is not None else existing.description,
+        created_at=existing.created_at,
+    )
+
+    # Update only name
+    update_data = TaxonomyUpdate(name="New Name Only")
+    result = taxonomy_service.update_taxonomy("test-id", update_data)
+
+    assert result.name == "New Name Only"
+    assert result.uri_prefix == existing.uri_prefix
+    assert result.description == existing.description

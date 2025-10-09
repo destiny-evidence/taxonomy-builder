@@ -161,13 +161,46 @@ taxonomy-builder/
    - 404 response: `{"detail": "Taxonomy with ID 'x' not found"}`
 
 8. **Update & Delete Taxonomy - Test First**
-   - Write test: PUT /api/taxonomies/{id} updates taxonomy
-   - Write test: DELETE /api/taxonomies/{id} removes taxonomy
-   - Write test: Both return 404 if not found
-   - Make tests fail
-   - Implement endpoints
-   - Make tests pass
-   - Refactor
+
+   **Part A: PUT /api/taxonomies/{id} (update)**
+
+   1. Write unit tests for `TaxonomyService.update_taxonomy(id, data)`:
+      - `test_update_taxonomy_returns_updated_taxonomy()` - Updates and returns taxonomy
+      - `test_update_taxonomy_raises_when_not_found()` - Raises ValueError if not found
+      - `test_update_taxonomy_allows_partial_updates()` - Can update just name, uri_prefix, or description
+   2. Write integration tests for PUT /api/taxonomies/{id}:
+      - `test_put_taxonomy_returns_200()` - Returns 200 with updated taxonomy
+      - `test_put_taxonomy_updates_fields()` - Verify fields are actually updated
+      - `test_put_taxonomy_returns_404_when_not_found()` - Returns 404
+   3. Run tests (RED)
+   4. Add `TaxonomyUpdate` Pydantic model with optional fields
+   5. Add `update()` to TaxonomyRepository
+   6. Implement `TaxonomyService.update_taxonomy(id, data)`
+   7. Add PUT /api/taxonomies/{id} endpoint - catches ValueError → 404
+   8. Run tests (GREEN)
+   9. Refactor
+
+   **Part B: DELETE /api/taxonomies/{id} (delete)**
+
+   1. Write unit tests for `TaxonomyService.delete_taxonomy(id)`:
+      - `test_delete_taxonomy_removes_taxonomy()` - Deletes successfully
+      - `test_delete_taxonomy_raises_when_not_found()` - Raises ValueError if not found
+   2. Write integration tests for DELETE /api/taxonomies/{id}:
+      - `test_delete_taxonomy_returns_204()` - Returns 204 No Content
+      - `test_delete_taxonomy_actually_deletes()` - Verify taxonomy is gone
+      - `test_delete_taxonomy_returns_404_when_not_found()` - Returns 404
+   3. Run tests (RED)
+   4. Add `delete()` to TaxonomyRepository
+   5. Implement `TaxonomyService.delete_taxonomy(id)`
+   6. Add DELETE /api/taxonomies/{id} endpoint - catches ValueError → 404
+   7. Run tests (GREEN)
+   8. Refactor
+
+   **Data Models**:
+   - `TaxonomyUpdate`: All fields optional (name, uri_prefix, description)
+   - ID cannot be changed via update
+   - Update endpoint returns updated `Taxonomy`
+   - Delete endpoint returns 204 No Content on success
 
 ### Phase 3: ConceptScheme CRUD (TDD)
 

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from taxonomy_builder.db.taxonomy_repository import InMemoryTaxonomyRepository
-from taxonomy_builder.models.taxonomy import Taxonomy, TaxonomyCreate
+from taxonomy_builder.models.taxonomy import Taxonomy, TaxonomyCreate, TaxonomyUpdate
 from taxonomy_builder.services.taxonomy_service import TaxonomyService
 
 router = APIRouter(prefix="/api/taxonomies", tags=["taxonomies"])
@@ -60,5 +60,25 @@ async def get_taxonomy(taxonomy_id: str) -> Taxonomy:
     """
     try:
         return _taxonomy_service.get_taxonomy(taxonomy_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put("/{taxonomy_id}", response_model=Taxonomy)
+async def update_taxonomy(taxonomy_id: str, update_data: TaxonomyUpdate) -> Taxonomy:
+    """Update a taxonomy.
+
+    Args:
+        taxonomy_id: The ID of the taxonomy to update
+        update_data: The fields to update
+
+    Returns:
+        The updated taxonomy
+
+    Raises:
+        HTTPException: 404 if taxonomy not found
+    """
+    try:
+        return _taxonomy_service.update_taxonomy(taxonomy_id, update_data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

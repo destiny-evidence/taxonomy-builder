@@ -226,3 +226,70 @@ def test_get_taxonomy_by_id_returns_404_when_not_found():
 
     assert response.status_code == 404
     assert "not found" in response.text.lower()
+
+
+def test_put_taxonomy_returns_200():
+    """Test that PUT /api/taxonomies/{id} returns 200 with updated taxonomy."""
+    # Create a taxonomy first
+    create_response = client.post(
+        "/api/taxonomies",
+        json={
+            "id": "update-test",
+            "name": "Original Name",
+            "uri_prefix": "http://example.org/original/",
+        },
+    )
+    assert create_response.status_code == 201
+
+    # Update it
+    update_response = client.put(
+        "/api/taxonomies/update-test",
+        json={
+            "name": "Updated Name",
+            "uri_prefix": "http://example.org/updated/",
+        },
+    )
+
+    assert update_response.status_code == 200
+    data = update_response.json()
+    assert data["id"] == "update-test"
+    assert data["name"] == "Updated Name"
+    assert data["uri_prefix"] == "http://example.org/updated/"
+
+
+def test_put_taxonomy_updates_fields():
+    """Test that PUT actually updates the taxonomy fields."""
+    # Create
+    client.post(
+        "/api/taxonomies",
+        json={
+            "id": "update-verify",
+            "name": "Original",
+            "uri_prefix": "http://example.org/original/",
+            "description": "Original description",
+        },
+    )
+
+    # Update just the name
+    client.put(
+        "/api/taxonomies/update-verify",
+        json={"name": "New Name"},
+    )
+
+    # Verify via GET
+    get_response = client.get("/api/taxonomies/update-verify")
+    data = get_response.json()
+    assert data["name"] == "New Name"
+    assert data["uri_prefix"] == "http://example.org/original/"
+    assert data["description"] == "Original description"
+
+
+def test_put_taxonomy_returns_404_when_not_found():
+    """Test that PUT /api/taxonomies/{id} returns 404 for nonexistent ID."""
+    response = client.put(
+        "/api/taxonomies/nonexistent",
+        json={"name": "New Name"},
+    )
+
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()

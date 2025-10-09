@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 
 from taxonomy_builder.db.taxonomy_repository import TaxonomyRepository
-from taxonomy_builder.models.taxonomy import Taxonomy, TaxonomyCreate
+from taxonomy_builder.models.taxonomy import Taxonomy, TaxonomyCreate, TaxonomyUpdate
 
 
 class TaxonomyService:
@@ -65,3 +65,39 @@ class TaxonomyService:
         if taxonomy is None:
             raise ValueError(f"Taxonomy with ID '{taxonomy_id}' not found")
         return taxonomy
+
+    def update_taxonomy(self, taxonomy_id: str, update_data: TaxonomyUpdate) -> Taxonomy:
+        """Update a taxonomy.
+
+        Args:
+            taxonomy_id: The ID of the taxonomy to update
+            update_data: The fields to update
+
+        Returns:
+            The updated taxonomy
+
+        Raises:
+            ValueError: If taxonomy with given ID is not found
+        """
+        existing = self.repository.get_by_id(taxonomy_id)
+        if existing is None:
+            raise ValueError(f"Taxonomy with ID '{taxonomy_id}' not found")
+
+        # Apply updates - only update fields that are provided
+        new_name = update_data.name if update_data.name is not None else existing.name
+        new_uri_prefix = (
+            update_data.uri_prefix if update_data.uri_prefix is not None else existing.uri_prefix
+        )
+        new_description = (
+            update_data.description if update_data.description is not None else existing.description
+        )
+
+        updated = Taxonomy(
+            id=existing.id,
+            name=new_name,
+            uri_prefix=new_uri_prefix,
+            description=new_description,
+            created_at=existing.created_at,
+        )
+
+        return self.repository.update(taxonomy_id, updated)

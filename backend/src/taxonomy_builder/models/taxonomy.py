@@ -35,6 +35,22 @@ class TaxonomyCreate(BaseModel):
         return v
 
 
+class TaxonomyUpdate(BaseModel):
+    """Model for updating a taxonomy. All fields are optional."""
+
+    name: str | None = Field(None, description="Human-readable name")
+    uri_prefix: str | None = Field(None, description="URI prefix for concepts in this taxonomy")
+    description: str | None = Field(None, description="Optional description")
+
+    @field_validator("uri_prefix")
+    @classmethod
+    def validate_uri_prefix(cls, v: str | None) -> str | None:
+        """Validate that URI prefix is a valid URI if provided."""
+        if v is not None and not v.startswith(("http://", "https://")):
+            raise ValueError("Invalid URI prefix: must start with http:// or https://")
+        return v
+
+
 class Taxonomy(BaseModel):
     """Taxonomy domain model."""
 
