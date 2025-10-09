@@ -213,102 +213,109 @@ taxonomy-builder/
 
 **Overview**: ConceptSchemes are collections of concepts within a taxonomy. Each scheme belongs to a taxonomy and inherits its URI prefix.
 
-9. **Create ConceptScheme - Test First**
+9. **Create ConceptScheme - Test First** ✓
 
-   **Part A: POST /api/taxonomies/{taxonomy_id}/schemes (create)**
+   **Part A: POST /api/taxonomies/{taxonomy_id}/schemes (create)** ✓
 
-   1. Write unit tests for `ConceptSchemeService.create_scheme()`:
+   1. Write unit tests for `ConceptSchemeService.create_scheme()`: ✓
       - `test_create_scheme_returns_scheme()` - Creates and returns scheme
       - `test_create_scheme_requires_valid_taxonomy()` - Raises ValueError if taxonomy not found
       - `test_create_scheme_rejects_duplicate_id()` - Raises ValueError for duplicate ID within taxonomy
       - `test_create_scheme_generates_uri()` - URI uses taxonomy's uri_prefix + scheme id
-   2. Write integration tests for POST /api/taxonomies/{taxonomy_id}/schemes:
+   2. Write integration tests for POST /api/taxonomies/{taxonomy_id}/schemes: ✓
       - `test_post_scheme_returns_201()` - Returns 201 with created scheme
       - `test_post_scheme_returns_404_for_invalid_taxonomy()` - Returns 404
       - `test_post_scheme_returns_409_for_duplicate()` - Returns 409 Conflict
-   3. Run tests (RED)
-   4. Create `ConceptScheme` and `ConceptSchemeCreate` Pydantic models
-   5. Add `ConceptSchemeRepository` with save/exists methods
-   6. Implement `ConceptSchemeService.create_scheme()`
-   7. Add POST /api/taxonomies/{taxonomy_id}/schemes endpoint
-   8. Run tests (GREEN)
-   9. Refactor
+   3. Run tests (RED) ✓
+   4. Create `ConceptScheme` and `ConceptSchemeCreate` Pydantic models ✓
+   5. Add `ConceptSchemeRepository` with save/exists methods ✓
+   6. Implement `ConceptSchemeService.create_scheme()` ✓
+   7. Add POST /api/taxonomies/{taxonomy_id}/schemes endpoint ✓
+   8. Run tests (GREEN) ✓
+   9. Refactor ✓
 
-   **Data Models**:
+   **Data Models**: ✓
    - `ConceptSchemeCreate`: id, name, description (optional)
    - `ConceptScheme`: id, taxonomy_id, name, uri, description, created_at
    - URI format: `{taxonomy.uri_prefix}{scheme.id}`
 
-10. **List & Get ConceptScheme - Test First**
+10. **List & Get ConceptScheme - Test First** ✓
 
-    **Part A: GET /api/taxonomies/{taxonomy_id}/schemes (list)**
+    **Part A: GET /api/taxonomies/{taxonomy_id}/schemes (list)** ✓
 
-    1. Write unit tests for `ConceptSchemeService.list_schemes(taxonomy_id)`:
+    1. Write unit tests for `ConceptSchemeService.list_schemes(taxonomy_id)`: ✓
        - `test_list_schemes_returns_all_for_taxonomy()` - Returns only schemes for that taxonomy
        - `test_list_schemes_requires_valid_taxonomy()` - Raises ValueError if taxonomy not found
        - `test_list_schemes_returns_empty_list()` - Returns [] when none exist
-    2. Write integration tests for GET /api/taxonomies/{taxonomy_id}/schemes:
+    2. Write integration tests for GET /api/taxonomies/{taxonomy_id}/schemes: ✓
        - `test_get_schemes_returns_200()` - Returns 200 with list
        - `test_get_schemes_filters_by_taxonomy()` - Only returns schemes for specified taxonomy
        - `test_get_schemes_returns_404_for_invalid_taxonomy()` - Returns 404
-    3. Run tests (RED)
-    4. Add `get_by_taxonomy()` to ConceptSchemeRepository
-    5. Implement `ConceptSchemeService.list_schemes()`
-    6. Add GET /api/taxonomies/{taxonomy_id}/schemes endpoint
-    7. Run tests (GREEN)
-    8. Refactor
+    3. Run tests (RED) ✓
+    4. Add `get_by_taxonomy()` to ConceptSchemeRepository ✓
+    5. Implement `ConceptSchemeService.list_schemes()` ✓
+    6. Add GET /api/taxonomies/{taxonomy_id}/schemes endpoint ✓
+    7. Run tests (GREEN) ✓
+    8. Refactor ✓
 
-    **Part B: GET /api/schemes/{scheme_id} (get by ID)**
+    **Part B: GET /api/schemes/{scheme_id} (get by ID)** ✓
 
-    1. Write unit tests for `ConceptSchemeService.get_scheme(scheme_id)`:
+    1. Write unit tests for `ConceptSchemeService.get_scheme(scheme_id)`: ✓
        - `test_get_scheme_returns_scheme()` - Returns requested scheme
        - `test_get_scheme_raises_when_not_found()` - Raises ValueError
-    2. Write integration tests for GET /api/schemes/{scheme_id}:
+    2. Write integration tests for GET /api/schemes/{scheme_id}`: ✓
        - `test_get_scheme_returns_200()` - Returns 200 with scheme
        - `test_get_scheme_returns_404_when_not_found()` - Returns 404
-    3. Run tests (RED)
-    4. Add `get_by_id()` to ConceptSchemeRepository
-    5. Implement `ConceptSchemeService.get_scheme()`
-    6. Add GET /api/schemes/{scheme_id} endpoint
-    7. Run tests (GREEN)
-    8. Refactor
+    3. Run tests (RED) ✓
+    4. Add `get_by_id()` to ConceptSchemeRepository ✓
+    5. Implement `ConceptSchemeService.get_scheme()` ✓
+    6. Add GET /api/schemes/{scheme_id} endpoint ✓
+    7. Run tests (GREEN) ✓
+    8. Refactor ✓
 
-11. **Update & Delete ConceptScheme - Test First**
+11. **Update & Delete ConceptScheme - Test First** ✓
 
-    **Part A: PUT /api/schemes/{scheme_id} (update)**
+    **Part A: PUT /api/schemes/{scheme_id} (update)** ✓
 
-    1. Write unit tests for `ConceptSchemeService.update_scheme()`:
+    1. Write unit tests for `ConceptSchemeService.update_scheme()`: ✓
        - `test_update_scheme_returns_updated()` - Updates and returns scheme
        - `test_update_scheme_raises_when_not_found()` - Raises ValueError
        - `test_update_scheme_allows_partial_updates()` - Can update name or description
-    2. Write integration tests for PUT /api/schemes/{scheme_id}:
+    2. Write integration tests for PUT /api/schemes/{scheme_id}: ✓
        - `test_put_scheme_returns_200()` - Returns 200 with updated scheme
        - `test_put_scheme_returns_404_when_not_found()` - Returns 404
-    3. Run tests (RED)
-    4. Create `ConceptSchemeUpdate` Pydantic model
-    5. Add `update()` to ConceptSchemeRepository
-    6. Implement `ConceptSchemeService.update_scheme()`
-    7. Add PUT /api/schemes/{scheme_id} endpoint
-    8. Run tests (GREEN)
-    9. Refactor
+    3. Run tests (RED) ✓
+    4. Create `ConceptSchemeUpdate` Pydantic model ✓
+    5. Add `update()` to ConceptSchemeRepository ✓
+    6. Implement `ConceptSchemeService.update_scheme()` ✓
+    7. Add PUT /api/schemes/{scheme_id} endpoint ✓
+    8. Run tests (GREEN) ✓
+    9. Refactor ✓
 
-    **Part B: DELETE /api/schemes/{scheme_id} (delete)**
+    **Part B: DELETE /api/schemes/{scheme_id} (delete)** ✓
 
-    1. Write unit tests for `ConceptSchemeService.delete_scheme()`:
+    1. Write unit tests for `ConceptSchemeService.delete_scheme()`: ✓
        - `test_delete_scheme_removes_scheme()` - Deletes successfully
        - `test_delete_scheme_raises_when_not_found()` - Raises ValueError
        - `test_delete_scheme_cascades_to_concepts()` - Deletes all concepts in scheme (future)
-    2. Write integration tests for DELETE /api/schemes/{scheme_id}:
+    2. Write integration tests for DELETE /api/schemes/{scheme_id}: ✓
        - `test_delete_scheme_returns_204()` - Returns 204 No Content
        - `test_delete_scheme_returns_404_when_not_found()` - Returns 404
-    3. Run tests (RED)
-    4. Add `delete()` to ConceptSchemeRepository
-    5. Implement `ConceptSchemeService.delete_scheme()`
-    6. Add DELETE /api/schemes/{scheme_id} endpoint
-    7. Run tests (GREEN)
-    8. Refactor
+    3. Run tests (RED) ✓
+    4. Add `delete()` to ConceptSchemeRepository ✓
+    5. Implement `ConceptSchemeService.delete_scheme()` ✓
+    6. Add DELETE /api/schemes/{scheme_id} endpoint ✓
+    7. Run tests (GREEN) ✓
+    8. Refactor ✓
 
-    **API Routes Summary**:
+    **Implementation**: ✓
+    - Added `ConceptScheme`, `ConceptSchemeCreate`, and `ConceptSchemeUpdate` Pydantic models
+    - Added `InMemoryConceptSchemeRepository` with all CRUD methods
+    - `ConceptSchemeService` with dependency on TaxonomyService for validation
+    - API routes for all ConceptScheme operations
+    - 64 tests passing (26 new ConceptScheme tests), all code passes ruff checks
+
+    **API Routes Summary**: ✓
     - POST /api/taxonomies/{taxonomy_id}/schemes - Create scheme (201)
     - GET /api/taxonomies/{taxonomy_id}/schemes - List schemes for taxonomy (200)
     - GET /api/schemes/{scheme_id} - Get scheme by ID (200/404)

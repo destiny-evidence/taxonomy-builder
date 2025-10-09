@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from taxonomy_builder.api import taxonomies
+from taxonomy_builder.api import concept_schemes, taxonomies
 
 app = FastAPI(
     title="Taxonomy Builder API",
@@ -22,6 +22,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(taxonomies.router)
+app.include_router(concept_schemes.router)
 
 
 @app.get("/health")
