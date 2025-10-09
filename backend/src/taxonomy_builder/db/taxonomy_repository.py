@@ -23,6 +23,11 @@ class TaxonomyRepository(ABC):
         """Get all taxonomies."""
         pass
 
+    @abstractmethod
+    def get_by_id(self, taxonomy_id: str) -> Taxonomy | None:
+        """Get a taxonomy by ID. Returns None if not found."""
+        pass
+
 
 class InMemoryTaxonomyRepository(TaxonomyRepository):
     """In-memory implementation of taxonomy repository."""
@@ -43,3 +48,7 @@ class InMemoryTaxonomyRepository(TaxonomyRepository):
     def get_all(self) -> list[Taxonomy]:
         """Get all taxonomies from the store."""
         return list(self._taxonomies.values())
+
+    def get_by_id(self, taxonomy_id: str) -> Taxonomy | None:
+        """Get a taxonomy by ID. Returns None if not found."""
+        return self._taxonomies.get(taxonomy_id)

@@ -43,3 +43,22 @@ async def list_taxonomies() -> list[Taxonomy]:
         List of all taxonomies
     """
     return _taxonomy_service.list_taxonomies()
+
+
+@router.get("/{taxonomy_id}", response_model=Taxonomy)
+async def get_taxonomy(taxonomy_id: str) -> Taxonomy:
+    """Get a taxonomy by ID.
+
+    Args:
+        taxonomy_id: The ID of the taxonomy to retrieve
+
+    Returns:
+        The requested taxonomy
+
+    Raises:
+        HTTPException: 404 if taxonomy not found
+    """
+    try:
+        return _taxonomy_service.get_taxonomy(taxonomy_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

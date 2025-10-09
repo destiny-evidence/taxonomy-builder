@@ -48,3 +48,20 @@ class TaxonomyService:
             List of all taxonomies
         """
         return self.repository.get_all()
+
+    def get_taxonomy(self, taxonomy_id: str) -> Taxonomy:
+        """Get a taxonomy by ID.
+
+        Args:
+            taxonomy_id: The ID of the taxonomy to retrieve
+
+        Returns:
+            The requested taxonomy
+
+        Raises:
+            ValueError: If taxonomy with given ID is not found
+        """
+        taxonomy = self.repository.get_by_id(taxonomy_id)
+        if taxonomy is None:
+            raise ValueError(f"Taxonomy with ID '{taxonomy_id}' not found")
+        return taxonomy

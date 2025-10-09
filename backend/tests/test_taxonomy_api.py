@@ -195,3 +195,34 @@ def test_get_taxonomies_returns_created_taxonomies():
     ids = [t["id"] for t in data]
     assert "list-test-1" in ids
     assert "list-test-2" in ids
+
+
+def test_get_taxonomy_by_id_returns_200():
+    """Test that GET /api/taxonomies/{id} returns 200 with taxonomy."""
+    # Create a taxonomy
+    create_response = client.post(
+        "/api/taxonomies",
+        json={
+            "id": "get-test",
+            "name": "Get Test",
+            "uri_prefix": "http://example.org/get/",
+        },
+    )
+    assert create_response.status_code == 201
+
+    # Get it by ID
+    response = client.get("/api/taxonomies/get-test")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "get-test"
+    assert data["name"] == "Get Test"
+    assert data["uri_prefix"] == "http://example.org/get/"
+
+
+def test_get_taxonomy_by_id_returns_404_when_not_found():
+    """Test that GET /api/taxonomies/{id} returns 404 for nonexistent ID."""
+    response = client.get("/api/taxonomies/nonexistent")
+
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()

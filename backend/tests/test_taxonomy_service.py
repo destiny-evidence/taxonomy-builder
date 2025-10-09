@@ -178,3 +178,29 @@ def test_list_taxonomies_returns_empty_list(taxonomy_service, mock_repository):
 
     assert result == []
     mock_repository.get_all.assert_called_once()
+
+
+def test_get_taxonomy_by_id_returns_taxonomy(taxonomy_service, mock_repository):
+    """Test that get_taxonomy returns the requested taxonomy."""
+    from datetime import UTC
+
+    taxonomy = Taxonomy(
+        id="test-id",
+        name="Test Taxonomy",
+        uri_prefix="http://example.org/test/",
+        created_at=datetime.now(UTC),
+    )
+    mock_repository.get_by_id.return_value = taxonomy
+
+    result = taxonomy_service.get_taxonomy("test-id")
+
+    assert result == taxonomy
+    mock_repository.get_by_id.assert_called_once_with("test-id")
+
+
+def test_get_taxonomy_by_id_raises_when_not_found(taxonomy_service, mock_repository):
+    """Test that get_taxonomy raises ValueError when taxonomy not found."""
+    mock_repository.get_by_id.return_value = None
+
+    with pytest.raises(ValueError, match="not found"):
+        taxonomy_service.get_taxonomy("nonexistent")
