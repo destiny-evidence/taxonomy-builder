@@ -211,69 +211,357 @@ taxonomy-builder/
 
 ### Phase 3: ConceptScheme CRUD (TDD)
 
-9. **Create ConceptScheme - Test First**
-   - Write test: POST /api/taxonomies/{taxonomy_id}/schemes creates scheme
-   - Write test: ConceptScheme has name, URI (generated from taxonomy prefix)
-   - Make tests fail
-   - Define ConceptScheme Pydantic model
-   - Implement endpoint
-   - Make tests pass
-   - Refactor
+**Overview**: ConceptSchemes are collections of concepts within a taxonomy. Each scheme belongs to a taxonomy and inherits its URI prefix.
 
-10. **ConceptScheme CRUD - Test First**
-    - Write tests: GET, PUT, DELETE for concept schemes
-    - Write test: Schemes are scoped to taxonomy
-    - Make tests fail
-    - Implement endpoints
-    - Make tests pass
-    - Refactor
+9. **Create ConceptScheme - Test First**
+
+   **Part A: POST /api/taxonomies/{taxonomy_id}/schemes (create)**
+
+   1. Write unit tests for `ConceptSchemeService.create_scheme()`:
+      - `test_create_scheme_returns_scheme()` - Creates and returns scheme
+      - `test_create_scheme_requires_valid_taxonomy()` - Raises ValueError if taxonomy not found
+      - `test_create_scheme_rejects_duplicate_id()` - Raises ValueError for duplicate ID within taxonomy
+      - `test_create_scheme_generates_uri()` - URI uses taxonomy's uri_prefix + scheme id
+   2. Write integration tests for POST /api/taxonomies/{taxonomy_id}/schemes:
+      - `test_post_scheme_returns_201()` - Returns 201 with created scheme
+      - `test_post_scheme_returns_404_for_invalid_taxonomy()` - Returns 404
+      - `test_post_scheme_returns_409_for_duplicate()` - Returns 409 Conflict
+   3. Run tests (RED)
+   4. Create `ConceptScheme` and `ConceptSchemeCreate` Pydantic models
+   5. Add `ConceptSchemeRepository` with save/exists methods
+   6. Implement `ConceptSchemeService.create_scheme()`
+   7. Add POST /api/taxonomies/{taxonomy_id}/schemes endpoint
+   8. Run tests (GREEN)
+   9. Refactor
+
+   **Data Models**:
+   - `ConceptSchemeCreate`: id, name, description (optional)
+   - `ConceptScheme`: id, taxonomy_id, name, uri, description, created_at
+   - URI format: `{taxonomy.uri_prefix}{scheme.id}`
+
+10. **List & Get ConceptScheme - Test First**
+
+    **Part A: GET /api/taxonomies/{taxonomy_id}/schemes (list)**
+
+    1. Write unit tests for `ConceptSchemeService.list_schemes(taxonomy_id)`:
+       - `test_list_schemes_returns_all_for_taxonomy()` - Returns only schemes for that taxonomy
+       - `test_list_schemes_requires_valid_taxonomy()` - Raises ValueError if taxonomy not found
+       - `test_list_schemes_returns_empty_list()` - Returns [] when none exist
+    2. Write integration tests for GET /api/taxonomies/{taxonomy_id}/schemes:
+       - `test_get_schemes_returns_200()` - Returns 200 with list
+       - `test_get_schemes_filters_by_taxonomy()` - Only returns schemes for specified taxonomy
+       - `test_get_schemes_returns_404_for_invalid_taxonomy()` - Returns 404
+    3. Run tests (RED)
+    4. Add `get_by_taxonomy()` to ConceptSchemeRepository
+    5. Implement `ConceptSchemeService.list_schemes()`
+    6. Add GET /api/taxonomies/{taxonomy_id}/schemes endpoint
+    7. Run tests (GREEN)
+    8. Refactor
+
+    **Part B: GET /api/schemes/{scheme_id} (get by ID)**
+
+    1. Write unit tests for `ConceptSchemeService.get_scheme(scheme_id)`:
+       - `test_get_scheme_returns_scheme()` - Returns requested scheme
+       - `test_get_scheme_raises_when_not_found()` - Raises ValueError
+    2. Write integration tests for GET /api/schemes/{scheme_id}:
+       - `test_get_scheme_returns_200()` - Returns 200 with scheme
+       - `test_get_scheme_returns_404_when_not_found()` - Returns 404
+    3. Run tests (RED)
+    4. Add `get_by_id()` to ConceptSchemeRepository
+    5. Implement `ConceptSchemeService.get_scheme()`
+    6. Add GET /api/schemes/{scheme_id} endpoint
+    7. Run tests (GREEN)
+    8. Refactor
+
+11. **Update & Delete ConceptScheme - Test First**
+
+    **Part A: PUT /api/schemes/{scheme_id} (update)**
+
+    1. Write unit tests for `ConceptSchemeService.update_scheme()`:
+       - `test_update_scheme_returns_updated()` - Updates and returns scheme
+       - `test_update_scheme_raises_when_not_found()` - Raises ValueError
+       - `test_update_scheme_allows_partial_updates()` - Can update name or description
+    2. Write integration tests for PUT /api/schemes/{scheme_id}:
+       - `test_put_scheme_returns_200()` - Returns 200 with updated scheme
+       - `test_put_scheme_returns_404_when_not_found()` - Returns 404
+    3. Run tests (RED)
+    4. Create `ConceptSchemeUpdate` Pydantic model
+    5. Add `update()` to ConceptSchemeRepository
+    6. Implement `ConceptSchemeService.update_scheme()`
+    7. Add PUT /api/schemes/{scheme_id} endpoint
+    8. Run tests (GREEN)
+    9. Refactor
+
+    **Part B: DELETE /api/schemes/{scheme_id} (delete)**
+
+    1. Write unit tests for `ConceptSchemeService.delete_scheme()`:
+       - `test_delete_scheme_removes_scheme()` - Deletes successfully
+       - `test_delete_scheme_raises_when_not_found()` - Raises ValueError
+       - `test_delete_scheme_cascades_to_concepts()` - Deletes all concepts in scheme (future)
+    2. Write integration tests for DELETE /api/schemes/{scheme_id}:
+       - `test_delete_scheme_returns_204()` - Returns 204 No Content
+       - `test_delete_scheme_returns_404_when_not_found()` - Returns 404
+    3. Run tests (RED)
+    4. Add `delete()` to ConceptSchemeRepository
+    5. Implement `ConceptSchemeService.delete_scheme()`
+    6. Add DELETE /api/schemes/{scheme_id} endpoint
+    7. Run tests (GREEN)
+    8. Refactor
+
+    **API Routes Summary**:
+    - POST /api/taxonomies/{taxonomy_id}/schemes - Create scheme (201)
+    - GET /api/taxonomies/{taxonomy_id}/schemes - List schemes for taxonomy (200)
+    - GET /api/schemes/{scheme_id} - Get scheme by ID (200/404)
+    - PUT /api/schemes/{scheme_id} - Update scheme (200/404)
+    - DELETE /api/schemes/{scheme_id} - Delete scheme (204/404)
 
 ### Phase 4: Concept CRUD & Hierarchy (TDD)
 
-11. **Create Concept - Test First**
-    - Write test: POST /api/schemes/{scheme_id}/concepts creates concept
-    - Write test: Concept has prefLabel, URI (from taxonomy prefix)
-    - Make tests fail
-    - Define Concept Pydantic model
-    - Implement endpoint
-    - Make tests pass
-    - Refactor
+**Overview**: Concepts are individual nodes in a taxonomy with SKOS properties (prefLabel, definition, etc.) and hierarchical relationships (broader/narrower).
 
-12. **Concept Hierarchy - Test First**
-    - Write test: Add broader/narrower relationships
-    - Write test: GET concept includes hierarchy info
-    - Write test: Prevent circular relationships
-    - Make tests fail
-    - Implement relationship management
-    - Make tests pass
-    - Refactor
+12. **Create Concept - Test First**
 
-13. **Concept CRUD & Search - Test First**
-    - Write tests: GET, PUT, DELETE for concepts
-    - Write test: Search concepts by prefLabel
-    - Make tests fail
-    - Implement endpoints
-    - Make tests pass
-    - Refactor
+    **Part A: POST /api/schemes/{scheme_id}/concepts (create)**
+
+    1. Write unit tests for `ConceptService.create_concept()`:
+       - `test_create_concept_returns_concept()` - Creates and returns concept
+       - `test_create_concept_requires_valid_scheme()` - Raises ValueError if scheme not found
+       - `test_create_concept_rejects_duplicate_id()` - Raises ValueError for duplicate ID within scheme
+       - `test_create_concept_generates_uri()` - URI uses scheme's taxonomy uri_prefix + concept id
+       - `test_create_concept_validates_pref_label()` - prefLabel is required
+    2. Write integration tests for POST /api/schemes/{scheme_id}/concepts:
+       - `test_post_concept_returns_201()` - Returns 201 with created concept
+       - `test_post_concept_returns_404_for_invalid_scheme()` - Returns 404
+       - `test_post_concept_returns_409_for_duplicate()` - Returns 409 Conflict
+    3. Run tests (RED)
+    4. Create `Concept` and `ConceptCreate` Pydantic models
+    5. Add `ConceptRepository` with save/exists methods
+    6. Implement `ConceptService.create_concept()`
+    7. Add POST /api/schemes/{scheme_id}/concepts endpoint
+    8. Run tests (GREEN)
+    9. Refactor
+
+    **Data Models**:
+    - `ConceptCreate`: id, pref_label, definition (optional), alt_labels (optional list)
+    - `Concept`: id, scheme_id, uri, pref_label, definition, alt_labels, broader_ids, narrower_ids, created_at
+    - URI format: `{scheme.taxonomy.uri_prefix}{concept.id}`
+    - Initially, broader_ids and narrower_ids are empty arrays
+
+13. **List & Get Concept - Test First**
+
+    **Part A: GET /api/schemes/{scheme_id}/concepts (list)**
+
+    1. Write unit tests for `ConceptService.list_concepts(scheme_id)`:
+       - `test_list_concepts_returns_all_for_scheme()` - Returns only concepts for that scheme
+       - `test_list_concepts_requires_valid_scheme()` - Raises ValueError if scheme not found
+       - `test_list_concepts_returns_empty_list()` - Returns [] when none exist
+    2. Write integration tests for GET /api/schemes/{scheme_id}/concepts:
+       - `test_get_concepts_returns_200()` - Returns 200 with list
+       - `test_get_concepts_filters_by_scheme()` - Only returns concepts for specified scheme
+       - `test_get_concepts_returns_404_for_invalid_scheme()` - Returns 404
+    3. Run tests (RED)
+    4. Add `get_by_scheme()` to ConceptRepository
+    5. Implement `ConceptService.list_concepts()`
+    6. Add GET /api/schemes/{scheme_id}/concepts endpoint
+    7. Run tests (GREEN)
+    8. Refactor
+
+    **Part B: GET /api/concepts/{concept_id} (get by ID)**
+
+    1. Write unit tests for `ConceptService.get_concept(concept_id)`:
+       - `test_get_concept_returns_concept()` - Returns requested concept
+       - `test_get_concept_raises_when_not_found()` - Raises ValueError
+       - `test_get_concept_includes_relationships()` - Returns broader_ids and narrower_ids
+    2. Write integration tests for GET /api/concepts/{concept_id}:
+       - `test_get_concept_returns_200()` - Returns 200 with concept
+       - `test_get_concept_returns_404_when_not_found()` - Returns 404
+    3. Run tests (RED)
+    4. Add `get_by_id()` to ConceptRepository
+    5. Implement `ConceptService.get_concept()`
+    6. Add GET /api/concepts/{concept_id} endpoint
+    7. Run tests (GREEN)
+    8. Refactor
+
+14. **Update & Delete Concept - Test First**
+
+    **Part A: PUT /api/concepts/{concept_id} (update)**
+
+    1. Write unit tests for `ConceptService.update_concept()`:
+       - `test_update_concept_returns_updated()` - Updates and returns concept
+       - `test_update_concept_raises_when_not_found()` - Raises ValueError
+       - `test_update_concept_allows_partial_updates()` - Can update prefLabel, definition, altLabels
+    2. Write integration tests for PUT /api/concepts/{concept_id}:
+       - `test_put_concept_returns_200()` - Returns 200 with updated concept
+       - `test_put_concept_returns_404_when_not_found()` - Returns 404
+    3. Run tests (RED)
+    4. Create `ConceptUpdate` Pydantic model
+    5. Add `update()` to ConceptRepository
+    6. Implement `ConceptService.update_concept()`
+    7. Add PUT /api/concepts/{concept_id} endpoint
+    8. Run tests (GREEN)
+    9. Refactor
+
+    **Part B: DELETE /api/concepts/{concept_id} (delete)**
+
+    1. Write unit tests for `ConceptService.delete_concept()`:
+       - `test_delete_concept_removes_concept()` - Deletes successfully
+       - `test_delete_concept_raises_when_not_found()` - Raises ValueError
+       - `test_delete_concept_updates_relationships()` - Removes from broader/narrower of related concepts
+    2. Write integration tests for DELETE /api/concepts/{concept_id}:
+       - `test_delete_concept_returns_204()` - Returns 204 No Content
+       - `test_delete_concept_returns_404_when_not_found()` - Returns 404
+    3. Run tests (RED)
+    4. Add `delete()` to ConceptRepository
+    5. Implement `ConceptService.delete_concept()` with relationship cleanup
+    6. Add DELETE /api/concepts/{concept_id} endpoint
+    7. Run tests (GREEN)
+    8. Refactor
+
+15. **Concept Hierarchy Relationships - Test First**
+
+    **Part A: POST /api/concepts/{concept_id}/broader/{broader_id} (add broader)**
+
+    1. Write unit tests for `ConceptService.add_broader()`:
+       - `test_add_broader_creates_bidirectional_link()` - Updates both concepts
+       - `test_add_broader_raises_for_invalid_concepts()` - Raises ValueError if either not found
+       - `test_add_broader_prevents_self_reference()` - Raises ValueError if concept_id == broader_id
+       - `test_add_broader_prevents_cycles()` - Raises ValueError if would create cycle
+    2. Write integration tests for POST /api/concepts/{concept_id}/broader/{broader_id}:
+       - `test_post_broader_returns_200()` - Returns 200 with updated concept
+       - `test_post_broader_returns_404_for_invalid_concept()` - Returns 404
+       - `test_post_broader_returns_400_for_cycle()` - Returns 400 Bad Request
+    3. Run tests (RED)
+    4. Implement `ConceptService.add_broader()` with cycle detection
+    5. Add POST /api/concepts/{concept_id}/broader/{broader_id} endpoint
+    6. Run tests (GREEN)
+    7. Refactor
+
+    **Part B: DELETE /api/concepts/{concept_id}/broader/{broader_id} (remove broader)**
+
+    1. Write unit tests for `ConceptService.remove_broader()`:
+       - `test_remove_broader_removes_bidirectional_link()` - Updates both concepts
+       - `test_remove_broader_raises_for_invalid_concepts()` - Raises ValueError if either not found
+       - `test_remove_broader_handles_nonexistent_relationship()` - No error if relationship doesn't exist
+    2. Write integration tests for DELETE /api/concepts/{concept_id}/broader/{broader_id}:
+       - `test_delete_broader_returns_200()` - Returns 200 with updated concept
+       - `test_delete_broader_returns_404_for_invalid_concept()` - Returns 404
+    3. Run tests (RED)
+    4. Implement `ConceptService.remove_broader()`
+    5. Add DELETE /api/concepts/{concept_id}/broader/{broader_id} endpoint
+    6. Run tests (GREEN)
+    7. Refactor
+
+    **API Routes Summary**:
+    - POST /api/schemes/{scheme_id}/concepts - Create concept (201)
+    - GET /api/schemes/{scheme_id}/concepts - List concepts for scheme (200)
+    - GET /api/concepts/{concept_id} - Get concept by ID (200/404)
+    - PUT /api/concepts/{concept_id} - Update concept (200/404)
+    - DELETE /api/concepts/{concept_id} - Delete concept (204/404)
+    - POST /api/concepts/{concept_id}/broader/{broader_id} - Add broader relationship (200/404/400)
+    - DELETE /api/concepts/{concept_id}/broader/{broader_id} - Remove broader relationship (200/404)
+
+    **Cycle Detection**: Use depth-first search to detect cycles when adding broader relationships
 
 ### Phase 5: Persistence Layer (TDD)
 
-14. **SQLite Storage - Test First**
-    - Write tests for database operations (create, read, update, delete)
-    - Write test for data persistence across app restarts
-    - Make tests fail
-    - Implement SQLite storage layer
-    - Migrate from in-memory to SQLite
-    - Make tests pass
-    - Refactor
+**Overview**: Migrate from in-memory storage to SQLite for data persistence. Keep the repository abstraction intact.
 
-15. **SKOS Serialization - Test First**
-    - Write test: Export taxonomy as SKOS/Turtle
-    - Write test: Validate SKOS structure with RDFLib
-    - Make tests fail
-    - Implement SKOS export using RDFLib
-    - Make tests pass
-    - Refactor
+16. **SQLite Repository Implementation - Test First**
+
+    **Part A: Database Schema & Setup**
+
+    1. Design SQLite schema:
+       - `taxonomies` table: id (TEXT PK), name, uri_prefix, description, created_at
+       - `concept_schemes` table: id (TEXT PK), taxonomy_id (FK), name, uri, description, created_at
+       - `concepts` table: id (TEXT PK), scheme_id (FK), uri, pref_label, definition, alt_labels (JSON), created_at
+       - `concept_relationships` table: concept_id (FK), broader_id (FK), UNIQUE(concept_id, broader_id)
+    2. Create database initialization script
+    3. Write migration utility to convert in-memory data to SQLite
+
+    **Part B: SQLite Taxonomy Repository**
+
+    1. Write integration tests for `SQLiteTaxonomyRepository`:
+       - `test_save_persists_to_database()` - Data survives repository recreation
+       - `test_get_by_id_retrieves_from_database()` - Retrieves saved data
+       - `test_update_modifies_database()` - Updates persist
+       - `test_delete_removes_from_database()` - Deletions persist
+       - `test_concurrent_access()` - Multiple repository instances work correctly
+    2. Run tests (RED)
+    3. Implement `SQLiteTaxonomyRepository` implementing `TaxonomyRepository` interface
+    4. Update service to use SQLite repository (via dependency injection)
+    5. Run tests (GREEN)
+    6. Refactor
+
+    **Part C: SQLite ConceptScheme & Concept Repositories**
+
+    1. Write integration tests for `SQLiteConceptSchemeRepository`:
+       - Same pattern as Taxonomy: save, get, update, delete, persistence
+       - `test_get_by_taxonomy_filters_correctly()` - Retrieves only schemes for taxonomy
+    2. Write integration tests for `SQLiteConceptRepository`:
+       - Same pattern as Taxonomy: save, get, update, delete, persistence
+       - `test_get_by_scheme_filters_correctly()` - Retrieves only concepts for scheme
+       - `test_relationships_persist()` - broader/narrower relationships survive restart
+    3. Run tests (RED)
+    4. Implement `SQLiteConceptSchemeRepository` and `SQLiteConceptRepository`
+    5. Update services to use SQLite repositories
+    6. Run tests (GREEN)
+    7. Refactor
+
+    **Part D: Repository Factory & Configuration**
+
+    1. Create repository factory to switch between in-memory and SQLite
+    2. Add configuration for database file path
+    3. Update main.py to use factory pattern
+    4. Keep in-memory repositories for testing (faster)
+    5. Use SQLite repositories for production
+
+    **Database File**: `taxonomy_builder.db` in project root (configurable via env var)
+
+17. **SKOS Export - Test First**
+
+    **Part A: GET /api/taxonomies/{taxonomy_id}/export/turtle (export)**
+
+    1. Write unit tests for `SkosExportService.export_taxonomy()`:
+       - `test_export_creates_skos_concept_scheme()` - Creates skos:ConceptScheme for each scheme
+       - `test_export_creates_skos_concepts()` - Creates skos:Concept for each concept
+       - `test_export_includes_broader_narrower()` - Includes skos:broader and skos:narrower
+       - `test_export_includes_labels()` - Includes skos:prefLabel and skos:altLabel
+       - `test_export_includes_definitions()` - Includes skos:definition
+    2. Write integration tests for GET /api/taxonomies/{taxonomy_id}/export/turtle:
+       - `test_export_returns_turtle_content_type()` - Returns text/turtle
+       - `test_export_returns_valid_rdf()` - Can be parsed by RDFLib
+       - `test_export_returns_404_for_invalid_taxonomy()` - Returns 404
+    3. Run tests (RED)
+    4. Implement `SkosExportService` using RDFLib
+    5. Add GET /api/taxonomies/{taxonomy_id}/export/turtle endpoint
+    6. Run tests (GREEN)
+    7. Refactor
+
+    **Part B: Validation & Additional Formats**
+
+    1. Write tests for SKOS validation:
+       - `test_export_validates_against_skos_schema()` - Valid SKOS structure
+       - `test_export_handles_empty_taxonomy()` - Returns valid RDF even if no schemes/concepts
+    2. Write tests for JSON-LD export:
+       - `test_export_jsonld_format()` - Returns JSON-LD when requested
+    3. Run tests (RED)
+    4. Implement validation and JSON-LD export
+    5. Add GET /api/taxonomies/{taxonomy_id}/export/jsonld endpoint
+    6. Run tests (GREEN)
+    7. Refactor
+
+    **SKOS Mapping**:
+    - Taxonomy → `skos:Collection` (container for multiple ConceptSchemes)
+    - ConceptScheme → `skos:ConceptScheme`
+    - Concept → `skos:Concept`
+    - concept.pref_label → `skos:prefLabel`
+    - concept.alt_labels → `skos:altLabel`
+    - concept.definition → `skos:definition`
+    - broader relationship → `skos:broader` / `skos:narrower`
+
+    **Export Endpoints**:
+    - GET /api/taxonomies/{taxonomy_id}/export/turtle - Turtle format (text/turtle)
+    - GET /api/taxonomies/{taxonomy_id}/export/jsonld - JSON-LD format (application/ld+json)
 
 ### Phase 6: Frontend Initialization
 
@@ -289,7 +577,7 @@ taxonomy-builder/
     - TypeScript
     - Fetch API or axios for HTTP requests
     - D3.js or similar for visualization (tree/hierarchy layout)
-    - CSS framework (optional - consider Tailwind or vanilla CSS)
+    - NO CSS framework (vanilla CSS)
 
 18. **Create frontend structure**
     - `src/main.ts` - entry point
@@ -368,6 +656,7 @@ taxonomy-builder/
 ## Technology Decisions
 
 ### Backend
+
 - **Python 3.14** - Latest Python version
 - **uv** - Fast, modern Python package manager
 - **FastAPI** - Modern, fast web framework with auto-generated OpenAPI docs
@@ -378,6 +667,7 @@ taxonomy-builder/
 - **SQLite** - Simple database to start (can migrate to PostgreSQL later)
 
 ### Frontend
+
 - **TypeScript** - Type-safe JavaScript
 - **Vite** - Fast build tool
 - **Vanilla TypeScript** - No framework overhead, full control
@@ -393,6 +683,7 @@ Every feature follows the Red-Green-Refactor cycle:
 3. **Refactor**: Clean up the code while keeping tests green
 
 This approach ensures:
+
 - All code is tested
 - Tests validate actual requirements
 - Design emerges from usage patterns
