@@ -1,0 +1,42 @@
+"""Taxonomy service for business logic."""
+
+from datetime import UTC, datetime
+
+from taxonomy_builder.db.taxonomy_repository import TaxonomyRepository
+from taxonomy_builder.models.taxonomy import Taxonomy, TaxonomyCreate
+
+
+class TaxonomyService:
+    """Service for managing taxonomies."""
+
+    def __init__(self, repository: TaxonomyRepository):
+        """Initialize the service with a repository."""
+        self.repository = repository
+
+    def create_taxonomy(self, taxonomy_data: TaxonomyCreate) -> Taxonomy:
+        """Create a new taxonomy.
+
+        Args:
+            taxonomy_data: Data for creating the taxonomy
+
+        Returns:
+            The created taxonomy
+
+        Raises:
+            ValueError: If taxonomy ID already exists or validation fails
+        """
+        # Check if taxonomy with this ID already exists
+        if self.repository.exists(taxonomy_data.id):
+            raise ValueError(f"Taxonomy with ID '{taxonomy_data.id}' already exists")
+
+        # Create the taxonomy
+        taxonomy = Taxonomy(
+            id=taxonomy_data.id,
+            name=taxonomy_data.name,
+            uri_prefix=taxonomy_data.uri_prefix,
+            description=taxonomy_data.description,
+            created_at=datetime.now(UTC),
+        )
+
+        # Save to repository
+        return self.repository.save(taxonomy)

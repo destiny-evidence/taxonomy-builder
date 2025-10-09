@@ -3,6 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from taxonomy_builder.api import taxonomies
+
 app = FastAPI(
     title="Taxonomy Builder API",
     description="SKOS-based taxonomy builder for evidence repositories",
@@ -17,6 +19,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(taxonomies.router)
 
 
 @app.get("/health")

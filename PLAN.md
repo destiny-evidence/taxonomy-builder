@@ -83,15 +83,39 @@ taxonomy-builder/
 
 ### Phase 2: Taxonomy CRUD (TDD)
 
-6. **Create Taxonomy - Test First**
-   - Write test: POST /api/taxonomies creates a taxonomy
-   - Write test: Response includes generated ID and URI prefix
-   - Make tests fail (no implementation)
-   - Define Taxonomy Pydantic model (name, URI prefix, description)
-   - Implement POST /api/taxonomies endpoint
-   - Add basic in-memory storage (upgrade to SQLite later)
-   - Make tests pass
-   - Refactor
+6. **Create Taxonomy - Test First** ✓
+
+   **Testing Strategy**: Both unit tests (service layer) and integration tests (API layer)
+
+   **Unit Tests** (`tests/test_taxonomy_service.py`): ✓
+   - `test_create_taxonomy_returns_taxonomy()` - Service returns created taxonomy
+   - `test_create_taxonomy_with_valid_id()` - ID is user-provided string
+   - `test_create_taxonomy_validates_uri_prefix()` - URI prefix format validation
+   - `test_create_taxonomy_stores_in_repository()` - Verify storage interaction
+   - `test_create_taxonomy_rejects_duplicate_id()` - Business rule: IDs must be unique
+   - `test_create_taxonomy_id_format_validation()` - ID must be valid slug (lowercase, hyphens)
+
+   **Integration Tests** (`tests/test_taxonomy_api.py`): ✓
+   - `test_post_taxonomy_returns_201_created()` - HTTP status code
+   - `test_post_taxonomy_returns_created_taxonomy()` - Response structure
+   - `test_post_taxonomy_validates_required_fields()` - 422 for missing id/name/uri_prefix
+   - `test_post_taxonomy_validates_uri_prefix_format()` - 422 for invalid URI format
+   - `test_post_taxonomy_rejects_duplicate_id()` - 409 Conflict for duplicate ID
+
+   **Implementation**: ✓
+   - Pydantic models: `TaxonomyCreate`, `Taxonomy` with validation
+   - `InMemoryTaxonomyRepository` with `save()`, `exists()` methods
+   - `TaxonomyService.create_taxonomy()` with business logic
+   - API route `POST /api/taxonomies`
+   - 16 tests passing, all code passes ruff checks
+
+   **Data Models**:
+   - `TaxonomyCreate` (input): id, name, uri_prefix, description (optional)
+   - `Taxonomy` (output): id, name, uri_prefix, description, created_at
+
+   **Notes**:
+   - ID is user-provided slug (e.g., "climate-health-2024")
+   - Later phases may use internal primary keys for persistence, but externally we use the slug
 
 7. **List & Get Taxonomy - Test First**
    - Write test: GET /api/taxonomies returns list
