@@ -15,8 +15,12 @@ This is a taxonomy-builder interface for creating taxonomies to support evidence
 
 ## Approach
 
-- Write tests first. Make sure they fail in the expected way, then write enough code to make them pass.
-- Once tests pass, re-visit the code and clean it up to improve readability and re-usabilty.
+- **TDD (Test-Driven Development)**: Follow the Red-Green-Refactor cycle strictly
+  - RED: Write tests first, ensure they fail in the expected way
+  - GREEN: Write minimum code to make tests pass
+  - REFACTOR: Clean up code while keeping tests green
+- **Incremental Development**: Build one feature at a time, completing full TDD cycle before moving on
+- **Both Unit and Integration Tests**: Test at service layer (mocked dependencies) and API layer (full HTTP)
 
 ## Local setup
 
@@ -35,33 +39,46 @@ The system is designed around SKOS ConceptSchemes with these key components:
 
 ### Application Structure
 
-- **API Layer**: FastAPI backend providing RESTful endpoints for taxonomy management
-- **Frontend**: TypeScript interface with visualization capabilities for taxonomy hierarchy
-- **Smart Discovery**: Features to reveal lexically and semantically similar concepts
-- **Visualization Engine**: Clear hierarchical display without overwhelming complexity
+**Backend Layers** (Service-Repository Pattern):
+- **API Layer** (`api/`): FastAPI routers handling HTTP requests/responses
+- **Service Layer** (`services/`): Business logic, validation, raises ValueError on errors
+- **Repository Layer** (`db/`): Data access abstraction (currently in-memory, will migrate to SQLite)
+- **Models** (`models/`): Pydantic models for validation and serialization
+
+**Error Handling Pattern**:
+- Service layer raises `ValueError` for business logic errors
+- API layer catches `ValueError` and converts to appropriate HTTP status (404, 409, etc.)
+- Pydantic handles validation errors automatically (422 responses)
+
+**Frontend** (not yet implemented):
+- TypeScript interface with visualization capabilities for taxonomy hierarchy
+- Smart Discovery: Features to reveal lexically and semantically similar concepts
+- Visualization Engine: Clear hierarchical display without overwhelming complexity
 
 ## Development Commands
-
-*Note: This project is not yet initialized. The following commands will be available once the project setup is complete:*
 
 ### Backend (Python/FastAPI)
 
 ```bash
-# Install dependencies
+# Install dependencies (from backend/ directory)
 uv install
 
 # Run development server
-uv run fastapi dev
+cd backend && uv run fastapi dev src/taxonomy_builder/main.py
 
 # Run tests
-uv run pytest
+cd backend && uv run pytest        # All tests
+cd backend && uv run pytest -xvs   # Verbose, stop on first failure
 
 # Code formatting and linting
-uv run ruff format
-uv run ruff check
+uv run ruff format                 # Auto-format code
+uv run ruff check                  # Check for issues
+uv run ruff check --fix            # Auto-fix issues
 ```
 
 ### Frontend (TypeScript)
+
+*Not yet implemented*
 
 ```bash
 # Install dependencies
@@ -85,20 +102,46 @@ npm run lint
 
 ## Key Implementation Considerations
 
+**Data Models**:
+- User-provided IDs are slugs (lowercase, hyphens, numbers only) - e.g., "climate-health-2024"
+- IDs are immutable - cannot be changed via update
+- URI prefixes must be valid URIs (http:// or https://)
+- Timestamps use `datetime.now(UTC)` for consistency
+
+**API Conventions**:
+- POST returns 201 Created with created resource
+- GET returns 200 OK (list or single resource)
+- PUT returns 200 OK with updated resource
+- DELETE returns 204 No Content
+- 404 for resource not found
+- 409 Conflict for duplicate IDs
+- 422 Unprocessable Entity for validation errors
+
+**SKOS Compliance** (future):
 - All taxonomies must conform to SKOS standards for semantic web compatibility
 - URI generation follows consistent patterns using taxonomy-specific prefixes
 - Hierarchical relationships use SKOS broader/narrower properties
-- Smart discovery features require semantic similarity algorithms
-- Frontend visualization must balance detail with usability
-- API design should support both individual concept operations and bulk taxonomy management
 
 ## Project Status
 
-This is a greenfield project currently containing only requirements documentation. Initial setup tasks include:
+**Completed**:
+- ✓ Backend initialization with uv and FastAPI
+- ✓ Testing framework (pytest) with TDD workflow
+- ✓ Development tooling (ruff for linting/formatting)
+- ✓ Taxonomy CRUD API (Create, Read, Update, Delete)
+  - POST /api/taxonomies (create)
+  - GET /api/taxonomies (list all)
+  - GET /api/taxonomies/{id} (get by ID)
+  - PUT /api/taxonomies/{id} (update)
+  - DELETE /api/taxonomies/{id} (delete)
+- ✓ 38 tests passing (unit + integration)
+- ✓ In-memory repository implementation
 
-1. Python project initialization with uv
-2. FastAPI application structure
-3. Frontend TypeScript project setup
-4. Database/storage layer for SKOS data
-5. Testing framework configuration
-6. Development tooling (linting, formatting, type checking)
+**In Progress**:
+- ConceptScheme CRUD (Phase 3)
+
+**Not Started**:
+- Frontend TypeScript project
+- SQLite persistence layer
+- SKOS serialization/export
+- Smart discovery features
