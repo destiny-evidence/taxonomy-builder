@@ -275,3 +275,26 @@ def test_update_taxonomy_allows_partial_updates(taxonomy_service, mock_repositor
     assert result.name == "New Name Only"
     assert result.uri_prefix == existing.uri_prefix
     assert result.description == existing.description
+
+
+def test_delete_taxonomy_removes_taxonomy(taxonomy_service, mock_repository):
+    """Test that delete_taxonomy successfully deletes a taxonomy."""
+    mock_repository.get_by_id.return_value = Taxonomy(
+        id="test-id",
+        name="Test",
+        uri_prefix="http://example.org/test/",
+        created_at=datetime.now(),
+    )
+    mock_repository.delete.return_value = None
+
+    taxonomy_service.delete_taxonomy("test-id")
+
+    mock_repository.delete.assert_called_once_with("test-id")
+
+
+def test_delete_taxonomy_raises_when_not_found(taxonomy_service, mock_repository):
+    """Test that delete_taxonomy raises ValueError when taxonomy not found."""
+    mock_repository.get_by_id.return_value = None
+
+    with pytest.raises(ValueError, match="not found"):
+        taxonomy_service.delete_taxonomy("nonexistent")

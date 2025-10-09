@@ -293,3 +293,50 @@ def test_put_taxonomy_returns_404_when_not_found():
 
     assert response.status_code == 404
     assert "not found" in response.text.lower()
+
+
+def test_delete_taxonomy_returns_204():
+    """Test that DELETE /api/taxonomies/{id} returns 204 No Content."""
+    # Create a taxonomy first
+    create_response = client.post(
+        "/api/taxonomies",
+        json={
+            "id": "delete-test",
+            "name": "Delete Test",
+            "uri_prefix": "http://example.org/delete/",
+        },
+    )
+    assert create_response.status_code == 201
+
+    # Delete it
+    delete_response = client.delete("/api/taxonomies/delete-test")
+
+    assert delete_response.status_code == 204
+
+
+def test_delete_taxonomy_actually_deletes():
+    """Test that DELETE actually removes the taxonomy."""
+    # Create
+    client.post(
+        "/api/taxonomies",
+        json={
+            "id": "delete-verify",
+            "name": "To Be Deleted",
+            "uri_prefix": "http://example.org/delete/",
+        },
+    )
+
+    # Delete
+    client.delete("/api/taxonomies/delete-verify")
+
+    # Verify it's gone via GET
+    get_response = client.get("/api/taxonomies/delete-verify")
+    assert get_response.status_code == 404
+
+
+def test_delete_taxonomy_returns_404_when_not_found():
+    """Test that DELETE /api/taxonomies/{id} returns 404 for nonexistent ID."""
+    response = client.delete("/api/taxonomies/nonexistent")
+
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()

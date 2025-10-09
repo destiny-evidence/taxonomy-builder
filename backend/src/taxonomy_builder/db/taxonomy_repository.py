@@ -33,6 +33,11 @@ class TaxonomyRepository(ABC):
         """Update a taxonomy. Assumes taxonomy exists."""
         pass
 
+    @abstractmethod
+    def delete(self, taxonomy_id: str) -> None:
+        """Delete a taxonomy. Assumes taxonomy exists."""
+        pass
+
 
 class InMemoryTaxonomyRepository(TaxonomyRepository):
     """In-memory implementation of taxonomy repository."""
@@ -62,3 +67,7 @@ class InMemoryTaxonomyRepository(TaxonomyRepository):
         """Update a taxonomy. Assumes taxonomy exists."""
         self._taxonomies[taxonomy_id] = taxonomy
         return taxonomy
+
+    def delete(self, taxonomy_id: str) -> None:
+        """Delete a taxonomy. Assumes taxonomy exists."""
+        del self._taxonomies[taxonomy_id]

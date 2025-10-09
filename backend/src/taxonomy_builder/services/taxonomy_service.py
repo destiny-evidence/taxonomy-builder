@@ -101,3 +101,18 @@ class TaxonomyService:
         )
 
         return self.repository.update(taxonomy_id, updated)
+
+    def delete_taxonomy(self, taxonomy_id: str) -> None:
+        """Delete a taxonomy.
+
+        Args:
+            taxonomy_id: The ID of the taxonomy to delete
+
+        Raises:
+            ValueError: If taxonomy with given ID is not found
+        """
+        existing = self.repository.get_by_id(taxonomy_id)
+        if existing is None:
+            raise ValueError(f"Taxonomy with ID '{taxonomy_id}' not found")
+
+        self.repository.delete(taxonomy_id)

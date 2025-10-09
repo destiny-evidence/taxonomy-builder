@@ -82,3 +82,19 @@ async def update_taxonomy(taxonomy_id: str, update_data: TaxonomyUpdate) -> Taxo
         return _taxonomy_service.update_taxonomy(taxonomy_id, update_data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.delete("/{taxonomy_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_taxonomy(taxonomy_id: str) -> None:
+    """Delete a taxonomy.
+
+    Args:
+        taxonomy_id: The ID of the taxonomy to delete
+
+    Raises:
+        HTTPException: 404 if taxonomy not found
+    """
+    try:
+        _taxonomy_service.delete_taxonomy(taxonomy_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
