@@ -326,9 +326,9 @@ taxonomy-builder/
 
 **Overview**: Concepts are individual nodes in a taxonomy with SKOS properties (prefLabel, definition, etc.) and hierarchical relationships (broader/narrower).
 
-12. **Create Concept - Test First**
+12. **Create Concept - Test First** ✓
 
-    **Part A: POST /api/schemes/{scheme_id}/concepts (create)**
+    **Part A: POST /api/schemes/{scheme_id}/concepts (create)** ✓
 
     1. Write unit tests for `ConceptService.create_concept()`:
        - `test_create_concept_returns_concept()` - Creates and returns concept
@@ -354,9 +354,9 @@ taxonomy-builder/
     - URI format: `{scheme.taxonomy.uri_prefix}{concept.id}`
     - Initially, broader_ids and narrower_ids are empty arrays
 
-13. **List & Get Concept - Test First**
+13. **List & Get Concept - Test First** ✓
 
-    **Part A: GET /api/schemes/{scheme_id}/concepts (list)**
+    **Part A: GET /api/schemes/{scheme_id}/concepts (list)** ✓
 
     1. Write unit tests for `ConceptService.list_concepts(scheme_id)`:
        - `test_list_concepts_returns_all_for_scheme()` - Returns only concepts for that scheme
@@ -373,7 +373,7 @@ taxonomy-builder/
     7. Run tests (GREEN)
     8. Refactor
 
-    **Part B: GET /api/concepts/{concept_id} (get by ID)**
+    **Part B: GET /api/concepts/{concept_id} (get by ID)** ✓
 
     1. Write unit tests for `ConceptService.get_concept(concept_id)`:
        - `test_get_concept_returns_concept()` - Returns requested concept
@@ -389,9 +389,9 @@ taxonomy-builder/
     7. Run tests (GREEN)
     8. Refactor
 
-14. **Update & Delete Concept - Test First**
+14. **Update & Delete Concept - Test First** ✓
 
-    **Part A: PUT /api/concepts/{concept_id} (update)**
+    **Part A: PUT /api/concepts/{concept_id} (update)** ✓
 
     1. Write unit tests for `ConceptService.update_concept()`:
        - `test_update_concept_returns_updated()` - Updates and returns concept
@@ -408,7 +408,7 @@ taxonomy-builder/
     8. Run tests (GREEN)
     9. Refactor
 
-    **Part B: DELETE /api/concepts/{concept_id} (delete)**
+    **Part B: DELETE /api/concepts/{concept_id} (delete)** ✓
 
     1. Write unit tests for `ConceptService.delete_concept()`:
        - `test_delete_concept_removes_concept()` - Deletes successfully
@@ -424,9 +424,9 @@ taxonomy-builder/
     7. Run tests (GREEN)
     8. Refactor
 
-15. **Concept Hierarchy Relationships - Test First**
+15. **Concept Hierarchy Relationships - Test First** ✓
 
-    **Part A: POST /api/concepts/{concept_id}/broader/{broader_id} (add broader)**
+    **Part A: POST /api/concepts/{concept_id}/broader/{broader_id} (add broader)** ✓
 
     1. Write unit tests for `ConceptService.add_broader()`:
        - `test_add_broader_creates_bidirectional_link()` - Updates both concepts
@@ -443,7 +443,7 @@ taxonomy-builder/
     6. Run tests (GREEN)
     7. Refactor
 
-    **Part B: DELETE /api/concepts/{concept_id}/broader/{broader_id} (remove broader)**
+    **Part B: DELETE /api/concepts/{concept_id}/broader/{broader_id} (remove broader)** ✓
 
     1. Write unit tests for `ConceptService.remove_broader()`:
        - `test_remove_broader_removes_bidirectional_link()` - Updates both concepts
@@ -468,6 +468,14 @@ taxonomy-builder/
     - DELETE /api/concepts/{concept_id}/broader/{broader_id} - Remove broader relationship (200/404)
 
     **Cycle Detection**: Use depth-first search to detect cycles when adding broader relationships
+
+    **Implementation**: ✓
+    - Added `Concept`, `ConceptCreate`, and `ConceptUpdate` Pydantic models
+    - Added `InMemoryConceptRepository` with all CRUD methods
+    - `ConceptService` with dependency on ConceptSchemeService for validation
+    - Implemented bidirectional relationship management with cycle detection
+    - API routes for all Concept operations including hierarchy relationships
+    - 105 tests passing (41 new Concept tests), all code passes ruff checks
 
 ### Phase 5: Persistence Layer (TDD)
 
