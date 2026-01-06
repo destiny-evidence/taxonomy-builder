@@ -4,12 +4,16 @@ import { SchemeList } from './components/schemes/SchemeList'
 import { SchemeForm } from './components/schemes/SchemeForm'
 import { ConceptList } from './components/concepts/ConceptList'
 import { ConceptForm } from './components/concepts/ConceptForm'
+import { RelationshipManager } from './components/concepts/RelationshipManager'
+import { conceptApi } from './api/concepts'
+import type { Taxonomy, ConceptScheme, Concept } from './types/models'
 
 export class App {
   private container: HTMLElement
-  private currentView: 'taxonomies' | 'schemes' | 'concepts' = 'taxonomies'
-  private selectedTaxonomyId?: string
-  private selectedSchemeId?: string
+  private selectedTaxonomy?: Taxonomy
+  private selectedScheme?: ConceptScheme
+  private selectedConcept?: Concept
+  private allConcepts: Concept[] = []
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -20,80 +24,89 @@ export class App {
       <div class="app">
         <header>
           <h1>Taxonomy Builder</h1>
-          <nav>
-            <button class="nav-btn" data-view="taxonomies">Taxonomies</button>
-            <button class="nav-btn" data-view="schemes" ${!this.selectedTaxonomyId ? 'disabled' : ''}>Schemes</button>
-            <button class="nav-btn" data-view="concepts" ${!this.selectedSchemeId ? 'disabled' : ''}>Concepts</button>
-          </nav>
+          <div class="breadcrumb">
+            <span class="breadcrumb-item active" data-nav="taxonomies">Taxonomies</span>
+            ${this.selectedTaxonomy ? `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item ${!this.selectedScheme ? 'active' : ''}" data-nav="schemes">${this.selectedTaxonomy.name}</span>` : ''}
+            ${this.selectedScheme ? `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item ${!this.selectedConcept ? 'active' : ''}" data-nav="concepts">${this.selectedScheme.name}</span>` : ''}
+            ${this.selectedConcept ? `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">${this.selectedConcept.pref_label}</span>` : ''}
+          </div>
         </header>
 
         <main>
-          <div id="view-container"></div>
+          <div class="layout">
+            <aside class="sidebar">
+              <div id="sidebar-content"></div>
+            </aside>
+            <section class="main-content">
+              <div id="main-view"></div>
+            </section>
+          </div>
         </main>
       </div>
     `
 
-    // Set up navigation
-    this.container.querySelectorAll('.nav-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const view = (e.target as HTMLElement).getAttribute('data-view') as
-          | 'taxonomies'
-          | 'schemes'
-          | 'concepts'
-        if (view) this.navigateTo(view)
+    // Setup breadcrumb navigation
+    this.container.querySelectorAll('[data-nav]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const nav = el.getAttribute('data-nav')
+        if (nav === 'taxonomies') {
+          this.selectedTaxonomy = undefined
+          this.selectedScheme = undefined
+          this.selectedConcept = undefined
+          this.render()
+        } else if (nav === 'schemes') {
+          this.selectedScheme = undefined
+          this.selectedConcept = undefined
+          this.render()
+        } else if (nav === 'concepts') {
+          this.selectedConcept = undefined
+          this.render()
+        }
       })
     })
 
-    this.renderCurrentView()
+    this.renderView()
   }
 
-  private navigateTo(view: 'taxonomies' | 'schemes' | 'concepts'): void {
-    this.currentView = view
-    this.renderCurrentView()
-  }
+  private renderView(): void {
+    const sidebar = this.container.querySelector('#sidebar-content') as HTMLElement
+    const main = this.container.querySelector('#main-view') as HTMLElement
 
-  private renderCurrentView(): void {
-    const viewContainer = this.container.querySelector('#view-container') as HTMLElement
+    if (!sidebar || !main) return
 
-    if (!viewContainer) return
-
-    viewContainer.innerHTML = ''
-
-    switch (this.currentView) {
-      case 'taxonomies':
-        this.renderTaxonomiesView(viewContainer)
-        break
-      case 'schemes':
-        if (this.selectedTaxonomyId) {
-          this.renderSchemesView(viewContainer, this.selectedTaxonomyId)
-        }
-        break
-      case 'concepts':
-        if (this.selectedSchemeId) {
-          this.renderConceptsView(viewContainer, this.selectedSchemeId)
-        }
-        break
+    if (!this.selectedTaxonomy) {
+      this.renderTaxonomyView(sidebar, main)
+    } else if (!this.selectedScheme) {
+      this.renderSchemeView(sidebar, main)
+    } else if (!this.selectedConcept) {
+      this.renderConceptView(sidebar, main)
+    } else {
+      this.renderConceptDetailView(sidebar, main)
     }
   }
 
-  private renderTaxonomiesView(container: HTMLElement): void {
-    container.innerHTML = `
+  private renderTaxonomyView(sidebar: HTMLElement, main: HTMLElement): void {
+    sidebar.innerHTML = '<div class="sidebar-empty">Select a taxonomy to view its schemes</div>'
+
+    main.innerHTML = `
       <div class="view-header">
         <h2>Taxonomies</h2>
-        <button class="create-btn">Create Taxonomy</button>
+        <button class="create-btn">+ New Taxonomy</button>
       </div>
-      <div id="taxonomy-form-container" style="display: none;"></div>
-      <div id="taxonomy-list-container"></div>
+      <div id="form-container" style="display: none;"></div>
+      <div id="list-container"></div>
     `
 
-    const createBtn = container.querySelector('.create-btn') as HTMLButtonElement
-    const formContainer = container.querySelector('#taxonomy-form-container') as HTMLElement
-    const listContainer = container.querySelector('#taxonomy-list-container') as HTMLElement
+    const createBtn = main.querySelector('.create-btn') as HTMLButtonElement
+    const formContainer = main.querySelector('#form-container') as HTMLElement
+    const listContainer = main.querySelector('#list-container') as HTMLElement
 
     createBtn.addEventListener('click', () => {
-      formContainer.style.display = 'block'
-      const form = new TaxonomyForm(formContainer)
-      form.render()
+      formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none'
+      if (formContainer.style.display === 'block') {
+        const form = new TaxonomyForm(formContainer)
+        form.render()
+      }
     })
 
     formContainer.addEventListener('taxonomy-created', () => {
@@ -104,38 +117,54 @@ export class App {
     const list = new TaxonomyList(listContainer)
     list.render()
 
-    // Handle taxonomy selection
-    listContainer.addEventListener('click', (e) => {
+    listContainer.addEventListener('click', async (e) => {
       const item = (e.target as HTMLElement).closest('[data-taxonomy-id]')
       if (item) {
-        this.selectedTaxonomyId = item.getAttribute('data-taxonomy-id') as string
-        this.navigateTo('schemes')
+        const id = item.getAttribute('data-taxonomy-id') as string
+        // Fetch full taxonomy data
+        const taxonomies = await list['taxonomies'] // Access private field
+        this.selectedTaxonomy = taxonomies.find((t: Taxonomy) => t.id === id)
+        this.render()
       }
     })
   }
 
-  private renderSchemesView(container: HTMLElement, taxonomyId: string): void {
-    container.innerHTML = `
-      <div class="view-header">
-        <h2>Concept Schemes</h2>
-        <button class="back-btn">← Back to Taxonomies</button>
-        <button class="create-btn">Create Scheme</button>
+  private renderSchemeView(sidebar: HTMLElement, main: HTMLElement): void {
+    if (!this.selectedTaxonomy) return
+
+    sidebar.innerHTML = `
+      <div class="sidebar-section">
+        <h3>Taxonomy</h3>
+        <div class="taxonomy-info">
+          <div class="info-label">Name</div>
+          <div class="info-value">${this.selectedTaxonomy.name}</div>
+          <div class="info-label">ID</div>
+          <div class="info-value code">${this.selectedTaxonomy.id}</div>
+          <div class="info-label">URI Prefix</div>
+          <div class="info-value code">${this.selectedTaxonomy.uri_prefix}</div>
+        </div>
       </div>
-      <div id="scheme-form-container" style="display: none;"></div>
-      <div id="scheme-list-container"></div>
     `
 
-    const backBtn = container.querySelector('.back-btn') as HTMLButtonElement
-    const createBtn = container.querySelector('.create-btn') as HTMLButtonElement
-    const formContainer = container.querySelector('#scheme-form-container') as HTMLElement
-    const listContainer = container.querySelector('#scheme-list-container') as HTMLElement
+    main.innerHTML = `
+      <div class="view-header">
+        <h2>Concept Schemes</h2>
+        <button class="create-btn">+ New Scheme</button>
+      </div>
+      <div id="form-container" style="display: none;"></div>
+      <div id="list-container"></div>
+    `
 
-    backBtn.addEventListener('click', () => this.navigateTo('taxonomies'))
+    const createBtn = main.querySelector('.create-btn') as HTMLButtonElement
+    const formContainer = main.querySelector('#form-container') as HTMLElement
+    const listContainer = main.querySelector('#list-container') as HTMLElement
 
     createBtn.addEventListener('click', () => {
-      formContainer.style.display = 'block'
-      const form = new SchemeForm(formContainer, taxonomyId)
-      form.render()
+      formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none'
+      if (formContainer.style.display === 'block') {
+        const form = new SchemeForm(formContainer, this.selectedTaxonomy!.id)
+        form.render()
+      }
     })
 
     formContainer.addEventListener('scheme-created', () => {
@@ -143,41 +172,54 @@ export class App {
       list.render()
     })
 
-    const list = new SchemeList(listContainer, taxonomyId)
+    const list = new SchemeList(listContainer, this.selectedTaxonomy.id)
     list.render()
 
-    // Handle scheme selection
-    listContainer.addEventListener('click', (e) => {
+    listContainer.addEventListener('click', async (e) => {
       const item = (e.target as HTMLElement).closest('[data-scheme-id]')
       if (item) {
-        this.selectedSchemeId = item.getAttribute('data-scheme-id') as string
-        this.navigateTo('concepts')
+        const id = item.getAttribute('data-scheme-id') as string
+        const schemes = await list['schemes']
+        this.selectedScheme = schemes.find((s: ConceptScheme) => s.id === id)
+        this.render()
       }
     })
   }
 
-  private renderConceptsView(container: HTMLElement, schemeId: string): void {
-    container.innerHTML = `
-      <div class="view-header">
-        <h2>Concepts</h2>
-        <button class="back-btn">← Back to Schemes</button>
-        <button class="create-btn">Create Concept</button>
+  private renderConceptView(sidebar: HTMLElement, main: HTMLElement): void {
+    if (!this.selectedScheme) return
+
+    sidebar.innerHTML = `
+      <div class="sidebar-section">
+        <h3>Scheme</h3>
+        <div class="scheme-info">
+          <div class="info-label">Name</div>
+          <div class="info-value">${this.selectedScheme.name}</div>
+          <div class="info-label">ID</div>
+          <div class="info-value code">${this.selectedScheme.id}</div>
+        </div>
       </div>
-      <div id="concept-form-container" style="display: none;"></div>
-      <div id="concept-list-container"></div>
     `
 
-    const backBtn = container.querySelector('.back-btn') as HTMLButtonElement
-    const createBtn = container.querySelector('.create-btn') as HTMLButtonElement
-    const formContainer = container.querySelector('#concept-form-container') as HTMLElement
-    const listContainer = container.querySelector('#concept-list-container') as HTMLElement
+    main.innerHTML = `
+      <div class="view-header">
+        <h2>Concepts</h2>
+        <button class="create-btn">+ New Concept</button>
+      </div>
+      <div id="form-container" style="display: none;"></div>
+      <div id="list-container"></div>
+    `
 
-    backBtn.addEventListener('click', () => this.navigateTo('schemes'))
+    const createBtn = main.querySelector('.create-btn') as HTMLButtonElement
+    const formContainer = main.querySelector('#form-container') as HTMLElement
+    const listContainer = main.querySelector('#list-container') as HTMLElement
 
     createBtn.addEventListener('click', () => {
-      formContainer.style.display = 'block'
-      const form = new ConceptForm(formContainer, schemeId)
-      form.render()
+      formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none'
+      if (formContainer.style.display === 'block') {
+        const form = new ConceptForm(formContainer, this.selectedScheme!.id)
+        form.render()
+      }
     })
 
     formContainer.addEventListener('concept-created', () => {
@@ -185,7 +227,67 @@ export class App {
       list.render()
     })
 
-    const list = new ConceptList(listContainer, schemeId)
+    const list = new ConceptList(listContainer, this.selectedScheme.id)
     list.render()
+
+    listContainer.addEventListener('click', async (e) => {
+      const item = (e.target as HTMLElement).closest('[data-concept-id]')
+      if (item) {
+        const id = item.getAttribute('data-concept-id') as string
+        const concepts = await list['concepts']
+        this.selectedConcept = concepts.find((c: Concept) => c.id === id)
+        this.allConcepts = concepts
+        this.render()
+      }
+    })
+  }
+
+  private renderConceptDetailView(sidebar: HTMLElement, main: HTMLElement): void {
+    if (!this.selectedConcept) return
+
+    sidebar.innerHTML = `
+      <div class="sidebar-section">
+        <h3>Concept Details</h3>
+        <div class="concept-info">
+          <div class="info-label">Preferred Label</div>
+          <div class="info-value">${this.selectedConcept.pref_label}</div>
+          <div class="info-label">ID</div>
+          <div class="info-value code">${this.selectedConcept.id}</div>
+          ${this.selectedConcept.definition ? `
+            <div class="info-label">Definition</div>
+            <div class="info-value">${this.selectedConcept.definition}</div>
+          ` : ''}
+          ${this.selectedConcept.alt_labels.length > 0 ? `
+            <div class="info-label">Alternative Labels</div>
+            <div class="info-value">${this.selectedConcept.alt_labels.join(', ')}</div>
+          ` : ''}
+        </div>
+      </div>
+    `
+
+    main.innerHTML = `
+      <div class="view-header">
+        <h2>Manage Relationships: ${this.selectedConcept.pref_label}</h2>
+      </div>
+      <div id="relationship-container"></div>
+    `
+
+    const relationshipContainer = main.querySelector('#relationship-container') as HTMLElement
+
+    const manager = new RelationshipManager(
+      relationshipContainer,
+      this.selectedConcept,
+      this.allConcepts
+    )
+    manager.render()
+
+    relationshipContainer.addEventListener('relationship-updated', async () => {
+      // Refresh the concept data
+      const updated = await conceptApi.get(this.selectedConcept!.id)
+      this.selectedConcept = updated
+      // Refresh all concepts
+      this.allConcepts = await conceptApi.list(this.selectedScheme!.id)
+      this.render()
+    })
   }
 }
