@@ -85,6 +85,7 @@ class ConceptService:
             identifier=concept_in.identifier,
             definition=concept_in.definition,
             scope_note=concept_in.scope_note,
+            alt_labels=concept_in.alt_labels,
         )
         self.db.add(concept)
         await self.db.flush()
@@ -116,6 +117,8 @@ class ConceptService:
             concept.definition = concept_in.definition
         if concept_in.scope_note is not None:
             concept.scope_note = concept_in.scope_note
+        if concept_in.alt_labels is not None:
+            concept.alt_labels = concept_in.alt_labels
 
         await self.db.flush()
         # Re-fetch to get fresh broader relationship
@@ -210,6 +213,7 @@ class ConceptService:
                 "definition": concept.definition,
                 "scope_note": concept.scope_note,
                 "uri": concept.uri,
+                "alt_labels": concept.alt_labels,
                 "created_at": concept.created_at,
                 "updated_at": concept.updated_at,
                 "narrower": [build_tree_node(child) for child in children],
