@@ -214,6 +214,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
         <ConceptForm
           key={editingConcept?.id ?? formKey}
           schemeId={schemeId!}
+          schemeUri={scheme.uri}
           concept={editingConcept}
           onSuccess={handleFormSuccess}
           onCancel={handleFormClose}

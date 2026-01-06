@@ -82,9 +82,9 @@ class ConceptService:
         concept = Concept(
             scheme_id=scheme_id,
             pref_label=concept_in.pref_label,
+            identifier=concept_in.identifier,
             definition=concept_in.definition,
             scope_note=concept_in.scope_note,
-            uri=concept_in.uri,
         )
         self.db.add(concept)
         await self.db.flush()
@@ -110,12 +110,12 @@ class ConceptService:
 
         if concept_in.pref_label is not None:
             concept.pref_label = concept_in.pref_label
+        if concept_in.identifier is not None:
+            concept.identifier = concept_in.identifier
         if concept_in.definition is not None:
             concept.definition = concept_in.definition
         if concept_in.scope_note is not None:
             concept.scope_note = concept_in.scope_note
-        if concept_in.uri is not None:
-            concept.uri = concept_in.uri
 
         await self.db.flush()
         # Re-fetch to get fresh broader relationship
@@ -205,6 +205,7 @@ class ConceptService:
             return {
                 "id": concept.id,
                 "scheme_id": concept.scheme_id,
+                "identifier": concept.identifier,
                 "pref_label": concept.pref_label,
                 "definition": concept.definition,
                 "scope_note": concept.scope_note,

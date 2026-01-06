@@ -25,7 +25,11 @@ async def project(db_session: AsyncSession) -> Project:
 @pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(project_id=project.id, title="Test Scheme")
+    scheme = ConceptScheme(
+        project_id=project.id,
+        title="Test Scheme",
+        uri="http://example.org/concepts",
+    )
     db_session.add(scheme)
     await db_session.flush()
     await db_session.refresh(scheme)
@@ -38,9 +42,9 @@ async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test Concept",
+        identifier="test",
         definition="A test concept",
         scope_note="For testing",
-        uri="http://example.org/concepts/test",
     )
     db_session.add(concept)
     await db_session.flush()
@@ -105,16 +109,18 @@ async def test_create_concept(client: AsyncClient, scheme: ConceptScheme) -> Non
         f"/api/schemes/{scheme.id}/concepts",
         json={
             "pref_label": "New Concept",
+            "identifier": "new",
             "definition": "A new concept",
             "scope_note": "Use for new things",
-            "uri": "http://example.org/concepts/new",
         },
     )
     assert response.status_code == 201
     data = response.json()
     assert data["pref_label"] == "New Concept"
+    assert data["identifier"] == "new"
     assert data["definition"] == "A new concept"
     assert data["scheme_id"] == str(scheme.id)
+    assert data["uri"] == "http://example.org/concepts/new"  # Computed URI
     assert "id" in data
     assert "created_at" in data
 

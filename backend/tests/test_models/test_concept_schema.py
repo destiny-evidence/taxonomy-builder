@@ -21,22 +21,22 @@ class TestConceptCreate:
         """Test creating a valid concept."""
         concept = ConceptCreate(
             pref_label="Test Concept",
+            identifier="test",
             definition="A test definition",
             scope_note="Use for testing",
-            uri="http://example.org/concepts/test",
         )
         assert concept.pref_label == "Test Concept"
+        assert concept.identifier == "test"
         assert concept.definition == "A test definition"
         assert concept.scope_note == "Use for testing"
-        assert concept.uri == "http://example.org/concepts/test"
 
     def test_concept_create_pref_label_only(self) -> None:
         """Test creating a concept with only pref_label."""
         concept = ConceptCreate(pref_label="Minimal Concept")
         assert concept.pref_label == "Minimal Concept"
+        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
-        assert concept.uri is None
 
     def test_concept_create_requires_pref_label(self) -> None:
         """Test that pref_label is required."""
@@ -63,9 +63,9 @@ class TestConceptUpdate:
         """Test that all fields are optional for update."""
         concept = ConceptUpdate()
         assert concept.pref_label is None
+        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
-        assert concept.uri is None
 
     def test_concept_update_with_pref_label(self) -> None:
         """Test updating with a new pref_label."""
@@ -76,14 +76,14 @@ class TestConceptUpdate:
         """Test updating all fields."""
         concept = ConceptUpdate(
             pref_label="Updated Label",
+            identifier="updated",
             definition="Updated definition",
             scope_note="Updated scope note",
-            uri="http://example.org/updated",
         )
         assert concept.pref_label == "Updated Label"
+        assert concept.identifier == "updated"
         assert concept.definition == "Updated definition"
         assert concept.scope_note == "Updated scope note"
-        assert concept.uri == "http://example.org/updated"
 
     def test_concept_update_pref_label_cannot_be_empty(self) -> None:
         """Test that pref_label cannot be empty if provided."""
@@ -108,6 +108,7 @@ class TestConceptRead:
         concept = ConceptRead(
             id=concept_id,
             scheme_id=scheme_id,
+            identifier="test",
             pref_label="Test Concept",
             definition="A definition",
             scope_note="A scope note",
@@ -118,6 +119,7 @@ class TestConceptRead:
         )
         assert concept.id == concept_id
         assert concept.scheme_id == scheme_id
+        assert concept.identifier == "test"
         assert concept.pref_label == "Test Concept"
         assert concept.broader == []
 
@@ -130,6 +132,7 @@ class TestConceptRead:
         broader_concept = ConceptBrief(
             id=broader_id,
             scheme_id=scheme_id,
+            identifier="broader",
             pref_label="Broader Concept",
             definition=None,
             scope_note=None,
@@ -141,6 +144,7 @@ class TestConceptRead:
         concept = ConceptRead(
             id=uuid4(),
             scheme_id=scheme_id,
+            identifier="narrower",
             pref_label="Narrower Concept",
             definition=None,
             scope_note=None,
@@ -164,6 +168,7 @@ class TestConceptRead:
         concept = ConceptRead(
             id=uuid4(),
             scheme_id=uuid4(),
+            identifier=None,
             pref_label="Minimal",
             definition=None,
             scope_note=None,
@@ -172,6 +177,7 @@ class TestConceptRead:
             updated_at=now,
             broader=[],
         )
+        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
         assert concept.uri is None

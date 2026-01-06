@@ -24,7 +24,11 @@ async def project(db_session: AsyncSession) -> Project:
 @pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(project_id=project.id, title="Test Scheme")
+    scheme = ConceptScheme(
+        project_id=project.id,
+        title="Test Scheme",
+        uri="http://example.org/concepts",
+    )
     db_session.add(scheme)
     await db_session.flush()
     await db_session.refresh(scheme)
@@ -37,9 +41,9 @@ async def test_create_concept(db_session: AsyncSession, scheme: ConceptScheme) -
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test Concept",
+        identifier="test",
         definition="A test concept",
         scope_note="Use for testing",
-        uri="http://example.org/concepts/test",
     )
     db_session.add(concept)
     await db_session.flush()
@@ -49,8 +53,10 @@ async def test_create_concept(db_session: AsyncSession, scheme: ConceptScheme) -
     assert isinstance(concept.id, UUID)
     assert concept.scheme_id == scheme.id
     assert concept.pref_label == "Test Concept"
+    assert concept.identifier == "test"
     assert concept.definition == "A test concept"
     assert concept.scope_note == "Use for testing"
+    # URI is computed from scheme.uri + identifier
     assert concept.uri == "http://example.org/concepts/test"
     assert concept.created_at is not None
     assert concept.updated_at is not None
@@ -81,14 +87,16 @@ async def test_concept_pref_label_required(db_session: AsyncSession, scheme: Con
 
 @pytest.mark.asyncio
 async def test_concept_optional_fields(db_session: AsyncSession, scheme: ConceptScheme) -> None:
-    """Test that definition, scope_note, uri are optional."""
+    """Test that identifier, definition, scope_note are optional."""
     concept = Concept(scheme_id=scheme.id, pref_label="Minimal Concept")
     db_session.add(concept)
     await db_session.flush()
     await db_session.refresh(concept)
 
+    assert concept.identifier is None
     assert concept.definition is None
     assert concept.scope_note is None
+    # URI is None when identifier is not set
     assert concept.uri is None
 
 

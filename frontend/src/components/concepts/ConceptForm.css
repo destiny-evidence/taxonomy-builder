@@ -13,6 +13,27 @@
   font-size: var(--font-size-sm);
 }
 
+.concept-form__uri-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.concept-form__uri-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.concept-form__uri-value {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-background-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
 .concept-form__actions {
   display: flex;
   justify-content: flex-end;

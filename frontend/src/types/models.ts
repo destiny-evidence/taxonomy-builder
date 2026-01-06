@@ -50,10 +50,11 @@ export interface ConceptSchemeUpdate {
 export interface ConceptBrief {
   id: string;
   scheme_id: string;
+  identifier: string | null;
   pref_label: string;
   definition: string | null;
   scope_note: string | null;
-  uri: string | null;
+  uri: string | null; // Computed from scheme.uri + identifier
   created_at: string;
   updated_at: string;
 }
@@ -64,22 +65,23 @@ export interface Concept extends ConceptBrief {
 
 export interface ConceptCreate {
   pref_label: string;
+  identifier?: string | null;
   definition?: string | null;
   scope_note?: string | null;
-  uri?: string | null;
 }
 
 export interface ConceptUpdate {
   pref_label?: string;
+  identifier?: string | null;
   definition?: string | null;
   scope_note?: string | null;
-  uri?: string | null;
 }
 
 // ============ Tree ============
 export interface TreeNode {
   id: string;
   scheme_id: string;
+  identifier: string | null;
   pref_label: string;
   definition: string | null;
   scope_note: string | null;
