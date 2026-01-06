@@ -19,6 +19,7 @@ interface ProjectDetailPageProps {
 export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingScheme, setEditingScheme] = useState<ConceptScheme | null>(null);
+  const [formKey, setFormKey] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
 
   function handleCreate() {
     setEditingScheme(null);
+    setFormKey((k) => k + 1);
     setIsFormOpen(true);
   }
 
@@ -112,6 +114,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
         onClose={handleFormClose}
       >
         <SchemeForm
+          key={editingScheme?.id ?? formKey}
           projectId={projectId!}
           scheme={editingScheme}
           onSuccess={handleFormSuccess}

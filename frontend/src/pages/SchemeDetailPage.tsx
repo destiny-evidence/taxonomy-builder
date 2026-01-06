@@ -31,6 +31,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
     if (schemeId) {
@@ -78,6 +79,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
 
   function handleCreate() {
     setEditingConcept(null);
+    setFormKey((k) => k + 1); // Force form reset
     setIsFormOpen(true);
   }
 
@@ -199,6 +201,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
         onClose={handleFormClose}
       >
         <ConceptForm
+          key={editingConcept?.id ?? formKey}
           schemeId={schemeId!}
           concept={editingConcept}
           onSuccess={handleFormSuccess}

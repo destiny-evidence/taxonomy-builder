@@ -16,6 +16,7 @@ interface ProjectsPageProps {
 export function ProjectsPage({}: ProjectsPageProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
     loadProjects();
@@ -36,6 +37,7 @@ export function ProjectsPage({}: ProjectsPageProps) {
 
   function handleCreate() {
     setEditingProject(null);
+    setFormKey((k) => k + 1);
     setIsFormOpen(true);
   }
 
@@ -71,6 +73,7 @@ export function ProjectsPage({}: ProjectsPageProps) {
         onClose={handleFormClose}
       >
         <ProjectForm
+          key={editingProject?.id ?? formKey}
           project={editingProject}
           onSuccess={handleFormSuccess}
           onCancel={handleFormClose}
