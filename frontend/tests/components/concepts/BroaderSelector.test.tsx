@@ -28,6 +28,7 @@ describe("BroaderSelector", () => {
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
         broader: [],
+        related: [],
       },
       {
         id: "concept-3",
@@ -41,6 +42,7 @@ describe("BroaderSelector", () => {
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
         broader: [],
+        related: [],
       },
     ],
     onChanged: vi.fn(),
