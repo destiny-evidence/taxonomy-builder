@@ -7,19 +7,13 @@ describe("TreeNode", () => {
   function createNode(overrides: Partial<RenderNode> = {}): RenderNode {
     return {
       id: "node-1",
-      scheme_id: "scheme-1",
-      identifier: "n1",
       pref_label: "Test Node",
       definition: null,
-      scope_note: null,
-      uri: null,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-      depth: 0,
       path: "node-1",
-      children: [],
+      depth: 0,
       hasMultipleParents: false,
       otherParentLabels: [],
+      children: [],
       ...overrides,
     };
   }

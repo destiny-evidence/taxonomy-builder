@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getExportUrl, type ExportFormat } from "../../src/api/schemes";
+import { getExportUrl } from "../../src/api/schemes";
 
 describe("getExportUrl", () => {
   const schemeId = "abc-123";

@@ -55,6 +55,7 @@ export interface ConceptBrief {
   definition: string | null;
   scope_note: string | null;
   uri: string | null; // Computed from scheme.uri + identifier
+  alt_labels: string[];
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +69,7 @@ export interface ConceptCreate {
   identifier?: string | null;
   definition?: string | null;
   scope_note?: string | null;
+  alt_labels?: string[];
 }
 
 export interface ConceptUpdate {
@@ -75,6 +77,7 @@ export interface ConceptUpdate {
   identifier?: string | null;
   definition?: string | null;
   scope_note?: string | null;
+  alt_labels?: string[];
 }
 
 // ============ Tree ============
@@ -86,6 +89,7 @@ export interface TreeNode {
   definition: string | null;
   scope_note: string | null;
   uri: string | null;
+  alt_labels: string[];
   created_at: string;
   updated_at: string;
   narrower: TreeNode[];

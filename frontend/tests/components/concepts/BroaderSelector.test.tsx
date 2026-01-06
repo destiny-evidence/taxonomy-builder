@@ -24,8 +24,10 @@ describe("BroaderSelector", () => {
         definition: null,
         scope_note: null,
         uri: null,
+        alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
+        broader: [],
       },
       {
         id: "concept-3",
@@ -35,8 +37,10 @@ describe("BroaderSelector", () => {
         definition: null,
         scope_note: null,
         uri: null,
+        alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
+        broader: [],
       },
     ],
     onChanged: vi.fn(),
@@ -54,7 +58,7 @@ describe("BroaderSelector", () => {
         <BroaderSelector
           {...defaultProps}
           currentBroader={[
-            { id: "concept-2", pref_label: "Mammals" },
+            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -75,7 +79,7 @@ describe("BroaderSelector", () => {
         <BroaderSelector
           {...defaultProps}
           currentBroader={[
-            { id: "concept-2", pref_label: "Mammals" },
+            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -94,8 +98,8 @@ describe("BroaderSelector", () => {
         <BroaderSelector
           {...defaultProps}
           currentBroader={[
-            { id: "concept-2", pref_label: "Mammals" },
-            { id: "concept-3", pref_label: "Vertebrates" },
+            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-3", pref_label: "Vertebrates", scheme_id: "scheme-1", identifier: "c3", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -114,7 +118,7 @@ describe("BroaderSelector", () => {
     });
 
     it("calls API and onChanged when adding broader", async () => {
-      mockConceptsApi.addBroader.mockResolvedValue(undefined);
+      mockConceptsApi.addBroader.mockResolvedValue({ status: "created" });
       const onChanged = vi.fn();
 
       render(<BroaderSelector {...defaultProps} onChanged={onChanged} />);
@@ -153,7 +157,7 @@ describe("BroaderSelector", () => {
       render(
         <BroaderSelector
           {...defaultProps}
-          currentBroader={[{ id: "concept-2", pref_label: "Mammals" }]}
+          currentBroader={[{ id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }]}
           onChanged={onChanged}
         />
       );
