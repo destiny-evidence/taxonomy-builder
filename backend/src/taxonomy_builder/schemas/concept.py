@@ -13,6 +13,7 @@ class ConceptCreate(BaseModel):
     identifier: str | None = Field(default=None, max_length=255)
     definition: str | None = None
     scope_note: str | None = None
+    alt_labels: list[str] = Field(default_factory=list)
 
     @field_validator("pref_label")
     @classmethod
@@ -28,6 +29,19 @@ class ConceptCreate(BaseModel):
             return v.strip() or None
         return v
 
+    @field_validator("alt_labels")
+    @classmethod
+    def clean_alt_labels(cls, v: list[str]) -> list[str]:
+        """Strip whitespace, remove empty strings, remove case-insensitive duplicates."""
+        seen_lower: set[str] = set()
+        result: list[str] = []
+        for label in v:
+            stripped = label.strip()
+            if stripped and stripped.lower() not in seen_lower:
+                result.append(stripped)
+                seen_lower.add(stripped.lower())
+        return result
+
 
 class ConceptUpdate(BaseModel):
     """Schema for updating an existing concept."""
@@ -36,6 +50,7 @@ class ConceptUpdate(BaseModel):
     identifier: str | None = Field(default=None, max_length=255)
     definition: str | None = None
     scope_note: str | None = None
+    alt_labels: list[str] | None = None  # None = no change, [] = clear all
 
     @field_validator("pref_label")
     @classmethod
@@ -53,6 +68,21 @@ class ConceptUpdate(BaseModel):
             return v.strip() or None
         return v
 
+    @field_validator("alt_labels")
+    @classmethod
+    def clean_alt_labels(cls, v: list[str] | None) -> list[str] | None:
+        """Strip whitespace, remove empty strings, remove duplicates if provided."""
+        if v is None:
+            return None
+        seen_lower: set[str] = set()
+        result: list[str] = []
+        for label in v:
+            stripped = label.strip()
+            if stripped and stripped.lower() not in seen_lower:
+                result.append(stripped)
+                seen_lower.add(stripped.lower())
+        return result
+
 
 class ConceptBrief(BaseModel):
     """Brief schema for a concept (used in relationships)."""
@@ -66,6 +96,7 @@ class ConceptBrief(BaseModel):
     definition: str | None
     scope_note: str | None
     uri: str | None  # Computed from scheme.uri + identifier
+    alt_labels: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -82,6 +113,7 @@ class ConceptRead(BaseModel):
     definition: str | None
     scope_note: str | None
     uri: str | None  # Computed from scheme.uri + identifier
+    alt_labels: list[str] = []
     created_at: datetime
     updated_at: datetime
     broader: list[ConceptBrief] = []
