@@ -1,8 +1,17 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from "vitest/config";
+import preact from "@preact/preset-vite";
+import { resolve } from "path";
 
 export default defineConfig({
-  test: {
-    environment: 'jsdom',
-    globals: true,
+  plugins: [preact()],
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
   },
-})
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./tests/setup.ts"],
+  },
+});

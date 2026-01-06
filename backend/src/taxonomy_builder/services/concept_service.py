@@ -1,291 +1,217 @@
 """Concept service for business logic."""
 
-from datetime import UTC, datetime
+from uuid import UUID
 
-from taxonomy_builder.db.concept_repository import ConceptRepository
-from taxonomy_builder.models.concept import Concept, ConceptCreate, ConceptUpdate
-from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from taxonomy_builder.models.concept import Concept
+from taxonomy_builder.models.concept_broader import ConceptBroader
+from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
+
+
+class ConceptNotFoundError(Exception):
+    """Raised when a concept is not found."""
+
+    def __init__(self, concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        super().__init__(f"Concept with id '{concept_id}' not found")
+
+
+class SchemeNotFoundError(Exception):
+    """Raised when a concept scheme is not found."""
+
+    def __init__(self, scheme_id: UUID) -> None:
+        self.scheme_id = scheme_id
+        super().__init__(f"Concept scheme with id '{scheme_id}' not found")
+
+
+class BroaderRelationshipExistsError(Exception):
+    """Raised when a broader relationship already exists."""
+
+    def __init__(self, concept_id: UUID, broader_concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        self.broader_concept_id = broader_concept_id
+        super().__init__(f"Broader relationship already exists")
+
+
+class BroaderRelationshipNotFoundError(Exception):
+    """Raised when a broader relationship is not found."""
+
+    def __init__(self, concept_id: UUID, broader_concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        self.broader_concept_id = broader_concept_id
+        super().__init__(f"Broader relationship not found")
 
 
 class ConceptService:
     """Service for managing concepts."""
 
-    def __init__(
-        self, repository: ConceptRepository, scheme_service: ConceptSchemeService
-    ):
-        """Initialize the service with a repository and concept scheme service."""
-        self.repository = repository
-        self.scheme_service = scheme_service
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
 
-    def create_concept(
-        self, scheme_id: str, concept_data: ConceptCreate
-    ) -> Concept:
-        """Create a new concept.
+    async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
+        """Get a scheme by ID or raise SchemeNotFoundError."""
+        result = await self.db.execute(
+            select(ConceptScheme).where(ConceptScheme.id == scheme_id)
+        )
+        scheme = result.scalar_one_or_none()
+        if scheme is None:
+            raise SchemeNotFoundError(scheme_id)
+        return scheme
 
-        Args:
-            scheme_id: The ID of the scheme this concept belongs to
-            concept_data: Data for creating the concept
+    async def list_concepts_for_scheme(self, scheme_id: UUID) -> list[Concept]:
+        """List all concepts for a scheme, ordered alphabetically by pref_label."""
+        await self._get_scheme(scheme_id)
 
-        Returns:
-            The created concept
+        result = await self.db.execute(
+            select(Concept)
+            .where(Concept.scheme_id == scheme_id)
+            .options(selectinload(Concept.broader))
+            .order_by(Concept.pref_label)
+        )
+        return list(result.scalars().all())
 
-        Raises:
-            ValueError: If scheme doesn't exist or concept ID already exists
-        """
-        # Validate scheme exists (will raise ValueError if not found)
-        scheme = self.scheme_service.get_scheme(scheme_id)
+    async def create_concept(self, scheme_id: UUID, concept_in: ConceptCreate) -> Concept:
+        """Create a new concept in a scheme."""
+        await self._get_scheme(scheme_id)
 
-        # Check if concept with this ID already exists in this scheme
-        if self.repository.exists(scheme_id, concept_data.id):
-            raise ValueError(
-                f"Concept with ID '{concept_data.id}' already exists "
-                f"in scheme '{scheme_id}'"
-            )
-
-        # We need the taxonomy to get the URI prefix
-        # In the real implementation, we need to get the taxonomy from scheme
-        # For now, we'll need to get the taxonomy through the scheme's taxonomy_service
-        taxonomy = self.scheme_service.taxonomy_service.get_taxonomy(scheme.taxonomy_id)
-
-        # Generate URI from taxonomy's uri_prefix + concept id
-        uri = f"{taxonomy.uri_prefix}{concept_data.id}"
-
-        # Create the concept
         concept = Concept(
-            id=concept_data.id,
             scheme_id=scheme_id,
-            uri=uri,
-            pref_label=concept_data.pref_label,
-            definition=concept_data.definition,
-            alt_labels=concept_data.alt_labels or [],
-            broader_ids=[],
-            narrower_ids=[],
-            created_at=datetime.now(UTC),
+            pref_label=concept_in.pref_label,
+            definition=concept_in.definition,
+            scope_note=concept_in.scope_note,
+            uri=concept_in.uri,
         )
+        self.db.add(concept)
+        await self.db.flush()
+        # Re-fetch to get broader relationship loaded
+        return await self.get_concept(concept.id)
 
-        # Save to repository
-        return self.repository.save(concept)
-
-    def list_concepts(self, scheme_id: str) -> list[Concept]:
-        """List all concepts for a scheme.
-
-        Args:
-            scheme_id: The ID of the scheme
-
-        Returns:
-            List of all concepts for the scheme
-
-        Raises:
-            ValueError: If scheme doesn't exist
-        """
-        # Validate scheme exists (will raise ValueError if not found)
-        self.scheme_service.get_scheme(scheme_id)
-
-        return self.repository.get_by_scheme(scheme_id)
-
-    def get_concept(self, concept_id: str) -> Concept:
-        """Get a concept by ID.
-
-        Args:
-            concept_id: The ID of the concept to retrieve
-
-        Returns:
-            The requested concept
-
-        Raises:
-            ValueError: If concept with given ID is not found
-        """
-        concept = self.repository.get_by_id(concept_id)
+    async def get_concept(self, concept_id: UUID) -> Concept:
+        """Get a concept by ID with broader relationships loaded."""
+        result = await self.db.execute(
+            select(Concept)
+            .where(Concept.id == concept_id)
+            .options(selectinload(Concept.broader))
+            .execution_options(populate_existing=True)
+        )
+        concept = result.scalar_one_or_none()
         if concept is None:
-            raise ValueError(f"Concept with ID '{concept_id}' not found")
+            raise ConceptNotFoundError(concept_id)
         return concept
 
-    def update_concept(
-        self, concept_id: str, update_data: ConceptUpdate
-    ) -> Concept:
-        """Update a concept.
+    async def update_concept(self, concept_id: UUID, concept_in: ConceptUpdate) -> Concept:
+        """Update an existing concept."""
+        concept = await self.get_concept(concept_id)
 
-        Args:
-            concept_id: The ID of the concept to update
-            update_data: The fields to update
+        if concept_in.pref_label is not None:
+            concept.pref_label = concept_in.pref_label
+        if concept_in.definition is not None:
+            concept.definition = concept_in.definition
+        if concept_in.scope_note is not None:
+            concept.scope_note = concept_in.scope_note
+        if concept_in.uri is not None:
+            concept.uri = concept_in.uri
 
-        Returns:
-            The updated concept
+        await self.db.flush()
+        # Re-fetch to get fresh broader relationship
+        return await self.get_concept(concept_id)
 
-        Raises:
-            ValueError: If concept with given ID is not found
-        """
-        existing = self.repository.get_by_id(concept_id)
-        if existing is None:
-            raise ValueError(f"Concept with ID '{concept_id}' not found")
+    async def delete_concept(self, concept_id: UUID) -> None:
+        """Delete a concept."""
+        concept = await self.get_concept(concept_id)
+        await self.db.delete(concept)
+        await self.db.flush()
 
-        # Apply updates - only update fields that are provided
-        new_pref_label = (
-            update_data.pref_label
-            if update_data.pref_label is not None
-            else existing.pref_label
-        )
-        new_definition = (
-            update_data.definition
-            if update_data.definition is not None
-            else existing.definition
-        )
-        new_alt_labels = (
-            update_data.alt_labels
-            if update_data.alt_labels is not None
-            else existing.alt_labels
-        )
+    async def add_broader(self, concept_id: UUID, broader_concept_id: UUID) -> None:
+        """Add a broader relationship."""
+        # Verify both concepts exist
+        await self.get_concept(concept_id)
+        await self.get_concept(broader_concept_id)
 
-        updated = Concept(
-            id=existing.id,
-            scheme_id=existing.scheme_id,
-            uri=existing.uri,
-            pref_label=new_pref_label,
-            definition=new_definition,
-            alt_labels=new_alt_labels,
-            broader_ids=existing.broader_ids,
-            narrower_ids=existing.narrower_ids,
-            created_at=existing.created_at,
-        )
+        rel = ConceptBroader(concept_id=concept_id, broader_concept_id=broader_concept_id)
+        self.db.add(rel)
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            raise BroaderRelationshipExistsError(concept_id, broader_concept_id)
 
-        return self.repository.update(concept_id, updated)
-
-    def delete_concept(self, concept_id: str) -> None:
-        """Delete a concept.
-
-        Args:
-            concept_id: The ID of the concept to delete
-
-        Raises:
-            ValueError: If concept with given ID is not found
-        """
-        existing = self.repository.get_by_id(concept_id)
-        if existing is None:
-            raise ValueError(f"Concept with ID '{concept_id}' not found")
-
-        # Remove this concept from all related concepts' broader/narrower lists
-        for broader_id in existing.broader_ids:
-            broader = self.repository.get_by_id(broader_id)
-            if broader:
-                broader.narrower_ids = [
-                    nid for nid in broader.narrower_ids if nid != concept_id
-                ]
-                self.repository.update(broader_id, broader)
-
-        for narrower_id in existing.narrower_ids:
-            narrower = self.repository.get_by_id(narrower_id)
-            if narrower:
-                narrower.broader_ids = [
-                    bid for bid in narrower.broader_ids if bid != concept_id
-                ]
-                self.repository.update(narrower_id, narrower)
-
-        self.repository.delete(concept_id)
-
-    def add_broader(self, concept_id: str, broader_id: str) -> Concept:
-        """Add a broader concept relationship.
-
-        Args:
-            concept_id: The ID of the concept
-            broader_id: The ID of the broader concept
-
-        Returns:
-            The updated concept
-
-        Raises:
-            ValueError: If concepts don't exist, self-reference, or would create cycle
-        """
-        # Validate both concepts exist
-        concept = self.get_concept(concept_id)
-        broader = self.get_concept(broader_id)
-
-        # Prevent self-reference
-        if concept_id == broader_id:
-            raise ValueError("A concept cannot be its own broader concept")
-
-        # Check if relationship already exists
-        if broader_id in concept.broader_ids:
-            return concept  # Already exists, no change needed
-
-        # Check for cycles using depth-first search
-        if self._would_create_cycle(concept_id, broader_id):
-            raise ValueError(
-                "Adding broader relationship would create a cycle"
+    async def remove_broader(self, concept_id: UUID, broader_concept_id: UUID) -> None:
+        """Remove a broader relationship."""
+        result = await self.db.execute(
+            select(ConceptBroader).where(
+                ConceptBroader.concept_id == concept_id,
+                ConceptBroader.broader_concept_id == broader_concept_id,
             )
+        )
+        rel = result.scalar_one_or_none()
+        if rel is None:
+            raise BroaderRelationshipNotFoundError(concept_id, broader_concept_id)
+        await self.db.delete(rel)
+        await self.db.flush()
 
-        # Add bidirectional relationship
-        if broader_id not in concept.broader_ids:
-            concept.broader_ids.append(broader_id)
-        if concept_id not in broader.narrower_ids:
-            broader.narrower_ids.append(concept_id)
+    async def get_tree(self, scheme_id: UUID) -> list[dict]:
+        """Get the concept tree for a scheme as a DAG.
 
-        # Save both concepts
-        self.repository.update(concept_id, concept)
-        self.repository.update(broader_id, broader)
-
-        return concept
-
-    def remove_broader(self, concept_id: str, broader_id: str) -> Concept:
-        """Remove a broader concept relationship.
-
-        Args:
-            concept_id: The ID of the concept
-            broader_id: The ID of the broader concept
-
-        Returns:
-            The updated concept
-
-        Raises:
-            ValueError: If concepts don't exist
+        Returns a list of root concepts (concepts with no broader relationships),
+        each with a 'narrower' field containing their children recursively.
+        Concepts with multiple parents appear under each parent.
         """
-        # Validate both concepts exist
-        concept = self.get_concept(concept_id)
-        broader = self.get_concept(broader_id)
+        await self._get_scheme(scheme_id)
 
-        # Remove bidirectional relationship (no error if doesn't exist)
-        if broader_id in concept.broader_ids:
-            concept.broader_ids.remove(broader_id)
-        if concept_id in broader.narrower_ids:
-            broader.narrower_ids.remove(concept_id)
+        # Get all concepts for the scheme
+        result = await self.db.execute(
+            select(Concept)
+            .where(Concept.scheme_id == scheme_id)
+            .order_by(Concept.pref_label)
+        )
+        concepts = list(result.scalars().all())
 
-        # Save both concepts
-        self.repository.update(concept_id, concept)
-        self.repository.update(broader_id, broader)
+        if not concepts:
+            return []
 
-        return concept
+        # Build a map of concept_id -> concept
+        concept_map = {c.id: c for c in concepts}
 
-    def _would_create_cycle(self, concept_id: str, broader_id: str) -> bool:
-        """Check if adding broader_id as broader of concept_id would create a cycle.
+        # Build parent -> children map
+        children_map: dict[UUID, list[Concept]] = {c.id: [] for c in concepts}
 
-        Uses depth-first search to check if concept_id is reachable from broader_id
-        by following broader relationships.
+        # Get all broader relationships for this scheme's concepts
+        concept_ids = list(concept_map.keys())
+        result = await self.db.execute(
+            select(ConceptBroader).where(ConceptBroader.concept_id.in_(concept_ids))
+        )
+        broader_rels = list(result.scalars().all())
 
-        Args:
-            concept_id: The concept that would get a new broader
-            broader_id: The proposed broader concept
+        # Track which concepts have parents (are not roots)
+        has_parent: set[UUID] = set()
 
-        Returns:
-            True if adding the relationship would create a cycle
-        """
-        visited = set()
+        for rel in broader_rels:
+            if rel.broader_concept_id in concept_map:
+                children_map[rel.broader_concept_id].append(concept_map[rel.concept_id])
+                has_parent.add(rel.concept_id)
 
-        def dfs(current_id: str) -> bool:
-            """Depth-first search to find concept_id starting from current_id."""
-            if current_id == concept_id:
-                return True
-            if current_id in visited:
-                return False
+        # Find root concepts (no parents)
+        roots = [c for c in concepts if c.id not in has_parent]
 
-            visited.add(current_id)
-            current = self.repository.get_by_id(current_id)
-            if current is None:
-                return False
+        def build_tree_node(concept: Concept) -> dict:
+            """Recursively build a tree node."""
+            children = sorted(children_map[concept.id], key=lambda c: c.pref_label)
+            return {
+                "id": concept.id,
+                "scheme_id": concept.scheme_id,
+                "pref_label": concept.pref_label,
+                "definition": concept.definition,
+                "scope_note": concept.scope_note,
+                "uri": concept.uri,
+                "created_at": concept.created_at,
+                "updated_at": concept.updated_at,
+                "narrower": [build_tree_node(child) for child in children],
+            }
 
-            # Check all broader concepts recursively
-            for bid in current.broader_ids:
-                if dfs(bid):
-                    return True
-
-            return False
-
-        return dfs(broader_id)
+        return [build_tree_node(root) for root in roots]

@@ -1,46 +1,36 @@
-"""ConceptScheme domain models."""
+"""ConceptScheme model."""
 
-import re
 from datetime import datetime
+from typing import TYPE_CHECKING
+from uuid import UUID, uuid7
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from taxonomy_builder.database import Base
 
-class ConceptSchemeCreate(BaseModel):
-    """Model for creating a new concept scheme."""
-
-    id: str = Field(..., description="Unique identifier (slug format)")
-    name: str = Field(..., description="Human-readable name")
-    description: str | None = Field(None, description="Optional description")
-
-    @field_validator("id")
-    @classmethod
-    def validate_id_format(cls, v: str) -> str:
-        """Validate that ID is a valid slug (lowercase, hyphens, numbers)."""
-        if not v:
-            raise ValueError("ID cannot be empty")
-        if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", v):
-            raise ValueError(
-                "Invalid ID format: must be lowercase letters, numbers, and hyphens only"
-            )
-        return v
+if TYPE_CHECKING:
+    from taxonomy_builder.models.concept import Concept
+    from taxonomy_builder.models.project import Project
 
 
-class ConceptSchemeUpdate(BaseModel):
-    """Model for updating a concept scheme. All fields are optional."""
+class ConceptScheme(Base):
+    """A SKOS concept scheme within a project."""
 
-    name: str | None = Field(None, description="Human-readable name")
-    description: str | None = Field(None, description="Optional description")
+    __tablename__ = "concept_schemes"
+    __table_args__ = (UniqueConstraint("project_id", "title", name="uq_scheme_title_per_project"),)
 
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    uri: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    publisher: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
-class ConceptScheme(BaseModel):
-    """ConceptScheme domain model."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    taxonomy_id: str
-    name: str
-    uri: str
-    description: str | None = None
-    created_at: datetime
+    project: Mapped["Project"] = relationship(back_populates="schemes")
+    concepts: Mapped[list["Concept"]] = relationship(
+        back_populates="scheme", cascade="all, delete-orphan", lazy="selectin"
+    )

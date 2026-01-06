@@ -1,22 +1,32 @@
-import { client } from './client'
-import type { Concept, ConceptCreate, ConceptUpdate } from '../types/models'
+import { api } from "./client";
+import type {
+  Concept,
+  ConceptCreate,
+  ConceptUpdate,
+  TreeNode,
+} from "../types/models";
 
-export const conceptApi = {
+export const conceptsApi = {
+  listForScheme: (schemeId: string) =>
+    api.get<Concept[]>(`/schemes/${schemeId}/concepts`),
+
+  getTree: (schemeId: string) => api.get<TreeNode[]>(`/schemes/${schemeId}/tree`),
+
+  get: (id: string) => api.get<Concept>(`/concepts/${id}`),
+
   create: (schemeId: string, data: ConceptCreate) =>
-    client.post(`api/schemes/${schemeId}/concepts`, { json: data }).json<Concept>(),
-
-  list: (schemeId: string) => client.get(`api/schemes/${schemeId}/concepts`).json<Concept[]>(),
-
-  get: (id: string) => client.get(`api/concepts/${id}`).json<Concept>(),
+    api.post<Concept>(`/schemes/${schemeId}/concepts`, data),
 
   update: (id: string, data: ConceptUpdate) =>
-    client.put(`api/concepts/${id}`, { json: data }).json<Concept>(),
+    api.put<Concept>(`/concepts/${id}`, data),
 
-  delete: (id: string) => client.delete(`api/concepts/${id}`),
+  delete: (id: string) => api.delete(`/concepts/${id}`),
 
-  addBroader: (conceptId: string, broaderId: string) =>
-    client.post(`api/concepts/${conceptId}/broader/${broaderId}`).json<Concept>(),
+  addBroader: (id: string, broaderId: string) =>
+    api.post<{ status: string }>(`/concepts/${id}/broader`, {
+      broader_concept_id: broaderId,
+    }),
 
-  removeBroader: (conceptId: string, broaderId: string) =>
-    client.delete(`api/concepts/${conceptId}/broader/${broaderId}`).json<Concept>(),
-}
+  removeBroader: (id: string, broaderId: string) =>
+    api.delete(`/concepts/${id}/broader/${broaderId}`),
+};

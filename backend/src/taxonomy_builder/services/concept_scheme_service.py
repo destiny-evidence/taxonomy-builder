@@ -1,150 +1,129 @@
 """ConceptScheme service for business logic."""
 
-from datetime import UTC, datetime
+from uuid import UUID
 
-from taxonomy_builder.db.concept_scheme_repository import ConceptSchemeRepository
-from taxonomy_builder.models.concept_scheme import (
-    ConceptScheme,
-    ConceptSchemeCreate,
-    ConceptSchemeUpdate,
-)
-from taxonomy_builder.services.taxonomy_service import TaxonomyService
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
+from taxonomy_builder.schemas.concept_scheme import ConceptSchemeCreate, ConceptSchemeUpdate
+
+
+class SchemeNotFoundError(Exception):
+    """Raised when a concept scheme is not found."""
+
+    def __init__(self, scheme_id: UUID) -> None:
+        self.scheme_id = scheme_id
+        super().__init__(f"Concept scheme with id '{scheme_id}' not found")
+
+
+class SchemeTitleExistsError(Exception):
+    """Raised when a scheme title already exists in the project."""
+
+    def __init__(self, title: str, project_id: UUID) -> None:
+        self.title = title
+        self.project_id = project_id
+        super().__init__(f"Concept scheme with title '{title}' already exists in project")
+
+
+class ProjectNotFoundError(Exception):
+    """Raised when a project is not found."""
+
+    def __init__(self, project_id: UUID) -> None:
+        self.project_id = project_id
+        super().__init__(f"Project with id '{project_id}' not found")
 
 
 class ConceptSchemeService:
     """Service for managing concept schemes."""
 
-    def __init__(
-        self, repository: ConceptSchemeRepository, taxonomy_service: TaxonomyService
-    ):
-        """Initialize the service with a repository and taxonomy service."""
-        self.repository = repository
-        self.taxonomy_service = taxonomy_service
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
 
-    def create_scheme(
-        self, taxonomy_id: str, scheme_data: ConceptSchemeCreate
-    ) -> ConceptScheme:
-        """Create a new concept scheme.
+    async def _get_project(self, project_id: UUID) -> Project:
+        """Get a project by ID or raise ProjectNotFoundError."""
+        result = await self.db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+        if project is None:
+            raise ProjectNotFoundError(project_id)
+        return project
 
-        Args:
-            taxonomy_id: The ID of the taxonomy this scheme belongs to
-            scheme_data: Data for creating the concept scheme
+    async def list_schemes_for_project(self, project_id: UUID) -> list[ConceptScheme]:
+        """List all concept schemes for a project, ordered by title."""
+        # Verify project exists
+        await self._get_project(project_id)
 
-        Returns:
-            The created concept scheme
-
-        Raises:
-            ValueError: If taxonomy doesn't exist or scheme ID already exists
-        """
-        # Validate taxonomy exists (will raise ValueError if not found)
-        taxonomy = self.taxonomy_service.get_taxonomy(taxonomy_id)
-
-        # Check if scheme with this ID already exists in this taxonomy
-        if self.repository.exists(taxonomy_id, scheme_data.id):
-            raise ValueError(
-                f"ConceptScheme with ID '{scheme_data.id}' already exists "
-                f"in taxonomy '{taxonomy_id}'"
-            )
-
-        # Generate URI from taxonomy's uri_prefix + scheme id
-        uri = f"{taxonomy.uri_prefix}{scheme_data.id}"
-
-        # Create the concept scheme
-        scheme = ConceptScheme(
-            id=scheme_data.id,
-            taxonomy_id=taxonomy_id,
-            name=scheme_data.name,
-            uri=uri,
-            description=scheme_data.description,
-            created_at=datetime.now(UTC),
+        result = await self.db.execute(
+            select(ConceptScheme)
+            .where(ConceptScheme.project_id == project_id)
+            .order_by(ConceptScheme.title)
         )
+        return list(result.scalars().all())
 
-        # Save to repository
-        return self.repository.save(scheme)
+    async def create_scheme(
+        self, project_id: UUID, scheme_in: ConceptSchemeCreate
+    ) -> ConceptScheme:
+        """Create a new concept scheme in a project."""
+        # Verify project exists
+        await self._get_project(project_id)
 
-    def list_schemes(self, taxonomy_id: str) -> list[ConceptScheme]:
-        """List all concept schemes for a taxonomy.
-
-        Args:
-            taxonomy_id: The ID of the taxonomy
-
-        Returns:
-            List of all concept schemes for the taxonomy
-
-        Raises:
-            ValueError: If taxonomy doesn't exist
-        """
-        # Validate taxonomy exists (will raise ValueError if not found)
-        self.taxonomy_service.get_taxonomy(taxonomy_id)
-
-        return self.repository.get_by_taxonomy(taxonomy_id)
-
-    def get_scheme(self, scheme_id: str) -> ConceptScheme:
-        """Get a concept scheme by ID.
-
-        Args:
-            scheme_id: The ID of the concept scheme to retrieve
-
-        Returns:
-            The requested concept scheme
-
-        Raises:
-            ValueError: If concept scheme with given ID is not found
-        """
-        scheme = self.repository.get_by_id(scheme_id)
-        if scheme is None:
-            raise ValueError(f"ConceptScheme with ID '{scheme_id}' not found")
+        scheme = ConceptScheme(
+            project_id=project_id,
+            title=scheme_in.title,
+            description=scheme_in.description,
+            uri=scheme_in.uri,
+            publisher=scheme_in.publisher,
+            version=scheme_in.version,
+        )
+        self.db.add(scheme)
+        try:
+            await self.db.flush()
+            await self.db.refresh(scheme)
+        except IntegrityError:
+            await self.db.rollback()
+            raise SchemeTitleExistsError(scheme_in.title, project_id)
         return scheme
 
-    def update_scheme(
-        self, scheme_id: str, update_data: ConceptSchemeUpdate
+    async def get_scheme(self, scheme_id: UUID) -> ConceptScheme:
+        """Get a concept scheme by ID."""
+        result = await self.db.execute(
+            select(ConceptScheme).where(ConceptScheme.id == scheme_id)
+        )
+        scheme = result.scalar_one_or_none()
+        if scheme is None:
+            raise SchemeNotFoundError(scheme_id)
+        return scheme
+
+    async def update_scheme(
+        self, scheme_id: UUID, scheme_in: ConceptSchemeUpdate
     ) -> ConceptScheme:
-        """Update a concept scheme.
+        """Update an existing concept scheme."""
+        scheme = await self.get_scheme(scheme_id)
+        project_id = scheme.project_id  # Capture before potential rollback
 
-        Args:
-            scheme_id: The ID of the concept scheme to update
-            update_data: The fields to update
+        if scheme_in.title is not None:
+            scheme.title = scheme_in.title
+        if scheme_in.description is not None:
+            scheme.description = scheme_in.description
+        if scheme_in.uri is not None:
+            scheme.uri = scheme_in.uri
+        if scheme_in.publisher is not None:
+            scheme.publisher = scheme_in.publisher
+        if scheme_in.version is not None:
+            scheme.version = scheme_in.version
 
-        Returns:
-            The updated concept scheme
+        try:
+            await self.db.flush()
+            await self.db.refresh(scheme)
+        except IntegrityError:
+            await self.db.rollback()
+            raise SchemeTitleExistsError(scheme_in.title or "", project_id)
+        return scheme
 
-        Raises:
-            ValueError: If concept scheme with given ID is not found
-        """
-        existing = self.repository.get_by_id(scheme_id)
-        if existing is None:
-            raise ValueError(f"ConceptScheme with ID '{scheme_id}' not found")
-
-        # Apply updates - only update fields that are provided
-        new_name = update_data.name if update_data.name is not None else existing.name
-        new_description = (
-            update_data.description
-            if update_data.description is not None
-            else existing.description
-        )
-
-        updated = ConceptScheme(
-            id=existing.id,
-            taxonomy_id=existing.taxonomy_id,
-            name=new_name,
-            uri=existing.uri,
-            description=new_description,
-            created_at=existing.created_at,
-        )
-
-        return self.repository.update(scheme_id, updated)
-
-    def delete_scheme(self, scheme_id: str) -> None:
-        """Delete a concept scheme.
-
-        Args:
-            scheme_id: The ID of the concept scheme to delete
-
-        Raises:
-            ValueError: If concept scheme with given ID is not found
-        """
-        existing = self.repository.get_by_id(scheme_id)
-        if existing is None:
-            raise ValueError(f"ConceptScheme with ID '{scheme_id}' not found")
-
-        self.repository.delete(scheme_id)
+    async def delete_scheme(self, scheme_id: UUID) -> None:
+        """Delete a concept scheme."""
+        scheme = await self.get_scheme(scheme_id)
+        await self.db.delete(scheme)
+        await self.db.flush()

@@ -1,65 +1,102 @@
-export interface Taxonomy {
-  id: string
-  name: string
-  uri_prefix: string
-  description?: string
-  created_at: string
+// ============ Projects ============
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface TaxonomyCreate {
-  id: string
-  name: string
-  uri_prefix: string
-  description?: string
+export interface ProjectCreate {
+  name: string;
+  description?: string | null;
 }
 
-export interface TaxonomyUpdate {
-  name?: string
-  uri_prefix?: string
-  description?: string
+export interface ProjectUpdate {
+  name?: string;
+  description?: string | null;
 }
 
+// ============ Concept Schemes ============
 export interface ConceptScheme {
-  id: string
-  taxonomy_id: string
-  name: string
-  uri: string
-  description?: string
-  created_at: string
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  uri: string | null;
+  publisher: string | null;
+  version: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ConceptSchemeCreate {
-  id: string
-  name: string
-  description?: string
+  title: string;
+  description?: string | null;
+  uri?: string | null;
+  publisher?: string | null;
+  version?: string | null;
 }
 
 export interface ConceptSchemeUpdate {
-  name?: string
-  description?: string
+  title?: string;
+  description?: string | null;
+  uri?: string | null;
+  publisher?: string | null;
+  version?: string | null;
 }
 
-export interface Concept {
-  id: string
-  scheme_id: string
-  uri: string
-  pref_label: string
-  definition?: string
-  alt_labels: string[]
-  broader_ids: string[]
-  narrower_ids: string[]
-  created_at: string
+// ============ Concepts ============
+export interface ConceptBrief {
+  id: string;
+  scheme_id: string;
+  pref_label: string;
+  definition: string | null;
+  scope_note: string | null;
+  uri: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Concept extends ConceptBrief {
+  broader: ConceptBrief[];
 }
 
 export interface ConceptCreate {
-  id: string
-  pref_label: string
-  definition?: string
-  alt_labels?: string[]
+  pref_label: string;
+  definition?: string | null;
+  scope_note?: string | null;
+  uri?: string | null;
 }
 
 export interface ConceptUpdate {
-  pref_label?: string
-  definition?: string
-  alt_labels?: string[]
+  pref_label?: string;
+  definition?: string | null;
+  scope_note?: string | null;
+  uri?: string | null;
+}
+
+// ============ Tree ============
+export interface TreeNode {
+  id: string;
+  scheme_id: string;
+  pref_label: string;
+  definition: string | null;
+  scope_note: string | null;
+  uri: string | null;
+  created_at: string;
+  updated_at: string;
+  narrower: TreeNode[];
+}
+
+// Enriched for rendering
+export interface RenderNode {
+  id: string;
+  pref_label: string;
+  definition: string | null;
+  path: string;
+  depth: number;
+  hasMultipleParents: boolean;
+  otherParentLabels: string[];
+  children: RenderNode[];
 }

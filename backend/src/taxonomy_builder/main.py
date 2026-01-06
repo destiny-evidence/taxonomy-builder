@@ -1,32 +1,40 @@
-"""Main FastAPI application for the taxonomy builder."""
+"""FastAPI application entry point."""
+
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from taxonomy_builder.api import concept_schemes, concepts, taxonomies
+from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
+from taxonomy_builder.api.projects import router as projects_router
+from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
+from taxonomy_builder.config import settings
+from taxonomy_builder.database import db_manager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Initialize and cleanup application resources."""
+    db_manager.init(settings.database_url)
+    yield
+    await db_manager.close()
+
 
 app = FastAPI(
-    title="Taxonomy Builder API",
-    description="SKOS-based taxonomy builder for evidence repositories",
+    title="Taxonomy Builder",
+    description="A web-based taxonomy management tool for SKOS vocabularies",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Frontend dev servers
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-app.include_router(taxonomies.router)
-app.include_router(concept_schemes.router)
-app.include_router(concepts.router)
+app.include_router(projects_router)
+app.include_router(project_schemes_router)
+app.include_router(schemes_router)
+app.include_router(scheme_concepts_router)
+app.include_router(concepts_router)
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy"}

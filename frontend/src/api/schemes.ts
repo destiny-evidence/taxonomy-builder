@@ -1,17 +1,21 @@
-import { client } from './client'
-import type { ConceptScheme, ConceptSchemeCreate, ConceptSchemeUpdate } from '../types/models'
+import { api } from "./client";
+import type {
+  ConceptScheme,
+  ConceptSchemeCreate,
+  ConceptSchemeUpdate,
+} from "../types/models";
 
-export const schemeApi = {
-  create: (taxonomyId: string, data: ConceptSchemeCreate) =>
-    client.post(`api/taxonomies/${taxonomyId}/schemes`, { json: data }).json<ConceptScheme>(),
+export const schemesApi = {
+  listForProject: (projectId: string) =>
+    api.get<ConceptScheme[]>(`/projects/${projectId}/schemes`),
 
-  list: (taxonomyId: string) =>
-    client.get(`api/taxonomies/${taxonomyId}/schemes`).json<ConceptScheme[]>(),
+  get: (id: string) => api.get<ConceptScheme>(`/schemes/${id}`),
 
-  get: (id: string) => client.get(`api/schemes/${id}`).json<ConceptScheme>(),
+  create: (projectId: string, data: ConceptSchemeCreate) =>
+    api.post<ConceptScheme>(`/projects/${projectId}/schemes`, data),
 
   update: (id: string, data: ConceptSchemeUpdate) =>
-    client.put(`api/schemes/${id}`, { json: data }).json<ConceptScheme>(),
+    api.put<ConceptScheme>(`/schemes/${id}`, data),
 
-  delete: (id: string) => client.delete(`api/schemes/${id}`),
-}
+  delete: (id: string) => api.delete(`/schemes/${id}`),
+};
