@@ -352,3 +352,108 @@ async def test_export_scheme_without_uri(
     # Should have a generated URI
     assert str(scheme_uri).startswith("http://")
     assert str(scheme.id) in str(scheme_uri)
+
+
+# Alt labels tests
+
+
+@pytest.mark.asyncio
+async def test_export_concept_with_alt_labels(
+    db_session: AsyncSession, export_service: SKOSExportService, scheme: ConceptScheme
+) -> None:
+    """Test that alt labels are exported as skos:altLabel."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Dogs",
+        identifier="dogs",
+        alt_labels=["Canines", "Domestic dogs", "Canis familiaris"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    result = await export_service.export_scheme(scheme.id, "ttl")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    concept_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
+    )
+
+    # Should have exactly 3 alt labels
+    alt_labels = list(g.objects(concept_uri, SKOS.altLabel))
+    assert len(alt_labels) == 3
+
+    alt_label_values = {str(label) for label in alt_labels}
+    assert alt_label_values == {"Canines", "Domestic dogs", "Canis familiaris"}
+
+
+@pytest.mark.asyncio
+async def test_export_concept_without_alt_labels(
+    db_session: AsyncSession, export_service: SKOSExportService, scheme: ConceptScheme
+) -> None:
+    """Test that concept without alt labels exports correctly."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Animals",
+        identifier="animals",
+        # No alt_labels
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    result = await export_service.export_scheme(scheme.id, "ttl")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    concept_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "animals" in str(uri)
+    )
+
+    # Should have no alt labels
+    alt_labels = list(g.objects(concept_uri, SKOS.altLabel))
+    assert len(alt_labels) == 0
+
+
+@pytest.mark.asyncio
+async def test_export_multiple_concepts_with_alt_labels(
+    db_session: AsyncSession, export_service: SKOSExportService, scheme: ConceptScheme
+) -> None:
+    """Test exporting multiple concepts with different alt labels."""
+    concept1 = Concept(
+        scheme_id=scheme.id,
+        pref_label="Dogs",
+        identifier="dogs",
+        alt_labels=["Canines"],
+    )
+    concept2 = Concept(
+        scheme_id=scheme.id,
+        pref_label="Cats",
+        identifier="cats",
+        alt_labels=["Felines", "Kitties"],
+    )
+    db_session.add_all([concept1, concept2])
+    await db_session.flush()
+
+    result = await export_service.export_scheme(scheme.id, "ttl")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Check dogs
+    dogs_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
+    )
+    dogs_alt = list(g.objects(dogs_uri, SKOS.altLabel))
+    assert len(dogs_alt) == 1
+    assert str(dogs_alt[0]) == "Canines"
+
+    # Check cats
+    cats_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "cats" in str(uri)
+    )
+    cats_alt = list(g.objects(cats_uri, SKOS.altLabel))
+    assert len(cats_alt) == 2
+    cats_alt_values = {str(label) for label in cats_alt}
+    assert cats_alt_values == {"Felines", "Kitties"}
