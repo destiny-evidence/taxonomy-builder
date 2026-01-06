@@ -69,17 +69,26 @@ export function SchemeList({ onEdit, onDeleted }: SchemeListProps) {
                 )}
               </div>
             </div>
-            <div
-              class="scheme-card__actions"
-              onClick={(e) => e.preventDefault()}
-            >
-              <Button variant="ghost" size="sm" onClick={() => onEdit(scheme)}>
+            <div class="scheme-card__actions">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onEdit(scheme);
+                }}
+              >
                 Edit
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setDeletingScheme(scheme)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setDeletingScheme(scheme);
+                }}
               >
                 Delete
               </Button>

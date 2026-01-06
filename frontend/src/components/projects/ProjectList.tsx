@@ -61,17 +61,26 @@ export function ProjectList({ onEdit, onDeleted }: ProjectListProps) {
                 <p class="project-card__description">{project.description}</p>
               )}
             </div>
-            <div
-              class="project-card__actions"
-              onClick={(e) => e.preventDefault()}
-            >
-              <Button variant="ghost" size="sm" onClick={() => onEdit(project)}>
+            <div class="project-card__actions">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onEdit(project);
+                }}
+              >
                 Edit
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setDeletingProject(project)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setDeletingProject(project);
+                }}
               >
                 Delete
               </Button>
