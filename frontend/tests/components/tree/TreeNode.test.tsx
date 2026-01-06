@@ -1,0 +1,178 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/preact";
+import { TreeNode } from "../../../src/components/tree/TreeNode";
+import type { RenderNode } from "../../../src/types/models";
+
+describe("TreeNode", () => {
+  function createNode(overrides: Partial<RenderNode> = {}): RenderNode {
+    return {
+      id: "node-1",
+      scheme_id: "scheme-1",
+      identifier: "n1",
+      pref_label: "Test Node",
+      definition: null,
+      scope_note: null,
+      uri: null,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      depth: 0,
+      path: "node-1",
+      children: [],
+      hasMultipleParents: false,
+      otherParentLabels: [],
+      ...overrides,
+    };
+  }
+
+  const defaultProps = {
+    expandedPaths: new Set<string>(),
+    selectedId: null,
+    onToggle: vi.fn(),
+    onSelect: vi.fn(),
+  };
+
+  describe("toggle button", () => {
+    it("shows toggle button when node has children", () => {
+      const node = createNode({
+        children: [createNode({ id: "child-1", pref_label: "Child" })],
+      });
+
+      render(<TreeNode {...defaultProps} node={node} />);
+
+      expect(screen.getByRole("button", { name: /Expand/i })).toBeInTheDocument();
+    });
+
+    it("does not show toggle button when node has no children", () => {
+      const node = createNode({ children: [] });
+
+      render(<TreeNode {...defaultProps} node={node} />);
+
+      expect(screen.queryByRole("button", { name: /Expand/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Collapse/i })).not.toBeInTheDocument();
+    });
+
+    it("shows collapse button when expanded", () => {
+      const node = createNode({
+        path: "node-1",
+        children: [createNode({ id: "child-1", pref_label: "Child" })],
+      });
+
+      render(
+        <TreeNode
+          {...defaultProps}
+          node={node}
+          expandedPaths={new Set(["node-1"])}
+        />
+      );
+
+      expect(screen.getByRole("button", { name: /Collapse/i })).toBeInTheDocument();
+    });
+
+    it("calls onToggle with path when toggle clicked", () => {
+      const onToggle = vi.fn();
+      const node = createNode({
+        path: "parent/child",
+        children: [createNode({ id: "grandchild", pref_label: "Grandchild" })],
+      });
+
+      render(<TreeNode {...defaultProps} node={node} onToggle={onToggle} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Expand/i }));
+
+      expect(onToggle).toHaveBeenCalledWith("parent/child");
+    });
+  });
+
+  describe("selection", () => {
+    it("calls onSelect with node id when label clicked", () => {
+      const onSelect = vi.fn();
+      const node = createNode({ id: "my-node-id", pref_label: "My Node" });
+
+      render(<TreeNode {...defaultProps} node={node} onSelect={onSelect} />);
+
+      fireEvent.click(screen.getByText("My Node"));
+
+      expect(onSelect).toHaveBeenCalledWith("my-node-id");
+    });
+
+    it("applies selected class when node is selected", () => {
+      const node = createNode({ id: "selected-node" });
+
+      render(
+        <TreeNode {...defaultProps} node={node} selectedId="selected-node" />
+      );
+
+      const row = screen.getByText("Test Node").closest(".tree-node__row");
+      expect(row).toHaveClass("tree-node__row--selected");
+    });
+
+    it("does not apply selected class when node is not selected", () => {
+      const node = createNode({ id: "unselected-node" });
+
+      render(
+        <TreeNode {...defaultProps} node={node} selectedId="other-node" />
+      );
+
+      const row = screen.getByText("Test Node").closest(".tree-node__row");
+      expect(row).not.toHaveClass("tree-node__row--selected");
+    });
+  });
+
+  describe("multi-parent indicator", () => {
+    it("shows multi-parent indicator when hasMultipleParents is true", () => {
+      const node = createNode({
+        hasMultipleParents: true,
+        otherParentLabels: ["Parent A", "Parent B"],
+      });
+
+      render(<TreeNode {...defaultProps} node={node} />);
+
+      const indicator = screen.getByText("⑂");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator).toHaveAttribute("title", "Also under: Parent A, Parent B");
+    });
+
+    it("does not show multi-parent indicator when hasMultipleParents is false", () => {
+      const node = createNode({ hasMultipleParents: false });
+
+      render(<TreeNode {...defaultProps} node={node} />);
+
+      expect(screen.queryByText("⑂")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("children rendering", () => {
+    it("renders children when expanded", () => {
+      const node = createNode({
+        path: "parent",
+        children: [
+          createNode({ id: "child-1", pref_label: "Child One", path: "parent/child-1" }),
+          createNode({ id: "child-2", pref_label: "Child Two", path: "parent/child-2" }),
+        ],
+      });
+
+      render(
+        <TreeNode
+          {...defaultProps}
+          node={node}
+          expandedPaths={new Set(["parent"])}
+        />
+      );
+
+      expect(screen.getByText("Child One")).toBeInTheDocument();
+      expect(screen.getByText("Child Two")).toBeInTheDocument();
+    });
+
+    it("does not render children when collapsed", () => {
+      const node = createNode({
+        children: [
+          createNode({ id: "child-1", pref_label: "Child One" }),
+        ],
+      });
+
+      render(<TreeNode {...defaultProps} node={node} expandedPaths={new Set()} />);
+
+      expect(screen.queryByText("Child One")).not.toBeInTheDocument();
+    });
+  });
+});
