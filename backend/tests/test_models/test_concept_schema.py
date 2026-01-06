@@ -181,3 +181,151 @@ class TestConceptRead:
         assert concept.definition is None
         assert concept.scope_note is None
         assert concept.uri is None
+
+
+class TestConceptCreateAltLabels:
+    """Tests for alt_labels in ConceptCreate schema."""
+
+    def test_concept_create_with_alt_labels(self) -> None:
+        """Test creating a concept with alt labels."""
+        concept = ConceptCreate(
+            pref_label="Dogs",
+            alt_labels=["Canines", "Domestic dogs"],
+        )
+        assert concept.alt_labels == ["Canines", "Domestic dogs"]
+
+    def test_concept_create_alt_labels_default_empty(self) -> None:
+        """Test that alt_labels defaults to empty list."""
+        concept = ConceptCreate(pref_label="Test")
+        assert concept.alt_labels == []
+
+    def test_concept_create_alt_labels_empty_list(self) -> None:
+        """Test creating concept with explicit empty alt_labels."""
+        concept = ConceptCreate(pref_label="Test", alt_labels=[])
+        assert concept.alt_labels == []
+
+    def test_concept_create_alt_labels_strips_whitespace(self) -> None:
+        """Test that alt labels are stripped of whitespace."""
+        concept = ConceptCreate(
+            pref_label="Test",
+            alt_labels=["  padded  ", "normal"],
+        )
+        assert concept.alt_labels == ["padded", "normal"]
+
+    def test_concept_create_alt_labels_removes_empty_strings(self) -> None:
+        """Test that empty alt labels are filtered out."""
+        concept = ConceptCreate(
+            pref_label="Test",
+            alt_labels=["valid", "", "  ", "also valid"],
+        )
+        assert concept.alt_labels == ["valid", "also valid"]
+
+    def test_concept_create_alt_labels_removes_duplicates(self) -> None:
+        """Test that duplicate alt labels are removed (case-insensitive)."""
+        concept = ConceptCreate(
+            pref_label="Test",
+            alt_labels=["Canine", "canine", "CANINE", "Dog"],
+        )
+        # Should keep first occurrence of case-insensitive duplicates
+        assert concept.alt_labels == ["Canine", "Dog"]
+
+
+class TestConceptUpdateAltLabels:
+    """Tests for alt_labels in ConceptUpdate schema."""
+
+    def test_concept_update_with_alt_labels(self) -> None:
+        """Test updating concept with alt labels."""
+        concept = ConceptUpdate(alt_labels=["Synonym 1", "Synonym 2"])
+        assert concept.alt_labels == ["Synonym 1", "Synonym 2"]
+
+    def test_concept_update_alt_labels_none_by_default(self) -> None:
+        """Test that alt_labels is None by default (no update)."""
+        concept = ConceptUpdate()
+        assert concept.alt_labels is None
+
+    def test_concept_update_alt_labels_can_be_empty_list(self) -> None:
+        """Test that alt_labels can be set to empty list (clear all)."""
+        concept = ConceptUpdate(alt_labels=[])
+        assert concept.alt_labels == []
+
+    def test_concept_update_alt_labels_strips_whitespace(self) -> None:
+        """Test that alt labels are stripped of whitespace."""
+        concept = ConceptUpdate(alt_labels=["  padded  ", "normal"])
+        assert concept.alt_labels == ["padded", "normal"]
+
+    def test_concept_update_alt_labels_removes_empty_strings(self) -> None:
+        """Test that empty alt labels are filtered out."""
+        concept = ConceptUpdate(alt_labels=["valid", "", "  ", "also valid"])
+        assert concept.alt_labels == ["valid", "also valid"]
+
+
+class TestConceptReadAltLabels:
+    """Tests for alt_labels in ConceptRead/ConceptBrief schemas."""
+
+    def test_concept_read_includes_alt_labels(self) -> None:
+        """Test that ConceptRead includes alt_labels field."""
+        now = datetime.now()
+        concept = ConceptRead(
+            id=uuid4(),
+            scheme_id=uuid4(),
+            identifier="test",
+            pref_label="Test",
+            definition=None,
+            scope_note=None,
+            uri=None,
+            alt_labels=["Synonym"],
+            created_at=now,
+            updated_at=now,
+            broader=[],
+        )
+        assert concept.alt_labels == ["Synonym"]
+
+    def test_concept_read_alt_labels_defaults_empty(self) -> None:
+        """Test that alt_labels defaults to empty list in read."""
+        now = datetime.now()
+        concept = ConceptRead(
+            id=uuid4(),
+            scheme_id=uuid4(),
+            identifier="test",
+            pref_label="Test",
+            definition=None,
+            scope_note=None,
+            uri=None,
+            created_at=now,
+            updated_at=now,
+            broader=[],
+        )
+        assert concept.alt_labels == []
+
+    def test_concept_brief_includes_alt_labels(self) -> None:
+        """Test that ConceptBrief includes alt_labels field."""
+        now = datetime.now()
+        concept = ConceptBrief(
+            id=uuid4(),
+            scheme_id=uuid4(),
+            identifier="test",
+            pref_label="Test",
+            definition=None,
+            scope_note=None,
+            uri=None,
+            alt_labels=["Alt1", "Alt2"],
+            created_at=now,
+            updated_at=now,
+        )
+        assert concept.alt_labels == ["Alt1", "Alt2"]
+
+    def test_concept_brief_alt_labels_defaults_empty(self) -> None:
+        """Test that alt_labels defaults to empty list in brief."""
+        now = datetime.now()
+        concept = ConceptBrief(
+            id=uuid4(),
+            scheme_id=uuid4(),
+            identifier="test",
+            pref_label="Test",
+            definition=None,
+            scope_note=None,
+            uri=None,
+            created_at=now,
+            updated_at=now,
+        )
+        assert concept.alt_labels == []
