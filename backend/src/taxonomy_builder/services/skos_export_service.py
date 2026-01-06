@@ -105,6 +105,10 @@ class SKOSExportService:
             if concept.scope_note:
                 g.add((concept_uri, SKOS.scopeNote, Literal(concept.scope_note)))
 
+            # Add alt labels
+            for alt_label in concept.alt_labels:
+                g.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
+
             # Add broader relationships
             for broader_concept in concept.broader:
                 broader_uri = self._get_concept_uri(broader_concept, scheme_uri_str)
