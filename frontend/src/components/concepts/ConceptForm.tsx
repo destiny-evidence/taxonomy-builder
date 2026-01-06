@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { Input } from "../common/Input";
 import { Button } from "../common/Button";
+import { AltLabelsEditor } from "./AltLabelsEditor";
 import { conceptsApi } from "../../api/concepts";
 import { ApiError } from "../../api/client";
 import type { Concept } from "../../types/models";
@@ -21,6 +22,7 @@ export function ConceptForm({ schemeId, schemeUri, concept, onSuccess, onCancel 
   const [identifier, setIdentifier] = useState(concept?.identifier ?? "");
   const [definition, setDefinition] = useState(concept?.definition ?? "");
   const [scopeNote, setScopeNote] = useState(concept?.scope_note ?? "");
+  const [altLabels, setAltLabels] = useState<string[]>(concept?.alt_labels ?? []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +32,7 @@ export function ConceptForm({ schemeId, schemeUri, concept, onSuccess, onCancel 
     setIdentifier(concept?.identifier ?? "");
     setDefinition(concept?.definition ?? "");
     setScopeNote(concept?.scope_note ?? "");
+    setAltLabels(concept?.alt_labels ?? []);
     setError(null);
   }, [concept]);
 
@@ -47,6 +50,7 @@ export function ConceptForm({ schemeId, schemeUri, concept, onSuccess, onCancel 
       identifier: identifier || null,
       definition: definition || null,
       scope_note: scopeNote || null,
+      alt_labels: altLabels,
     };
 
     try {
@@ -112,6 +116,11 @@ export function ConceptForm({ schemeId, schemeUri, concept, onSuccess, onCancel 
         multiline
         onChange={setScopeNote}
       />
+
+      <div class="concept-form__field">
+        <label class="concept-form__field-label">Alternative Labels</label>
+        <AltLabelsEditor labels={altLabels} onChange={setAltLabels} />
+      </div>
 
       <div class="concept-form__actions">
         <Button variant="secondary" onClick={onCancel}>
