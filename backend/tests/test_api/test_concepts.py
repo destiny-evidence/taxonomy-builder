@@ -597,3 +597,154 @@ async def test_tree_includes_alt_labels(
     data = response.json()
     assert len(data) == 1
     assert data[0]["alt_labels"] == ["Base", "Top"]
+
+
+# Move concept tests
+
+
+@pytest.mark.asyncio
+async def test_move_concept_to_new_parent(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test moving a concept from one parent to another."""
+    old_parent = Concept(scheme_id=scheme.id, pref_label="Old Parent")
+    new_parent = Concept(scheme_id=scheme.id, pref_label="New Parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    db_session.add_all([old_parent, new_parent, child])
+    await db_session.flush()
+
+    # Set up initial hierarchy: child under old_parent
+    rel = ConceptBroader(concept_id=child.id, broader_concept_id=old_parent.id)
+    db_session.add(rel)
+    await db_session.flush()
+
+    response = await client.post(
+        f"/api/concepts/{child.id}/move",
+        json={
+            "new_parent_id": str(new_parent.id),
+            "previous_parent_id": str(old_parent.id),
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should have new_parent as broader, not old_parent
+    broader_ids = [b["id"] for b in data["broader"]]
+    assert str(new_parent.id) in broader_ids
+    assert str(old_parent.id) not in broader_ids
+
+
+@pytest.mark.asyncio
+async def test_move_concept_to_root(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test moving a concept to root level (removing its parent)."""
+    parent = Concept(scheme_id=scheme.id, pref_label="Parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    db_session.add_all([parent, child])
+    await db_session.flush()
+
+    rel = ConceptBroader(concept_id=child.id, broader_concept_id=parent.id)
+    db_session.add(rel)
+    await db_session.flush()
+
+    response = await client.post(
+        f"/api/concepts/{child.id}/move",
+        json={
+            "new_parent_id": None,
+            "previous_parent_id": str(parent.id),
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["broader"] == []
+
+
+@pytest.mark.asyncio
+async def test_move_concept_add_parent_polyhierarchy(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test adding an additional parent (polyhierarchy) without removing existing."""
+    parent1 = Concept(scheme_id=scheme.id, pref_label="Parent 1")
+    parent2 = Concept(scheme_id=scheme.id, pref_label="Parent 2")
+    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    db_session.add_all([parent1, parent2, child])
+    await db_session.flush()
+
+    rel = ConceptBroader(concept_id=child.id, broader_concept_id=parent1.id)
+    db_session.add(rel)
+    await db_session.flush()
+
+    # Add parent2 without removing parent1 (previous_parent_id=None)
+    response = await client.post(
+        f"/api/concepts/{child.id}/move",
+        json={
+            "new_parent_id": str(parent2.id),
+            "previous_parent_id": None,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    broader_ids = [b["id"] for b in data["broader"]]
+    assert str(parent1.id) in broader_ids
+    assert str(parent2.id) in broader_ids
+
+
+@pytest.mark.asyncio
+async def test_move_concept_to_self_fails(client: AsyncClient, concept: Concept) -> None:
+    """Test that moving a concept to itself fails."""
+    response = await client.post(
+        f"/api/concepts/{concept.id}/move",
+        json={"new_parent_id": str(concept.id)},
+    )
+    assert response.status_code == 400
+    assert "itself" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_move_concept_to_descendant_fails(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that moving a concept to its descendant fails (cycle detection)."""
+    grandparent = Concept(scheme_id=scheme.id, pref_label="Grandparent")
+    parent = Concept(scheme_id=scheme.id, pref_label="Parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    db_session.add_all([grandparent, parent, child])
+    await db_session.flush()
+
+    # Build hierarchy: grandparent -> parent -> child
+    rel1 = ConceptBroader(concept_id=parent.id, broader_concept_id=grandparent.id)
+    rel2 = ConceptBroader(concept_id=child.id, broader_concept_id=parent.id)
+    db_session.add_all([rel1, rel2])
+    await db_session.flush()
+
+    # Try to move grandparent under child (would create cycle)
+    response = await client.post(
+        f"/api/concepts/{grandparent.id}/move",
+        json={"new_parent_id": str(child.id)},
+    )
+    assert response.status_code == 400
+    assert "cycle" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_move_concept_to_nonexistent_parent_fails(
+    client: AsyncClient, concept: Concept
+) -> None:
+    """Test that moving to a non-existent parent fails."""
+    response = await client.post(
+        f"/api/concepts/{concept.id}/move",
+        json={"new_parent_id": str(uuid4())},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_move_nonexistent_concept_fails(client: AsyncClient) -> None:
+    """Test that moving a non-existent concept fails."""
+    response = await client.post(
+        f"/api/concepts/{uuid4()}/move",
+        json={"new_parent_id": None},
+    )
+    assert response.status_code == 404

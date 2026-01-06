@@ -41,12 +41,14 @@ class SKOSExportService:
         return scheme
 
     async def _get_concepts_for_scheme(self, scheme_id: UUID) -> list[Concept]:
-        """Get all concepts for a scheme with broader relationships loaded."""
+        """Get all concepts for a scheme with broader and related relationships loaded."""
         result = await self.db.execute(
             select(Concept)
             .where(Concept.scheme_id == scheme_id)
             .options(selectinload(Concept.broader))
             .options(selectinload(Concept.scheme))
+            .options(selectinload(Concept._related_as_subject))
+            .options(selectinload(Concept._related_as_object))
         )
         return list(result.scalars().all())
 
@@ -115,6 +117,11 @@ class SKOSExportService:
                 g.add((concept_uri, SKOS.broader, broader_uri))
                 # Also add inverse narrower relationship
                 g.add((broader_uri, SKOS.narrower, concept_uri))
+
+            # Add related relationships (symmetric - add both directions)
+            for related_concept in concept.related:
+                related_uri = self._get_concept_uri(related_concept, scheme_uri_str)
+                g.add((concept_uri, SKOS.related, related_uri))
 
             # Add hasTopConcept for concepts without broader
             if concept.id not in has_broader:

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
+from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.skos_export_service import SKOSExportService, SchemeNotFoundError
@@ -457,3 +458,77 @@ async def test_export_multiple_concepts_with_alt_labels(
     assert len(cats_alt) == 2
     cats_alt_values = {str(label) for label in cats_alt}
     assert cats_alt_values == {"Felines", "Kitties"}
+
+
+# Related relationship tests
+
+
+@pytest.mark.asyncio
+async def test_export_includes_related_relationship(
+    db_session: AsyncSession, export_service: SKOSExportService, scheme: ConceptScheme
+) -> None:
+    """Test that related relationships are exported as skos:related."""
+    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="dogs")
+    cats = Concept(scheme_id=scheme.id, pref_label="Cats", identifier="cats")
+    db_session.add_all([dogs, cats])
+    await db_session.flush()
+
+    # Create related relationship (ordered: smaller ID first)
+    id1, id2 = (dogs.id, cats.id) if dogs.id < cats.id else (cats.id, dogs.id)
+    rel = ConceptRelated(concept_id=id1, related_concept_id=id2)
+    db_session.add(rel)
+    await db_session.flush()
+
+    result = await export_service.export_scheme(scheme.id, "ttl")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Find dogs concept
+    dogs_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
+    )
+
+    # Dogs should have a related relationship
+    related_list = list(g.objects(dogs_uri, SKOS.related))
+    assert len(related_list) == 1
+    assert "cats" in str(related_list[0])
+
+
+@pytest.mark.asyncio
+async def test_export_related_is_symmetric(
+    db_session: AsyncSession, export_service: SKOSExportService, scheme: ConceptScheme
+) -> None:
+    """Test that related relationships are exported from both directions."""
+    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="dogs")
+    cats = Concept(scheme_id=scheme.id, pref_label="Cats", identifier="cats")
+    db_session.add_all([dogs, cats])
+    await db_session.flush()
+
+    # Create related relationship (ordered: smaller ID first)
+    id1, id2 = (dogs.id, cats.id) if dogs.id < cats.id else (cats.id, dogs.id)
+    rel = ConceptRelated(concept_id=id1, related_concept_id=id2)
+    db_session.add(rel)
+    await db_session.flush()
+
+    result = await export_service.export_scheme(scheme.id, "ttl")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    dogs_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
+    )
+    cats_uri = next(
+        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "cats" in str(uri)
+    )
+
+    # Dogs should show related to cats
+    dogs_related = list(g.objects(dogs_uri, SKOS.related))
+    assert len(dogs_related) == 1
+    assert str(dogs_related[0]) == str(cats_uri)
+
+    # Cats should show related to dogs (symmetric)
+    cats_related = list(g.objects(cats_uri, SKOS.related))
+    assert len(cats_related) == 1
+    assert str(cats_related[0]) == str(dogs_uri)

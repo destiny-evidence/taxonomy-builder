@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
+from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
 
@@ -45,6 +46,58 @@ class BroaderRelationshipNotFoundError(Exception):
         self.concept_id = concept_id
         self.broader_concept_id = broader_concept_id
         super().__init__(f"Broader relationship not found")
+
+
+class CycleDetectedError(Exception):
+    """Raised when a move operation would create a cycle in the hierarchy."""
+
+    def __init__(self, concept_id: UUID, target_id: UUID) -> None:
+        self.concept_id = concept_id
+        self.target_id = target_id
+        super().__init__("Cannot move concept to its own descendant - would create cycle")
+
+
+class SelfReferenceError(Exception):
+    """Raised when trying to make a concept its own parent."""
+
+    def __init__(self, concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        super().__init__("Cannot make concept a parent of itself")
+
+
+class RelatedRelationshipExistsError(Exception):
+    """Raised when a related relationship already exists."""
+
+    def __init__(self, concept_id: UUID, related_concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        self.related_concept_id = related_concept_id
+        super().__init__(f"Related relationship already exists")
+
+
+class RelatedRelationshipNotFoundError(Exception):
+    """Raised when a related relationship is not found."""
+
+    def __init__(self, concept_id: UUID, related_concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        self.related_concept_id = related_concept_id
+        super().__init__(f"Related relationship not found")
+
+
+class RelatedSelfReferenceError(Exception):
+    """Raised when trying to relate a concept to itself."""
+
+    def __init__(self, concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        super().__init__(f"A concept cannot be related to itself")
+
+
+class RelatedSameSchemeError(Exception):
+    """Raised when trying to relate concepts from different schemes."""
+
+    def __init__(self, concept_id: UUID, related_concept_id: UUID) -> None:
+        self.concept_id = concept_id
+        self.related_concept_id = related_concept_id
+        super().__init__(f"Related concepts must be in the same scheme")
 
 
 class ConceptService:
@@ -93,11 +146,15 @@ class ConceptService:
         return await self.get_concept(concept.id)
 
     async def get_concept(self, concept_id: UUID) -> Concept:
-        """Get a concept by ID with broader relationships loaded."""
+        """Get a concept by ID with broader and related relationships loaded."""
         result = await self.db.execute(
             select(Concept)
             .where(Concept.id == concept_id)
-            .options(selectinload(Concept.broader))
+            .options(
+                selectinload(Concept.broader),
+                selectinload(Concept._related_as_subject),
+                selectinload(Concept._related_as_object),
+            )
             .execution_options(populate_existing=True)
         )
         concept = result.scalar_one_or_none()
@@ -220,3 +277,138 @@ class ConceptService:
             }
 
         return [build_tree_node(root) for root in roots]
+
+    async def add_related(self, concept_id: UUID, related_concept_id: UUID) -> None:
+        """Add a related relationship between two concepts.
+
+        The relationship is symmetric and stored with concept_id < related_concept_id.
+        Both concepts must be in the same scheme.
+        """
+        # Check for self-reference
+        if concept_id == related_concept_id:
+            raise RelatedSelfReferenceError(concept_id)
+
+        # Verify both concepts exist and get their scheme_ids
+        concept = await self.get_concept(concept_id)
+        related_concept = await self.get_concept(related_concept_id)
+
+        # Check same scheme
+        if concept.scheme_id != related_concept.scheme_id:
+            raise RelatedSameSchemeError(concept_id, related_concept_id)
+
+        # Order IDs - smaller first
+        if concept_id < related_concept_id:
+            id1, id2 = concept_id, related_concept_id
+        else:
+            id1, id2 = related_concept_id, concept_id
+
+        rel = ConceptRelated(concept_id=id1, related_concept_id=id2)
+        self.db.add(rel)
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            raise RelatedRelationshipExistsError(concept_id, related_concept_id)
+
+    async def remove_related(self, concept_id: UUID, related_concept_id: UUID) -> None:
+        """Remove a related relationship between two concepts.
+
+        Works regardless of which concept is passed first (symmetric).
+        """
+        # Order IDs - smaller first (to match storage)
+        if concept_id < related_concept_id:
+            id1, id2 = concept_id, related_concept_id
+        else:
+            id1, id2 = related_concept_id, concept_id
+
+        result = await self.db.execute(
+            select(ConceptRelated).where(
+                ConceptRelated.concept_id == id1,
+                ConceptRelated.related_concept_id == id2,
+            )
+        )
+        rel = result.scalar_one_or_none()
+        if rel is None:
+            raise RelatedRelationshipNotFoundError(concept_id, related_concept_id)
+        await self.db.delete(rel)
+        await self.db.flush()
+
+    async def _is_descendant(self, concept_id: UUID, potential_descendant_id: UUID) -> bool:
+        """Check if potential_descendant_id is a descendant of concept_id.
+
+        Uses BFS to traverse the narrower (children) relationships.
+        Returns True if potential_descendant_id is found under concept_id.
+        """
+        visited: set[UUID] = set()
+        queue: list[UUID] = [concept_id]
+
+        while queue:
+            current_id = queue.pop(0)
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+
+            # Get narrower concepts (children) - concepts where this is the broader
+            result = await self.db.execute(
+                select(ConceptBroader.concept_id).where(
+                    ConceptBroader.broader_concept_id == current_id
+                )
+            )
+            children_ids = [row[0] for row in result.fetchall()]
+
+            for child_id in children_ids:
+                if child_id == potential_descendant_id:
+                    return True
+                queue.append(child_id)
+
+        return False
+
+    async def move_concept(
+        self,
+        concept_id: UUID,
+        new_parent_id: UUID | None,
+        previous_parent_id: UUID | None,
+    ) -> Concept:
+        """Move a concept to a new parent (or to root if new_parent_id is None).
+
+        Args:
+            concept_id: The concept being moved
+            new_parent_id: The new parent (None = move to root)
+            previous_parent_id: The parent to replace (None = add new parent without removing)
+
+        Raises:
+            ConceptNotFoundError: If concept or parent doesn't exist
+            SelfReferenceError: If new_parent_id == concept_id
+            CycleDetectedError: If new_parent_id is a descendant of concept_id
+        """
+        # Verify concept exists
+        await self.get_concept(concept_id)
+
+        # Validate: not moving to self
+        if new_parent_id == concept_id:
+            raise SelfReferenceError(concept_id)
+
+        # Validate: new parent exists (if specified)
+        if new_parent_id is not None:
+            await self.get_concept(new_parent_id)
+
+            # Validate: not moving to descendant (cycle detection)
+            if await self._is_descendant(concept_id, new_parent_id):
+                raise CycleDetectedError(concept_id, new_parent_id)
+
+        # Remove previous parent relationship (if specified)
+        if previous_parent_id is not None:
+            try:
+                await self.remove_broader(concept_id, previous_parent_id)
+            except BroaderRelationshipNotFoundError:
+                pass  # Previous parent was already removed, continue
+
+        # Add new parent relationship (if specified)
+        if new_parent_id is not None:
+            try:
+                await self.add_broader(concept_id, new_parent_id)
+            except BroaderRelationshipExistsError:
+                pass  # Already has this parent, that's fine
+
+        # Re-fetch to get fresh relationships
+        return await self.get_concept(concept_id)

@@ -117,3 +117,17 @@ class ConceptRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     broader: list[ConceptBrief] = []
+    related: list[ConceptBrief] = []
+
+
+class ConceptMoveRequest(BaseModel):
+    """Request body for moving a concept to a new parent."""
+
+    new_parent_id: UUID | None = Field(
+        default=None,
+        description="New parent concept ID. Null to move to root level.",
+    )
+    previous_parent_id: UUID | None = Field(
+        default=None,
+        description="Previous parent to replace. Null to add as additional parent (polyhierarchy).",
+    )

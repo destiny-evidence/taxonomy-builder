@@ -53,3 +53,35 @@ class Concept(Base):
         lazy="selectin",
         viewonly=True,
     )
+
+    # SKOS related relationships (symmetric, many-to-many via concept_related)
+    # Since related is symmetric, we query both directions
+    _related_as_subject: Mapped[list["Concept"]] = relationship(
+        secondary="concept_related",
+        primaryjoin="Concept.id == concept_related.c.concept_id",
+        secondaryjoin="Concept.id == concept_related.c.related_concept_id",
+        lazy="selectin",
+        viewonly=True,
+    )
+    _related_as_object: Mapped[list["Concept"]] = relationship(
+        secondary="concept_related",
+        primaryjoin="Concept.id == concept_related.c.related_concept_id",
+        secondaryjoin="Concept.id == concept_related.c.concept_id",
+        lazy="selectin",
+        viewonly=True,
+    )
+
+    @property
+    def related(self) -> list["Concept"]:
+        """Get all related concepts (union of both directions)."""
+        seen: set[UUID] = set()
+        result: list[Concept] = []
+        for c in self._related_as_subject:
+            if c.id not in seen:
+                seen.add(c.id)
+                result.append(c)
+        for c in self._related_as_object:
+            if c.id not in seen:
+                seen.add(c.id)
+                result.append(c)
+        return result

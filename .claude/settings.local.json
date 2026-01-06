@@ -11,7 +11,12 @@
       "Bash(npm run test:*)",
       "Bash(npm run build:*)",
       "Bash(uv sync:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(uv run alembic:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm test:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
