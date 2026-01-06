@@ -46,6 +46,11 @@
   margin: 0;
 }
 
+.scheme-detail__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
 .scheme-detail__sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;

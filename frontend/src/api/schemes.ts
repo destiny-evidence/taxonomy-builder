@@ -1,9 +1,16 @@
 import { api } from "./client";
+import { API_BASE } from "../config";
 import type {
   ConceptScheme,
   ConceptSchemeCreate,
   ConceptSchemeUpdate,
 } from "../types/models";
+
+export type ExportFormat = "ttl" | "xml" | "jsonld";
+
+export function getExportUrl(schemeId: string, format: ExportFormat): string {
+  return `${API_BASE}/schemes/${schemeId}/export?format=${format}`;
+}
 
 export const schemesApi = {
   listForProject: (projectId: string) =>

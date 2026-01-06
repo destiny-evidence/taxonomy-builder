@@ -4,6 +4,7 @@ import { TreeView } from "../components/tree/TreeView";
 import { TreeControls } from "../components/tree/TreeControls";
 import { ConceptDetail } from "../components/concepts/ConceptDetail";
 import { ConceptForm } from "../components/concepts/ConceptForm";
+import { ExportModal } from "../components/schemes/ExportModal";
 import { Modal } from "../components/common/Modal";
 import { Button } from "../components/common/Button";
 import { currentProject } from "../state/projects";
@@ -30,6 +31,7 @@ interface SchemeDetailPageProps {
 export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [formKey, setFormKey] = useState(0);
 
@@ -168,7 +170,12 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
                 <p class="scheme-detail__description">{scheme.description}</p>
               )}
             </div>
-            <Button onClick={handleCreate}>Add Concept</Button>
+            <div class="scheme-detail__actions">
+              <Button variant="secondary" onClick={() => setIsExportOpen(true)}>
+                Export
+              </Button>
+              <Button onClick={handleCreate}>Add Concept</Button>
+            </div>
           </div>
 
           <TreeControls
@@ -220,6 +227,13 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
           onCancel={handleFormClose}
         />
       </Modal>
+
+      <ExportModal
+        isOpen={isExportOpen}
+        schemeId={schemeId!}
+        schemeTitle={scheme.title}
+        onClose={() => setIsExportOpen(false)}
+      />
     </div>
   );
 }
