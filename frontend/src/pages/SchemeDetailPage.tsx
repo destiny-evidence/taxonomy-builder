@@ -183,7 +183,14 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
             onCollapseAll={handleCollapseAll}
           />
 
-          <TreeView schemeId={schemeId!} />
+          <TreeView
+            schemeId={schemeId!}
+            onRefresh={async () => {
+              if (schemeId) {
+                await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+              }
+            }}
+          />
         </div>
 
         <aside class="scheme-detail__sidebar">

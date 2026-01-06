@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/preact";
+import { DndContext } from "@dnd-kit/core";
 import { TreeNode } from "../../../src/components/tree/TreeNode";
+import { draggedConceptId } from "../../../src/state/concepts";
 import type { RenderNode } from "../../../src/types/models";
 
 describe("TreeNode", () => {
@@ -25,13 +27,22 @@ describe("TreeNode", () => {
     onSelect: vi.fn(),
   };
 
+  // Helper to render TreeNode wrapped in DndContext
+  function renderWithDnd(ui: preact.JSX.Element) {
+    return render(<DndContext>{ui}</DndContext>);
+  }
+
+  beforeEach(() => {
+    draggedConceptId.value = null;
+  });
+
   describe("toggle button", () => {
     it("shows toggle button when node has children", () => {
       const node = createNode({
         children: [createNode({ id: "child-1", pref_label: "Child" })],
       });
 
-      render(<TreeNode {...defaultProps} node={node} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
 
       expect(screen.getByRole("button", { name: /Expand/i })).toBeInTheDocument();
     });
@@ -39,7 +50,7 @@ describe("TreeNode", () => {
     it("does not show toggle button when node has no children", () => {
       const node = createNode({ children: [] });
 
-      render(<TreeNode {...defaultProps} node={node} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
 
       expect(screen.queryByRole("button", { name: /Expand/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Collapse/i })).not.toBeInTheDocument();
@@ -69,7 +80,7 @@ describe("TreeNode", () => {
         children: [createNode({ id: "grandchild", pref_label: "Grandchild" })],
       });
 
-      render(<TreeNode {...defaultProps} node={node} onToggle={onToggle} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} onToggle={onToggle} />);
 
       fireEvent.click(screen.getByRole("button", { name: /Expand/i }));
 
@@ -82,7 +93,7 @@ describe("TreeNode", () => {
       const onSelect = vi.fn();
       const node = createNode({ id: "my-node-id", pref_label: "My Node" });
 
-      render(<TreeNode {...defaultProps} node={node} onSelect={onSelect} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} onSelect={onSelect} />);
 
       fireEvent.click(screen.getByText("My Node"));
 
@@ -119,7 +130,7 @@ describe("TreeNode", () => {
         otherParentLabels: ["Parent A", "Parent B"],
       });
 
-      render(<TreeNode {...defaultProps} node={node} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
 
       const indicator = screen.getByText("⑂");
       expect(indicator).toBeInTheDocument();
@@ -129,7 +140,7 @@ describe("TreeNode", () => {
     it("does not show multi-parent indicator when hasMultipleParents is false", () => {
       const node = createNode({ hasMultipleParents: false });
 
-      render(<TreeNode {...defaultProps} node={node} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
 
       expect(screen.queryByText("⑂")).not.toBeInTheDocument();
     });
@@ -164,9 +175,21 @@ describe("TreeNode", () => {
         ],
       });
 
-      render(<TreeNode {...defaultProps} node={node} expandedPaths={new Set()} />);
+      renderWithDnd(<TreeNode {...defaultProps} node={node} expandedPaths={new Set()} />);
 
       expect(screen.queryByText("Child One")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("drag handle", () => {
+    it("renders drag handle with correct title", () => {
+      const node = createNode();
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
+
+      const handle = screen.getByTitle("Drag to move");
+      expect(handle).toBeInTheDocument();
+      expect(handle).toHaveTextContent("⋮⋮");
     });
   });
 });

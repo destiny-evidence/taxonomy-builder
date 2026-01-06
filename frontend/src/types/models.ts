@@ -107,3 +107,20 @@ export interface RenderNode {
   otherParentLabels: string[];
   children: RenderNode[];
 }
+
+// ============ Drag and Drop ============
+export interface ConceptMoveRequest {
+  new_parent_id: string | null;
+  previous_parent_id: string | null;
+}
+
+export interface DragData {
+  conceptId: string;
+  currentParentId: string | null;
+  path: string;
+}
+
+export interface DropData {
+  conceptId: string;
+  acceptsDrop: boolean;
+}

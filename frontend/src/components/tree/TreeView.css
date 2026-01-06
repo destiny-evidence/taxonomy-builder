@@ -13,3 +13,21 @@
   text-align: center;
   color: var(--color-text-secondary);
 }
+
+/* Root drop zone */
+.tree-view__root-drop {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  transition: all 0.15s ease;
+}
+
+.tree-view__root-drop--over {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}

@@ -1,12 +1,21 @@
-import { renderTree, treeLoading, expandedPaths, selectedConceptId } from "../../state/concepts";
+import { useDroppable } from "@dnd-kit/core";
+import {
+  renderTree,
+  treeLoading,
+  expandedPaths,
+  selectedConceptId,
+  isDragging,
+} from "../../state/concepts";
 import { TreeNode } from "./TreeNode";
+import { TreeDndProvider } from "./TreeDndProvider";
 import "./TreeView.css";
 
 interface TreeViewProps {
   schemeId: string;
+  onRefresh: () => void;
 }
 
-export function TreeView(_props: TreeViewProps) {
+export function TreeView({ onRefresh }: TreeViewProps) {
   function handleToggle(path: string) {
     const newExpanded = new Set(expandedPaths.value);
     if (newExpanded.has(path)) {
@@ -36,17 +45,38 @@ export function TreeView(_props: TreeViewProps) {
   }
 
   return (
-    <div class="tree-view">
-      {tree.map((node) => (
-        <TreeNode
-          key={node.path}
-          node={node}
-          expandedPaths={expandedPaths.value}
-          selectedId={selectedConceptId.value}
-          onToggle={handleToggle}
-          onSelect={handleSelect}
-        />
-      ))}
+    <TreeDndProvider onMoveComplete={onRefresh}>
+      <div class="tree-view">
+        {tree.map((node) => (
+          <TreeNode
+            key={node.path}
+            node={node}
+            expandedPaths={expandedPaths.value}
+            selectedId={selectedConceptId.value}
+            onToggle={handleToggle}
+            onSelect={handleSelect}
+          />
+        ))}
+
+        {/* Root drop zone - visible when dragging */}
+        {isDragging.value && <RootDropZone />}
+      </div>
+    </TreeDndProvider>
+  );
+}
+
+function RootDropZone() {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "root-drop-zone",
+    data: { conceptId: "root", acceptsDrop: true },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      class={`tree-view__root-drop ${isOver ? "tree-view__root-drop--over" : ""}`}
+    >
+      Drop here to make root concept
     </div>
   );
 }

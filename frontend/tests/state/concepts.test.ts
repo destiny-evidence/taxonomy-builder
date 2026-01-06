@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { treeData, renderTree } from "../../src/state/concepts";
+import {
+  treeData,
+  renderTree,
+  draggedConceptId,
+  getParentIdFromPath,
+  isValidDropTarget,
+  draggedDescendantIds,
+} from "../../src/state/concepts";
 import type { TreeNode } from "../../src/types/models";
 
 describe("renderTree", () => {
@@ -162,3 +169,113 @@ function createTreeNode(
     narrower,
   };
 }
+
+describe("drag and drop state", () => {
+  beforeEach(() => {
+    treeData.value = [];
+    draggedConceptId.value = null;
+  });
+
+  describe("getParentIdFromPath", () => {
+    it("returns null for root concepts", () => {
+      expect(getParentIdFromPath("root-id")).toBeNull();
+    });
+
+    it("returns parent ID from path", () => {
+      expect(getParentIdFromPath("parent-id/child-id")).toBe("parent-id");
+    });
+
+    it("returns immediate parent for deeply nested paths", () => {
+      expect(getParentIdFromPath("grandparent/parent/child")).toBe("parent");
+    });
+  });
+
+  describe("draggedDescendantIds", () => {
+    it("returns empty set when not dragging", () => {
+      treeData.value = [
+        createTreeNode("root", "Root", [createTreeNode("child", "Child")]),
+      ];
+
+      expect(draggedDescendantIds.value.size).toBe(0);
+    });
+
+    it("collects all descendants of dragged node", () => {
+      treeData.value = [
+        createTreeNode("parent", "Parent", [
+          createTreeNode("child", "Child", [
+            createTreeNode("grandchild", "Grandchild"),
+          ]),
+        ]),
+      ];
+
+      draggedConceptId.value = "parent";
+
+      const descendants = draggedDescendantIds.value;
+      expect(descendants.has("child")).toBe(true);
+      expect(descendants.has("grandchild")).toBe(true);
+      expect(descendants.has("parent")).toBe(false);
+    });
+
+    it("handles multi-parent nodes correctly", () => {
+      // Dogs appears under both Mammals and Pets
+      treeData.value = [
+        createTreeNode("mammals", "Mammals", [
+          createTreeNode("dogs", "Dogs", [createTreeNode("puppies", "Puppies")]),
+        ]),
+        createTreeNode("pets", "Pets", [
+          createTreeNode("dogs", "Dogs", [createTreeNode("puppies", "Puppies")]),
+        ]),
+      ];
+
+      draggedConceptId.value = "mammals";
+
+      const descendants = draggedDescendantIds.value;
+      expect(descendants.has("dogs")).toBe(true);
+      expect(descendants.has("puppies")).toBe(true);
+    });
+  });
+
+  describe("isValidDropTarget", () => {
+    beforeEach(() => {
+      treeData.value = [
+        createTreeNode("parent", "Parent", [
+          createTreeNode("child", "Child", [
+            createTreeNode("grandchild", "Grandchild"),
+          ]),
+        ]),
+        createTreeNode("other", "Other"),
+      ];
+    });
+
+    it("returns false when dropping on self", () => {
+      draggedConceptId.value = "parent";
+      expect(isValidDropTarget("parent", "parent", null)).toBe(false);
+    });
+
+    it("returns false when dropping on current parent", () => {
+      draggedConceptId.value = "child";
+      expect(isValidDropTarget("parent", "child", "parent")).toBe(false);
+    });
+
+    it("returns false when dropping on descendant", () => {
+      draggedConceptId.value = "parent";
+      expect(isValidDropTarget("grandchild", "parent", null)).toBe(false);
+    });
+
+    it("returns true for valid drop targets", () => {
+      draggedConceptId.value = "child";
+      expect(isValidDropTarget("other", "child", "parent")).toBe(true);
+    });
+
+    it("returns true when dropping on sibling", () => {
+      treeData.value = [
+        createTreeNode("parent", "Parent", [
+          createTreeNode("child1", "Child 1"),
+          createTreeNode("child2", "Child 2"),
+        ]),
+      ];
+      draggedConceptId.value = "child1";
+      expect(isValidDropTarget("child2", "child1", "parent")).toBe(true);
+    });
+  });
+});

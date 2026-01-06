@@ -29,4 +29,18 @@ export const conceptsApi = {
 
   removeBroader: (id: string, broaderId: string) =>
     api.delete(`/concepts/${id}/broader/${broaderId}`),
+
+  addRelated: (id: string, relatedId: string) =>
+    api.post<{ status: string }>(`/concepts/${id}/related`, {
+      related_concept_id: relatedId,
+    }),
+
+  removeRelated: (id: string, relatedId: string) =>
+    api.delete(`/concepts/${id}/related/${relatedId}`),
+
+  moveConcept: (id: string, newParentId: string | null, previousParentId: string | null) =>
+    api.post<Concept>(`/concepts/${id}/move`, {
+      new_parent_id: newParentId,
+      previous_parent_id: previousParentId,
+    }),
 };

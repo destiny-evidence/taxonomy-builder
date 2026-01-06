@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      // Alias react to preact/compat for @dnd-kit compatibility
+      react: "preact/compat",
+      "react-dom": "preact/compat",
     },
   },
   server: {
