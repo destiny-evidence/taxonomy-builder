@@ -123,7 +123,11 @@ class ConceptService:
         result = await self.db.execute(
             select(Concept)
             .where(Concept.scheme_id == scheme_id)
-            .options(selectinload(Concept.broader))
+            .options(
+                selectinload(Concept.broader),
+                selectinload(Concept._related_as_subject),
+                selectinload(Concept._related_as_object),
+            )
             .order_by(Concept.pref_label)
         )
         return list(result.scalars().all())

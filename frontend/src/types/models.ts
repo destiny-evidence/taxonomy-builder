@@ -62,6 +62,7 @@ export interface ConceptBrief {
 
 export interface Concept extends ConceptBrief {
   broader: ConceptBrief[];
+  related: ConceptBrief[];
 }
 
 export interface ConceptCreate {
