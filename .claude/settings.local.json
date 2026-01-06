@@ -10,7 +10,8 @@
       "Bash(npm run format:*)",
       "Bash(npm run test:*)",
       "Bash(npm run build:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
