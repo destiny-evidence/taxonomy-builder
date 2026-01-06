@@ -185,7 +185,18 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
               concept={selectedConcept.value}
               onEdit={() => handleEdit(selectedConcept.value!)}
               onDelete={() => handleDelete(selectedConcept.value!.id)}
-              onRefresh={() => schemeId && loadTree(schemeId)}
+              onRefresh={async () => {
+                if (schemeId) {
+                  await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+                  // Refresh selected concept to get updated broader relationships
+                  if (selectedConceptId.value) {
+                    const updated = await conceptsApi.get(selectedConceptId.value);
+                    concepts.value = concepts.value.map((c) =>
+                      c.id === updated.id ? updated : c
+                    );
+                  }
+                }
+              }}
             />
           ) : (
             <div class="scheme-detail__sidebar-empty">
