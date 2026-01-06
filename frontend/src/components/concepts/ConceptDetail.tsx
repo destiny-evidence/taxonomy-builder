@@ -1,7 +1,9 @@
 import { useState } from "preact/hooks";
 import { Button } from "../common/Button";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { AltLabelsEditor } from "./AltLabelsEditor";
 import { BroaderSelector } from "./BroaderSelector";
+import { RelatedSelector } from "./RelatedSelector";
 import { concepts } from "../../state/concepts";
 import type { Concept } from "../../types/models";
 import "./ConceptDetail.css";
@@ -60,10 +62,29 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
         )}
 
         <div class="concept-detail__field">
+          <label class="concept-detail__label">Alternative Labels</label>
+          <AltLabelsEditor
+            labels={concept.alt_labels}
+            onChange={() => {}}
+            readOnly
+          />
+        </div>
+
+        <div class="concept-detail__field">
           <label class="concept-detail__label">Broader Concepts</label>
           <BroaderSelector
             conceptId={concept.id}
             currentBroader={concept.broader}
+            availableConcepts={availableConcepts}
+            onChanged={onRefresh}
+          />
+        </div>
+
+        <div class="concept-detail__field">
+          <label class="concept-detail__label">Related Concepts</label>
+          <RelatedSelector
+            conceptId={concept.id}
+            currentRelated={concept.related}
             availableConcepts={availableConcepts}
             onChanged={onRefresh}
           />
