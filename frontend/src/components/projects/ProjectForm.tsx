@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { Input } from "../common/Input";
 import { Button } from "../common/Button";
 import { projectsApi } from "../../api/projects";
@@ -17,6 +17,13 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
   const [description, setDescription] = useState(project?.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync form state when project prop changes (for edit vs create)
+  useEffect(() => {
+    setName(project?.name ?? "");
+    setDescription(project?.description ?? "");
+    setError(null);
+  }, [project]);
 
   async function handleSubmit(e: Event) {
     e.preventDefault();

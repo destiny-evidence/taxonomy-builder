@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { Input } from "../common/Input";
 import { Button } from "../common/Button";
 import { conceptsApi } from "../../api/concepts";
@@ -20,6 +20,15 @@ export function ConceptForm({ schemeId, concept, onSuccess, onCancel }: ConceptF
   const [uri, setUri] = useState(concept?.uri ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync form state when concept prop changes (for edit vs create)
+  useEffect(() => {
+    setPrefLabel(concept?.pref_label ?? "");
+    setDefinition(concept?.definition ?? "");
+    setScopeNote(concept?.scope_note ?? "");
+    setUri(concept?.uri ?? "");
+    setError(null);
+  }, [concept]);
 
   async function handleSubmit(e: Event) {
     e.preventDefault();

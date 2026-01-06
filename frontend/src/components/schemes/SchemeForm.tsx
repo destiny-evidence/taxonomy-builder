@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { Input } from "../common/Input";
 import { Button } from "../common/Button";
 import { schemesApi } from "../../api/schemes";
@@ -21,6 +21,16 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
   const [version, setVersion] = useState(scheme?.version ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync form state when scheme prop changes (for edit vs create)
+  useEffect(() => {
+    setTitle(scheme?.title ?? "");
+    setDescription(scheme?.description ?? "");
+    setUri(scheme?.uri ?? "");
+    setPublisher(scheme?.publisher ?? "");
+    setVersion(scheme?.version ?? "");
+    setError(null);
+  }, [scheme]);
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
