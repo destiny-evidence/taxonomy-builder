@@ -449,3 +449,151 @@ async def test_get_tree_scheme_not_found(client: AsyncClient) -> None:
     """Test getting tree for non-existent scheme."""
     response = await client.get(f"/api/schemes/{uuid4()}/tree")
     assert response.status_code == 404
+
+
+# Alt labels tests
+
+
+@pytest.mark.asyncio
+async def test_create_concept_with_alt_labels(client: AsyncClient, scheme: ConceptScheme) -> None:
+    """Test creating a concept with alt labels."""
+    response = await client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={
+            "pref_label": "Dogs",
+            "alt_labels": ["Canines", "Domestic dogs"],
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["alt_labels"] == ["Canines", "Domestic dogs"]
+
+
+@pytest.mark.asyncio
+async def test_create_concept_alt_labels_default(client: AsyncClient, scheme: ConceptScheme) -> None:
+    """Test that alt_labels defaults to empty list."""
+    response = await client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Test Concept"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["alt_labels"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_concept_includes_alt_labels(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that getting a concept includes alt labels."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Animals",
+        alt_labels=["Fauna", "Living things"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    response = await client.get(f"/api/concepts/{concept.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alt_labels"] == ["Fauna", "Living things"]
+
+
+@pytest.mark.asyncio
+async def test_update_concept_alt_labels(client: AsyncClient, concept: Concept) -> None:
+    """Test updating concept alt labels."""
+    response = await client.put(
+        f"/api/concepts/{concept.id}",
+        json={"alt_labels": ["New Synonym", "Another Synonym"]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alt_labels"] == ["New Synonym", "Another Synonym"]
+
+
+@pytest.mark.asyncio
+async def test_update_concept_clear_alt_labels(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test clearing alt labels by setting to empty list."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test",
+        alt_labels=["Label 1", "Label 2"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    response = await client.put(
+        f"/api/concepts/{concept.id}",
+        json={"alt_labels": []},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alt_labels"] == []
+
+
+@pytest.mark.asyncio
+async def test_update_concept_without_alt_labels_preserves_existing(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that updating without alt_labels preserves existing labels."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test",
+        alt_labels=["Existing Label"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    response = await client.put(
+        f"/api/concepts/{concept.id}",
+        json={"definition": "New definition"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alt_labels"] == ["Existing Label"]
+
+
+@pytest.mark.asyncio
+async def test_list_concepts_includes_alt_labels(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that listing concepts includes alt labels."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test",
+        alt_labels=["Synonym"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    response = await client.get(f"/api/schemes/{scheme.id}/concepts")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["alt_labels"] == ["Synonym"]
+
+
+@pytest.mark.asyncio
+async def test_tree_includes_alt_labels(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that tree endpoint includes alt labels."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Root",
+        alt_labels=["Base", "Top"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    response = await client.get(f"/api/schemes/{scheme.id}/tree")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["alt_labels"] == ["Base", "Top"]
