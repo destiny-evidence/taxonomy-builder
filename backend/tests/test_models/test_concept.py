@@ -152,3 +152,98 @@ async def test_duplicate_pref_label_allowed_in_scheme(
 
     assert concept1.id != concept2.id
     assert concept1.pref_label == concept2.pref_label
+
+
+# Alt labels tests
+
+
+@pytest.mark.asyncio
+async def test_concept_with_alt_labels(
+    db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test creating a concept with alt labels."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Dogs",
+        alt_labels=["Canines", "Domestic dogs", "Canis familiaris"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    assert concept.alt_labels == ["Canines", "Domestic dogs", "Canis familiaris"]
+
+
+@pytest.mark.asyncio
+async def test_concept_alt_labels_default_empty(
+    db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that alt_labels defaults to empty list."""
+    concept = Concept(scheme_id=scheme.id, pref_label="Test")
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    assert concept.alt_labels == []
+
+
+@pytest.mark.asyncio
+async def test_concept_alt_labels_persists(
+    db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that alt labels persist correctly to database."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Animals",
+        alt_labels=["Fauna", "Creatures"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    concept_id = concept.id
+
+    # Clear session cache and re-fetch
+    db_session.expire_all()
+    result = await db_session.execute(select(Concept).where(Concept.id == concept_id))
+    fetched = result.scalar_one()
+
+    assert fetched.alt_labels == ["Fauna", "Creatures"]
+
+
+@pytest.mark.asyncio
+async def test_concept_alt_labels_update(
+    db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test updating alt labels on existing concept."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test",
+        alt_labels=["Original"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    concept.alt_labels = ["New Label 1", "New Label 2"]
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    assert concept.alt_labels == ["New Label 1", "New Label 2"]
+
+
+@pytest.mark.asyncio
+async def test_concept_alt_labels_clear(
+    db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test clearing alt labels to empty list."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test",
+        alt_labels=["Label 1", "Label 2"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    concept.alt_labels = []
+    await db_session.flush()
+    await db_session.refresh(concept)
+
+    assert concept.alt_labels == []
