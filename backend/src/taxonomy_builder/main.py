@@ -9,6 +9,7 @@ from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_route
 from taxonomy_builder.api.history import router as history_router
 from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
+from taxonomy_builder.api.versions import router as versions_router
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 
@@ -34,6 +35,7 @@ app.include_router(schemes_router)
 app.include_router(scheme_concepts_router)
 app.include_router(concepts_router)
 app.include_router(history_router)
+app.include_router(versions_router)
 
 
 @app.get("/health")
