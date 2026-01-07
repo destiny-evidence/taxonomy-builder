@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { listVersions } from "../../api/versions";
 import { Button } from "../common/Button";
 import { PublishDialog } from "./PublishDialog";
+import { VersionExportModal } from "./VersionExportModal";
 import type { PublishedVersion } from "../../types/models";
 import "./VersionsPanel.css";
 
@@ -14,6 +15,7 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [exportVersion, setExportVersion] = useState<PublishedVersion | null>(null);
 
   async function fetchVersions() {
     try {
@@ -31,10 +33,6 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
   useEffect(() => {
     fetchVersions();
   }, [schemeId]);
-
-  function handleExport(versionId: string) {
-    window.open(`/api/versions/${versionId}/export`, "_blank");
-  }
 
   function handlePublished() {
     fetchVersions();
@@ -107,7 +105,8 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
             <div class="versions-panel__actions">
               <Button
                 variant="secondary"
-                onClick={() => handleExport(version.id)}
+                size="sm"
+                onClick={() => setExportVersion(version)}
               >
                 Export
               </Button>
@@ -121,6 +120,14 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
         onClose={() => setShowPublishDialog(false)}
         onPublished={handlePublished}
       />
+      {exportVersion && (
+        <VersionExportModal
+          isOpen={true}
+          versionId={exportVersion.id}
+          versionLabel={exportVersion.version_label}
+          onClose={() => setExportVersion(null)}
+        />
+      )}
     </div>
   );
 }

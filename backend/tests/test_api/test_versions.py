@@ -108,10 +108,10 @@ async def test_get_version_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_export_version(
+async def test_export_version_ttl(
     client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
-    """Test exporting a version as JSON."""
+    """Test exporting a version as Turtle (default format)."""
     # Create a version
     create_response = await client.post(
         f"/api/schemes/{scheme.id}/versions",
@@ -122,11 +122,51 @@ async def test_export_version(
     response = await client.get(f"/api/versions/{version_id}/export")
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "application/json"
-    data = response.json()
-    assert "scheme" in data
-    assert "concepts" in data
-    assert data["scheme"]["title"] == "Test Scheme"
+    assert "text/turtle" in response.headers["content-type"]
+    # Should have Content-Disposition header with filename
+    assert "Content-Disposition" in response.headers
+    assert "test-scheme-v1.0.ttl" in response.headers["Content-Disposition"]
+    # Should contain SKOS content
+    content = response.text
+    assert "skos:ConceptScheme" in content or "ConceptScheme" in content
+
+
+@pytest.mark.asyncio
+async def test_export_version_jsonld(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test exporting a version as JSON-LD."""
+    # Create a version
+    create_response = await client.post(
+        f"/api/schemes/{scheme.id}/versions",
+        json={"version_label": "1.0"},
+    )
+    version_id = create_response.json()["id"]
+
+    response = await client.get(f"/api/versions/{version_id}/export?format=jsonld")
+
+    assert response.status_code == 200
+    assert "application/ld+json" in response.headers["content-type"]
+    assert "test-scheme-v1.0.jsonld" in response.headers["Content-Disposition"]
+
+
+@pytest.mark.asyncio
+async def test_export_version_xml(
+    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test exporting a version as RDF/XML."""
+    # Create a version
+    create_response = await client.post(
+        f"/api/schemes/{scheme.id}/versions",
+        json={"version_label": "1.0"},
+    )
+    version_id = create_response.json()["id"]
+
+    response = await client.get(f"/api/versions/{version_id}/export?format=xml")
+
+    assert response.status_code == 200
+    assert "application/rdf+xml" in response.headers["content-type"]
+    assert "test-scheme-v1.0.rdf" in response.headers["Content-Disposition"]
 
 
 @pytest.mark.asyncio

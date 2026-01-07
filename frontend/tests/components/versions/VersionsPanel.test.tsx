@@ -94,8 +94,11 @@ describe("VersionsPanel", () => {
     });
   });
 
-  it("calls window.open with export URL when export clicked", async () => {
+  it("opens export modal when export clicked, then downloads on confirm", async () => {
     vi.mocked(versionsApi.listVersions).mockResolvedValue(mockVersions);
+    vi.mocked(versionsApi.getVersionExportUrl).mockImplementation(
+      (versionId, format) => `/api/versions/${versionId}/export?format=${format}`
+    );
     const mockOpen = vi.fn();
     vi.stubGlobal("open", mockOpen);
 
@@ -105,11 +108,22 @@ describe("VersionsPanel", () => {
       expect(screen.getByText("v2.0")).toBeInTheDocument();
     });
 
+    // Click export button to open modal
     const exportButtons = screen.getAllByText("Export");
     fireEvent.click(exportButtons[0]);
 
+    // Modal should be open with export options
+    await waitFor(() => {
+      expect(screen.getByText("Export Version")).toBeInTheDocument();
+    });
+
+    // Click Download button in modal
+    const downloadButton = screen.getByText("Download");
+    fireEvent.click(downloadButton);
+
+    // Should call window.open with export URL (default format is ttl)
     expect(mockOpen).toHaveBeenCalledWith(
-      "/api/versions/version-1/export",
+      "/api/versions/version-1/export?format=ttl",
       "_blank"
     );
   });

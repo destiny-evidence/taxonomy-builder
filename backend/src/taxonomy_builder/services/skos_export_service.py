@@ -148,3 +148,96 @@ class SKOSExportService:
         graph = self._build_graph(scheme, concepts)
 
         return graph.serialize(format=format)
+
+    def export_snapshot(self, snapshot: dict, format: str) -> str:
+        """Export a version snapshot as SKOS RDF.
+
+        Args:
+            snapshot: The snapshot dict containing 'scheme' and 'concepts'
+            format: The RDF format - 'ttl' (Turtle), 'xml' (RDF/XML), or 'json-ld'
+
+        Returns:
+            The serialized RDF as a string
+        """
+        graph = self._build_graph_from_snapshot(snapshot)
+        return graph.serialize(format=format)
+
+    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
+        """Build an RDF graph from a snapshot dict."""
+        g = Graph()
+
+        # Bind namespaces for cleaner output
+        g.bind("skos", SKOS)
+        g.bind("dct", DCTERMS)
+        g.bind("owl", OWL)
+
+        scheme_data = snapshot["scheme"]
+        concepts_data = snapshot["concepts"]
+
+        # Get scheme URI
+        scheme_uri_str = scheme_data.get("uri") or f"{DEFAULT_BASE_URI}/{scheme_data['id']}"
+        scheme_uri = URIRef(scheme_uri_str)
+
+        # Add ConceptScheme
+        g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
+        g.add((scheme_uri, DCTERMS.title, Literal(scheme_data["title"])))
+
+        if scheme_data.get("description"):
+            g.add((scheme_uri, DCTERMS.description, Literal(scheme_data["description"])))
+        if scheme_data.get("publisher"):
+            g.add((scheme_uri, DCTERMS.publisher, Literal(scheme_data["publisher"])))
+        if scheme_data.get("version"):
+            g.add((scheme_uri, OWL.versionInfo, Literal(scheme_data["version"])))
+
+        # Build concept ID to URI mapping
+        concept_uris: dict[str, URIRef] = {}
+        for concept_data in concepts_data:
+            concept_id = concept_data["id"]
+            if concept_data.get("identifier"):
+                concept_uri = URIRef(f"{scheme_uri_str.rstrip('/')}/{concept_data['identifier']}")
+            else:
+                concept_uri = URIRef(f"{scheme_uri_str.rstrip('/')}/{concept_id}")
+            concept_uris[concept_id] = concept_uri
+
+        # Track which concepts have broader relationships (are not top concepts)
+        has_broader: set[str] = set()
+        for concept_data in concepts_data:
+            if concept_data.get("broader_ids"):
+                has_broader.add(concept_data["id"])
+
+        # Add Concepts
+        for concept_data in concepts_data:
+            concept_id = concept_data["id"]
+            concept_uri = concept_uris[concept_id]
+
+            g.add((concept_uri, RDF.type, SKOS.Concept))
+            g.add((concept_uri, SKOS.prefLabel, Literal(concept_data["pref_label"])))
+            g.add((concept_uri, SKOS.inScheme, scheme_uri))
+
+            if concept_data.get("definition"):
+                g.add((concept_uri, SKOS.definition, Literal(concept_data["definition"])))
+            if concept_data.get("scope_note"):
+                g.add((concept_uri, SKOS.scopeNote, Literal(concept_data["scope_note"])))
+
+            # Add alt labels
+            for alt_label in concept_data.get("alt_labels", []):
+                g.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
+
+            # Add broader relationships
+            for broader_id in concept_data.get("broader_ids", []):
+                if broader_id in concept_uris:
+                    broader_uri = concept_uris[broader_id]
+                    g.add((concept_uri, SKOS.broader, broader_uri))
+                    g.add((broader_uri, SKOS.narrower, concept_uri))
+
+            # Add related relationships
+            for related_id in concept_data.get("related_ids", []):
+                if related_id in concept_uris:
+                    related_uri = concept_uris[related_id]
+                    g.add((concept_uri, SKOS.related, related_uri))
+
+            # Add hasTopConcept for concepts without broader
+            if concept_id not in has_broader:
+                g.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
+
+        return g

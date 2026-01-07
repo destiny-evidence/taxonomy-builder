@@ -1,11 +1,11 @@
 """Versions API routes."""
 
+import re
+from enum import Enum
 from uuid import UUID
 
-from typing import Any
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.database import get_db
@@ -13,11 +13,36 @@ from taxonomy_builder.schemas.version import (
     PublishedVersionCreate,
     PublishedVersionRead,
 )
+from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.version_service import (
     DuplicateVersionLabelError,
     SchemeNotFoundError,
     VersionService,
 )
+
+
+class ExportFormat(str, Enum):
+    """Supported export formats."""
+
+    TTL = "ttl"
+    XML = "xml"
+    JSONLD = "jsonld"
+
+
+# Format to RDFLib format string and content type mapping
+FORMAT_CONFIG = {
+    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl"),
+    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf"),
+    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld"),
+}
+
+
+def slugify(text: str) -> str:
+    """Convert text to a URL-safe slug."""
+    text = text.lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_]+", "-", text)
+    return text.strip("-")
 
 router = APIRouter(prefix="/api", tags=["versions"])
 
@@ -76,11 +101,34 @@ async def get_version(
 @router.get("/versions/{version_id}/export")
 async def export_version(
     version_id: UUID,
+    format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
     db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Export a version's snapshot as JSON."""
-    service = VersionService(db)
-    version = await service.get_version(version_id=version_id)
+) -> Response:
+    """Export a version's snapshot as SKOS RDF.
+
+    Supports multiple formats:
+    - ttl: Turtle (default, human-readable)
+    - xml: RDF/XML (widest compatibility)
+    - jsonld: JSON-LD (web-friendly)
+    """
+    version_service = VersionService(db)
+    version = await version_service.get_version(version_id=version_id)
     if version is None:
         raise HTTPException(status_code=404, detail="Version not found")
-    return JSONResponse(content=version.snapshot)
+
+    # Get format configuration
+    rdflib_format, content_type, extension = FORMAT_CONFIG[format]
+
+    # Export the snapshot
+    export_service = SKOSExportService(db)
+    content = export_service.export_snapshot(version.snapshot, rdflib_format)
+
+    # Generate filename from scheme title and version label
+    scheme_title = version.snapshot.get("scheme", {}).get("title", "scheme")
+    filename = f"{slugify(scheme_title)}-v{version.version_label}{extension}"
+
+    return Response(
+        content=content,
+        media_type=f"{content_type}; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

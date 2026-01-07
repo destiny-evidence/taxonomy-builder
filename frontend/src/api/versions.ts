@@ -1,6 +1,8 @@
 import { api } from "./client";
 import type { PublishedVersion, PublishedVersionCreate } from "../types/models";
 
+export type ExportFormat = "ttl" | "xml" | "jsonld";
+
 export async function publishVersion(
   schemeId: string,
   data: PublishedVersionCreate
@@ -18,6 +20,6 @@ export async function getVersion(versionId: string): Promise<PublishedVersion> {
   return api.get(`/versions/${versionId}`);
 }
 
-export async function exportVersion(versionId: string): Promise<Record<string, unknown>> {
-  return api.get(`/versions/${versionId}/export`);
+export function getVersionExportUrl(versionId: string, format: ExportFormat): string {
+  return `/api/versions/${versionId}/export?format=${format}`;
 }
