@@ -1,7 +1,9 @@
 import { useState } from "preact/hooks";
 import { Modal } from "../common/Modal";
 import { Button } from "../common/Button";
+import { Input } from "../common/Input";
 import { publishVersion } from "../../api/versions";
+import "./PublishDialog.css";
 
 interface PublishDialogProps {
   isOpen: boolean;
@@ -42,31 +44,28 @@ export function PublishDialog({
 
   return (
     <Modal isOpen={isOpen} title="Publish Version" onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="version-label">Version Label</label>
-          <input
-            id="version-label"
-            type="text"
-            value={versionLabel}
-            onInput={(e) => setVersionLabel((e.target as HTMLInputElement).value)}
-            placeholder="e.g., 1.0, 2.0"
-          />
-        </div>
+      <form class="publish-dialog" onSubmit={handleSubmit}>
+        {error && <div class="publish-dialog__error">{error}</div>}
 
-        <div>
-          <label htmlFor="version-notes">Notes</label>
-          <textarea
-            id="version-notes"
-            value={notes}
-            onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
-            placeholder="Optional release notes"
-          />
-        </div>
+        <Input
+          label="Version Label"
+          name="version-label"
+          value={versionLabel}
+          placeholder="e.g., 1.0, 2.0"
+          required
+          onChange={setVersionLabel}
+        />
 
-        {error && <div className="error">{error}</div>}
+        <Input
+          label="Notes"
+          name="version-notes"
+          value={notes}
+          placeholder="Optional release notes"
+          multiline
+          onChange={setNotes}
+        />
 
-        <div>
+        <div class="publish-dialog__actions">
           <Button variant="secondary" type="button" onClick={onClose}>
             Cancel
           </Button>
@@ -74,7 +73,7 @@ export function PublishDialog({
             type="submit"
             disabled={!versionLabel.trim() || submitting}
           >
-            Publish
+            {submitting ? "Publishing..." : "Publish"}
           </Button>
         </div>
       </form>
