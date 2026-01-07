@@ -45,13 +45,15 @@ Organizations often have existing taxonomies in SKOS format from other tools or 
 3. File picker opens, user selects RDF file
 4. System parses and validates the file
 5. Preview modal shows:
-   - Scheme title and description
-   - Number of concepts found
-   - Number of relationships found
-   - Any validation warnings
-6. User clicks "Import" to confirm
-7. System creates scheme and concepts
-8. User is redirected to the new scheme
+   - Each scheme as an individual card with:
+     - Scheme title and description
+     - Number of concepts found
+     - Number of relationships found
+     - Any validation warnings for that scheme
+   - Total counts across all schemes
+6. User clicks "Import" to confirm (imports all schemes)
+7. System creates all schemes and concepts atomically
+8. User is redirected to the project (showing newly imported schemes)
 
 ## Technical Approach
 
@@ -74,48 +76,89 @@ dry_run: true|false (default: true)
 ```
 
 **Response (dry_run=true):**
+
 ```json
 {
   "valid": true,
-  "scheme": {
-    "title": "My Taxonomy",
-    "description": "...",
-    "uri": "http://example.org/taxonomy"
-  },
-  "concepts_count": 42,
-  "relationships_count": 38,
-  "warnings": ["Concept http://... has no prefLabel, using URI fragment"]
+  "schemes": [
+    {
+      "title": "Taxonomy A",
+      "description": "...",
+      "uri": "http://example.org/taxonomy-a",
+      "concepts_count": 42,
+      "relationships_count": 38,
+      "warnings": []
+    },
+    {
+      "title": "Taxonomy B",
+      "description": "...",
+      "uri": "http://example.org/taxonomy-b",
+      "concepts_count": 15,
+      "relationships_count": 12,
+      "warnings": ["Concept http://... has no prefLabel, using URI fragment"]
+    }
+  ],
+  "total_concepts_count": 57,
+  "total_relationships_count": 50
 }
 ```
 
 **Response (dry_run=false):**
+
 ```json
 {
-  "scheme_id": "uuid",
-  "concepts_created": 42,
-  "relationships_created": 38
+  "schemes_created": [
+    {"id": "uuid-1", "title": "Taxonomy A", "concepts_created": 42},
+    {"id": "uuid-2", "title": "Taxonomy B", "concepts_created": 15}
+  ],
+  "total_concepts_created": 57,
+  "total_relationships_created": 50
 }
 ```
 
 **Implementation:**
 
 ```python
-from rdflib import Graph
-from rdflib.namespace import SKOS, RDF, DCTERMS
+from rdflib import Graph, RDF, RDFS
+from rdflib.namespace import SKOS, DCTERMS
 
 def parse_skos(file_content: bytes, format: str) -> ImportPreview:
     g = Graph()
     g.parse(data=file_content, format=format)
 
-    # Find ConceptScheme
+    # Find all ConceptSchemes
     schemes = list(g.subjects(RDF.type, SKOS.ConceptScheme))
 
-    # Find all Concepts
-    concepts = list(g.subjects(RDF.type, SKOS.Concept))
+    # Find all Concepts (including subclass instances)
+    concepts = set()
+    for concept_class in g.transitive_subjects(RDFS.subClassOf, SKOS.Concept):
+        for instance in g.subjects(RDF.type, concept_class):
+            concepts.add(instance)
+    for instance in g.subjects(RDF.type, SKOS.Concept):
+        concepts.add(instance)
 
-    # Extract properties and relationships
+    # Group concepts by scheme (via skos:inScheme or skos:topConceptOf)
+    # Extract properties and relationships per scheme
     # ...
 ```
+
+**Scheme title extraction priority:**
+
+1. `rdfs:label`
+2. `skos:prefLabel`
+3. `dcterms:title`
+4. URI local name (fallback)
+
+**Concept properties to extract:**
+
+| SKOS Property | Model Field | Notes |
+|---------------|-------------|-------|
+| `skos:prefLabel` | `pref_label` | Required (warn if missing, use URI local name) |
+| `skos:definition` | `definition` | Optional |
+| `skos:scopeNote` | `scope_note` | Optional |
+| `skos:altLabel` | `alt_labels` | Optional, multiple allowed |
+| `skos:broader` | broader relationship | Via ConceptBroader join table |
+| `skos:narrower` | (inferred) | Don't duplicate - derive from broader |
 
 ### Frontend
 
@@ -129,21 +172,24 @@ def parse_skos(file_content: bytes, format: str) -> ImportPreview:
 
 | Scenario | Behavior |
 |----------|----------|
-| Multiple ConceptSchemes in file | Error: "File contains multiple schemes. Please import one at a time." |
+| Multiple ConceptSchemes in file | Supported - import all schemes, shown as individual cards in preview |
+| Scheme URI already exists in project | Error: "A scheme with URI X already exists in this project" |
+| Scheme title already exists in project | Auto-rename: append " (2)", " (3)", etc. |
 | No ConceptScheme found | Create implicit scheme from concepts |
 | Concept without prefLabel | Warning, use URI local name as label |
+| Concept without scheme membership | If single scheme in file: assign to it. If multiple schemes: warning, skip concept |
 | Circular broader relationships | Warning, import anyway (valid SKOS DAG) |
-| Duplicate URIs | Error: "Concept with URI X already exists" |
+| Duplicate concept URIs | Error: "Concept with URI X already exists" |
 | Unsupported RDF format | Error: "Could not parse file. Supported formats: RDF/XML, Turtle, JSON-LD, N-Triples" |
 
 ## Out of Scope
 
-- Import multiple schemes at once
+- Selective import of individual schemes from multi-scheme file (all-or-nothing for now)
 - Merge into existing scheme
 - Conflict resolution for updates
 - Import from URL (only file upload)
-- altLabel import (defer until altLabel feature exists)
-- related relationships (defer until related feature exists)
+- `skos:notation` import (requires model change)
+- `skos:exactMatch` and other mapping relations
 
 ## Success Criteria
 
