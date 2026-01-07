@@ -52,7 +52,7 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
     return (
       <div class="versions-panel">
         <div class="versions-panel__error">Error: {error}</div>
-        <Button onClick={() => setShowPublishDialog(true)}>
+        <Button size="sm" onClick={() => setShowPublishDialog(true)}>
           Publish New Version
         </Button>
         <PublishDialog
@@ -69,7 +69,7 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
     return (
       <div class="versions-panel">
         <div class="versions-panel__empty">No versions published yet.</div>
-        <Button onClick={() => setShowPublishDialog(true)}>
+        <Button size="sm" onClick={() => setShowPublishDialog(true)}>
           Publish New Version
         </Button>
         <PublishDialog
@@ -86,7 +86,7 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
     <div class="versions-panel">
       <div class="versions-panel__header">
         <h3 class="versions-panel__title">Published Versions</h3>
-        <Button onClick={() => setShowPublishDialog(true)}>
+        <Button size="sm" onClick={() => setShowPublishDialog(true)}>
           Publish New Version
         </Button>
       </div>
