@@ -124,3 +124,43 @@ async def test_serialize_scheme_captures_all_fields(
     assert serialized["uri"] == "http://example.org/animals"
     assert serialized["publisher"] == "Example Org"
     assert serialized["version"] == "1.0"
+
+
+@pytest.mark.asyncio
+async def test_serialize_broader_includes_labels(db_session: AsyncSession) -> None:
+    """Test that serialize_broader() includes concept labels."""
+    tracker = ChangeTracker(db_session)
+    concept_id = uuid4()
+    broader_id = uuid4()
+
+    serialized = tracker.serialize_broader(
+        concept_id=concept_id,
+        broader_concept_id=broader_id,
+        concept_label="Mammals",
+        broader_label="Animals",
+    )
+
+    assert serialized["concept_id"] == str(concept_id)
+    assert serialized["broader_concept_id"] == str(broader_id)
+    assert serialized["concept_label"] == "Mammals"
+    assert serialized["broader_label"] == "Animals"
+
+
+@pytest.mark.asyncio
+async def test_serialize_related_includes_labels(db_session: AsyncSession) -> None:
+    """Test that serialize_related() includes concept labels."""
+    tracker = ChangeTracker(db_session)
+    concept_id = uuid4()
+    related_id = uuid4()
+
+    serialized = tracker.serialize_related(
+        concept_id=concept_id,
+        related_concept_id=related_id,
+        concept_label="Dogs",
+        related_label="Cats",
+    )
+
+    assert serialized["concept_id"] == str(concept_id)
+    assert serialized["related_concept_id"] == str(related_id)
+    assert serialized["concept_label"] == "Dogs"
+    assert serialized["related_label"] == "Cats"

@@ -39,6 +39,11 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("details");
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  function triggerHistoryRefresh() {
+    setHistoryRefreshKey((k) => k + 1);
+  }
 
   useEffect(() => {
     if (schemeId) {
@@ -111,6 +116,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
           c.id === updated.id ? updated : c
         );
       }
+      triggerHistoryRefresh();
     }
   }
 
@@ -120,6 +126,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
       selectedConceptId.value = null;
       if (schemeId) {
         await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+        triggerHistoryRefresh();
       }
     } catch (err) {
       console.error("Failed to delete concept:", err);
@@ -193,6 +200,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
             onRefresh={async () => {
               if (schemeId) {
                 await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+                triggerHistoryRefresh();
               }
             }}
           />
@@ -237,6 +245,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
                           c.id === updated.id ? updated : c
                         );
                       }
+                      triggerHistoryRefresh();
                     }
                   }}
                 />
@@ -248,7 +257,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
             )}
 
             {sidebarTab === "history" && (
-              <HistoryPanel schemeId={schemeId!} />
+              <HistoryPanel schemeId={schemeId!} refreshKey={historyRefreshKey} />
             )}
 
             {sidebarTab === "versions" && (

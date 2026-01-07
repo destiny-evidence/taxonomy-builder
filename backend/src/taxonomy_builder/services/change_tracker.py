@@ -88,12 +88,20 @@ class ChangeTracker:
             "version": scheme.version,
         }
 
-    def serialize_broader(self, concept_id: UUID, broader_concept_id: UUID) -> dict:
+    def serialize_broader(
+        self,
+        concept_id: UUID,
+        broader_concept_id: UUID,
+        concept_label: str,
+        broader_label: str,
+    ) -> dict:
         """Serialize a broader relationship to a dictionary for storage in change events.
 
         Args:
             concept_id: The narrower concept ID
             broader_concept_id: The broader concept ID
+            concept_label: The pref_label of the narrower concept
+            broader_label: The pref_label of the broader concept
 
         Returns:
             Dictionary representation suitable for JSONB storage
@@ -101,14 +109,24 @@ class ChangeTracker:
         return {
             "concept_id": str(concept_id),
             "broader_concept_id": str(broader_concept_id),
+            "concept_label": concept_label,
+            "broader_label": broader_label,
         }
 
-    def serialize_related(self, concept_id: UUID, related_concept_id: UUID) -> dict:
+    def serialize_related(
+        self,
+        concept_id: UUID,
+        related_concept_id: UUID,
+        concept_label: str,
+        related_label: str,
+    ) -> dict:
         """Serialize a related relationship to a dictionary for storage in change events.
 
         Args:
             concept_id: The first concept ID (smaller UUID)
             related_concept_id: The second concept ID (larger UUID)
+            concept_label: The pref_label of the first concept
+            related_label: The pref_label of the second concept
 
         Returns:
             Dictionary representation suitable for JSONB storage
@@ -116,4 +134,6 @@ class ChangeTracker:
         return {
             "concept_id": str(concept_id),
             "related_concept_id": str(related_concept_id),
+            "concept_label": concept_label,
+            "related_label": related_label,
         }

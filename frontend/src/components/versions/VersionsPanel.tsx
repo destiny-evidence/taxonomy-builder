@@ -3,6 +3,7 @@ import { listVersions } from "../../api/versions";
 import { Button } from "../common/Button";
 import { PublishDialog } from "./PublishDialog";
 import type { PublishedVersion } from "../../types/models";
+import "./VersionsPanel.css";
 
 interface VersionsPanelProps {
   schemeId: string;
@@ -40,13 +41,17 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
   }
 
   if (loading) {
-    return <div>Loading versions...</div>;
+    return (
+      <div class="versions-panel">
+        <div class="versions-panel__loading">Loading versions...</div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div>
-        <div>Error: {error}</div>
+      <div class="versions-panel">
+        <div class="versions-panel__error">Error: {error}</div>
         <Button onClick={() => setShowPublishDialog(true)}>
           Publish New Version
         </Button>
@@ -62,8 +67,8 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
 
   if (versions.length === 0) {
     return (
-      <div>
-        <div>No versions published yet.</div>
+      <div class="versions-panel">
+        <div class="versions-panel__empty">No versions published yet.</div>
         <Button onClick={() => setShowPublishDialog(true)}>
           Publish New Version
         </Button>
@@ -78,27 +83,35 @@ export function VersionsPanel({ schemeId }: VersionsPanelProps) {
   }
 
   return (
-    <div className="versions-panel">
-      <h3>Published Versions</h3>
-      <Button onClick={() => setShowPublishDialog(true)}>
-        Publish New Version
-      </Button>
-      <ul>
+    <div class="versions-panel">
+      <div class="versions-panel__header">
+        <h3 class="versions-panel__title">Published Versions</h3>
+        <Button onClick={() => setShowPublishDialog(true)}>
+          Publish New Version
+        </Button>
+      </div>
+      <ul class="versions-panel__list">
         {versions.map((version) => (
-          <li key={version.id}>
-            <span className="version-label">{version.version_label}</span>
-            <span className="published-at">
-              {new Date(version.published_at).toLocaleString()}
-            </span>
+          <li key={version.id} class="versions-panel__item">
+            <div class="versions-panel__item-header">
+              <span class="versions-panel__version-label">
+                v{version.version_label}
+              </span>
+              <span class="versions-panel__published-at">
+                {new Date(version.published_at).toLocaleDateString()}
+              </span>
+            </div>
             {version.notes && (
-              <span className="notes">{version.notes}</span>
+              <div class="versions-panel__notes">{version.notes}</div>
             )}
-            <Button
-              variant="secondary"
-              onClick={() => handleExport(version.id)}
-            >
-              Export
-            </Button>
+            <div class="versions-panel__actions">
+              <Button
+                variant="secondary"
+                onClick={() => handleExport(version.id)}
+              >
+                Export
+              </Button>
+            </div>
           </li>
         ))}
       </ul>

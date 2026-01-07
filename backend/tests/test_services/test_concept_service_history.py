@@ -324,6 +324,9 @@ async def test_add_broader_creates_change_event(
     assert event.after_state is not None
     assert event.after_state["concept_id"] == str(child.id)
     assert event.after_state["broader_concept_id"] == str(parent.id)
+    # Verify labels are included
+    assert event.after_state["concept_label"] == "Dogs"
+    assert event.after_state["broader_label"] == "Animals"
 
 
 @pytest.mark.asyncio
@@ -363,6 +366,9 @@ async def test_remove_broader_creates_change_event(
     assert event.before_state is not None
     assert event.before_state["concept_id"] == str(child.id)
     assert event.before_state["broader_concept_id"] == str(parent.id)
+    # Verify labels are included
+    assert event.before_state["concept_label"] == "Dogs"
+    assert event.before_state["broader_label"] == "Animals"
     assert event.after_state is None
 
 
@@ -402,9 +408,13 @@ async def test_add_related_creates_change_event(
     if concept1.id < concept2.id:
         assert event.after_state["concept_id"] == str(concept1.id)
         assert event.after_state["related_concept_id"] == str(concept2.id)
+        assert event.after_state["concept_label"] == "Dogs"
+        assert event.after_state["related_label"] == "Wolves"
     else:
         assert event.after_state["concept_id"] == str(concept2.id)
         assert event.after_state["related_concept_id"] == str(concept1.id)
+        assert event.after_state["concept_label"] == "Wolves"
+        assert event.after_state["related_label"] == "Dogs"
 
 
 @pytest.mark.asyncio
@@ -446,9 +456,13 @@ async def test_remove_related_creates_change_event(
     if concept1.id < concept2.id:
         assert event.before_state["concept_id"] == str(concept1.id)
         assert event.before_state["related_concept_id"] == str(concept2.id)
+        assert event.before_state["concept_label"] == "Dogs"
+        assert event.before_state["related_label"] == "Wolves"
     else:
         assert event.before_state["concept_id"] == str(concept2.id)
         assert event.before_state["related_concept_id"] == str(concept1.id)
+        assert event.before_state["concept_label"] == "Wolves"
+        assert event.before_state["related_label"] == "Dogs"
 
 
 @pytest.mark.asyncio

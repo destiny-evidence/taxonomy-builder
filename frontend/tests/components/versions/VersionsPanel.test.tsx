@@ -56,8 +56,8 @@ describe("VersionsPanel", () => {
     render(<VersionsPanel schemeId="scheme-456" />);
 
     await waitFor(() => {
-      expect(screen.getByText("2.0")).toBeInTheDocument();
-      expect(screen.getByText("1.0")).toBeInTheDocument();
+      expect(screen.getByText("v2.0")).toBeInTheDocument();
+      expect(screen.getByText("v1.0")).toBeInTheDocument();
     });
   });
 
@@ -102,7 +102,7 @@ describe("VersionsPanel", () => {
     render(<VersionsPanel schemeId="scheme-456" />);
 
     await waitFor(() => {
-      expect(screen.getByText("2.0")).toBeInTheDocument();
+      expect(screen.getByText("v2.0")).toBeInTheDocument();
     });
 
     const exportButtons = screen.getAllByText("Export");
