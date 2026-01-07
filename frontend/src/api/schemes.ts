@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, ApiError } from "./client";
 import { API_BASE } from "../config";
 import type {
   ConceptScheme,
@@ -8,8 +8,66 @@ import type {
 
 export type ExportFormat = "ttl" | "xml" | "jsonld";
 
+// Import types
+
+export interface SchemePreview {
+  title: string;
+  description: string | null;
+  uri: string | null;
+  concepts_count: number;
+  relationships_count: number;
+  warnings: string[];
+}
+
+export interface ImportPreview {
+  valid: boolean;
+  schemes: SchemePreview[];
+  total_concepts_count: number;
+  total_relationships_count: number;
+  errors: string[];
+}
+
+export interface SchemeCreated {
+  id: string;
+  title: string;
+  concepts_created: number;
+}
+
+export interface ImportResult {
+  schemes_created: SchemeCreated[];
+  total_concepts_created: number;
+  total_relationships_created: number;
+}
+
 export function getExportUrl(schemeId: string, format: ExportFormat): string {
   return `${API_BASE}/schemes/${schemeId}/export?format=${format}`;
+}
+
+async function importRequest<T>(
+  projectId: string,
+  file: File,
+  dryRun: boolean
+): Promise<T> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE}/projects/${projectId}/import?dry_run=${dryRun}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(
+      response.status,
+      error.detail || `Import failed: ${response.status}`
+    );
+  }
+
+  return response.json();
 }
 
 export const schemesApi = {
@@ -25,4 +83,10 @@ export const schemesApi = {
     api.put<ConceptScheme>(`/schemes/${id}`, data),
 
   delete: (id: string) => api.delete(`/schemes/${id}`),
+
+  previewImport: (projectId: string, file: File): Promise<ImportPreview> =>
+    importRequest<ImportPreview>(projectId, file, true),
+
+  executeImport: (projectId: string, file: File): Promise<ImportResult> =>
+    importRequest<ImportResult>(projectId, file, false),
 };

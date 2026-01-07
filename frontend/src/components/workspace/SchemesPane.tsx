@@ -1,3 +1,4 @@
+import { Button } from "../common/Button";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import "./SchemesPane.css";
@@ -6,12 +7,16 @@ interface SchemesPaneProps {
   projectId: string;
   currentSchemeId: string | null;
   onSchemeSelect: (schemeId: string) => void;
+  onNewScheme: () => void;
+  onImport: () => void;
 }
 
 export function SchemesPane({
   projectId,
   currentSchemeId,
   onSchemeSelect,
+  onNewScheme,
+  onImport,
 }: SchemesPaneProps) {
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
   const project = currentProject.value;
@@ -43,6 +48,15 @@ export function SchemesPane({
             ))}
           </div>
         )}
+      </div>
+
+      <div class="schemes-pane__footer">
+        <Button variant="secondary" onClick={onNewScheme}>
+          + New Scheme
+        </Button>
+        <Button variant="secondary" onClick={onImport}>
+          Import
+        </Button>
       </div>
     </div>
   );
