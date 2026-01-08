@@ -75,6 +75,5 @@ jobs:
       - uses: actions/setup-node@v6
         with:
             node-version: 24
-      - run: cd frontend
       - run: npm install
       - run: npm test
