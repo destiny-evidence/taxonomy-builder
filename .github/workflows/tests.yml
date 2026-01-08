@@ -12,6 +12,9 @@ on:
 
 jobs:
   python_tests:
+    defaults:
+      run:
+        working-directory: ./backend
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -63,6 +66,9 @@ jobs:
         run: uv run pytest
   frontend_tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
