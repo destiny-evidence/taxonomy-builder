@@ -16,10 +16,6 @@ jobs:
       run:
         working-directory: ./backend
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version:
-          - "3.14"
     services:
       # Label used to access the service container
       postgres:
