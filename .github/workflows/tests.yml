@@ -48,6 +48,11 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
+      - name: Install python
+        uses: actions/setup-python@v6
+        with:
+            python-version-file: pyproject.toml
+
       - name: Install the project
         run: uv sync --locked --dev
 
