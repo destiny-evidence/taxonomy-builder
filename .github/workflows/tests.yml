@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - chore/gha
   pull_request:
     paths-ignore:
       - "**.md"
