@@ -49,7 +49,7 @@ jobs:
             python-version-file: ./backend/pyproject.toml
 
       - name: Install the project
-        run: uv sync --locked --dev
+        run: uv sync --locked --extra dev
 
       - name: Run test with pytest via uv
         env:
