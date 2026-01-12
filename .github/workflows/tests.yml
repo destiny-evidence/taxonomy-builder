@@ -46,7 +46,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v6
         with:
-            python-version-file: pyproject.toml
+            python-version-file: ./backend/pyproject.toml
 
       - name: Install the project
         run: uv sync --locked --dev
