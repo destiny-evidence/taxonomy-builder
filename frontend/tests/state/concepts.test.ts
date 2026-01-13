@@ -7,13 +7,14 @@ import {
   isValidDropTarget,
   draggedDescendantIds,
 } from "../../src/state/concepts";
-import { searchQuery } from "../../src/state/search";
+import { searchQuery, hideNonMatches } from "../../src/state/search";
 import type { TreeNode } from "../../src/types/models";
 
 describe("renderTree", () => {
   beforeEach(() => {
     treeData.value = [];
     searchQuery.value = "";
+    hideNonMatches.value = false;
   });
 
   it("returns empty array for empty tree", () => {
@@ -237,6 +238,78 @@ describe("renderTree", () => {
       expect(result[0].children[0].matchStatus).toBe("ancestor");
       expect(result[0].children[0].children[0].matchStatus).toBe("ancestor");
       expect(result[0].children[0].children[0].children[0].matchStatus).toBe("match");
+    });
+  });
+
+  describe("hide non-matches filter", () => {
+    it("includes all nodes when hideNonMatches is false", () => {
+      treeData.value = [
+        createTreeNode("mammals", "Mammals", [
+          createTreeNode("dogs", "Dogs"),
+        ]),
+        createTreeNode("birds", "Birds"),
+      ];
+      searchQuery.value = "dog";
+      hideNonMatches.value = false;
+
+      const result = renderTree.value;
+
+      expect(result).toHaveLength(2);
+      expect(result[0].pref_label).toBe("Mammals");
+      expect(result[1].pref_label).toBe("Birds");
+    });
+
+    it("excludes non-matching nodes when hideNonMatches is true", () => {
+      treeData.value = [
+        createTreeNode("mammals", "Mammals", [
+          createTreeNode("dogs", "Dogs"),
+        ]),
+        createTreeNode("birds", "Birds"),
+      ];
+      searchQuery.value = "dog";
+      hideNonMatches.value = true;
+
+      const result = renderTree.value;
+
+      expect(result).toHaveLength(1);
+      expect(result[0].pref_label).toBe("Mammals");
+    });
+
+    it("preserves ancestors of matches when hiding", () => {
+      treeData.value = [
+        createTreeNode("animals", "Animals", [
+          createTreeNode("mammals", "Mammals", [
+            createTreeNode("dogs", "Dogs"),
+            createTreeNode("cats", "Cats"),
+          ]),
+        ]),
+      ];
+      searchQuery.value = "dog";
+      hideNonMatches.value = true;
+
+      const result = renderTree.value;
+
+      // Animals and Mammals should be kept as ancestors
+      expect(result).toHaveLength(1);
+      expect(result[0].pref_label).toBe("Animals");
+      expect(result[0].children).toHaveLength(1);
+      expect(result[0].children[0].pref_label).toBe("Mammals");
+      // Cats should be filtered out, only Dogs remains
+      expect(result[0].children[0].children).toHaveLength(1);
+      expect(result[0].children[0].children[0].pref_label).toBe("Dogs");
+    });
+
+    it("shows all nodes when search is empty regardless of hideNonMatches", () => {
+      treeData.value = [
+        createTreeNode("mammals", "Mammals"),
+        createTreeNode("birds", "Birds"),
+      ];
+      searchQuery.value = "";
+      hideNonMatches.value = true;
+
+      const result = renderTree.value;
+
+      expect(result).toHaveLength(2);
     });
   });
 });

@@ -43,6 +43,19 @@
   color: var(--color-text);
 }
 
+.tree-controls__hide-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.tree-controls__hide-option input {
+  cursor: pointer;
+}
+
 .tree-controls__buttons {
   display: flex;
   gap: var(--spacing-xs);

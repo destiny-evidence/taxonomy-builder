@@ -1,5 +1,5 @@
 import { Button } from "../common/Button";
-import { searchQuery, expandMatchingPaths } from "../../state/search";
+import { searchQuery, hideNonMatches, expandMatchingPaths } from "../../state/search";
 import "./TreeControls.css";
 
 interface TreeControlsProps {
@@ -37,6 +37,18 @@ export function TreeControls({ onExpandAll, onCollapseAll }: TreeControlsProps) 
           </button>
         )}
       </div>
+      {query && (
+        <label class="tree-controls__hide-option">
+          <input
+            type="checkbox"
+            checked={hideNonMatches.value}
+            onChange={(e) => {
+              hideNonMatches.value = (e.target as HTMLInputElement).checked;
+            }}
+          />
+          Hide non-matches
+        </label>
+      )}
       <div class="tree-controls__buttons">
         <Button variant="ghost" size="sm" onClick={onExpandAll}>
           Expand All

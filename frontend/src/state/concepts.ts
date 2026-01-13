@@ -1,6 +1,6 @@
 import { signal, computed } from "@preact/signals";
 import type { Concept, TreeNode, RenderNode, MatchStatus } from "../types/models";
-import { searchQuery, conceptMatchesSearch } from "./search";
+import { searchQuery, hideNonMatches, conceptMatchesSearch } from "./search";
 
 export const concepts = signal<Concept[]>([]);
 
@@ -103,6 +103,20 @@ export const renderTree = computed(() => {
   }
 
   const [nodes] = buildNodes(treeData.value);
+
+  // Filter out non-matching nodes when hideNonMatches is true
+  if (query && hideNonMatches.value) {
+    function filterNodes(nodes: RenderNode[]): RenderNode[] {
+      return nodes
+        .filter((node) => node.matchStatus !== "none")
+        .map((node) => ({
+          ...node,
+          children: filterNodes(node.children),
+        }));
+    }
+    return filterNodes(nodes);
+  }
+
   return nodes;
 });
 

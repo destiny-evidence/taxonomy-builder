@@ -71,4 +71,33 @@ describe("TreeControls", () => {
       expect(searchQuery.value).toBe("");
     });
   });
+
+  describe("hide non-matches checkbox", () => {
+    it("is not visible when search query is empty", () => {
+      searchQuery.value = "";
+      render(<TreeControls {...defaultProps} />);
+      expect(screen.queryByLabelText("Hide non-matches")).not.toBeInTheDocument();
+    });
+
+    it("is visible when search query is non-empty", () => {
+      searchQuery.value = "dogs";
+      render(<TreeControls {...defaultProps} />);
+      expect(screen.getByLabelText("Hide non-matches")).toBeInTheDocument();
+    });
+
+    it("is unchecked by default", () => {
+      searchQuery.value = "dogs";
+      render(<TreeControls {...defaultProps} />);
+      const checkbox = screen.getByLabelText("Hide non-matches") as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it("updates hideNonMatches signal when toggled", () => {
+      searchQuery.value = "dogs";
+      render(<TreeControls {...defaultProps} />);
+      const checkbox = screen.getByLabelText("Hide non-matches");
+      fireEvent.click(checkbox);
+      expect(hideNonMatches.value).toBe(true);
+    });
+  });
 });
