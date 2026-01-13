@@ -6,6 +6,7 @@ import {
   isValidDropTarget,
   getParentIdFromPath,
 } from "../../state/concepts";
+import { searchQuery } from "../../state/search";
 import "./TreeNode.css";
 
 interface TreeNodeProps {
@@ -66,12 +67,19 @@ export function TreeNode({
     setDropRef(el);
   };
 
+  // Search styling
+  const isSearchActive = searchQuery.value.length > 0;
+  const isMatch = node.matchStatus === "match";
+  const isDimmed = isSearchActive && node.matchStatus === "none";
+
   const rowClasses = [
     "tree-node__row",
     isSelected && "tree-node__row--selected",
     isThisDragging && "tree-node__row--dragging",
     isDragging.value && !canAcceptDrop && draggedId !== node.id && "tree-node__row--invalid-drop",
     isOver && canAcceptDrop && "tree-node__row--drop-target",
+    isMatch && "tree-node__row--match",
+    isDimmed && "tree-node__row--dimmed",
   ]
     .filter(Boolean)
     .join(" ");
