@@ -1,5 +1,5 @@
 import { Button } from "../common/Button";
-import { searchQuery } from "../../state/search";
+import { searchQuery, expandMatchingPaths } from "../../state/search";
 import "./TreeControls.css";
 
 interface TreeControlsProps {
@@ -19,7 +19,9 @@ export function TreeControls({ onExpandAll, onCollapseAll }: TreeControlsProps) 
           placeholder="Search concepts..."
           value={query}
           onInput={(e) => {
-            searchQuery.value = (e.target as HTMLInputElement).value;
+            const newQuery = (e.target as HTMLInputElement).value;
+            searchQuery.value = newQuery;
+            expandMatchingPaths(newQuery);
           }}
         />
         {query && (
