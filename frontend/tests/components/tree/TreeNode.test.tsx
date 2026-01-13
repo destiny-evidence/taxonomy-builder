@@ -16,6 +16,7 @@ describe("TreeNode", () => {
       hasMultipleParents: false,
       otherParentLabels: [],
       children: [],
+      matchStatus: "none",
       ...overrides,
     };
   }

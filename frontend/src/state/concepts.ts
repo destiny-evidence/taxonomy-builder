@@ -1,5 +1,6 @@
 import { signal, computed } from "@preact/signals";
-import type { Concept, TreeNode, RenderNode } from "../types/models";
+import type { Concept, TreeNode, RenderNode, MatchStatus } from "../types/models";
+import { searchQuery, conceptMatchesSearch } from "./search";
 
 export const concepts = signal<Concept[]>([]);
 
@@ -22,9 +23,10 @@ export const selectedConcept = computed(() => {
   return id ? conceptsById.value.get(id) ?? null : null;
 });
 
-// Build render tree with multi-parent detection
+// Build render tree with multi-parent detection and search matching
 export const renderTree = computed(() => {
   const idOccurrences = new Map<string, string[]>(); // id -> all parent labels
+  const query = searchQuery.value;
 
   // First pass: count occurrences and track parent labels
   function countOccurrences(
@@ -42,14 +44,17 @@ export const renderTree = computed(() => {
   }
   countOccurrences(treeData.value);
 
-  // Second pass: build render nodes
+  // Second pass: build render nodes with match status
+  // Returns [nodes, hasMatchInSubtree]
   function buildNodes(
     nodes: TreeNode[],
     parentPath: string = "",
     depth: number = 0,
     currentParentLabel: string | null = null
-  ): RenderNode[] {
-    return nodes.map((node) => {
+  ): [RenderNode[], boolean] {
+    let subtreeHasMatch = false;
+
+    const renderNodes = nodes.map((node) => {
       const path = parentPath ? `${parentPath}/${node.id}` : node.id;
       const allParentLabels = idOccurrences.get(node.id) || [];
       const hasMultipleParents = allParentLabels.length > 1;
@@ -59,6 +64,28 @@ export const renderTree = computed(() => {
         ? allParentLabels.filter((l) => l !== currentParentLabel)
         : allParentLabels.slice(1);
 
+      // Build children first to know if any descendants match
+      const [children, childrenHaveMatch] = buildNodes(
+        node.narrower,
+        path,
+        depth + 1,
+        node.pref_label
+      );
+
+      // Determine match status
+      const isMatch = query
+        ? conceptMatchesSearch(node.pref_label, node.alt_labels, query)
+        : false;
+
+      let matchStatus: MatchStatus = "none";
+      if (isMatch) {
+        matchStatus = "match";
+        subtreeHasMatch = true;
+      } else if (childrenHaveMatch) {
+        matchStatus = "ancestor";
+        subtreeHasMatch = true;
+      }
+
       return {
         id: node.id,
         pref_label: node.pref_label,
@@ -67,12 +94,16 @@ export const renderTree = computed(() => {
         depth,
         hasMultipleParents,
         otherParentLabels,
-        children: buildNodes(node.narrower, path, depth + 1, node.pref_label),
+        children,
+        matchStatus,
       };
     });
+
+    return [renderNodes, subtreeHasMatch];
   }
 
-  return buildNodes(treeData.value);
+  const [nodes] = buildNodes(treeData.value);
+  return nodes;
 });
 
 // ============ Drag and Drop State ============

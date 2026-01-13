@@ -7,11 +7,13 @@ import {
   isValidDropTarget,
   draggedDescendantIds,
 } from "../../src/state/concepts";
+import { searchQuery } from "../../src/state/search";
 import type { TreeNode } from "../../src/types/models";
 
 describe("renderTree", () => {
   beforeEach(() => {
     treeData.value = [];
+    searchQuery.value = "";
   });
 
   it("returns empty array for empty tree", () => {
@@ -146,6 +148,97 @@ describe("renderTree", () => {
 
     expect(result[0].definition).toBe("Living organisms");
   });
+
+  describe("search matchStatus", () => {
+    it("all nodes have matchStatus 'none' when searchQuery is empty", () => {
+      treeData.value = [
+        createTreeNode("1", "Animals", [
+          createTreeNode("2", "Dogs"),
+        ]),
+      ];
+      searchQuery.value = "";
+
+      const result = renderTree.value;
+
+      expect(result[0].matchStatus).toBe("none");
+      expect(result[0].children[0].matchStatus).toBe("none");
+    });
+
+    it("matching node has matchStatus 'match'", () => {
+      treeData.value = [
+        createTreeNode("1", "Animals", [
+          createTreeNode("2", "Dogs"),
+        ]),
+      ];
+      searchQuery.value = "dog";
+
+      const result = renderTree.value;
+
+      expect(result[0].children[0].matchStatus).toBe("match");
+    });
+
+    it("parent of matching node has matchStatus 'ancestor'", () => {
+      treeData.value = [
+        createTreeNode("1", "Animals", [
+          createTreeNode("2", "Dogs"),
+        ]),
+      ];
+      searchQuery.value = "dog";
+
+      const result = renderTree.value;
+
+      expect(result[0].matchStatus).toBe("ancestor");
+    });
+
+    it("non-matching node with no matching descendants has matchStatus 'none'", () => {
+      treeData.value = [
+        createTreeNode("mammals", "Mammals", [
+          createTreeNode("dogs", "Dogs"),
+        ]),
+        createTreeNode("birds", "Birds", [
+          createTreeNode("eagles", "Eagles"),
+        ]),
+      ];
+      searchQuery.value = "dog";
+
+      const result = renderTree.value;
+
+      // Birds and Eagles don't match and have no matching descendants
+      expect(result[1].matchStatus).toBe("none");
+      expect(result[1].children[0].matchStatus).toBe("none");
+    });
+
+    it("matches against alt_labels", () => {
+      treeData.value = [
+        createTreeNodeWithAltLabels("1", "Canines", ["Dogs", "Puppies"]),
+      ];
+      searchQuery.value = "pupp";
+
+      const result = renderTree.value;
+
+      expect(result[0].matchStatus).toBe("match");
+    });
+
+    it("deeply nested match marks all ancestors", () => {
+      treeData.value = [
+        createTreeNode("1", "Animals", [
+          createTreeNode("2", "Mammals", [
+            createTreeNode("3", "Canines", [
+              createTreeNode("4", "Dogs"),
+            ]),
+          ]),
+        ]),
+      ];
+      searchQuery.value = "dog";
+
+      const result = renderTree.value;
+
+      expect(result[0].matchStatus).toBe("ancestor");
+      expect(result[0].children[0].matchStatus).toBe("ancestor");
+      expect(result[0].children[0].children[0].matchStatus).toBe("ancestor");
+      expect(result[0].children[0].children[0].children[0].matchStatus).toBe("match");
+    });
+  });
 });
 
 // Helper to create TreeNode test data
@@ -164,6 +257,27 @@ function createTreeNode(
     scope_note: null,
     uri: null,
     alt_labels: [],
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    narrower,
+  };
+}
+
+function createTreeNodeWithAltLabels(
+  id: string,
+  pref_label: string,
+  alt_labels: string[],
+  narrower: TreeNode[] = []
+): TreeNode {
+  return {
+    id,
+    scheme_id: "scheme-1",
+    identifier: id,
+    pref_label,
+    definition: null,
+    scope_note: null,
+    uri: null,
+    alt_labels,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     narrower,
