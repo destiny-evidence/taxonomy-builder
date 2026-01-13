@@ -5,6 +5,8 @@ import { TreeControls } from "../components/tree/TreeControls";
 import { ConceptDetail } from "../components/concepts/ConceptDetail";
 import { ConceptForm } from "../components/concepts/ConceptForm";
 import { ExportModal } from "../components/schemes/ExportModal";
+import { HistoryPanel } from "../components/history/HistoryPanel";
+import { VersionsPanel } from "../components/versions/VersionsPanel";
 import { Modal } from "../components/common/Modal";
 import { Button } from "../components/common/Button";
 import { currentProject } from "../state/projects";
@@ -23,6 +25,8 @@ import { conceptsApi } from "../api/concepts";
 import type { Concept } from "../types/models";
 import "./SchemeDetailPage.css";
 
+type SidebarTab = "details" | "history" | "versions";
+
 interface SchemeDetailPageProps {
   path?: string;
   schemeId?: string;
@@ -34,6 +38,12 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("details");
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  function triggerHistoryRefresh() {
+    setHistoryRefreshKey((k) => k + 1);
+  }
 
   useEffect(() => {
     if (schemeId) {
@@ -106,6 +116,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
           c.id === updated.id ? updated : c
         );
       }
+      triggerHistoryRefresh();
     }
   }
 
@@ -115,6 +126,7 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
       selectedConceptId.value = null;
       if (schemeId) {
         await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+        triggerHistoryRefresh();
       }
     } catch (err) {
       console.error("Failed to delete concept:", err);
@@ -188,35 +200,70 @@ export function SchemeDetailPage({ schemeId }: SchemeDetailPageProps) {
             onRefresh={async () => {
               if (schemeId) {
                 await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+                triggerHistoryRefresh();
               }
             }}
           />
         </div>
 
         <aside class="scheme-detail__sidebar">
-          {selectedConcept.value ? (
-            <ConceptDetail
-              concept={selectedConcept.value}
-              onEdit={() => handleEdit(selectedConcept.value!)}
-              onDelete={() => handleDelete(selectedConcept.value!.id)}
-              onRefresh={async () => {
-                if (schemeId) {
-                  await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
-                  // Refresh selected concept to get updated broader relationships
-                  if (selectedConceptId.value) {
-                    const updated = await conceptsApi.get(selectedConceptId.value);
-                    concepts.value = concepts.value.map((c) =>
-                      c.id === updated.id ? updated : c
-                    );
-                  }
-                }
-              }}
-            />
-          ) : (
-            <div class="scheme-detail__sidebar-empty">
-              Select a concept to view details
-            </div>
-          )}
+          <div class="scheme-detail__tabs">
+            <button
+              class={`scheme-detail__tab ${sidebarTab === "details" ? "scheme-detail__tab--active" : ""}`}
+              onClick={() => setSidebarTab("details")}
+            >
+              Details
+            </button>
+            <button
+              class={`scheme-detail__tab ${sidebarTab === "history" ? "scheme-detail__tab--active" : ""}`}
+              onClick={() => setSidebarTab("history")}
+            >
+              History
+            </button>
+            <button
+              class={`scheme-detail__tab ${sidebarTab === "versions" ? "scheme-detail__tab--active" : ""}`}
+              onClick={() => setSidebarTab("versions")}
+            >
+              Versions
+            </button>
+          </div>
+
+          <div class="scheme-detail__tab-content">
+            {sidebarTab === "details" && (
+              selectedConcept.value ? (
+                <ConceptDetail
+                  concept={selectedConcept.value}
+                  onEdit={() => handleEdit(selectedConcept.value!)}
+                  onDelete={() => handleDelete(selectedConcept.value!.id)}
+                  onRefresh={async () => {
+                    if (schemeId) {
+                      await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+                      // Refresh selected concept to get updated broader relationships
+                      if (selectedConceptId.value) {
+                        const updated = await conceptsApi.get(selectedConceptId.value);
+                        concepts.value = concepts.value.map((c) =>
+                          c.id === updated.id ? updated : c
+                        );
+                      }
+                      triggerHistoryRefresh();
+                    }
+                  }}
+                />
+              ) : (
+                <div class="scheme-detail__sidebar-empty">
+                  Select a concept to view details
+                </div>
+              )
+            )}
+
+            {sidebarTab === "history" && (
+              <HistoryPanel schemeId={schemeId!} refreshKey={historyRefreshKey} />
+            )}
+
+            {sidebarTab === "versions" && (
+              <VersionsPanel schemeId={schemeId!} />
+            )}
+          </div>
         </aside>
       </div>
 

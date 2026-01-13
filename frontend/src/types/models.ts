@@ -124,3 +124,31 @@ export interface DropData {
   conceptId: string;
   acceptsDrop: boolean;
 }
+
+// ============ History ============
+export interface ChangeEvent {
+  id: string;
+  timestamp: string;
+  entity_type: string;
+  entity_id: string;
+  scheme_id: string | null;
+  action: string;
+  before_state: Record<string, unknown> | null;
+  after_state: Record<string, unknown> | null;
+  user_id: string | null;
+}
+
+// ============ Published Versions ============
+export interface PublishedVersion {
+  id: string;
+  scheme_id: string;
+  version_label: string;
+  published_at: string;
+  snapshot: Record<string, unknown>;
+  notes: string | null;
+}
+
+export interface PublishedVersionCreate {
+  version_label: string;
+  notes?: string | null;
+}

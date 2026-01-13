@@ -162,7 +162,7 @@ async def remove_broader(
     """Remove a broader relationship from a concept."""
     try:
         await service.remove_broader(concept_id, broader_concept_id)
-    except BroaderRelationshipNotFoundError as e:
+    except (ConceptNotFoundError, BroaderRelationshipNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
@@ -205,7 +205,7 @@ async def remove_related(
     """
     try:
         await service.remove_related(concept_id, related_concept_id)
-    except RelatedRelationshipNotFoundError as e:
+    except (ConceptNotFoundError, RelatedRelationshipNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 

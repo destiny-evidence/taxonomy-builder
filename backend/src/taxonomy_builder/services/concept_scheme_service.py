@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept_scheme import ConceptSchemeCreate, ConceptSchemeUpdate
+from taxonomy_builder.services.change_tracker import ChangeTracker
 
 
 class SchemeNotFoundError(Exception):
@@ -41,6 +42,7 @@ class ConceptSchemeService:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+        self._tracker = ChangeTracker(db)
 
     async def _get_project(self, project_id: UUID) -> Project:
         """Get a project by ID or raise ProjectNotFoundError."""
@@ -84,6 +86,17 @@ class ConceptSchemeService:
         except IntegrityError:
             await self.db.rollback()
             raise SchemeTitleExistsError(scheme_in.title, project_id)
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=scheme.id,
+            entity_type="concept_scheme",
+            entity_id=scheme.id,
+            action="create",
+            before=None,
+            after=self._tracker.serialize_scheme(scheme),
+        )
+
         return scheme
 
     async def get_scheme(self, scheme_id: UUID) -> ConceptScheme:
@@ -103,6 +116,9 @@ class ConceptSchemeService:
         scheme = await self.get_scheme(scheme_id)
         project_id = scheme.project_id  # Capture before potential rollback
 
+        # Capture before state
+        before_state = self._tracker.serialize_scheme(scheme)
+
         if scheme_in.title is not None:
             scheme.title = scheme_in.title
         if scheme_in.description is not None:
@@ -120,10 +136,35 @@ class ConceptSchemeService:
         except IntegrityError:
             await self.db.rollback()
             raise SchemeTitleExistsError(scheme_in.title or "", project_id)
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=scheme.id,
+            entity_type="concept_scheme",
+            entity_id=scheme.id,
+            action="update",
+            before=before_state,
+            after=self._tracker.serialize_scheme(scheme),
+        )
+
         return scheme
 
     async def delete_scheme(self, scheme_id: UUID) -> None:
         """Delete a concept scheme."""
         scheme = await self.get_scheme(scheme_id)
+
+        # Capture before state before deletion
+        before_state = self._tracker.serialize_scheme(scheme)
+
+        # Record change event BEFORE deleting scheme (FK constraint)
+        await self._tracker.record(
+            scheme_id=scheme_id,
+            entity_type="concept_scheme",
+            entity_id=scheme_id,
+            action="delete",
+            before=before_state,
+            after=None,
+        )
+
         await self.db.delete(scheme)
         await self.db.flush()

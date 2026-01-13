@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +12,7 @@ from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
+from taxonomy_builder.services.change_tracker import ChangeTracker
 
 
 class ConceptNotFoundError(Exception):
@@ -105,6 +106,7 @@ class ConceptService:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+        self._tracker = ChangeTracker(db)
 
     async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
         """Get a scheme by ID or raise SchemeNotFoundError."""
@@ -146,6 +148,17 @@ class ConceptService:
         )
         self.db.add(concept)
         await self.db.flush()
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=scheme_id,
+            entity_type="concept",
+            entity_id=concept.id,
+            action="create",
+            before=None,
+            after=self._tracker.serialize_concept(concept),
+        )
+
         # Re-fetch to get broader relationship loaded
         return await self.get_concept(concept.id)
 
@@ -170,6 +183,9 @@ class ConceptService:
         """Update an existing concept."""
         concept = await self.get_concept(concept_id)
 
+        # Capture before state
+        before_state = self._tracker.serialize_concept(concept)
+
         if concept_in.pref_label is not None:
             concept.pref_label = concept_in.pref_label
         if concept_in.identifier is not None:
@@ -182,20 +198,129 @@ class ConceptService:
             concept.alt_labels = concept_in.alt_labels
 
         await self.db.flush()
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=concept.scheme_id,
+            entity_type="concept",
+            entity_id=concept_id,
+            action="update",
+            before=before_state,
+            after=self._tracker.serialize_concept(concept),
+        )
+
         # Re-fetch to get fresh broader relationship
         return await self.get_concept(concept_id)
 
     async def delete_concept(self, concept_id: UUID) -> None:
         """Delete a concept."""
         concept = await self.get_concept(concept_id)
+
+        # Capture before state and scheme_id before deletion
+        before_state = self._tracker.serialize_concept(concept)
+        scheme_id = concept.scheme_id
+        concept_label = concept.pref_label
+
+        # Record deletion of broader relationships (where this concept is the narrower)
+        result = await self.db.execute(
+            select(ConceptBroader).where(ConceptBroader.concept_id == concept_id)
+        )
+        broader_rels = list(result.scalars().all())
+        for rel in broader_rels:
+            broader_concept = await self.get_concept(rel.broader_concept_id)
+            await self._tracker.record(
+                scheme_id=scheme_id,
+                entity_type="concept_broader",
+                entity_id=rel.concept_id,
+                action="delete",
+                before=self._tracker.serialize_broader(
+                    rel.concept_id,
+                    rel.broader_concept_id,
+                    concept_label,
+                    broader_concept.pref_label,
+                ),
+                after=None,
+            )
+
+        # Record deletion of narrower relationships (where this concept is the broader)
+        result = await self.db.execute(
+            select(ConceptBroader).where(ConceptBroader.broader_concept_id == concept_id)
+        )
+        narrower_rels = list(result.scalars().all())
+        for rel in narrower_rels:
+            narrower_concept = await self.get_concept(rel.concept_id)
+            await self._tracker.record(
+                scheme_id=scheme_id,
+                entity_type="concept_broader",
+                entity_id=rel.concept_id,
+                action="delete",
+                before=self._tracker.serialize_broader(
+                    rel.concept_id,
+                    rel.broader_concept_id,
+                    narrower_concept.pref_label,
+                    concept_label,
+                ),
+                after=None,
+            )
+
+        # Record deletion of related relationships (either as subject or object)
+        result = await self.db.execute(
+            select(ConceptRelated).where(
+                or_(
+                    ConceptRelated.concept_id == concept_id,
+                    ConceptRelated.related_concept_id == concept_id,
+                )
+            )
+        )
+        related_rels = list(result.scalars().all())
+        for rel in related_rels:
+            # Get the other concept's label
+            other_concept_id = (
+                rel.related_concept_id
+                if rel.concept_id == concept_id
+                else rel.concept_id
+            )
+            other_concept = await self.get_concept(other_concept_id)
+            # Determine labels based on ID ordering
+            if rel.concept_id < rel.related_concept_id:
+                id1, id2 = rel.concept_id, rel.related_concept_id
+                if rel.concept_id == concept_id:
+                    label1, label2 = concept_label, other_concept.pref_label
+                else:
+                    label1, label2 = other_concept.pref_label, concept_label
+            else:
+                id1, id2 = rel.related_concept_id, rel.concept_id
+                if rel.related_concept_id == concept_id:
+                    label1, label2 = concept_label, other_concept.pref_label
+                else:
+                    label1, label2 = other_concept.pref_label, concept_label
+            await self._tracker.record(
+                scheme_id=scheme_id,
+                entity_type="concept_related",
+                entity_id=concept_id,
+                action="delete",
+                before=self._tracker.serialize_related(id1, id2, label1, label2),
+                after=None,
+            )
+
         await self.db.delete(concept)
         await self.db.flush()
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=scheme_id,
+            entity_type="concept",
+            entity_id=concept_id,
+            action="delete",
+            before=before_state,
+            after=None,
+        )
 
     async def add_broader(self, concept_id: UUID, broader_concept_id: UUID) -> None:
         """Add a broader relationship."""
         # Verify both concepts exist
-        await self.get_concept(concept_id)
-        await self.get_concept(broader_concept_id)
+        concept = await self.get_concept(concept_id)
+        broader_concept = await self.get_concept(broader_concept_id)
 
         rel = ConceptBroader(concept_id=concept_id, broader_concept_id=broader_concept_id)
         self.db.add(rel)
@@ -205,8 +330,26 @@ class ConceptService:
             await self.db.rollback()
             raise BroaderRelationshipExistsError(concept_id, broader_concept_id)
 
+        # Record change event
+        await self._tracker.record(
+            scheme_id=concept.scheme_id,
+            entity_type="concept_broader",
+            entity_id=concept_id,
+            action="create",
+            before=None,
+            after=self._tracker.serialize_broader(
+                concept_id,
+                broader_concept_id,
+                concept.pref_label,
+                broader_concept.pref_label,
+            ),
+        )
+
     async def remove_broader(self, concept_id: UUID, broader_concept_id: UUID) -> None:
         """Remove a broader relationship."""
+        concept = await self.get_concept(concept_id)
+        broader_concept = await self.get_concept(broader_concept_id)
+
         result = await self.db.execute(
             select(ConceptBroader).where(
                 ConceptBroader.concept_id == concept_id,
@@ -218,6 +361,21 @@ class ConceptService:
             raise BroaderRelationshipNotFoundError(concept_id, broader_concept_id)
         await self.db.delete(rel)
         await self.db.flush()
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=concept.scheme_id,
+            entity_type="concept_broader",
+            entity_id=concept_id,
+            action="delete",
+            before=self._tracker.serialize_broader(
+                concept_id,
+                broader_concept_id,
+                concept.pref_label,
+                broader_concept.pref_label,
+            ),
+            after=None,
+        )
 
     async def get_tree(self, scheme_id: UUID) -> list[dict]:
         """Get the concept tree for a scheme as a DAG.
@@ -303,8 +461,10 @@ class ConceptService:
         # Order IDs - smaller first
         if concept_id < related_concept_id:
             id1, id2 = concept_id, related_concept_id
+            label1, label2 = concept.pref_label, related_concept.pref_label
         else:
             id1, id2 = related_concept_id, concept_id
+            label1, label2 = related_concept.pref_label, concept.pref_label
 
         rel = ConceptRelated(concept_id=id1, related_concept_id=id2)
         self.db.add(rel)
@@ -314,16 +474,31 @@ class ConceptService:
             await self.db.rollback()
             raise RelatedRelationshipExistsError(concept_id, related_concept_id)
 
+        # Record change event
+        await self._tracker.record(
+            scheme_id=concept.scheme_id,
+            entity_type="concept_related",
+            entity_id=concept_id,
+            action="create",
+            before=None,
+            after=self._tracker.serialize_related(id1, id2, label1, label2),
+        )
+
     async def remove_related(self, concept_id: UUID, related_concept_id: UUID) -> None:
         """Remove a related relationship between two concepts.
 
         Works regardless of which concept is passed first (symmetric).
         """
+        concept = await self.get_concept(concept_id)
+        related_concept = await self.get_concept(related_concept_id)
+
         # Order IDs - smaller first (to match storage)
         if concept_id < related_concept_id:
             id1, id2 = concept_id, related_concept_id
+            label1, label2 = concept.pref_label, related_concept.pref_label
         else:
             id1, id2 = related_concept_id, concept_id
+            label1, label2 = related_concept.pref_label, concept.pref_label
 
         result = await self.db.execute(
             select(ConceptRelated).where(
@@ -336,6 +511,16 @@ class ConceptService:
             raise RelatedRelationshipNotFoundError(concept_id, related_concept_id)
         await self.db.delete(rel)
         await self.db.flush()
+
+        # Record change event
+        await self._tracker.record(
+            scheme_id=concept.scheme_id,
+            entity_type="concept_related",
+            entity_id=concept_id,
+            action="delete",
+            before=self._tracker.serialize_related(id1, id2, label1, label2),
+            after=None,
+        )
 
     async def _is_descendant(self, concept_id: UUID, potential_descendant_id: UUID) -> bool:
         """Check if potential_descendant_id is a descendant of concept_id.
