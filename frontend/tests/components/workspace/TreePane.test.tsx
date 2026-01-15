@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/preact";
+import { render, screen, fireEvent } from "@testing-library/preact";
 import { TreePane } from "../../../src/components/workspace/TreePane";
 import { currentScheme } from "../../../src/state/schemes";
 import { treeLoading } from "../../../src/state/concepts";
@@ -17,6 +17,20 @@ vi.mock("../../../src/components/tree/TreeView", () => ({
 // Mock TreeControls
 vi.mock("../../../src/components/tree/TreeControls", () => ({
   TreeControls: () => <div data-testid="tree-controls">TreeControls</div>,
+}));
+
+// Mock HistoryPanel
+vi.mock("../../../src/components/history/HistoryPanel", () => ({
+  HistoryPanel: ({ schemeId }: { schemeId: string }) => (
+    <div data-testid="history-panel">History for {schemeId}</div>
+  ),
+}));
+
+// Mock VersionsPanel
+vi.mock("../../../src/components/versions/VersionsPanel", () => ({
+  VersionsPanel: ({ schemeId }: { schemeId: string }) => (
+    <div data-testid="versions-panel">Versions for {schemeId}</div>
+  ),
 }));
 
 const mockScheme: ConceptScheme = {
@@ -135,31 +149,110 @@ describe("TreePane", () => {
     expect(screen.getByText("Export")).toBeInTheDocument();
   });
 
-  it("renders History button when onHistory provided", () => {
+  it("renders collapsible History section in footer", () => {
     render(
       <TreePane
         schemeId="scheme-1"
         onExpandAll={() => {}}
         onCollapseAll={() => {}}
         onRefresh={async () => {}}
-        onHistory={() => {}}
       />
     );
 
-    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /history/i })).toBeInTheDocument();
   });
 
-  it("renders Versions button when onVersions provided", () => {
+  it("renders collapsible Versions section in footer", () => {
     render(
       <TreePane
         schemeId="scheme-1"
         onExpandAll={() => {}}
         onCollapseAll={() => {}}
         onRefresh={async () => {}}
-        onVersions={() => {}}
       />
     );
 
-    expect(screen.getByText("Versions")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /versions/i })).toBeInTheDocument();
+  });
+
+  it("expands History section when clicked", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+      />
+    );
+
+    const historyButton = screen.getByRole("button", { name: /history/i });
+    fireEvent.click(historyButton);
+
+    expect(screen.getByTestId("history-panel")).toBeInTheDocument();
+    expect(historyButton).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("expands Versions section when clicked", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+      />
+    );
+
+    const versionsButton = screen.getByRole("button", { name: /versions/i });
+    fireEvent.click(versionsButton);
+
+    expect(screen.getByTestId("versions-panel")).toBeInTheDocument();
+    expect(versionsButton).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("only allows one section open at a time (accordion)", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+      />
+    );
+
+    const historyButton = screen.getByRole("button", { name: /history/i });
+    const versionsButton = screen.getByRole("button", { name: /versions/i });
+
+    // Open History
+    fireEvent.click(historyButton);
+    expect(screen.getByTestId("history-panel")).toBeInTheDocument();
+
+    // Open Versions - should close History
+    fireEvent.click(versionsButton);
+    expect(screen.getByTestId("versions-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("history-panel")).not.toBeInTheDocument();
+    expect(historyButton).toHaveAttribute("aria-expanded", "false");
+    expect(versionsButton).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("collapses section when clicked again", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+      />
+    );
+
+    const historyButton = screen.getByRole("button", { name: /history/i });
+
+    // Open
+    fireEvent.click(historyButton);
+    expect(screen.getByTestId("history-panel")).toBeInTheDocument();
+
+    // Close
+    fireEvent.click(historyButton);
+    expect(screen.queryByTestId("history-panel")).not.toBeInTheDocument();
+    expect(historyButton).toHaveAttribute("aria-expanded", "false");
   });
 });

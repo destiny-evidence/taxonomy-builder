@@ -5,8 +5,6 @@ import { TreePane } from "../components/workspace/TreePane";
 import { ConceptPane } from "../components/workspace/ConceptPane";
 import { ConceptForm } from "../components/concepts/ConceptForm";
 import { ExportModal } from "../components/schemes/ExportModal";
-import { HistoryPanel } from "../components/history/HistoryPanel";
-import { VersionsPanel } from "../components/versions/VersionsPanel";
 import { Modal } from "../components/common/Modal";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
@@ -37,12 +35,9 @@ export function SchemeWorkspacePage({
 }: SchemeWorkspacePageProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
-  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
     if (projectId) {
@@ -221,11 +216,6 @@ export function SchemeWorkspacePage({
             onCreate={handleCreate}
             onAddChild={handleAddChild}
             onExport={() => setIsExportOpen(true)}
-            onHistory={() => {
-              setHistoryRefreshKey((k) => k + 1);
-              setIsHistoryOpen(true);
-            }}
-            onVersions={() => setIsVersionsOpen(true)}
           />
         ) : (
           <div class="scheme-workspace__placeholder">
@@ -270,22 +260,6 @@ export function SchemeWorkspacePage({
         schemeTitle={currentScheme.value?.title ?? ""}
         onClose={() => setIsExportOpen(false)}
       />
-
-      <Modal
-        isOpen={isHistoryOpen}
-        title="History"
-        onClose={() => setIsHistoryOpen(false)}
-      >
-        <HistoryPanel schemeId={schemeId!} refreshKey={historyRefreshKey} />
-      </Modal>
-
-      <Modal
-        isOpen={isVersionsOpen}
-        title="Versions"
-        onClose={() => setIsVersionsOpen(false)}
-      >
-        <VersionsPanel schemeId={schemeId!} />
-      </Modal>
     </div>
   );
 }
