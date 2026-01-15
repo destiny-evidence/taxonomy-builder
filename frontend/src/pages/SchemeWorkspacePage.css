@@ -1,0 +1,31 @@
+.scheme-workspace {
+  display: grid;
+  grid-template-columns: 280px 1fr 380px;
+  height: 100%;
+  min-height: 0;
+}
+
+.scheme-workspace__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+}
+
+.scheme-workspace__detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+.scheme-workspace__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

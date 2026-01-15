@@ -3,6 +3,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { SchemeDetailPage } from "./pages/SchemeDetailPage";
+import { SchemeWorkspacePage } from "./pages/SchemeWorkspacePage";
 
 export function App() {
   return (
@@ -10,6 +11,7 @@ export function App() {
       <Router>
         <ProjectsPage path="/" />
         <ProjectDetailPage path="/projects/:projectId" />
+        <SchemeWorkspacePage path="/projects/:projectId/schemes/:schemeId" />
         <SchemeDetailPage path="/schemes/:schemeId" />
       </Router>
     </AppShell>
