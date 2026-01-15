@@ -1,7 +1,10 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { route } from "preact-router";
 import { SchemesPane } from "../components/workspace/SchemesPane";
 import { TreePane } from "../components/workspace/TreePane";
+import { ConceptPane } from "../components/workspace/ConceptPane";
+import { ConceptForm } from "../components/concepts/ConceptForm";
+import { Modal } from "../components/common/Modal";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
 import { currentProject } from "../state/projects";
@@ -10,10 +13,13 @@ import {
   treeData,
   treeLoading,
   expandedPaths,
+  selectedConceptId,
+  selectedConcept,
 } from "../state/concepts";
 import { projectsApi } from "../api/projects";
 import { schemesApi } from "../api/schemes";
 import { conceptsApi } from "../api/concepts";
+import type { Concept } from "../types/models";
 import "./SchemeWorkspacePage.css";
 
 interface SchemeWorkspacePageProps {
@@ -26,6 +32,10 @@ export function SchemeWorkspacePage({
   projectId,
   schemeId,
 }: SchemeWorkspacePageProps) {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
+  const [formKey, setFormKey] = useState(0);
+
   useEffect(() => {
     if (projectId) {
       loadProject(projectId);
@@ -43,6 +53,8 @@ export function SchemeWorkspacePage({
       treeData.value = [];
       concepts.value = [];
     }
+    // Clear selection when changing schemes
+    selectedConceptId.value = null;
   }, [schemeId]);
 
   async function loadProject(id: string) {
@@ -126,6 +138,50 @@ export function SchemeWorkspacePage({
     route(`/projects/${newProjectId}`);
   }
 
+  function handleEdit() {
+    if (selectedConcept.value) {
+      setEditingConcept(selectedConcept.value);
+      setIsFormOpen(true);
+    }
+  }
+
+  async function handleDelete() {
+    if (selectedConcept.value && schemeId) {
+      try {
+        await conceptsApi.delete(selectedConcept.value.id);
+        selectedConceptId.value = null;
+        await handleRefresh();
+      } catch (err) {
+        console.error("Failed to delete concept:", err);
+      }
+    }
+  }
+
+  function handleFormClose() {
+    setIsFormOpen(false);
+    setEditingConcept(null);
+  }
+
+  async function handleFormSuccess() {
+    handleFormClose();
+    if (schemeId) {
+      await handleRefresh();
+      // Refresh selected concept if it was edited
+      if (selectedConceptId.value) {
+        const updated = await conceptsApi.get(selectedConceptId.value);
+        concepts.value = concepts.value.map((c) =>
+          c.id === updated.id ? updated : c
+        );
+      }
+    }
+  }
+
+  function handleCreate() {
+    setEditingConcept(null);
+    setFormKey((k) => k + 1);
+    setIsFormOpen(true);
+  }
+
   if (!projectId) {
     return <div>Project ID required</div>;
   }
@@ -146,6 +202,7 @@ export function SchemeWorkspacePage({
             onExpandAll={handleExpandAll}
             onCollapseAll={handleCollapseAll}
             onRefresh={handleRefresh}
+            onCreate={handleCreate}
           />
         ) : (
           <div class="scheme-workspace__placeholder">
@@ -155,8 +212,33 @@ export function SchemeWorkspacePage({
       </div>
 
       <div class="scheme-workspace__detail">
-        <div class="scheme-workspace__placeholder">Concept details pane</div>
+        {schemeId ? (
+          <ConceptPane
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRefresh={handleRefresh}
+          />
+        ) : (
+          <div class="scheme-workspace__placeholder">
+            Select a scheme to view concepts
+          </div>
+        )}
       </div>
+
+      <Modal
+        isOpen={isFormOpen}
+        title={editingConcept ? "Edit Concept" : "New Concept"}
+        onClose={handleFormClose}
+      >
+        <ConceptForm
+          key={editingConcept?.id ?? formKey}
+          schemeId={schemeId!}
+          schemeUri={currentScheme.value?.uri}
+          concept={editingConcept}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormClose}
+        />
+      </Modal>
     </div>
   );
 }

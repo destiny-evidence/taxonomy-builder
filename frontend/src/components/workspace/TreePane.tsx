@@ -9,6 +9,7 @@ interface TreePaneProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefresh: () => Promise<void>;
+  onCreate?: () => void;
 }
 
 export function TreePane({
@@ -16,6 +17,7 @@ export function TreePane({
   onExpandAll,
   onCollapseAll,
   onRefresh,
+  onCreate: _onCreate,
 }: TreePaneProps) {
   const scheme = currentScheme.value;
   const isLoading = treeLoading.value;
