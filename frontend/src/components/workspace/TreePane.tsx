@@ -62,14 +62,13 @@ export function TreePane({
               Export
             </Button>
           )}
-          {onCreate && <Button onClick={onCreate}>Add Concept</Button>}
         </div>
       </div>
 
       <TreeControls onExpandAll={onExpandAll} onCollapseAll={onCollapseAll} />
 
       <div class="tree-pane__content">
-        <TreeView schemeId={schemeId} onRefresh={onRefresh} />
+        <TreeView schemeId={schemeId} onRefresh={onRefresh} onCreate={onCreate} />
       </div>
     </div>
   );

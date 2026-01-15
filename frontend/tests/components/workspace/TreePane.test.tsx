@@ -7,8 +7,10 @@ import type { ConceptScheme } from "../../../src/types/models";
 
 // Mock TreeView since it has complex dependencies
 vi.mock("../../../src/components/tree/TreeView", () => ({
-  TreeView: ({ schemeId }: { schemeId: string }) => (
-    <div data-testid="tree-view">TreeView for {schemeId}</div>
+  TreeView: ({ schemeId, onCreate }: { schemeId: string; onCreate?: () => void }) => (
+    <div data-testid="tree-view" data-has-oncreate={onCreate ? "true" : "false"}>
+      TreeView for {schemeId}
+    </div>
   ),
 }));
 
@@ -105,7 +107,7 @@ describe("TreePane", () => {
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
 
-  it("renders Add Concept button when onCreate provided", () => {
+  it("passes onCreate to TreeView when provided", () => {
     render(
       <TreePane
         schemeId="scheme-1"
@@ -116,7 +118,7 @@ describe("TreePane", () => {
       />
     );
 
-    expect(screen.getByText("Add Concept")).toBeInTheDocument();
+    expect(screen.getByTestId("tree-view")).toHaveAttribute("data-has-oncreate", "true");
   });
 
   it("renders Export button when onExport provided", () => {
