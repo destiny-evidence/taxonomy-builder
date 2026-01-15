@@ -4,6 +4,7 @@ import { SchemesPane } from "../components/workspace/SchemesPane";
 import { TreePane } from "../components/workspace/TreePane";
 import { ConceptPane } from "../components/workspace/ConceptPane";
 import { ConceptForm } from "../components/concepts/ConceptForm";
+import { ExportModal } from "../components/schemes/ExportModal";
 import { Modal } from "../components/common/Modal";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
@@ -33,6 +34,7 @@ export function SchemeWorkspacePage({
   schemeId,
 }: SchemeWorkspacePageProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [formKey, setFormKey] = useState(0);
 
@@ -203,6 +205,7 @@ export function SchemeWorkspacePage({
             onCollapseAll={handleCollapseAll}
             onRefresh={handleRefresh}
             onCreate={handleCreate}
+            onExport={() => setIsExportOpen(true)}
           />
         ) : (
           <div class="scheme-workspace__placeholder">
@@ -239,6 +242,13 @@ export function SchemeWorkspacePage({
           onCancel={handleFormClose}
         />
       </Modal>
+
+      <ExportModal
+        isOpen={isExportOpen}
+        schemeId={schemeId!}
+        schemeTitle={currentScheme.value?.title ?? ""}
+        onClose={() => setIsExportOpen(false)}
+      />
     </div>
   );
 }

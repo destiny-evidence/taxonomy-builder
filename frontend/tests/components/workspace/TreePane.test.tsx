@@ -104,4 +104,32 @@ describe("TreePane", () => {
 
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
+
+  it("renders Add Concept button when onCreate provided", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+        onCreate={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Add Concept")).toBeInTheDocument();
+  });
+
+  it("renders Export button when onExport provided", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+        onExport={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Export")).toBeInTheDocument();
+  });
 });
