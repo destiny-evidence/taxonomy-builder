@@ -12,6 +12,8 @@ interface TreePaneProps {
   onRefresh: () => Promise<void>;
   onCreate?: () => void;
   onExport?: () => void;
+  onHistory?: () => void;
+  onVersions?: () => void;
 }
 
 export function TreePane({
@@ -21,6 +23,8 @@ export function TreePane({
   onRefresh,
   onCreate,
   onExport,
+  onHistory,
+  onVersions,
 }: TreePaneProps) {
   const scheme = currentScheme.value;
   const isLoading = treeLoading.value;
@@ -43,6 +47,16 @@ export function TreePane({
           )}
         </div>
         <div class="tree-pane__actions">
+          {onHistory && (
+            <Button variant="ghost" onClick={onHistory}>
+              History
+            </Button>
+          )}
+          {onVersions && (
+            <Button variant="ghost" onClick={onVersions}>
+              Versions
+            </Button>
+          )}
           {onExport && (
             <Button variant="secondary" onClick={onExport}>
               Export

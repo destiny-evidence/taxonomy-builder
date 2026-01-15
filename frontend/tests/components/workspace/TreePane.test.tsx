@@ -132,4 +132,32 @@ describe("TreePane", () => {
 
     expect(screen.getByText("Export")).toBeInTheDocument();
   });
+
+  it("renders History button when onHistory provided", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+        onHistory={() => {}}
+      />
+    );
+
+    expect(screen.getByText("History")).toBeInTheDocument();
+  });
+
+  it("renders Versions button when onVersions provided", () => {
+    render(
+      <TreePane
+        schemeId="scheme-1"
+        onExpandAll={() => {}}
+        onCollapseAll={() => {}}
+        onRefresh={async () => {}}
+        onVersions={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Versions")).toBeInTheDocument();
+  });
 });
