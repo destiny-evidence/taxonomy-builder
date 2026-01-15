@@ -128,3 +128,30 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Add child button */
+.tree-node__add-child {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  border-radius: var(--radius-sm);
+}
+
+.tree-node__row:hover .tree-node__add-child {
+  opacity: 1;
+}
+
+.tree-node__add-child:hover {
+  color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+}

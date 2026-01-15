@@ -14,9 +14,10 @@ interface TreeViewProps {
   schemeId: string;
   onRefresh: () => void;
   onCreate?: () => void;
+  onAddChild?: (parentId: string) => void;
 }
 
-export function TreeView({ onRefresh, onCreate }: TreeViewProps) {
+export function TreeView({ onRefresh, onCreate, onAddChild }: TreeViewProps) {
   function handleToggle(path: string) {
     const newExpanded = new Set(expandedPaths.value);
     if (newExpanded.has(path)) {
@@ -61,6 +62,7 @@ export function TreeView({ onRefresh, onCreate }: TreeViewProps) {
             selectedId={selectedConceptId.value}
             onToggle={handleToggle}
             onSelect={handleSelect}
+            onAddChild={onAddChild}
           />
         ))}
 

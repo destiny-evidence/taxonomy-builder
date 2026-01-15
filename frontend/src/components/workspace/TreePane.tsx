@@ -11,6 +11,7 @@ interface TreePaneProps {
   onCollapseAll: () => void;
   onRefresh: () => Promise<void>;
   onCreate?: () => void;
+  onAddChild?: (parentId: string) => void;
   onExport?: () => void;
   onHistory?: () => void;
   onVersions?: () => void;
@@ -22,6 +23,7 @@ export function TreePane({
   onCollapseAll,
   onRefresh,
   onCreate,
+  onAddChild,
   onExport,
   onHistory,
   onVersions,
@@ -68,7 +70,12 @@ export function TreePane({
       <TreeControls onExpandAll={onExpandAll} onCollapseAll={onCollapseAll} />
 
       <div class="tree-pane__content">
-        <TreeView schemeId={schemeId} onRefresh={onRefresh} onCreate={onCreate} />
+        <TreeView
+          schemeId={schemeId}
+          onRefresh={onRefresh}
+          onCreate={onCreate}
+          onAddChild={onAddChild}
+        />
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ interface TreeNodeProps {
   selectedId: string | null;
   onToggle: (path: string) => void;
   onSelect: (conceptId: string) => void;
+  onAddChild?: (parentId: string) => void;
 }
 
 export function TreeNode({
@@ -22,6 +23,7 @@ export function TreeNode({
   selectedId,
   onToggle,
   onSelect,
+  onAddChild,
 }: TreeNodeProps) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedPaths.has(node.path);
@@ -119,6 +121,20 @@ export function TreeNode({
             </span>
           )}
         </button>
+
+        {onAddChild && (
+          <button
+            class="tree-node__add-child"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddChild(node.id);
+            }}
+            aria-label="Add child"
+            title="Add child concept"
+          >
+            +
+          </button>
+        )}
       </div>
 
       {hasChildren && isExpanded && (
@@ -131,6 +147,7 @@ export function TreeNode({
               selectedId={selectedId}
               onToggle={onToggle}
               onSelect={onSelect}
+              onAddChild={onAddChild}
             />
           ))}
         </div>

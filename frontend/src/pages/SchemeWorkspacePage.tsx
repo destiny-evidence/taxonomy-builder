@@ -40,6 +40,7 @@ export function SchemeWorkspacePage({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
+  const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
@@ -185,6 +186,14 @@ export function SchemeWorkspacePage({
 
   function handleCreate() {
     setEditingConcept(null);
+    setInitialBroaderId(null);
+    setFormKey((k) => k + 1);
+    setIsFormOpen(true);
+  }
+
+  function handleAddChild(parentId: string) {
+    setEditingConcept(null);
+    setInitialBroaderId(parentId);
     setFormKey((k) => k + 1);
     setIsFormOpen(true);
   }
@@ -210,6 +219,7 @@ export function SchemeWorkspacePage({
             onCollapseAll={handleCollapseAll}
             onRefresh={handleRefresh}
             onCreate={handleCreate}
+            onAddChild={handleAddChild}
             onExport={() => setIsExportOpen(true)}
             onHistory={() => {
               setHistoryRefreshKey((k) => k + 1);
@@ -248,6 +258,7 @@ export function SchemeWorkspacePage({
           schemeId={schemeId!}
           schemeUri={currentScheme.value?.uri}
           concept={editingConcept}
+          initialBroaderId={initialBroaderId}
           onSuccess={handleFormSuccess}
           onCancel={handleFormClose}
         />
