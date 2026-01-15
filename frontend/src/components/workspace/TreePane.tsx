@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import { TreeView } from "../tree/TreeView";
 import { TreeControls } from "../tree/TreeControls";
 import { HistoryPanel } from "../history/HistoryPanel";
@@ -9,6 +9,10 @@ import { treeLoading } from "../../state/concepts";
 import "./TreePane.css";
 
 type ExpandedSection = "history" | "versions" | null;
+
+const MIN_SECTION_HEIGHT = 100;
+const MAX_SECTION_HEIGHT = 500;
+const DEFAULT_SECTION_HEIGHT = 300;
 
 interface TreePaneProps {
   schemeId: string;
@@ -30,6 +34,10 @@ export function TreePane({
   onExport,
 }: TreePaneProps) {
   const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
+  const [sectionHeight, setSectionHeight] = useState(DEFAULT_SECTION_HEIGHT);
+  const isResizing = useRef(false);
+  const startY = useRef(0);
+  const startHeight = useRef(0);
 
   const scheme = currentScheme.value;
   const isLoading = treeLoading.value;
@@ -37,6 +45,40 @@ export function TreePane({
   function toggleSection(section: ExpandedSection) {
     setExpandedSection((current) => (current === section ? null : section));
   }
+
+  function handleResizeStart(e: MouseEvent) {
+    e.preventDefault();
+    isResizing.current = true;
+    startY.current = e.clientY;
+    startHeight.current = sectionHeight;
+    document.body.style.userSelect = "none";
+  }
+
+  useEffect(() => {
+    function handleMouseMove(e: MouseEvent) {
+      if (!isResizing.current) return;
+      const delta = startY.current - e.clientY;
+      const newHeight = Math.min(
+        MAX_SECTION_HEIGHT,
+        Math.max(MIN_SECTION_HEIGHT, startHeight.current + delta)
+      );
+      setSectionHeight(newHeight);
+    }
+
+    function handleMouseUp() {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.userSelect = "";
+      }
+    }
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   if (!scheme || isLoading) {
     return (
@@ -88,8 +130,14 @@ export function TreePane({
             History
           </button>
           {expandedSection === "history" && (
-            <div class="tree-pane__section-content">
-              <HistoryPanel schemeId={schemeId} />
+            <div class="tree-pane__section-content" style={{ height: sectionHeight }}>
+              <div
+                class="tree-pane__resize-handle"
+                onMouseDown={handleResizeStart}
+              />
+              <div class="tree-pane__section-scroll">
+                <HistoryPanel schemeId={schemeId} />
+              </div>
             </div>
           )}
         </div>
@@ -106,8 +154,14 @@ export function TreePane({
             Versions
           </button>
           {expandedSection === "versions" && (
-            <div class="tree-pane__section-content">
-              <VersionsPanel schemeId={schemeId} />
+            <div class="tree-pane__section-content" style={{ height: sectionHeight }}>
+              <div
+                class="tree-pane__resize-handle"
+                onMouseDown={handleResizeStart}
+              />
+              <div class="tree-pane__section-scroll">
+                <VersionsPanel schemeId={schemeId} />
+              </div>
             </div>
           )}
         </div>
