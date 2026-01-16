@@ -1,4 +1,4 @@
-import { projects } from "../../state/projects";
+import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import "./SchemesPane.css";
 
@@ -6,31 +6,23 @@ interface SchemesPaneProps {
   projectId: string;
   currentSchemeId: string | null;
   onSchemeSelect: (schemeId: string) => void;
-  onProjectChange: (projectId: string) => void;
 }
 
 export function SchemesPane({
   projectId,
   currentSchemeId,
   onSchemeSelect,
-  onProjectChange,
 }: SchemesPaneProps) {
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
+  const project = currentProject.value;
 
   return (
     <div class="schemes-pane">
       <div class="schemes-pane__header">
-        <select
-          class="schemes-pane__project-select"
-          value={projectId}
-          onChange={(e) => onProjectChange((e.target as HTMLSelectElement).value)}
-        >
-          {projects.value.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
+        <a href="/projects" class="schemes-pane__back-link">
+          Projects
+        </a>
+        <h2 class="schemes-pane__project-title">{project?.name}</h2>
       </div>
 
       <div class="schemes-pane__content">

@@ -1,26 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/preact";
 import { SchemesPane } from "../../../src/components/workspace/SchemesPane";
-import { projects } from "../../../src/state/projects";
+import { currentProject } from "../../../src/state/projects";
 import { schemes } from "../../../src/state/schemes";
 import type { Project, ConceptScheme } from "../../../src/types/models";
 
-const mockProjects: Project[] = [
-  {
-    id: "proj-1",
-    name: "Project One",
-    description: "First project",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "proj-2",
-    name: "Project Two",
-    description: "Second project",
-    created_at: "2024-01-02T00:00:00Z",
-    updated_at: "2024-01-02T00:00:00Z",
-  },
-];
+const mockProject: Project = {
+  id: "proj-1",
+  name: "Project One",
+  description: "First project",
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+};
 
 const mockSchemes: ConceptScheme[] = [
   {
@@ -49,25 +40,36 @@ const mockSchemes: ConceptScheme[] = [
 
 describe("SchemesPane", () => {
   const mockOnSchemeSelect = vi.fn();
-  const mockOnProjectChange = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
-    projects.value = mockProjects;
+    currentProject.value = mockProject;
     schemes.value = mockSchemes;
   });
 
-  it("renders current project name in dropdown", () => {
+  it("renders current project name as heading", () => {
     render(
       <SchemesPane
         projectId="proj-1"
         currentSchemeId={null}
         onSchemeSelect={mockOnSchemeSelect}
-        onProjectChange={mockOnProjectChange}
       />
     );
 
     expect(screen.getByText("Project One")).toBeInTheDocument();
+  });
+
+  it("renders back link to projects", () => {
+    render(
+      <SchemesPane
+        projectId="proj-1"
+        currentSchemeId={null}
+        onSchemeSelect={mockOnSchemeSelect}
+      />
+    );
+
+    const backLink = screen.getByRole("link", { name: /projects/i });
+    expect(backLink).toHaveAttribute("href", "/projects");
   });
 
   it("lists schemes for the current project", () => {
@@ -76,7 +78,6 @@ describe("SchemesPane", () => {
         projectId="proj-1"
         currentSchemeId={null}
         onSchemeSelect={mockOnSchemeSelect}
-        onProjectChange={mockOnProjectChange}
       />
     );
 
@@ -90,7 +91,6 @@ describe("SchemesPane", () => {
         projectId="proj-1"
         currentSchemeId="scheme-1"
         onSchemeSelect={mockOnSchemeSelect}
-        onProjectChange={mockOnProjectChange}
       />
     );
 
@@ -104,7 +104,6 @@ describe("SchemesPane", () => {
         projectId="proj-1"
         currentSchemeId={null}
         onSchemeSelect={mockOnSchemeSelect}
-        onProjectChange={mockOnProjectChange}
       />
     );
 
@@ -121,7 +120,6 @@ describe("SchemesPane", () => {
         projectId="proj-1"
         currentSchemeId={null}
         onSchemeSelect={mockOnSchemeSelect}
-        onProjectChange={mockOnProjectChange}
       />
     );
 

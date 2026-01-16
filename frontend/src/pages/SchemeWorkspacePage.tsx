@@ -137,9 +137,6 @@ export function SchemeWorkspacePage({
     route(`/projects/${projectId}/schemes/${schemeId}`);
   }
 
-  function handleProjectChange(newProjectId: string) {
-    route(`/projects/${newProjectId}`);
-  }
 
   function handleEdit() {
     if (selectedConcept.value) {
@@ -203,7 +200,6 @@ export function SchemeWorkspacePage({
         projectId={projectId}
         currentSchemeId={schemeId ?? null}
         onSchemeSelect={handleSchemeSelect}
-        onProjectChange={handleProjectChange}
       />
 
       <div class="scheme-workspace__main">

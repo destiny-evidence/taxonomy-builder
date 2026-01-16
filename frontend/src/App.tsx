@@ -9,6 +9,7 @@ export function App() {
     <AppShell>
       <Router>
         <ProjectsPage path="/" />
+        <ProjectsPage path="/projects" />
         <SchemeWorkspacePage path="/projects/:projectId" />
         <SchemeWorkspacePage path="/projects/:projectId/schemes/:schemeId" />
         <SchemeDetailPage path="/schemes/:schemeId" />
