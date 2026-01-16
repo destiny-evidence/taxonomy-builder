@@ -1,6 +1,0 @@
-.scheme-detail__loading,
-.scheme-detail__error {
-  padding: var(--spacing-xl);
-  text-align: center;
-  color: var(--color-text-secondary);
-}
