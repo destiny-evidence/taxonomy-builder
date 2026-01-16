@@ -2,8 +2,6 @@ import { signal, computed } from "@preact/signals";
 import type { Concept, TreeNode, RenderNode } from "../types/models";
 
 export const concepts = signal<Concept[]>([]);
-export const conceptsLoading = signal(false);
-export const conceptsError = signal<string | null>(null);
 
 export const treeData = signal<TreeNode[]>([]);
 export const treeLoading = signal(false);

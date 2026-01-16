@@ -11,13 +11,14 @@ interface ConceptFormProps {
   schemeId: string;
   schemeUri?: string | null;
   concept?: Concept | null;
+  initialBroaderId?: string | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 const DEFAULT_BASE_URI = "http://example.org/concepts";
 
-export function ConceptForm({ schemeId, schemeUri, concept, onSuccess, onCancel }: ConceptFormProps) {
+export function ConceptForm({ schemeId, schemeUri, concept, initialBroaderId, onSuccess, onCancel }: ConceptFormProps) {
   const [prefLabel, setPrefLabel] = useState(concept?.pref_label ?? "");
   const [identifier, setIdentifier] = useState(concept?.identifier ?? "");
   const [definition, setDefinition] = useState(concept?.definition ?? "");
@@ -57,7 +58,11 @@ export function ConceptForm({ schemeId, schemeUri, concept, onSuccess, onCancel 
       if (concept) {
         await conceptsApi.update(concept.id, data);
       } else {
-        await conceptsApi.create(schemeId, data);
+        const newConcept = await conceptsApi.create(schemeId, data);
+        // Add broader relationship if initialBroaderId was provided
+        if (initialBroaderId) {
+          await conceptsApi.addBroader(newConcept.id, initialBroaderId);
+        }
       }
       onSuccess();
     } catch (err) {

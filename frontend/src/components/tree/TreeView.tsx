@@ -13,9 +13,11 @@ import "./TreeView.css";
 interface TreeViewProps {
   schemeId: string;
   onRefresh: () => void;
+  onCreate?: () => void;
+  onAddChild?: (parentId: string) => void;
 }
 
-export function TreeView({ onRefresh }: TreeViewProps) {
+export function TreeView({ onRefresh, onCreate, onAddChild }: TreeViewProps) {
   function handleToggle(path: string) {
     const newExpanded = new Set(expandedPaths.value);
     if (newExpanded.has(path)) {
@@ -40,6 +42,11 @@ export function TreeView({ onRefresh }: TreeViewProps) {
     return (
       <div class="tree-view__empty">
         <p>No concepts yet. Add your first concept to start building the taxonomy.</p>
+        {onCreate && (
+          <button class="tree-view__add-button" onClick={onCreate}>
+            + Add Concept
+          </button>
+        )}
       </div>
     );
   }
@@ -55,11 +62,18 @@ export function TreeView({ onRefresh }: TreeViewProps) {
             selectedId={selectedConceptId.value}
             onToggle={handleToggle}
             onSelect={handleSelect}
+            onAddChild={onAddChild}
           />
         ))}
 
         {/* Root drop zone - visible when dragging */}
         {isDragging.value && <RootDropZone />}
+
+        {onCreate && (
+          <button class="tree-view__add-button" onClick={onCreate}>
+            + Add Concept
+          </button>
+        )}
       </div>
     </TreeDndProvider>
   );

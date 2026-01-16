@@ -192,4 +192,34 @@ describe("TreeNode", () => {
       expect(handle).toHaveTextContent("⋮⋮");
     });
   });
+
+  describe("add child button", () => {
+    it("renders add child button when onAddChild provided", () => {
+      const node = createNode();
+      const onAddChild = vi.fn();
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} onAddChild={onAddChild} />);
+
+      expect(screen.getByRole("button", { name: /add child/i })).toBeInTheDocument();
+    });
+
+    it("does not render add child button when onAddChild not provided", () => {
+      const node = createNode();
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
+
+      expect(screen.queryByRole("button", { name: /add child/i })).not.toBeInTheDocument();
+    });
+
+    it("calls onAddChild with concept id when clicked", () => {
+      const node = createNode({ id: "parent-concept" });
+      const onAddChild = vi.fn();
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} onAddChild={onAddChild} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /add child/i }));
+
+      expect(onAddChild).toHaveBeenCalledWith("parent-concept");
+    });
+  });
 });

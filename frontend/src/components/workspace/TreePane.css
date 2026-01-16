@@ -1,0 +1,132 @@
+.tree-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.tree-pane__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tree-pane__header-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.tree-pane__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.tree-pane__description {
+  margin: var(--spacing-xs) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.tree-pane__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.tree-pane__content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--spacing-md);
+}
+
+.tree-pane__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+}
+
+/* Footer with collapsible sections */
+.tree-pane__footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.tree-pane__section {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tree-pane__section:last-child {
+  border-bottom: none;
+}
+
+.tree-pane__section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tree-pane__section-header:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.tree-pane__section-header--expanded {
+  color: var(--color-text);
+}
+
+.tree-pane__section-arrow {
+  font-size: var(--font-size-xs);
+  width: 12px;
+}
+
+.tree-pane__section-content {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+}
+
+.tree-pane__resize-handle {
+  flex-shrink: 0;
+  height: 8px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tree-pane__resize-handle:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.tree-pane__resize-handle::after {
+  content: "";
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+
+.tree-pane__section-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
