@@ -2,16 +2,22 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse
 from taxonomy_builder.services.project_service import (
     ProjectNameExistsError,
     ProjectNotFoundError,
     ProjectService,
+)
+from taxonomy_builder.services.skos_import_service import (
+    InvalidRDFError,
+    SchemeURIConflictError,
+    SKOSImportService,
 )
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -20,6 +26,11 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 def get_project_service(db: AsyncSession = Depends(get_db)) -> ProjectService:
     """Dependency that provides a ProjectService instance."""
     return ProjectService(db)
+
+
+def get_import_service(db: AsyncSession = Depends(get_db)) -> SKOSImportService:
+    """Dependency that provides a SKOSImportService instance."""
+    return SKOSImportService(db)
 
 
 @router.get("", response_model=list[ProjectRead])
@@ -79,3 +90,45 @@ async def delete_project(
         await service.delete_project(project_id)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/{project_id}/import",
+    response_model=ImportPreviewResponse | ImportResultResponse,
+)
+async def import_skos(
+    project_id: UUID,
+    file: UploadFile = File(...),
+    dry_run: bool = Query(default=True),
+    project_service: ProjectService = Depends(get_project_service),
+    import_service: SKOSImportService = Depends(get_import_service),
+) -> ImportPreviewResponse | ImportResultResponse:
+    """Import SKOS RDF file into project.
+
+    Args:
+        project_id: The project to import into
+        file: The RDF file to import
+        dry_run: If true (default), return preview without creating entities
+
+    Returns:
+        ImportPreviewResponse if dry_run=true, ImportResultResponse if dry_run=false
+    """
+    # Verify project exists
+    try:
+        await project_service.get_project(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    # Read file content
+    content = await file.read()
+    filename = file.filename or "unknown.ttl"
+
+    try:
+        if dry_run:
+            return await import_service.preview(project_id, content, filename)
+        else:
+            return await import_service.execute(project_id, content, filename)
+    except InvalidRDFError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except SchemeURIConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
