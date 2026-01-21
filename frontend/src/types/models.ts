@@ -96,6 +96,9 @@ export interface TreeNode {
   narrower: TreeNode[];
 }
 
+// Match status for search filtering
+export type MatchStatus = "none" | "match" | "ancestor";
+
 // Enriched for rendering
 export interface RenderNode {
   id: string;
@@ -106,6 +109,7 @@ export interface RenderNode {
   hasMultipleParents: boolean;
   otherParentLabels: string[];
   children: RenderNode[];
+  matchStatus: MatchStatus;
 }
 
 // ============ Drag and Drop ============

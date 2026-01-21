@@ -155,3 +155,21 @@
   color: var(--color-primary);
   background: var(--color-bg-tertiary);
 }
+
+/* Search match highlight */
+.tree-node__row--match {
+  background: var(--color-warning-light, #fef3c7);
+}
+
+.tree-node__row--match:hover {
+  background: var(--color-warning-light, #fef3c7);
+}
+
+/* Non-matching (dimmed) during search */
+.tree-node__row--dimmed {
+  opacity: 0.4;
+}
+
+.tree-node__row--dimmed .tree-node__label {
+  color: var(--color-text-muted);
+}

@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/preact";
 import { DndContext } from "@dnd-kit/core";
 import { TreeNode } from "../../../src/components/tree/TreeNode";
 import { draggedConceptId } from "../../../src/state/concepts";
+import { searchQuery } from "../../../src/state/search";
 import type { RenderNode } from "../../../src/types/models";
 
 describe("TreeNode", () => {
@@ -16,6 +17,7 @@ describe("TreeNode", () => {
       hasMultipleParents: false,
       otherParentLabels: [],
       children: [],
+      matchStatus: "none",
       ...overrides,
     };
   }
@@ -34,6 +36,7 @@ describe("TreeNode", () => {
 
   beforeEach(() => {
     draggedConceptId.value = null;
+    searchQuery.value = "";
   });
 
   describe("toggle button", () => {
@@ -220,6 +223,49 @@ describe("TreeNode", () => {
       fireEvent.click(screen.getByRole("button", { name: /add child/i }));
 
       expect(onAddChild).toHaveBeenCalledWith("parent-concept");
+    });
+  });
+
+  describe("search match styling", () => {
+    it("applies match class when matchStatus is 'match'", () => {
+      const node = createNode({ matchStatus: "match" });
+      searchQuery.value = "test";
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
+
+      const row = screen.getByText("Test Node").closest(".tree-node__row");
+      expect(row).toHaveClass("tree-node__row--match");
+    });
+
+    it("applies dimmed class when matchStatus is 'none' and search is active", () => {
+      const node = createNode({ matchStatus: "none" });
+      searchQuery.value = "test";
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
+
+      const row = screen.getByText("Test Node").closest(".tree-node__row");
+      expect(row).toHaveClass("tree-node__row--dimmed");
+    });
+
+    it("does not apply dimmed class when search is empty", () => {
+      const node = createNode({ matchStatus: "none" });
+      searchQuery.value = "";
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
+
+      const row = screen.getByText("Test Node").closest(".tree-node__row");
+      expect(row).not.toHaveClass("tree-node__row--dimmed");
+    });
+
+    it("does not apply special class for ancestor matchStatus", () => {
+      const node = createNode({ matchStatus: "ancestor" });
+      searchQuery.value = "test";
+
+      renderWithDnd(<TreeNode {...defaultProps} node={node} />);
+
+      const row = screen.getByText("Test Node").closest(".tree-node__row");
+      expect(row).not.toHaveClass("tree-node__row--match");
+      expect(row).not.toHaveClass("tree-node__row--dimmed");
     });
   });
 });
