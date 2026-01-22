@@ -90,6 +90,12 @@ variable "keycloak_admin_password" {
   sensitive   = true
 }
 
+variable "keycloak_image_tag" {
+  description = "Keycloak container image tag"
+  type        = string
+  default     = "26"
+}
+
 # Azure AD
 variable "azure_tenant_id" {
   description = "Azure AD tenant ID"

@@ -133,7 +133,7 @@ resource "azurerm_container_app" "keycloak" {
 
     container {
       name   = "keycloak"
-      image  = "quay.io/keycloak/keycloak:26"
+      image  = "quay.io/keycloak/keycloak:${var.keycloak_image_tag}"
       cpu    = var.keycloak_cpu
       memory = var.keycloak_memory
 
