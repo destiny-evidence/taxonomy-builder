@@ -63,7 +63,7 @@ resource "azurerm_role_assignment" "gha_api_contributor" {
 # GitHub Actions - Keycloak Container App Contributor
 resource "azurerm_role_assignment" "gha_keycloak_contributor" {
   role_definition_name = "Contributor"
-  scope                = module.container_app_keycloak.container_app_id
+  scope                = azurerm_container_app.keycloak.id
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 

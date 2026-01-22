@@ -10,7 +10,7 @@ output "api_container_app_fqdn" {
 
 output "keycloak_container_app_fqdn" {
   description = "FQDN of the Keycloak container app"
-  value       = data.azurerm_container_app.keycloak.ingress[0].fqdn
+  value       = azurerm_container_app.keycloak.ingress[0].fqdn
 }
 
 output "application_gateway_public_ip" {

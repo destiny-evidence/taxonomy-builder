@@ -74,7 +74,7 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = "https://${module.container_app_keycloak.container_app_fqdn}"
+      value = "https://${azurerm_container_app.keycloak.ingress[0].fqdn}"
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"
@@ -116,95 +116,88 @@ module "container_app_api" {
 }
 
 # Keycloak Container App
-module "container_app_keycloak" {
-  source                          = "app.terraform.io/destiny-evidence/container-app/azure"
-  version                         = "1.7.1"
-  app_name                        = "${var.app_name}-keycloak"
-  cpu                             = var.keycloak_cpu
-  environment                     = var.environment
-  container_registry_id           = data.azurerm_container_registry.this.id
-  container_registry_login_server = data.azurerm_container_registry.this.login_server
-  infrastructure_subnet_id        = azurerm_subnet.keycloak.id
-  memory                          = var.keycloak_memory
-  resource_group_name             = azurerm_resource_group.this.name
-  region                          = azurerm_resource_group.this.location
-  min_replicas                    = 1
-  max_replicas                    = 1
-  tags                            = local.minimum_resource_tags
+resource "azurerm_container_app" "keycloak" {
+  name                         = "${local.name}-keycloak"
+  container_app_environment_id = module.container_app_api.container_app_env_id
+  resource_group_name          = azurerm_resource_group.this.name
+  revision_mode                = "Single"
 
-  # Keycloak uses its own official image, not our ACR
-  container_image = "quay.io/keycloak/keycloak:latest"
-
-  identity = {
-    id           = azurerm_user_assigned_identity.keycloak.id
-    principal_id = azurerm_user_assigned_identity.keycloak.principal_id
-    client_id    = azurerm_user_assigned_identity.keycloak.client_id
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.keycloak.id]
   }
 
-  command = ["start", "--optimized"]
+  template {
+    min_replicas = 1
+    max_replicas = 1
 
-  env_vars = [
-    {
-      name  = "KC_DB"
-      value = "postgres"
-    },
-    {
-      name  = "KC_DB_URL"
-      value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.this.fqdn}:5432/${local.keycloak_db_name}"
-    },
-    {
-      name  = "KC_DB_USERNAME"
-      value = var.db_admin_login
-    },
-    {
-      name        = "KC_DB_PASSWORD"
-      secret_name = "kc-db-password"
-    },
-    {
-      name  = "KC_HOSTNAME_STRICT"
-      value = "false"
-    },
-    {
-      name  = "KC_PROXY_HEADERS"
-      value = "xforwarded"
-    },
-    {
-      name  = "KC_HTTP_ENABLED"
-      value = "true"
-    },
-    {
-      name  = "KEYCLOAK_ADMIN"
-      value = "admin"
-    },
-    {
-      name        = "KEYCLOAK_ADMIN_PASSWORD"
-      secret_name = "kc-admin-password"
-    },
-  ]
+    container {
+      name   = "keycloak"
+      image  = "quay.io/keycloak/keycloak:26"
+      cpu    = var.keycloak_cpu
+      memory = var.keycloak_memory
 
-  secrets = [
-    {
-      name  = "kc-db-password"
-      value = var.db_admin_password
-    },
-    {
-      name  = "kc-admin-password"
-      value = var.keycloak_admin_password
-    },
-  ]
+      env {
+        name  = "KC_DB"
+        value = "postgres"
+      }
+      env {
+        name  = "KC_DB_URL"
+        value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.this.fqdn}:5432/${local.keycloak_db_name}"
+      }
+      env {
+        name  = "KC_DB_USERNAME"
+        value = var.db_admin_login
+      }
+      env {
+        name        = "KC_DB_PASSWORD"
+        secret_name = "kc-db-password"
+      }
+      env {
+        name  = "KC_HOSTNAME_STRICT"
+        value = "false"
+      }
+      env {
+        name  = "KC_PROXY_HEADERS"
+        value = "xforwarded"
+      }
+      env {
+        name  = "KC_HTTP_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "KEYCLOAK_ADMIN"
+        value = "admin"
+      }
+      env {
+        name        = "KEYCLOAK_ADMIN_PASSWORD"
+        secret_name = "kc-admin-password"
+      }
+    }
+  }
 
-  ingress = {
-    external_enabled           = true
-    allow_insecure_connections = false
-    target_port                = 8080
-    transport                  = "auto"
-    traffic_weight = {
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+    transport        = "auto"
+
+    traffic_weight {
       latest_revision = true
       percentage      = 100
     }
   }
 
-  custom_scale_rules = []
+  secret {
+    name  = "kc-db-password"
+    value = var.db_admin_password
+  }
+
+  secret {
+    name  = "kc-admin-password"
+    value = var.keycloak_admin_password
+  }
+
+  tags = local.minimum_resource_tags
 }
 
 # Data source for API Container App (for gateway backend)
@@ -214,8 +207,3 @@ data "azurerm_container_app" "api" {
   depends_on          = [module.container_app_api]
 }
 
-data "azurerm_container_app" "keycloak" {
-  name                = module.container_app_keycloak.container_app_name
-  resource_group_name = azurerm_resource_group.this.name
-  depends_on          = [module.container_app_keycloak]
-}

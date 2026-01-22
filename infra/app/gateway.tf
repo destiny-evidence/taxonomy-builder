@@ -55,7 +55,7 @@ resource "azurerm_application_gateway" "this" {
 
   backend_address_pool {
     name  = "keycloak-backend-pool"
-    fqdns = [data.azurerm_container_app.keycloak.ingress[0].fqdn]
+    fqdns = [azurerm_container_app.keycloak.ingress[0].fqdn]
   }
 
   # Backend HTTP settings
