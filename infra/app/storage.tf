@@ -8,16 +8,16 @@ resource "azurerm_storage_account" "frontend" {
   account_replication_type = "LRS"
   account_kind             = "StorageV2"
 
-  # Enable static website hosting
-  static_website {
-    index_document     = "index.html"
-    error_404_document = "index.html" # SPA routing - serve index.html for all routes
-  }
-
   # Allow blob public access for static website
   allow_nested_items_to_be_public = true
 
   tags = local.minimum_resource_tags
+}
+
+resource "azurerm_storage_account_static_website" "frontend" {
+  storage_account_id = azurerm_storage_account.frontend.id
+  error_404_document = "index.html"
+  index_document     = "index.html"
 }
 
 # Output the static website endpoint for Application Gateway backend
