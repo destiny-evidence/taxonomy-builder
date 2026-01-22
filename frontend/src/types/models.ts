@@ -156,3 +156,4 @@ export interface PublishedVersionCreate {
   version_label: string;
   notes?: string | null;
 }
+

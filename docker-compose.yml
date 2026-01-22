@@ -16,5 +16,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # Keycloak - OIDC identity provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/keycloak
+      KC_DB_USERNAME: taxonomy
+      KC_DB_PASSWORD: taxonomy
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:

@@ -1,0 +1,49 @@
+import { computed, signal } from "@preact/signals";
+import { keycloak } from "../keycloak";
+
+export interface KeycloakUser {
+  sub: string;
+  email?: string;
+  name?: string;
+  preferred_username?: string;
+  groups?: string[];
+}
+
+// Auth state signals
+export const authInitialized = signal(false);
+export const authLoading = signal(false);
+export const authError = signal<string | null>(null);
+export const currentUser = signal<KeycloakUser | null>(null);
+
+// Computed values
+export const isAuthenticated = computed(
+  () => authInitialized.value && keycloak.authenticated === true
+);
+
+export const userDisplayName = computed(() => {
+  const user = currentUser.value;
+  if (!user) return null;
+  return user.name || user.preferred_username || user.email || "Unknown";
+});
+
+export const userEmail = computed(() => currentUser.value?.email || null);
+
+export const userGroups = computed(() => currentUser.value?.groups || []);
+
+/**
+ * Set current user from Keycloak token.
+ * Call this after successful authentication.
+ */
+export function setUserFromKeycloak(): void {
+  if (keycloak.tokenParsed) {
+    currentUser.value = keycloak.tokenParsed as KeycloakUser;
+  }
+}
+
+/**
+ * Clear all auth state.
+ */
+export function clearAuth(): void {
+  currentUser.value = null;
+  authError.value = null;
+}

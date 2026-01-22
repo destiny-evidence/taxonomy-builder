@@ -17,7 +17,9 @@ class ChangeEvent(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     timestamp: Mapped[datetime] = mapped_column(default=datetime.now)
-    user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # What changed
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)

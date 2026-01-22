@@ -7,6 +7,7 @@ from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
+from taxonomy_builder.models.user import User
 
 __all__ = [
     "ChangeEvent",
@@ -16,4 +17,5 @@ __all__ = [
     "ConceptScheme",
     "Project",
     "PublishedVersion",
+    "User",
 ]

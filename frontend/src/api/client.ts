@@ -1,4 +1,6 @@
 import { API_BASE } from "../config";
+import { getToken } from "./auth";
+import { clearAuth } from "../state/auth";
 
 export class ApiError extends Error {
   constructor(
@@ -13,21 +15,38 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
+  skipAuth?: boolean;
 }
 
 async function request<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = "GET", body } = options;
+  const { method = "GET", body, skipAuth = false } = options;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Add Authorization header with token from Keycloak
+  if (!skipAuth) {
+    const token = await getToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  // Handle 401 Unauthorized
+  if (response.status === 401) {
+    clearAuth();
+    throw new ApiError(401, "Session expired. Please log in again.");
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
