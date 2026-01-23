@@ -13,9 +13,14 @@ output "keycloak_container_app_fqdn" {
   value       = azurerm_container_app.keycloak.ingress[0].fqdn
 }
 
-output "application_gateway_public_ip" {
-  description = "Public IP address of the Application Gateway"
-  value       = azurerm_public_ip.gateway.ip_address
+output "frontdoor_endpoint_hostname" {
+  description = "Hostname of the Front Door endpoint"
+  value       = azurerm_cdn_frontdoor_endpoint.this.host_name
+}
+
+output "frontdoor_custom_domain_validation_token" {
+  description = "DNS TXT record value for custom domain validation (add as _dnsauth.yourdomain)"
+  value       = var.custom_domain != null ? azurerm_cdn_frontdoor_custom_domain.this[0].validation_token : null
 }
 
 output "postgresql_server_fqdn" {

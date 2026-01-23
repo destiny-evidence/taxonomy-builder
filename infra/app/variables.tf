@@ -147,21 +147,9 @@ variable "project" {
   default     = "DESTINY"
 }
 
-# Application Gateway
-variable "gateway_sku_name" {
-  description = "SKU name for Application Gateway"
+# Front Door
+variable "custom_domain" {
+  description = "Custom domain for Front Door (e.g., taxonomy.example.com). Set to null to use only the default Front Door domain."
   type        = string
-  default     = "Standard_v2"
-}
-
-variable "gateway_sku_tier" {
-  description = "SKU tier for Application Gateway"
-  type        = string
-  default     = "Standard_v2"
-}
-
-variable "gateway_capacity" {
-  description = "Capacity (instance count) for Application Gateway"
-  type        = number
-  default     = 1
+  default     = null
 }
