@@ -109,6 +109,22 @@ variable "github_repo" {
   description = "GitHub repository for Actions OIDC"
 }
 
+variable "github_app_id" {
+  description = "GitHub App ID for configuring repository environments"
+  type        = string
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID"
+  type        = string
+}
+
+variable "github_app_pem" {
+  description = "GitHub App private key PEM file contents"
+  type        = string
+  sensitive   = true
+}
+
 # Resource tags
 variable "budget_code" {
   description = "Budget code for tagging resource groups"
