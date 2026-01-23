@@ -84,6 +84,13 @@ resource "azurerm_role_assignment" "gha_storage_blob_contributor" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
+# GitHub Actions - Storage Account Contributor (for listing keys during blob upload)
+resource "azurerm_role_assignment" "gha_storage_account_contributor" {
+  role_definition_name = "Storage Account Contributor"
+  scope                = azurerm_storage_account.frontend.id
+  principal_id         = azuread_service_principal.github_actions.object_id
+}
+
 # GitHub repository environment for deployment variables
 resource "github_repository_environment" "environment" {
   repository  = "taxonomy-builder"
