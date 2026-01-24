@@ -17,7 +17,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Then, add the rest of the project source code and install it
 # Installing separately from its dependencies allows optimal layer caching
 COPY src/ ./src
-COPY alembic.ini alembic/ uv.lock pyproject.toml README.md ./
+COPY alembic/ ./alembic
+COPY alembic.ini uv.lock pyproject.toml README.md ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
