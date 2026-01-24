@@ -9,12 +9,19 @@ from alembic import context
 
 # Import models to register them with Base.metadata
 from taxonomy_builder.database import Base
-from taxonomy_builder.models import Concept, ConceptBroader, ConceptScheme, Project  # noqa: F401
+from taxonomy_builder.models import (
+    Concept,
+    ConceptBroader,
+    ConceptScheme,
+    Project,
+)  # noqa: F401
+from taxonomy_builder.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
+config.set_main_option("sqlalchemy.url", str(settings.effective_database_url))
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

@@ -141,13 +141,8 @@ resource "azurerm_container_app_job" "db_migrator" {
   }
 
   secret {
-    name = "db-config"
-    value = jsonencode({
-      DB_FQDN = azurerm_postgresql_flexible_server.this.fqdn
-      DB_NAME = azurerm_postgresql_flexible_server_database.taxonomy.name
-      DB_USER = var.db_admin_login
-      DB_PASS = var.db_admin_password
-    })
+    name  = "db-password"
+    value = var.db_admin_password
   }
 
   template {
@@ -166,13 +161,28 @@ resource "azurerm_container_app_job" "db_migrator" {
       }
 
       env {
-        name        = "DB_CONFIG"
-        secret_name = "db-config"
+        name  = "ENV"
+        value = var.environment
       }
 
       env {
-        name  = "ENV"
-        value = var.environment
+        name  = "TAXONOMY_DB_HOST"
+        value = azurerm_postgresql_flexible_server.this.fqdn
+      }
+
+      env {
+        name  = "TAXONOMY_DB_NAME"
+        value = azurerm_postgresql_flexible_server_database.taxonomy.name
+      }
+
+      env {
+        name  = "TAXONOMY_DB_USER"
+        value = var.db_admin_login
+      }
+
+      env {
+        name        = "TAXONOMY_DB_PASSWORD"
+        secret_name = "db-password"
       }
     }
   }
