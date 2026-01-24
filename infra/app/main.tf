@@ -65,12 +65,16 @@ module "container_app_api" {
       value = var.environment
     },
     {
-      name = "TAXONOMY_DATABASE_CONFIG"
-      value = jsonencode({
-        DB_FQDN = azurerm_postgresql_flexible_server.this.fqdn
-        DB_NAME = azurerm_postgresql_flexible_server_database.taxonomy.name
-        DB_USER = data.azuread_group.db_crud_group.display_name
-      })
+      name  = "TAXONOMY_DB_HOST"
+      value = azurerm_postgresql_flexible_server.this.fqdn
+    },
+    {
+      name  = "TAXONOMY_DB_NAME"
+      value = azurerm_postgresql_flexible_server_database.taxonomy.name
+    },
+    {
+      name  = "TAXONOMY_DB_USER"
+      value = var.db_admin_login
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
@@ -88,9 +92,18 @@ module "container_app_api" {
       name  = "AZURE_CLIENT_ID"
       value = azurerm_user_assigned_identity.api.client_id
     },
+    {
+      name        = "TAXONOMY_DB_PASSWORD"
+      secret_name = "db-password"
+    },
   ]
 
-  secrets = []
+  secrets = [
+    {
+      name  = "db-password"
+      value = var.db_admin_password
+    },
+  ]
 
   ingress = {
     external_enabled           = true

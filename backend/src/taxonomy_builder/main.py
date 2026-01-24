@@ -17,7 +17,7 @@ from taxonomy_builder.database import db_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup application resources."""
-    db_manager.init(settings.database_url)
+    db_manager.init(settings.effective_database_url)
     yield
     await db_manager.close()
 
