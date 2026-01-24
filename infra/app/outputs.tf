@@ -20,7 +20,7 @@ output "frontdoor_endpoint_hostname" {
 
 output "frontdoor_custom_domain_validation_token" {
   description = "DNS TXT record value for custom domain validation (add as _dnsauth.yourdomain)"
-  value       = var.custom_domain != null ? azurerm_cdn_frontdoor_custom_domain.this[0].validation_token : null
+  value       = var.custom_domain != null ? azurerm_cdn_frontdoor_custom_domain.this.validation_token : null
 }
 
 output "postgresql_server_fqdn" {
