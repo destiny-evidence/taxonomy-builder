@@ -133,7 +133,7 @@ resource "azurerm_cdn_frontdoor_route" "keycloak" {
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.keycloak.id]
 
   supported_protocols    = ["Http", "Https"]
-  patterns_to_match      = ["/auth/*", "/realms/*"]
+  patterns_to_match      = ["/auth/*", "/realms/*", "/resources/*", "/.well-known/*"]
   forwarding_protocol    = "HttpsOnly"
   link_to_default_domain = true
   https_redirect_enabled = true

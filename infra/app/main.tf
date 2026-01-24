@@ -122,6 +122,7 @@ resource "azurerm_container_app" "keycloak" {
   resource_group_name          = azurerm_resource_group.this.name
   revision_mode                = "Single"
 
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.keycloak.id]
@@ -132,11 +133,11 @@ resource "azurerm_container_app" "keycloak" {
     max_replicas = 1
 
     container {
-      name    = "keycloak"
-      image   = "quay.io/keycloak/keycloak:${var.keycloak_image_tag}"
-      command = ["start"]
-      cpu     = var.keycloak_cpu
-      memory  = var.keycloak_memory
+      name   = "keycloak"
+      image  = "quay.io/keycloak/keycloak:${var.keycloak_image_tag}"
+      args   = ["start"]
+      cpu    = var.keycloak_cpu
+      memory = var.keycloak_memory
 
       env {
         name  = "KC_DB"
