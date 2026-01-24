@@ -108,7 +108,7 @@ resource "azurerm_cdn_frontdoor_route" "frontend" {
   link_to_default_domain = true
   https_redirect_enabled = true
 
-  cdn_frontdoor_custom_domain_ids = var.custom_domain != null ? [azurerm_cdn_frontdoor_custom_domain.this[0].id] : []
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
 }
 
 resource "azurerm_cdn_frontdoor_route" "api" {
@@ -123,7 +123,7 @@ resource "azurerm_cdn_frontdoor_route" "api" {
   link_to_default_domain = true
   https_redirect_enabled = true
 
-  cdn_frontdoor_custom_domain_ids = var.custom_domain != null ? [azurerm_cdn_frontdoor_custom_domain.this[0].id] : []
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
 }
 
 resource "azurerm_cdn_frontdoor_route" "keycloak" {
@@ -138,12 +138,11 @@ resource "azurerm_cdn_frontdoor_route" "keycloak" {
   link_to_default_domain = true
   https_redirect_enabled = true
 
-  cdn_frontdoor_custom_domain_ids = var.custom_domain != null ? [azurerm_cdn_frontdoor_custom_domain.this[0].id] : []
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
 }
 
-# Custom domain (optional)
+# Custom domain
 resource "azurerm_cdn_frontdoor_custom_domain" "this" {
-  count                    = var.custom_domain != null ? 1 : 0
   name                     = replace(var.custom_domain, ".", "-")
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
   host_name                = var.custom_domain
@@ -155,8 +154,7 @@ resource "azurerm_cdn_frontdoor_custom_domain" "this" {
 }
 
 resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
-  count                          = var.custom_domain != null ? 1 : 0
-  cdn_frontdoor_custom_domain_id = azurerm_cdn_frontdoor_custom_domain.this[0].id
+  cdn_frontdoor_custom_domain_id = azurerm_cdn_frontdoor_custom_domain.this.id
   cdn_frontdoor_route_ids = [
     azurerm_cdn_frontdoor_route.frontend.id,
     azurerm_cdn_frontdoor_route.api.id,

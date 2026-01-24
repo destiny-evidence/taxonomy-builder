@@ -178,7 +178,7 @@ resource "github_actions_environment_variable" "keycloak_url" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_URL"
-  value         = "https://${azurerm_container_app.keycloak.ingress[0].fqdn}"
+  value         = "https://${var.custom_domain}"
 }
 
 resource "github_actions_environment_variable" "keycloak_realm" {

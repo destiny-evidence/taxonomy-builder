@@ -149,7 +149,6 @@ variable "project" {
 
 # Front Door
 variable "custom_domain" {
-  description = "Custom domain for Front Door (e.g., taxonomy.example.com). Set to null to use only the default Front Door domain."
+  description = "Custom domain for Front Door (e.g., taxonomy.example.com)"
   type        = string
-  default     = null
 }

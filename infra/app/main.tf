@@ -74,7 +74,7 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = "https://${azurerm_container_app.keycloak.ingress[0].fqdn}"
+      value = "https://${var.custom_domain}"
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"
