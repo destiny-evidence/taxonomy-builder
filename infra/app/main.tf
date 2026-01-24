@@ -132,10 +132,11 @@ resource "azurerm_container_app" "keycloak" {
     max_replicas = 1
 
     container {
-      name   = "keycloak"
-      image  = "quay.io/keycloak/keycloak:${var.keycloak_image_tag}"
-      cpu    = var.keycloak_cpu
-      memory = var.keycloak_memory
+      name    = "keycloak"
+      image   = "quay.io/keycloak/keycloak:${var.keycloak_image_tag}"
+      command = ["start"]
+      cpu     = var.keycloak_cpu
+      memory  = var.keycloak_memory
 
       env {
         name  = "KC_DB"
