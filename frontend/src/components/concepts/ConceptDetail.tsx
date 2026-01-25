@@ -36,13 +36,26 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
     setDefinition(concept.definition ?? "");
     setScopeNote(concept.scope_note ?? "");
     setAltLabels(concept.alt_labels);
-  }, [concept.pref_label, concept.identifier, concept.definition, concept.scope_note, concept.alt_labels]);
+    setIsEditing(false); // Exit edit mode when concept changes
+    setError(null);
+  }, [concept.id]);
 
   // Get available concepts for broader selector (exclude self)
   const availableConcepts = concepts.value.filter((c) => c.id !== concept.id);
 
   function handleEditClick() {
     setIsEditing(true);
+  }
+
+  function handleCancel() {
+    // Reset all fields to original concept values
+    setPrefLabel(concept.pref_label);
+    setIdentifier(concept.identifier ?? "");
+    setDefinition(concept.definition ?? "");
+    setScopeNote(concept.scope_note ?? "");
+    setAltLabels(concept.alt_labels);
+    setError(null);
+    setIsEditing(false);
   }
 
   async function handleSave() {
@@ -100,7 +113,7 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
             </>
           ) : (
             <>
-              <Button variant="secondary" size="sm" onClick={() => setIsEditing(false)} disabled={loading}>
+              <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
                 Cancel
               </Button>
               <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || !prefLabel.trim()}>

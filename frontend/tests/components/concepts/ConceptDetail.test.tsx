@@ -208,4 +208,55 @@ describe("ConceptDetail", () => {
       resolveUpdate!(mockConcept);
     });
   });
+
+  describe("cancel functionality", () => {
+    it("should discard changes when Cancel button clicked", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+      const input = screen.getByLabelText(/Preferred Label/i) as HTMLInputElement;
+      fireEvent.input(input, { target: { value: "Changed" } });
+      fireEvent.click(screen.getByText("Cancel"));
+
+      // Should exit edit mode
+      expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
+      expect(screen.getByText("Edit")).toBeInTheDocument();
+      // Original value should be displayed
+      expect(screen.getByText("Test Concept")).toBeInTheDocument();
+    });
+
+    it("should exit edit mode when concept changes", () => {
+      const newConcept: Concept = { ...mockConcept, id: "concept-2", pref_label: "Different Concept" };
+      const { rerender } = render(<ConceptDetail {...defaultProps} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+      expect(screen.getByText("Cancel")).toBeInTheDocument();
+
+      // Simulate selecting different concept
+      rerender(<ConceptDetail {...defaultProps} concept={newConcept} />);
+
+      // Should exit edit mode
+      expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
+      expect(screen.getByText("Edit")).toBeInTheDocument();
+    });
+
+    it("should reset fields to original values when canceled", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      const prefLabelInput = screen.getByLabelText(/Preferred Label/i) as HTMLInputElement;
+      const identifierInput = screen.getByLabelText(/Identifier/i) as HTMLInputElement;
+
+      fireEvent.input(prefLabelInput, { target: { value: "Changed Label" } });
+      fireEvent.input(identifierInput, { target: { value: "changed-id" } });
+
+      fireEvent.click(screen.getByText("Cancel"));
+      fireEvent.click(screen.getByText("Edit"));
+
+      // Fields should be back to original values
+      expect((screen.getByLabelText(/Preferred Label/i) as HTMLInputElement).value).toBe(mockConcept.pref_label);
+      expect((screen.getByLabelText(/Identifier/i) as HTMLInputElement).value).toBe(mockConcept.identifier);
+    });
+  });
 });
