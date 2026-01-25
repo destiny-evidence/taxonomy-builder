@@ -36,7 +36,6 @@ const mockConcept: Concept = {
 describe("ConceptDetail", () => {
   const defaultProps = {
     concept: mockConcept,
-    onEdit: vi.fn(),
     onDelete: vi.fn(),
     onRefresh: vi.fn(),
   };
@@ -64,17 +63,6 @@ describe("ConceptDetail", () => {
       expect(screen.getByText("Cancel")).toBeInTheDocument();
       expect(screen.getByText("Save Changes")).toBeInTheDocument();
       expect(screen.queryByText("Edit")).not.toBeInTheDocument();
-    });
-
-    it("should not call onEdit when Edit button clicked", () => {
-      const onEdit = vi.fn();
-      render(<ConceptDetail {...defaultProps} onEdit={onEdit} />);
-
-      const editButton = screen.getByText("Edit");
-      fireEvent.click(editButton);
-
-      // onEdit should not be called because we're handling edit mode internally now
-      expect(onEdit).not.toHaveBeenCalled();
     });
   });
 

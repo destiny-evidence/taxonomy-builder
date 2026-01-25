@@ -13,12 +13,11 @@ import "./ConceptDetail.css";
 
 interface ConceptDetailProps {
   concept: Concept;
-  onEdit: () => void;
   onDelete: () => void;
   onRefresh: () => void;
 }
 
-export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptDetailProps) {
+export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [prefLabel, setPrefLabel] = useState(concept.pref_label);
