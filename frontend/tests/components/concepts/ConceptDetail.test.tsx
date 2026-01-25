@@ -76,4 +76,36 @@ describe("ConceptDetail", () => {
       expect(onEdit).not.toHaveBeenCalled();
     });
   });
+
+  describe("preferred label editing", () => {
+    it("should show pref_label as input when editing", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      const input = screen.getByLabelText(/Preferred Label/i) as HTMLInputElement;
+      expect(input).toBeInTheDocument();
+      expect(input.value).toBe(mockConcept.pref_label);
+    });
+
+    it("should update pref_label when typing", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      const input = screen.getByLabelText(/Preferred Label/i) as HTMLInputElement;
+      fireEvent.input(input, { target: { value: "New Label" } });
+
+      expect(input.value).toBe("New Label");
+    });
+
+    it("should show pref_label as text when not editing", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      expect(screen.getByText("Test Concept")).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Preferred Label/i)).not.toBeInTheDocument();
+    });
+  });
 });

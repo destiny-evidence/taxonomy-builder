@@ -1,5 +1,6 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
+import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { AltLabelsEditor } from "./AltLabelsEditor";
 import { BroaderSelector } from "./BroaderSelector";
@@ -18,6 +19,12 @@ interface ConceptDetailProps {
 export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [prefLabel, setPrefLabel] = useState(concept.pref_label);
+
+  // Sync state when concept changes
+  useEffect(() => {
+    setPrefLabel(concept.pref_label);
+  }, [concept.pref_label]);
 
   // Get available concepts for broader selector (exclude self)
   const availableConcepts = concepts.value.filter((c) => c.id !== concept.id);
@@ -29,7 +36,19 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
   return (
     <div class={`concept-detail ${isEditing ? 'concept-detail--editing' : ''}`}>
       <div class="concept-detail__header">
-        <h2 class="concept-detail__title">{concept.pref_label}</h2>
+        {!isEditing ? (
+          <h2 class="concept-detail__title">{concept.pref_label}</h2>
+        ) : (
+          <div class="concept-detail__field">
+            <Input
+              label="Preferred Label"
+              name="pref_label"
+              value={prefLabel}
+              required
+              onChange={setPrefLabel}
+            />
+          </div>
+        )}
         <div class="concept-detail__actions">
           {!isEditing ? (
             <>
