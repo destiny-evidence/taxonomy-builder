@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/preact";
+import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { ConceptDetail } from "../../../src/components/concepts/ConceptDetail";
 import { concepts } from "../../../src/state/concepts";
+import * as conceptsApi from "../../../src/api/concepts";
 import type { Concept } from "../../../src/types/models";
 
 // Mock components that have Modal dependencies
@@ -133,6 +134,78 @@ describe("ConceptDetail", () => {
       expect((screen.getByLabelText(/Identifier/i) as HTMLInputElement).value).toBe(mockConcept.identifier);
       expect((screen.getByLabelText(/Definition/i) as HTMLTextAreaElement).value).toBe(mockConcept.definition);
       expect((screen.getByLabelText(/Scope Note/i) as HTMLTextAreaElement).value).toBe(mockConcept.scope_note);
+    });
+  });
+
+  describe("save functionality", () => {
+    it("should save changes when Save button clicked", async () => {
+      const mockUpdate = vi.fn().mockResolvedValue({ ...mockConcept, pref_label: "Updated" });
+      vi.spyOn(conceptsApi.conceptsApi, "update").mockImplementation(mockUpdate);
+      const onRefresh = vi.fn();
+
+      render(<ConceptDetail {...defaultProps} onRefresh={onRefresh} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+      const input = screen.getByLabelText(/Preferred Label/i) as HTMLInputElement;
+      fireEvent.input(input, { target: { value: "Updated" } });
+      fireEvent.click(screen.getByText("Save Changes"));
+
+      await waitFor(() => {
+        expect(mockUpdate).toHaveBeenCalledWith(mockConcept.id, {
+          pref_label: "Updated",
+          identifier: mockConcept.identifier,
+          definition: mockConcept.definition,
+          scope_note: mockConcept.scope_note,
+          alt_labels: mockConcept.alt_labels,
+        });
+        expect(onRefresh).toHaveBeenCalled();
+      });
+    });
+
+    it("should exit edit mode after successful save", async () => {
+      vi.spyOn(conceptsApi.conceptsApi, "update").mockResolvedValue(mockConcept);
+      const onRefresh = vi.fn();
+
+      render(<ConceptDetail {...defaultProps} onRefresh={onRefresh} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+      fireEvent.click(screen.getByText("Save Changes"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Edit")).toBeInTheDocument();
+        expect(screen.queryByText("Save Changes")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should show error message when save fails", async () => {
+      vi.spyOn(conceptsApi.conceptsApi, "update").mockRejectedValue(new Error("Save failed"));
+
+      render(<ConceptDetail {...defaultProps} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+      fireEvent.click(screen.getByText("Save Changes"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Save failed/)).toBeInTheDocument();
+      });
+    });
+
+    it("should show loading state while saving", async () => {
+      let resolveUpdate: (value: any) => void;
+      const updatePromise = new Promise((resolve) => {
+        resolveUpdate = resolve;
+      });
+      vi.spyOn(conceptsApi.conceptsApi, "update").mockReturnValue(updatePromise as any);
+
+      render(<ConceptDetail {...defaultProps} />);
+
+      fireEvent.click(screen.getByText("Edit"));
+      fireEvent.click(screen.getByText("Save Changes"));
+
+      expect(screen.getByText("Saving...")).toBeInTheDocument();
+      expect(screen.getByText("Saving...")).toBeDisabled();
+
+      resolveUpdate!(mockConcept);
     });
   });
 });

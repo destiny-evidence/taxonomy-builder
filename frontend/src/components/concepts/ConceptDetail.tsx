@@ -5,6 +5,8 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { AltLabelsEditor } from "./AltLabelsEditor";
 import { BroaderSelector } from "./BroaderSelector";
 import { RelatedSelector } from "./RelatedSelector";
+import { conceptsApi } from "../../api/concepts";
+import { ApiError } from "../../api/client";
 import { concepts } from "../../state/concepts";
 import type { Concept } from "../../types/models";
 import "./ConceptDetail.css";
@@ -24,6 +26,8 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
   const [definition, setDefinition] = useState(concept.definition ?? "");
   const [scopeNote, setScopeNote] = useState(concept.scope_note ?? "");
   const [altLabels, setAltLabels] = useState<string[]>(concept.alt_labels);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Sync state when concept changes
   useEffect(() => {
@@ -39,6 +43,33 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
 
   function handleEditClick() {
     setIsEditing(true);
+  }
+
+  async function handleSave() {
+    setLoading(true);
+    setError(null);
+
+    const data = {
+      pref_label: prefLabel,
+      identifier: identifier || null,
+      definition: definition || null,
+      scope_note: scopeNote || null,
+      alt_labels: altLabels,
+    };
+
+    try {
+      await conceptsApi.update(concept.id, data);
+      onRefresh();
+      setIsEditing(false);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -69,16 +100,20 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
             </>
           ) : (
             <>
-              <Button variant="secondary" size="sm" onClick={() => setIsEditing(false)}>
+              <Button variant="secondary" size="sm" onClick={() => setIsEditing(false)} disabled={loading}>
                 Cancel
               </Button>
-              <Button variant="primary" size="sm" onClick={() => {}}>
-                Save Changes
+              <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || !prefLabel.trim()}>
+                {loading ? "Saving..." : "Save Changes"}
               </Button>
             </>
           )}
         </div>
       </div>
+
+      {error && isEditing && (
+        <div class="concept-detail__error">{error}</div>
+      )}
 
       <div class="concept-detail__content">
         {isEditing ? (
