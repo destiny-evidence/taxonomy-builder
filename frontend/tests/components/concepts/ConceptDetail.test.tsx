@@ -108,4 +108,31 @@ describe("ConceptDetail", () => {
       expect(screen.queryByLabelText(/Preferred Label/i)).not.toBeInTheDocument();
     });
   });
+
+  describe("all fields editing", () => {
+    it("should show all fields as editable in edit mode", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      expect(screen.getByLabelText(/Preferred Label/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Identifier/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Definition/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Scope Note/i)).toBeInTheDocument();
+      expect(screen.getByText("Alternative Labels")).toBeInTheDocument();
+    });
+
+    it("should initialize fields with concept data", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      expect((screen.getByLabelText(/Preferred Label/i) as HTMLInputElement).value).toBe(mockConcept.pref_label);
+      expect((screen.getByLabelText(/Identifier/i) as HTMLInputElement).value).toBe(mockConcept.identifier);
+      expect((screen.getByLabelText(/Definition/i) as HTMLTextAreaElement).value).toBe(mockConcept.definition);
+      expect((screen.getByLabelText(/Scope Note/i) as HTMLTextAreaElement).value).toBe(mockConcept.scope_note);
+    });
+  });
 });

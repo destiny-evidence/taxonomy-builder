@@ -20,11 +20,19 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [prefLabel, setPrefLabel] = useState(concept.pref_label);
+  const [identifier, setIdentifier] = useState(concept.identifier ?? "");
+  const [definition, setDefinition] = useState(concept.definition ?? "");
+  const [scopeNote, setScopeNote] = useState(concept.scope_note ?? "");
+  const [altLabels, setAltLabels] = useState<string[]>(concept.alt_labels);
 
   // Sync state when concept changes
   useEffect(() => {
     setPrefLabel(concept.pref_label);
-  }, [concept.pref_label]);
+    setIdentifier(concept.identifier ?? "");
+    setDefinition(concept.definition ?? "");
+    setScopeNote(concept.scope_note ?? "");
+    setAltLabels(concept.alt_labels);
+  }, [concept.pref_label, concept.identifier, concept.definition, concept.scope_note, concept.alt_labels]);
 
   // Get available concepts for broader selector (exclude self)
   const availableConcepts = concepts.value.filter((c) => c.id !== concept.id);
@@ -73,39 +81,82 @@ export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptD
       </div>
 
       <div class="concept-detail__content">
-        {concept.definition && (
-          <div class="concept-detail__field">
-            <label class="concept-detail__label">Definition</label>
-            <p class="concept-detail__value">{concept.definition}</p>
-          </div>
-        )}
+        {isEditing ? (
+          <>
+            <div class="concept-detail__field">
+              <Input
+                label="Identifier"
+                name="identifier"
+                value={identifier}
+                placeholder="e.g., 001 or my-concept"
+                onChange={setIdentifier}
+              />
+            </div>
 
-        {concept.scope_note && (
-          <div class="concept-detail__field">
-            <label class="concept-detail__label">Scope Note</label>
-            <p class="concept-detail__value">{concept.scope_note}</p>
-          </div>
-        )}
+            <div class="concept-detail__field">
+              <Input
+                label="Definition"
+                name="definition"
+                value={definition}
+                placeholder="A formal definition of the concept"
+                multiline
+                onChange={setDefinition}
+              />
+            </div>
 
-        {concept.uri && (
-          <div class="concept-detail__field">
-            <label class="concept-detail__label">URI</label>
-            <p class="concept-detail__value">
-              <a href={concept.uri} target="_blank" rel="noopener noreferrer">
-                {concept.uri}
-              </a>
-            </p>
-          </div>
-        )}
+            <div class="concept-detail__field">
+              <Input
+                label="Scope Note"
+                name="scope_note"
+                value={scopeNote}
+                placeholder="Usage guidance and scope clarification"
+                multiline
+                onChange={setScopeNote}
+              />
+            </div>
 
-        <div class="concept-detail__field">
-          <label class="concept-detail__label">Alternative Labels</label>
-          <AltLabelsEditor
-            labels={concept.alt_labels}
-            onChange={() => {}}
-            readOnly
-          />
-        </div>
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">Alternative Labels</label>
+              <AltLabelsEditor labels={altLabels} onChange={setAltLabels} />
+            </div>
+          </>
+        ) : (
+          <>
+            {concept.definition && (
+              <div class="concept-detail__field">
+                <label class="concept-detail__label">Definition</label>
+                <p class="concept-detail__value">{concept.definition}</p>
+              </div>
+            )}
+
+            {concept.scope_note && (
+              <div class="concept-detail__field">
+                <label class="concept-detail__label">Scope Note</label>
+                <p class="concept-detail__value">{concept.scope_note}</p>
+              </div>
+            )}
+
+            {concept.uri && (
+              <div class="concept-detail__field">
+                <label class="concept-detail__label">URI</label>
+                <p class="concept-detail__value">
+                  <a href={concept.uri} target="_blank" rel="noopener noreferrer">
+                    {concept.uri}
+                  </a>
+                </p>
+              </div>
+            )}
+
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">Alternative Labels</label>
+              <AltLabelsEditor
+                labels={concept.alt_labels}
+                onChange={() => {}}
+                readOnly
+              />
+            </div>
+          </>
+        )}
 
         <div class="concept-detail__field">
           <label class="concept-detail__label">Broader Concepts</label>
