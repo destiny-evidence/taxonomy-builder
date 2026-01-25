@@ -17,21 +17,39 @@ interface ConceptDetailProps {
 
 export function ConceptDetail({ concept, onEdit, onDelete, onRefresh }: ConceptDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Get available concepts for broader selector (exclude self)
   const availableConcepts = concepts.value.filter((c) => c.id !== concept.id);
 
+  function handleEditClick() {
+    setIsEditing(true);
+  }
+
   return (
-    <div class="concept-detail">
+    <div class={`concept-detail ${isEditing ? 'concept-detail--editing' : ''}`}>
       <div class="concept-detail__header">
         <h2 class="concept-detail__title">{concept.pref_label}</h2>
         <div class="concept-detail__actions">
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(true)}>
-            Delete
-          </Button>
+          {!isEditing ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={handleEditClick}>
+                Edit
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(true)}>
+                Delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => {}}>
+                Save Changes
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
