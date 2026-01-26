@@ -17,61 +17,75 @@ interface ConceptDetailProps {
   onRefresh: () => void;
 }
 
+interface EditDraft {
+  pref_label: string;
+  identifier: string;
+  definition: string;
+  scope_note: string;
+  alt_labels: string[];
+}
+
 export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [prefLabel, setPrefLabel] = useState(concept.pref_label);
-  const [identifier, setIdentifier] = useState(concept.identifier ?? "");
-  const [definition, setDefinition] = useState(concept.definition ?? "");
-  const [scopeNote, setScopeNote] = useState(concept.scope_note ?? "");
-  const [altLabels, setAltLabels] = useState<string[]>(concept.alt_labels);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync state when concept changes
+  // Exit edit mode when concept changes (user selected different concept)
   useEffect(() => {
-    setPrefLabel(concept.pref_label);
-    setIdentifier(concept.identifier ?? "");
-    setDefinition(concept.definition ?? "");
-    setScopeNote(concept.scope_note ?? "");
-    setAltLabels(concept.alt_labels);
-    setIsEditing(false); // Exit edit mode when concept changes
+    setIsEditing(false);
+    setEditDraft(null);
     setError(null);
   }, [concept.id]);
 
   // Get available concepts for broader selector (exclude self)
   const availableConcepts = concepts.value.filter((c) => c.id !== concept.id);
 
+  // Use draft values when editing, otherwise use concept values
+  const displayValues = editDraft ?? {
+    pref_label: concept.pref_label,
+    identifier: concept.identifier ?? "",
+    definition: concept.definition ?? "",
+    scope_note: concept.scope_note ?? "",
+    alt_labels: concept.alt_labels,
+  };
+
   function handleEditClick() {
+    setEditDraft({
+      pref_label: concept.pref_label,
+      identifier: concept.identifier ?? "",
+      definition: concept.definition ?? "",
+      scope_note: concept.scope_note ?? "",
+      alt_labels: concept.alt_labels,
+    });
     setIsEditing(true);
   }
 
   function handleCancel() {
-    // Reset all fields to original concept values
-    setPrefLabel(concept.pref_label);
-    setIdentifier(concept.identifier ?? "");
-    setDefinition(concept.definition ?? "");
-    setScopeNote(concept.scope_note ?? "");
-    setAltLabels(concept.alt_labels);
+    setEditDraft(null);
     setError(null);
     setIsEditing(false);
   }
 
   async function handleSave() {
+    if (!editDraft) return;
+
     setLoading(true);
     setError(null);
 
     const data = {
-      pref_label: prefLabel,
-      identifier: identifier || null,
-      definition: definition || null,
-      scope_note: scopeNote || null,
-      alt_labels: altLabels,
+      pref_label: editDraft.pref_label,
+      identifier: editDraft.identifier || null,
+      definition: editDraft.definition || null,
+      scope_note: editDraft.scope_note || null,
+      alt_labels: editDraft.alt_labels,
     };
 
     try {
       await conceptsApi.update(concept.id, data);
       onRefresh();
+      setEditDraft(null);
       setIsEditing(false);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -84,6 +98,11 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
     }
   }
 
+  function updateDraft<K extends keyof EditDraft>(field: K, value: EditDraft[K]) {
+    if (!editDraft) return;
+    setEditDraft({ ...editDraft, [field]: value });
+  }
+
   return (
     <div class={`concept-detail ${isEditing ? 'concept-detail--editing' : ''}`}>
       <div class="concept-detail__header">
@@ -94,9 +113,9 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
             <Input
               label="Preferred Label"
               name="pref_label"
-              value={prefLabel}
+              value={displayValues.pref_label}
               required
-              onChange={setPrefLabel}
+              onChange={(value) => updateDraft('pref_label', value)}
             />
           </div>
         )}
@@ -115,7 +134,7 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
               <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
                 Cancel
               </Button>
-              <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || !prefLabel.trim()}>
+              <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || !displayValues.pref_label.trim()}>
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
             </>
@@ -134,9 +153,9 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
               <Input
                 label="Identifier"
                 name="identifier"
-                value={identifier}
+                value={displayValues.identifier}
                 placeholder="e.g., 001 or my-concept"
-                onChange={setIdentifier}
+                onChange={(value) => updateDraft('identifier', value)}
               />
             </div>
 
@@ -144,10 +163,10 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
               <Input
                 label="Definition"
                 name="definition"
-                value={definition}
+                value={displayValues.definition}
                 placeholder="A formal definition of the concept"
                 multiline
-                onChange={setDefinition}
+                onChange={(value) => updateDraft('definition', value)}
               />
             </div>
 
@@ -155,16 +174,16 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
               <Input
                 label="Scope Note"
                 name="scope_note"
-                value={scopeNote}
+                value={displayValues.scope_note}
                 placeholder="Usage guidance and scope clarification"
                 multiline
-                onChange={setScopeNote}
+                onChange={(value) => updateDraft('scope_note', value)}
               />
             </div>
 
             <div class="concept-detail__field">
               <label class="concept-detail__label">Alternative Labels</label>
-              <AltLabelsEditor labels={altLabels} onChange={setAltLabels} />
+              <AltLabelsEditor labels={displayValues.alt_labels} onChange={(value) => updateDraft('alt_labels', value)} />
             </div>
           </>
         ) : (
