@@ -4,6 +4,7 @@ import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { AltLabelsEditor } from "./AltLabelsEditor";
 import { BroaderSelector } from "./BroaderSelector";
+import { CommentsSection } from "./CommentsSection";
 import { RelatedSelector } from "./RelatedSelector";
 import { conceptsApi } from "../../api/concepts";
 import { ApiError } from "../../api/client";
@@ -247,6 +248,10 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
         <div class="concept-detail__meta">
           <span>Created: {new Date(concept.created_at).toLocaleDateString()}</span>
           <span>Updated: {new Date(concept.updated_at).toLocaleDateString()}</span>
+        </div>
+
+        <div class="concept-detail__field">
+          <CommentsSection conceptId={concept.id} />
         </div>
       </div>
 
