@@ -87,6 +87,8 @@ async def test_user(db_session: AsyncSession) -> User:
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
+    # Detach from session to prevent expired state issues across requests
+    db_session.expunge(user)
     return user
 
 
