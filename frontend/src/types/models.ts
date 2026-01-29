@@ -157,3 +157,24 @@ export interface PublishedVersionCreate {
   notes?: string | null;
 }
 
+// ============ Comments ============
+export interface CommentAuthor {
+  id: string;
+  display_name: string;
+}
+
+export interface Comment {
+  id: string;
+  concept_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  user: CommentAuthor;
+  can_delete: boolean;
+}
+
+export interface CommentCreate {
+  content: string;
+}
+
