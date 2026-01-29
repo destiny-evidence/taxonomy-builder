@@ -11,6 +11,17 @@ interface SchemesPaneProps {
   onImport: () => void;
 }
 
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function SchemesPane({
   projectId,
   currentSchemeId,
@@ -20,6 +31,9 @@ export function SchemesPane({
 }: SchemesPaneProps) {
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
   const project = currentProject.value;
+  const selectedScheme = currentSchemeId
+    ? schemes.value.find((s) => s.id === currentSchemeId)
+    : null;
 
   return (
     <div class="schemes-pane">
@@ -46,6 +60,60 @@ export function SchemesPane({
                 {scheme.title}
               </button>
             ))}
+          </div>
+        )}
+
+        {selectedScheme && (
+          <div class="schemes-pane__detail">
+            <div class="schemes-pane__detail-header">
+              <h3 class="schemes-pane__detail-title" data-testid="scheme-detail-title">
+                {selectedScheme.title}
+              </h3>
+            </div>
+
+            <div class="schemes-pane__detail-content">
+              <div class="schemes-pane__detail-field">
+                <label class="schemes-pane__detail-label">URI</label>
+                <div class="schemes-pane__detail-value">
+                  {selectedScheme.uri || <span class="schemes-pane__detail-empty">Not set</span>}
+                </div>
+              </div>
+
+              <div class="schemes-pane__detail-field">
+                <label class="schemes-pane__detail-label">Description</label>
+                <div class="schemes-pane__detail-value">
+                  {selectedScheme.description || <span class="schemes-pane__detail-empty">Not set</span>}
+                </div>
+              </div>
+
+              <div class="schemes-pane__detail-field">
+                <label class="schemes-pane__detail-label">Publisher</label>
+                <div class="schemes-pane__detail-value">
+                  {selectedScheme.publisher || <span class="schemes-pane__detail-empty">Not set</span>}
+                </div>
+              </div>
+
+              <div class="schemes-pane__detail-field">
+                <label class="schemes-pane__detail-label">Version</label>
+                <div class="schemes-pane__detail-value">
+                  {selectedScheme.version || <span class="schemes-pane__detail-empty">Not set</span>}
+                </div>
+              </div>
+
+              <div class="schemes-pane__detail-field">
+                <label class="schemes-pane__detail-label">Created</label>
+                <div class="schemes-pane__detail-value">
+                  {formatDate(selectedScheme.created_at)}
+                </div>
+              </div>
+
+              <div class="schemes-pane__detail-field">
+                <label class="schemes-pane__detail-label">Updated</label>
+                <div class="schemes-pane__detail-value">
+                  {formatDate(selectedScheme.updated_at)}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -104,8 +104,8 @@ describe("SchemesPane", () => {
       />
     );
 
-    const animalsItem = screen.getByText("Animals").closest("button");
-    expect(animalsItem).toHaveClass("schemes-pane__item--selected");
+    const schemeList = screen.getByRole("button", { name: "Animals" });
+    expect(schemeList).toHaveClass("schemes-pane__item--selected");
   });
 
   it("calls onSchemeSelect when scheme is clicked", () => {
@@ -170,5 +170,71 @@ describe("SchemesPane", () => {
     fireEvent.click(screen.getByText("Import"));
 
     expect(mockOnImport).toHaveBeenCalled();
+  });
+
+  describe("Scheme details display", () => {
+    it("displays scheme details when a scheme is selected", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      // Should show title in details area (not just in list)
+      expect(screen.getByTestId("scheme-detail-title")).toHaveTextContent("Animals");
+      expect(screen.getByText("http://example.org/animals")).toBeInTheDocument();
+      expect(screen.getByText("Animal taxonomy")).toBeInTheDocument();
+    });
+
+    it("displays all scheme fields including timestamps", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      // Check that created/updated dates are displayed
+      expect(screen.getByText(/created/i)).toBeInTheDocument();
+      expect(screen.getByText(/updated/i)).toBeInTheDocument();
+    });
+
+    it("handles null/empty optional fields gracefully", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      // Should show labels for optional fields even when null
+      expect(screen.getByText(/publisher/i)).toBeInTheDocument();
+      expect(screen.getByText(/version/i)).toBeInTheDocument();
+    });
+
+    it("does not display scheme details when no scheme is selected", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId={null}
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      // Should not show the detail section
+      expect(screen.queryByTestId("scheme-detail-title")).not.toBeInTheDocument();
+    });
   });
 });
