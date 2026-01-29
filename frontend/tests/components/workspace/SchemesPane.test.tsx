@@ -491,4 +491,129 @@ describe("SchemesPane", () => {
       });
     });
   });
+
+  describe("Validation", () => {
+    it("shows error when title is empty", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "" } });
+
+      expect(screen.getByText(/title is required/i)).toBeInTheDocument();
+    });
+
+    it("shows error for malformed URI", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const uriInput = screen.getByDisplayValue("http://example.org/animals");
+      fireEvent.input(uriInput, { target: { value: "not-a-url" } });
+
+      expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument();
+    });
+
+    it("accepts empty URI", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const uriInput = screen.getByDisplayValue("http://example.org/animals");
+      fireEvent.input(uriInput, { target: { value: "" } });
+
+      // Should not show any URI validation error for empty value
+      expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
+    });
+
+    it("disables Save button when validation fails", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "" } });
+
+      const saveButton = screen.getByRole("button", { name: /^save$/i });
+      expect(saveButton).toBeDisabled();
+    });
+
+    it("clears validation error when field is corrected", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "" } });
+      expect(screen.getByText(/title is required/i)).toBeInTheDocument();
+
+      fireEvent.input(titleInput, { target: { value: "New Title" } });
+      expect(screen.queryByText(/title is required/i)).not.toBeInTheDocument();
+    });
+
+    it("allows http and https URIs", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const uriInput = screen.getByDisplayValue("http://example.org/animals");
+
+      // Test https
+      fireEvent.input(uriInput, { target: { value: "https://example.org/test" } });
+      expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
+
+      // Test http
+      fireEvent.input(uriInput, { target: { value: "http://example.org/test" } });
+      expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
+    });
+  });
 });

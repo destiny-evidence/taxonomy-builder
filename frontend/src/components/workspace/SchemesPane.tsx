@@ -51,13 +51,37 @@ export function SchemesPane({
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
 
   // Exit edit mode when scheme changes (user selected different scheme)
   useEffect(() => {
     setIsEditing(false);
     setEditDraft(null);
     setError(null);
+    setValidationErrors({});
   }, [currentSchemeId]);
+
+  function validateField(field: keyof EditDraft, value: string): string | null {
+    if (field === "title") {
+      if (!value.trim()) {
+        return "Title is required";
+      }
+    }
+    if (field === "uri" && value.trim()) {
+      // URI is optional, but if provided, must be valid http/https URL
+      try {
+        const url = new URL(value);
+        if (!url.protocol.match(/^https?:$/)) {
+          return "URI must be a valid URL (http or https)";
+        }
+      } catch {
+        return "URI must be a valid URL (http or https)";
+      }
+    }
+    return null;
+  }
+
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
 
   // Use draft values when editing, otherwise use scheme values
   const displayValues = editDraft ?? (selectedScheme ? {
@@ -77,12 +101,14 @@ export function SchemesPane({
       publisher: selectedScheme.publisher ?? "",
       version: selectedScheme.version ?? "",
     });
+    setValidationErrors({});
     setIsEditing(true);
   }
 
   function handleCancel() {
     setEditDraft(null);
     setError(null);
+    setValidationErrors({});
     setIsEditing(false);
   }
 
@@ -122,6 +148,18 @@ export function SchemesPane({
   function updateDraft(field: keyof EditDraft, value: string) {
     if (!editDraft) return;
     setEditDraft({ ...editDraft, [field]: value });
+
+    // Validate the field
+    const error = validateField(field, value);
+    setValidationErrors((prev) => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[field] = error;
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
   }
 
   return (
@@ -162,6 +200,7 @@ export function SchemesPane({
                   value={displayValues.title}
                   onChange={(value) => updateDraft("title", value)}
                   required
+                  error={validationErrors.title}
                 />
               ) : (
                 <h3 class="schemes-pane__detail-title" data-testid="scheme-detail-title">
@@ -174,7 +213,7 @@ export function SchemesPane({
                     <Button variant="secondary" onClick={handleCancel} disabled={loading}>
                       Cancel
                     </Button>
-                    <Button variant="primary" onClick={handleSave} disabled={loading}>
+                    <Button variant="primary" onClick={handleSave} disabled={loading || hasValidationErrors}>
                       {loading ? "Saving..." : "Save"}
                     </Button>
                   </>
@@ -200,6 +239,7 @@ export function SchemesPane({
                     value={displayValues.uri}
                     onChange={(value) => updateDraft("uri", value)}
                     placeholder="https://example.org/my-scheme"
+                    error={validationErrors.uri}
                   />
                   <Input
                     label="Description"
