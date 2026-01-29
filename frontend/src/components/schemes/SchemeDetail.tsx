@@ -152,39 +152,22 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
   }
 
   return (
-    <div class={`scheme-detail ${isEditing ? "scheme-detail--editing" : ""}`}>
-      {isEditing && (
-        <>
-          <div class="scheme-detail__header">
-            <div class="scheme-detail__field">
-              <Input
-                label="Title"
-                name="title"
-                value={displayValues.title}
-                onChange={(value) => updateDraft("title", value)}
-                required
-                error={validationErrors.title}
-              />
-            </div>
-            <div class="scheme-detail__actions">
-              <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || hasValidationErrors}>
-                {loading ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          </div>
-
-          {error && (
-            <div class="scheme-detail__error">{error}</div>
-          )}
-        </>
+    <div class="scheme-detail">
+      {isEditing && error && (
+        <div class="scheme-detail__error">{error}</div>
       )}
 
       <div class="scheme-detail__content">
         {isEditing ? (
           <>
+            <Input
+              label="Title"
+              name="title"
+              value={displayValues.title}
+              onChange={(value) => updateDraft("title", value)}
+              required
+              error={validationErrors.title}
+            />
             <Input
               label="URI"
               name="uri"
@@ -216,6 +199,14 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
               onChange={(value) => updateDraft("version", value)}
               placeholder="e.g., 1.0.0"
             />
+            <div class="scheme-detail__actions">
+              <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || hasValidationErrors}>
+                {loading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
           </>
         ) : (
           <>
