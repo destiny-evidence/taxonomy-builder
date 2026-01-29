@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.schemas.concept import (
@@ -56,6 +57,7 @@ def get_concept_service(db: AsyncSession = Depends(get_db)) -> ConceptService:
 @scheme_concepts_router.get("/{scheme_id}/concepts", response_model=list[ConceptRead])
 async def list_concepts(
     scheme_id: UUID,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> list[Concept]:
     """List all concepts for a scheme, ordered alphabetically."""
@@ -73,11 +75,12 @@ async def list_concepts(
 async def create_concept(
     scheme_id: UUID,
     concept_in: ConceptCreate,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> Concept:
     """Create a new concept in a scheme."""
     try:
-        return await service.create_concept(scheme_id, concept_in)
+        return await service.create_concept(scheme_id, concept_in, user_id=current_user.user.id)
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -85,6 +88,7 @@ async def create_concept(
 @scheme_concepts_router.get("/{scheme_id}/tree")
 async def get_tree(
     scheme_id: UUID,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> list[dict[str, Any]]:
     """Get the concept tree for a scheme as a DAG.
@@ -100,6 +104,7 @@ async def get_tree(
 @concepts_router.get("/{concept_id}", response_model=ConceptRead)
 async def get_concept(
     concept_id: UUID,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> Concept:
     """Get a single concept by ID."""
@@ -113,11 +118,12 @@ async def get_concept(
 async def update_concept(
     concept_id: UUID,
     concept_in: ConceptUpdate,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> Concept:
     """Update an existing concept."""
     try:
-        return await service.update_concept(concept_id, concept_in)
+        return await service.update_concept(concept_id, concept_in, user_id=current_user.user.id)
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -125,11 +131,12 @@ async def update_concept(
 @concepts_router.delete("/{concept_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_concept(
     concept_id: UUID,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> None:
     """Delete a concept."""
     try:
-        await service.delete_concept(concept_id)
+        await service.delete_concept(concept_id, user_id=current_user.user.id)
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -138,11 +145,12 @@ async def delete_concept(
 async def add_broader(
     concept_id: UUID,
     request: AddBroaderRequest,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> dict[str, str]:
     """Add a broader relationship to a concept."""
     try:
-        await service.add_broader(concept_id, request.broader_concept_id)
+        await service.add_broader(concept_id, request.broader_concept_id, user_id=current_user.user.id)
         return {"status": "created"}
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -157,11 +165,12 @@ async def add_broader(
 async def remove_broader(
     concept_id: UUID,
     broader_concept_id: UUID,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> None:
     """Remove a broader relationship from a concept."""
     try:
-        await service.remove_broader(concept_id, broader_concept_id)
+        await service.remove_broader(concept_id, broader_concept_id, user_id=current_user.user.id)
     except (ConceptNotFoundError, BroaderRelationshipNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -170,6 +179,7 @@ async def remove_broader(
 async def add_related(
     concept_id: UUID,
     request: AddRelatedRequest,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> dict[str, str]:
     """Add a related relationship between two concepts.
@@ -178,7 +188,7 @@ async def add_related(
     Both concepts must be in the same scheme.
     """
     try:
-        await service.add_related(concept_id, request.related_concept_id)
+        await service.add_related(concept_id, request.related_concept_id, user_id=current_user.user.id)
         return {"status": "created"}
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -197,6 +207,7 @@ async def add_related(
 async def remove_related(
     concept_id: UUID,
     related_concept_id: UUID,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> None:
     """Remove a related relationship between two concepts.
@@ -204,7 +215,7 @@ async def remove_related(
     Works regardless of which concept is passed first (symmetric).
     """
     try:
-        await service.remove_related(concept_id, related_concept_id)
+        await service.remove_related(concept_id, related_concept_id, user_id=current_user.user.id)
     except (ConceptNotFoundError, RelatedRelationshipNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -213,6 +224,7 @@ async def remove_related(
 async def move_concept(
     concept_id: UUID,
     request: ConceptMoveRequest,
+    current_user: CurrentUser,
     service: ConceptService = Depends(get_concept_service),
 ) -> Concept:
     """Move a concept to a new parent or to root level.
@@ -226,6 +238,7 @@ async def move_concept(
             concept_id,
             request.new_parent_id,
             request.previous_parent_id,
+            user_id=current_user.user.id,
         )
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

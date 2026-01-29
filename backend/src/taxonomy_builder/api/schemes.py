@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept_scheme import (
@@ -70,6 +71,7 @@ def slugify(text: str) -> str:
 @project_schemes_router.get("/{project_id}/schemes", response_model=list[ConceptSchemeRead])
 async def list_schemes(
     project_id: UUID,
+    current_user: CurrentUser,
     service: ConceptSchemeService = Depends(get_scheme_service),
 ) -> list[ConceptScheme]:
     """List all concept schemes for a project."""
@@ -87,11 +89,12 @@ async def list_schemes(
 async def create_scheme(
     project_id: UUID,
     scheme_in: ConceptSchemeCreate,
+    current_user: CurrentUser,
     service: ConceptSchemeService = Depends(get_scheme_service),
 ) -> ConceptScheme:
     """Create a new concept scheme in a project."""
     try:
-        return await service.create_scheme(project_id, scheme_in)
+        return await service.create_scheme(project_id, scheme_in, user_id=current_user.user.id)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except SchemeTitleExistsError as e:
@@ -101,6 +104,7 @@ async def create_scheme(
 @schemes_router.get("/{scheme_id}", response_model=ConceptSchemeRead)
 async def get_scheme(
     scheme_id: UUID,
+    current_user: CurrentUser,
     service: ConceptSchemeService = Depends(get_scheme_service),
 ) -> ConceptScheme:
     """Get a single concept scheme by ID."""
@@ -114,11 +118,12 @@ async def get_scheme(
 async def update_scheme(
     scheme_id: UUID,
     scheme_in: ConceptSchemeUpdate,
+    current_user: CurrentUser,
     service: ConceptSchemeService = Depends(get_scheme_service),
 ) -> ConceptScheme:
     """Update an existing concept scheme."""
     try:
-        return await service.update_scheme(scheme_id, scheme_in)
+        return await service.update_scheme(scheme_id, scheme_in, user_id=current_user.user.id)
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except SchemeTitleExistsError as e:
@@ -128,11 +133,12 @@ async def update_scheme(
 @schemes_router.delete("/{scheme_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_scheme(
     scheme_id: UUID,
+    current_user: CurrentUser,
     service: ConceptSchemeService = Depends(get_scheme_service),
 ) -> None:
     """Delete a concept scheme."""
     try:
-        await service.delete_scheme(scheme_id)
+        await service.delete_scheme(scheme_id, user_id=current_user.user.id)
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -140,6 +146,7 @@ async def delete_scheme(
 @schemes_router.get("/{scheme_id}/export")
 async def export_scheme(
     scheme_id: UUID,
+    current_user: CurrentUser,
     format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
     scheme_service: ConceptSchemeService = Depends(get_scheme_service),
     export_service: SKOSExportService = Depends(get_export_service),

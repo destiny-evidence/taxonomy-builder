@@ -56,17 +56,17 @@ async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
 
 
 @pytest.mark.asyncio
-async def test_list_concepts_empty(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_list_concepts_empty(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test listing concepts when none exist."""
-    response = await client.get(f"/api/schemes/{scheme.id}/concepts")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/concepts")
     assert response.status_code == 200
     assert response.json() == []
 
 
 @pytest.mark.asyncio
-async def test_list_concepts(client: AsyncClient, scheme: ConceptScheme, concept: Concept) -> None:
+async def test_list_concepts(authenticated_client: AsyncClient, scheme: ConceptScheme, concept: Concept) -> None:
     """Test listing concepts returns all concepts for scheme."""
-    response = await client.get(f"/api/schemes/{scheme.id}/concepts")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/concepts")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -76,7 +76,7 @@ async def test_list_concepts(client: AsyncClient, scheme: ConceptScheme, concept
 
 @pytest.mark.asyncio
 async def test_list_concepts_alphabetical(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that concepts are returned in alphabetical order."""
     concept_z = Concept(scheme_id=scheme.id, pref_label="Zebra")
@@ -85,7 +85,7 @@ async def test_list_concepts_alphabetical(
     db_session.add_all([concept_z, concept_a, concept_m])
     await db_session.flush()
 
-    response = await client.get(f"/api/schemes/{scheme.id}/concepts")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/concepts")
     assert response.status_code == 200
     data = response.json()
     labels = [c["pref_label"] for c in data]
@@ -93,9 +93,9 @@ async def test_list_concepts_alphabetical(
 
 
 @pytest.mark.asyncio
-async def test_list_concepts_scheme_not_found(client: AsyncClient) -> None:
+async def test_list_concepts_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test listing concepts for non-existent scheme."""
-    response = await client.get(f"/api/schemes/{uuid4()}/concepts")
+    response = await authenticated_client.get(f"/api/schemes/{uuid4()}/concepts")
     assert response.status_code == 404
 
 
@@ -103,9 +103,9 @@ async def test_list_concepts_scheme_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_concept(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_create_concept(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test creating a new concept."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/concepts",
         json={
             "pref_label": "New Concept",
@@ -126,9 +126,9 @@ async def test_create_concept(client: AsyncClient, scheme: ConceptScheme) -> Non
 
 
 @pytest.mark.asyncio
-async def test_create_concept_pref_label_only(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_create_concept_pref_label_only(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test creating a concept with only pref_label."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/concepts",
         json={"pref_label": "Minimal Concept"},
     )
@@ -139,9 +139,9 @@ async def test_create_concept_pref_label_only(client: AsyncClient, scheme: Conce
 
 
 @pytest.mark.asyncio
-async def test_create_concept_empty_pref_label(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_create_concept_empty_pref_label(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test creating a concept with empty pref_label fails."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/concepts",
         json={"pref_label": ""},
     )
@@ -149,9 +149,9 @@ async def test_create_concept_empty_pref_label(client: AsyncClient, scheme: Conc
 
 
 @pytest.mark.asyncio
-async def test_create_concept_scheme_not_found(client: AsyncClient) -> None:
+async def test_create_concept_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test creating a concept for non-existent scheme."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{uuid4()}/concepts",
         json={"pref_label": "New Concept"},
     )
@@ -162,9 +162,9 @@ async def test_create_concept_scheme_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_concept(client: AsyncClient, concept: Concept) -> None:
+async def test_get_concept(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test getting a single concept."""
-    response = await client.get(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}")
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == str(concept.id)
@@ -174,7 +174,7 @@ async def test_get_concept(client: AsyncClient, concept: Concept) -> None:
 
 @pytest.mark.asyncio
 async def test_get_concept_with_broader(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
 ) -> None:
     """Test getting a concept includes its broader concepts."""
     # Create a broader concept
@@ -187,7 +187,7 @@ async def test_get_concept_with_broader(
     db_session.add(rel)
     await db_session.flush()
 
-    response = await client.get(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}")
     assert response.status_code == 200
     data = response.json()
     assert len(data["broader"]) == 1
@@ -195,9 +195,9 @@ async def test_get_concept_with_broader(
 
 
 @pytest.mark.asyncio
-async def test_get_concept_not_found(client: AsyncClient) -> None:
+async def test_get_concept_not_found(authenticated_client: AsyncClient) -> None:
     """Test getting a non-existent concept."""
-    response = await client.get(f"/api/concepts/{uuid4()}")
+    response = await authenticated_client.get(f"/api/concepts/{uuid4()}")
     assert response.status_code == 404
 
 
@@ -205,9 +205,9 @@ async def test_get_concept_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_concept(client: AsyncClient, concept: Concept) -> None:
+async def test_update_concept(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test updating a concept."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/concepts/{concept.id}",
         json={
             "pref_label": "Updated Concept",
@@ -221,9 +221,9 @@ async def test_update_concept(client: AsyncClient, concept: Concept) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_concept_partial(client: AsyncClient, concept: Concept) -> None:
+async def test_update_concept_partial(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test partial update of a concept."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/concepts/{concept.id}",
         json={"definition": "Only definition changed"},
     )
@@ -234,9 +234,9 @@ async def test_update_concept_partial(client: AsyncClient, concept: Concept) -> 
 
 
 @pytest.mark.asyncio
-async def test_update_concept_not_found(client: AsyncClient) -> None:
+async def test_update_concept_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent concept."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/concepts/{uuid4()}",
         json={"pref_label": "New Label"},
     )
@@ -247,20 +247,20 @@ async def test_update_concept_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_concept(client: AsyncClient, concept: Concept) -> None:
+async def test_delete_concept(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test deleting a concept."""
-    response = await client.delete(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.delete(f"/api/concepts/{concept.id}")
     assert response.status_code == 204
 
     # Verify it's deleted
-    response = await client.get(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_concept_not_found(client: AsyncClient) -> None:
+async def test_delete_concept_not_found(authenticated_client: AsyncClient) -> None:
     """Test deleting a non-existent concept."""
-    response = await client.delete(f"/api/concepts/{uuid4()}")
+    response = await authenticated_client.delete(f"/api/concepts/{uuid4()}")
     assert response.status_code == 404
 
 
@@ -269,7 +269,7 @@ async def test_delete_concept_not_found(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_add_broader(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
 ) -> None:
     """Test adding a broader relationship."""
     broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
@@ -277,23 +277,23 @@ async def test_add_broader(
     await db_session.flush()
     await db_session.refresh(broader)
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{concept.id}/broader",
         json={"broader_concept_id": str(broader.id)},
     )
     assert response.status_code == 201
 
     # Verify the relationship
-    response = await client.get(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}")
     data = response.json()
     assert len(data["broader"]) == 1
     assert data["broader"][0]["id"] == str(broader.id)
 
 
 @pytest.mark.asyncio
-async def test_add_broader_concept_not_found(client: AsyncClient, concept: Concept) -> None:
+async def test_add_broader_concept_not_found(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test adding broader when narrower concept doesn't exist."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{uuid4()}/broader",
         json={"broader_concept_id": str(concept.id)},
     )
@@ -301,9 +301,9 @@ async def test_add_broader_concept_not_found(client: AsyncClient, concept: Conce
 
 
 @pytest.mark.asyncio
-async def test_add_broader_broader_not_found(client: AsyncClient, concept: Concept) -> None:
+async def test_add_broader_broader_not_found(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test adding broader when broader concept doesn't exist."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{concept.id}/broader",
         json={"broader_concept_id": str(uuid4())},
     )
@@ -312,7 +312,7 @@ async def test_add_broader_broader_not_found(client: AsyncClient, concept: Conce
 
 @pytest.mark.asyncio
 async def test_add_broader_duplicate(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
 ) -> None:
     """Test adding duplicate broader relationship fails."""
     broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
@@ -322,7 +322,7 @@ async def test_add_broader_duplicate(
     db_session.add(rel)
     await db_session.flush()
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{concept.id}/broader",
         json={"broader_concept_id": str(broader.id)},
     )
@@ -331,7 +331,7 @@ async def test_add_broader_duplicate(
 
 @pytest.mark.asyncio
 async def test_remove_broader(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme, concept: Concept
 ) -> None:
     """Test removing a broader relationship."""
     broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
@@ -342,19 +342,19 @@ async def test_remove_broader(
     await db_session.flush()
     await db_session.refresh(broader)
 
-    response = await client.delete(f"/api/concepts/{concept.id}/broader/{broader.id}")
+    response = await authenticated_client.delete(f"/api/concepts/{concept.id}/broader/{broader.id}")
     assert response.status_code == 204
 
     # Verify the relationship is removed
-    response = await client.get(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}")
     data = response.json()
     assert len(data["broader"]) == 0
 
 
 @pytest.mark.asyncio
-async def test_remove_broader_not_found(client: AsyncClient, concept: Concept) -> None:
+async def test_remove_broader_not_found(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test removing a non-existent broader relationship."""
-    response = await client.delete(f"/api/concepts/{concept.id}/broader/{uuid4()}")
+    response = await authenticated_client.delete(f"/api/concepts/{concept.id}/broader/{uuid4()}")
     assert response.status_code == 404
 
 
@@ -362,16 +362,16 @@ async def test_remove_broader_not_found(client: AsyncClient, concept: Concept) -
 
 
 @pytest.mark.asyncio
-async def test_get_tree_empty(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_get_tree_empty(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test getting tree when no concepts exist."""
-    response = await client.get(f"/api/schemes/{scheme.id}/tree")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/tree")
     assert response.status_code == 200
     assert response.json() == []
 
 
 @pytest.mark.asyncio
 async def test_get_tree_flat(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting tree with only root concepts."""
     concept1 = Concept(scheme_id=scheme.id, pref_label="Root 1")
@@ -379,7 +379,7 @@ async def test_get_tree_flat(
     db_session.add_all([concept1, concept2])
     await db_session.flush()
 
-    response = await client.get(f"/api/schemes/{scheme.id}/tree")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/tree")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
@@ -389,7 +389,7 @@ async def test_get_tree_flat(
 
 @pytest.mark.asyncio
 async def test_get_tree_with_hierarchy(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting tree with parent-child relationships."""
     parent = Concept(scheme_id=scheme.id, pref_label="Parent")
@@ -401,7 +401,7 @@ async def test_get_tree_with_hierarchy(
     db_session.add(rel)
     await db_session.flush()
 
-    response = await client.get(f"/api/schemes/{scheme.id}/tree")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/tree")
     assert response.status_code == 200
     data = response.json()
 
@@ -414,7 +414,7 @@ async def test_get_tree_with_hierarchy(
 
 @pytest.mark.asyncio
 async def test_get_tree_polyhierarchy(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that concept appears under all parents in tree (DAG)."""
     mammals = Concept(scheme_id=scheme.id, pref_label="Mammals")
@@ -429,7 +429,7 @@ async def test_get_tree_polyhierarchy(
     db_session.add_all([rel1, rel2])
     await db_session.flush()
 
-    response = await client.get(f"/api/schemes/{scheme.id}/tree")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/tree")
     assert response.status_code == 200
     data = response.json()
 
@@ -445,9 +445,9 @@ async def test_get_tree_polyhierarchy(
 
 
 @pytest.mark.asyncio
-async def test_get_tree_scheme_not_found(client: AsyncClient) -> None:
+async def test_get_tree_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test getting tree for non-existent scheme."""
-    response = await client.get(f"/api/schemes/{uuid4()}/tree")
+    response = await authenticated_client.get(f"/api/schemes/{uuid4()}/tree")
     assert response.status_code == 404
 
 
@@ -455,9 +455,9 @@ async def test_get_tree_scheme_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_concept_with_alt_labels(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_create_concept_with_alt_labels(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test creating a concept with alt labels."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/concepts",
         json={
             "pref_label": "Dogs",
@@ -470,9 +470,9 @@ async def test_create_concept_with_alt_labels(client: AsyncClient, scheme: Conce
 
 
 @pytest.mark.asyncio
-async def test_create_concept_alt_labels_default(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_create_concept_alt_labels_default(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test that alt_labels defaults to empty list."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/concepts",
         json={"pref_label": "Test Concept"},
     )
@@ -483,7 +483,7 @@ async def test_create_concept_alt_labels_default(client: AsyncClient, scheme: Co
 
 @pytest.mark.asyncio
 async def test_get_concept_includes_alt_labels(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that getting a concept includes alt labels."""
     concept = Concept(
@@ -495,16 +495,16 @@ async def test_get_concept_includes_alt_labels(
     await db_session.flush()
     await db_session.refresh(concept)
 
-    response = await client.get(f"/api/concepts/{concept.id}")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}")
     assert response.status_code == 200
     data = response.json()
     assert data["alt_labels"] == ["Fauna", "Living things"]
 
 
 @pytest.mark.asyncio
-async def test_update_concept_alt_labels(client: AsyncClient, concept: Concept) -> None:
+async def test_update_concept_alt_labels(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test updating concept alt labels."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/concepts/{concept.id}",
         json={"alt_labels": ["New Synonym", "Another Synonym"]},
     )
@@ -515,7 +515,7 @@ async def test_update_concept_alt_labels(client: AsyncClient, concept: Concept) 
 
 @pytest.mark.asyncio
 async def test_update_concept_clear_alt_labels(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test clearing alt labels by setting to empty list."""
     concept = Concept(
@@ -527,7 +527,7 @@ async def test_update_concept_clear_alt_labels(
     await db_session.flush()
     await db_session.refresh(concept)
 
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/concepts/{concept.id}",
         json={"alt_labels": []},
     )
@@ -538,7 +538,7 @@ async def test_update_concept_clear_alt_labels(
 
 @pytest.mark.asyncio
 async def test_update_concept_without_alt_labels_preserves_existing(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that updating without alt_labels preserves existing labels."""
     concept = Concept(
@@ -550,7 +550,7 @@ async def test_update_concept_without_alt_labels_preserves_existing(
     await db_session.flush()
     await db_session.refresh(concept)
 
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/concepts/{concept.id}",
         json={"definition": "New definition"},
     )
@@ -561,7 +561,7 @@ async def test_update_concept_without_alt_labels_preserves_existing(
 
 @pytest.mark.asyncio
 async def test_list_concepts_includes_alt_labels(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that listing concepts includes alt labels."""
     concept = Concept(
@@ -572,7 +572,7 @@ async def test_list_concepts_includes_alt_labels(
     db_session.add(concept)
     await db_session.flush()
 
-    response = await client.get(f"/api/schemes/{scheme.id}/concepts")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/concepts")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -581,7 +581,7 @@ async def test_list_concepts_includes_alt_labels(
 
 @pytest.mark.asyncio
 async def test_tree_includes_alt_labels(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that tree endpoint includes alt labels."""
     concept = Concept(
@@ -592,7 +592,7 @@ async def test_tree_includes_alt_labels(
     db_session.add(concept)
     await db_session.flush()
 
-    response = await client.get(f"/api/schemes/{scheme.id}/tree")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/tree")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -604,7 +604,7 @@ async def test_tree_includes_alt_labels(
 
 @pytest.mark.asyncio
 async def test_move_concept_to_new_parent(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test moving a concept from one parent to another."""
     old_parent = Concept(scheme_id=scheme.id, pref_label="Old Parent")
@@ -618,7 +618,7 @@ async def test_move_concept_to_new_parent(
     db_session.add(rel)
     await db_session.flush()
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{child.id}/move",
         json={
             "new_parent_id": str(new_parent.id),
@@ -636,7 +636,7 @@ async def test_move_concept_to_new_parent(
 
 @pytest.mark.asyncio
 async def test_move_concept_to_root(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test moving a concept to root level (removing its parent)."""
     parent = Concept(scheme_id=scheme.id, pref_label="Parent")
@@ -648,7 +648,7 @@ async def test_move_concept_to_root(
     db_session.add(rel)
     await db_session.flush()
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{child.id}/move",
         json={
             "new_parent_id": None,
@@ -662,7 +662,7 @@ async def test_move_concept_to_root(
 
 @pytest.mark.asyncio
 async def test_move_concept_add_parent_polyhierarchy(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test adding an additional parent (polyhierarchy) without removing existing."""
     parent1 = Concept(scheme_id=scheme.id, pref_label="Parent 1")
@@ -676,7 +676,7 @@ async def test_move_concept_add_parent_polyhierarchy(
     await db_session.flush()
 
     # Add parent2 without removing parent1 (previous_parent_id=None)
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{child.id}/move",
         json={
             "new_parent_id": str(parent2.id),
@@ -692,9 +692,9 @@ async def test_move_concept_add_parent_polyhierarchy(
 
 
 @pytest.mark.asyncio
-async def test_move_concept_to_self_fails(client: AsyncClient, concept: Concept) -> None:
+async def test_move_concept_to_self_fails(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test that moving a concept to itself fails."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{concept.id}/move",
         json={"new_parent_id": str(concept.id)},
     )
@@ -704,7 +704,7 @@ async def test_move_concept_to_self_fails(client: AsyncClient, concept: Concept)
 
 @pytest.mark.asyncio
 async def test_move_concept_to_descendant_fails(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that moving a concept to its descendant fails (cycle detection)."""
     grandparent = Concept(scheme_id=scheme.id, pref_label="Grandparent")
@@ -720,7 +720,7 @@ async def test_move_concept_to_descendant_fails(
     await db_session.flush()
 
     # Try to move grandparent under child (would create cycle)
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{grandparent.id}/move",
         json={"new_parent_id": str(child.id)},
     )
@@ -730,10 +730,10 @@ async def test_move_concept_to_descendant_fails(
 
 @pytest.mark.asyncio
 async def test_move_concept_to_nonexistent_parent_fails(
-    client: AsyncClient, concept: Concept
+    authenticated_client: AsyncClient, concept: Concept
 ) -> None:
     """Test that moving to a non-existent parent fails."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{concept.id}/move",
         json={"new_parent_id": str(uuid4())},
     )
@@ -741,9 +741,9 @@ async def test_move_concept_to_nonexistent_parent_fails(
 
 
 @pytest.mark.asyncio
-async def test_move_nonexistent_concept_fails(client: AsyncClient) -> None:
+async def test_move_nonexistent_concept_fails(authenticated_client: AsyncClient) -> None:
     """Test that moving a non-existent concept fails."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/concepts/{uuid4()}/move",
         json={"new_parent_id": None},
     )

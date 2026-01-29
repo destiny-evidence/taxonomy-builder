@@ -42,17 +42,17 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 
 @pytest.mark.asyncio
-async def test_list_schemes_empty(client: AsyncClient, project: Project) -> None:
+async def test_list_schemes_empty(authenticated_client: AsyncClient, project: Project) -> None:
     """Test listing schemes when none exist."""
-    response = await client.get(f"/api/projects/{project.id}/schemes")
+    response = await authenticated_client.get(f"/api/projects/{project.id}/schemes")
     assert response.status_code == 200
     assert response.json() == []
 
 
 @pytest.mark.asyncio
-async def test_list_schemes(client: AsyncClient, project: Project, scheme: ConceptScheme) -> None:
+async def test_list_schemes(authenticated_client: AsyncClient, project: Project, scheme: ConceptScheme) -> None:
     """Test listing schemes returns all schemes for project."""
-    response = await client.get(f"/api/projects/{project.id}/schemes")
+    response = await authenticated_client.get(f"/api/projects/{project.id}/schemes")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -61,9 +61,9 @@ async def test_list_schemes(client: AsyncClient, project: Project, scheme: Conce
 
 
 @pytest.mark.asyncio
-async def test_list_schemes_project_not_found(client: AsyncClient) -> None:
+async def test_list_schemes_project_not_found(authenticated_client: AsyncClient) -> None:
     """Test listing schemes for non-existent project."""
-    response = await client.get(f"/api/projects/{uuid4()}/schemes")
+    response = await authenticated_client.get(f"/api/projects/{uuid4()}/schemes")
     assert response.status_code == 404
 
 
@@ -71,9 +71,9 @@ async def test_list_schemes_project_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_scheme(client: AsyncClient, project: Project) -> None:
+async def test_create_scheme(authenticated_client: AsyncClient, project: Project) -> None:
     """Test creating a new scheme."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/schemes",
         json={
             "title": "New Scheme",
@@ -94,9 +94,9 @@ async def test_create_scheme(client: AsyncClient, project: Project) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_scheme_title_only(client: AsyncClient, project: Project) -> None:
+async def test_create_scheme_title_only(authenticated_client: AsyncClient, project: Project) -> None:
     """Test creating a scheme with only title."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/schemes",
         json={"title": "Minimal Scheme"},
     )
@@ -109,10 +109,10 @@ async def test_create_scheme_title_only(client: AsyncClient, project: Project) -
 
 @pytest.mark.asyncio
 async def test_create_scheme_duplicate_title(
-    client: AsyncClient, project: Project, scheme: ConceptScheme
+    authenticated_client: AsyncClient, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test creating a scheme with duplicate title fails."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/schemes",
         json={"title": "Test Scheme"},  # Same as existing scheme
     )
@@ -120,9 +120,9 @@ async def test_create_scheme_duplicate_title(
 
 
 @pytest.mark.asyncio
-async def test_create_scheme_empty_title(client: AsyncClient, project: Project) -> None:
+async def test_create_scheme_empty_title(authenticated_client: AsyncClient, project: Project) -> None:
     """Test creating a scheme with empty title fails."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/schemes",
         json={"title": ""},
     )
@@ -130,9 +130,9 @@ async def test_create_scheme_empty_title(client: AsyncClient, project: Project) 
 
 
 @pytest.mark.asyncio
-async def test_create_scheme_project_not_found(client: AsyncClient) -> None:
+async def test_create_scheme_project_not_found(authenticated_client: AsyncClient) -> None:
     """Test creating a scheme for non-existent project."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{uuid4()}/schemes",
         json={"title": "New Scheme"},
     )
@@ -143,9 +143,9 @@ async def test_create_scheme_project_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_scheme(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_get_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test getting a single scheme."""
-    response = await client.get(f"/api/schemes/{scheme.id}")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}")
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == str(scheme.id)
@@ -154,16 +154,16 @@ async def test_get_scheme(client: AsyncClient, scheme: ConceptScheme) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_scheme_not_found(client: AsyncClient) -> None:
+async def test_get_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test getting a non-existent scheme."""
-    response = await client.get(f"/api/schemes/{uuid4()}")
+    response = await authenticated_client.get(f"/api/schemes/{uuid4()}")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_scheme_invalid_uuid(client: AsyncClient) -> None:
+async def test_get_scheme_invalid_uuid(authenticated_client: AsyncClient) -> None:
     """Test getting a scheme with invalid UUID."""
-    response = await client.get("/api/schemes/not-a-uuid")
+    response = await authenticated_client.get("/api/schemes/not-a-uuid")
     assert response.status_code == 422
 
 
@@ -171,9 +171,9 @@ async def test_get_scheme_invalid_uuid(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_scheme(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_update_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test updating a scheme."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/schemes/{scheme.id}",
         json={
             "title": "Updated Scheme",
@@ -189,9 +189,9 @@ async def test_update_scheme(client: AsyncClient, scheme: ConceptScheme) -> None
 
 
 @pytest.mark.asyncio
-async def test_update_scheme_partial(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_update_scheme_partial(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test partial update of a scheme."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/schemes/{scheme.id}",
         json={"description": "Only description changed"},
     )
@@ -202,9 +202,9 @@ async def test_update_scheme_partial(client: AsyncClient, scheme: ConceptScheme)
 
 
 @pytest.mark.asyncio
-async def test_update_scheme_not_found(client: AsyncClient) -> None:
+async def test_update_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent scheme."""
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/schemes/{uuid4()}",
         json={"title": "New Title"},
     )
@@ -213,7 +213,7 @@ async def test_update_scheme_not_found(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_scheme_duplicate_title(
-    client: AsyncClient, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test updating scheme to duplicate title fails."""
     # Create another scheme
@@ -222,7 +222,7 @@ async def test_update_scheme_duplicate_title(
     await db_session.flush()
 
     # Try to rename it to the same title as the first scheme
-    response = await client.put(
+    response = await authenticated_client.put(
         f"/api/schemes/{scheme2.id}",
         json={"title": "Test Scheme"},
     )
@@ -233,18 +233,18 @@ async def test_update_scheme_duplicate_title(
 
 
 @pytest.mark.asyncio
-async def test_delete_scheme(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_delete_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test deleting a scheme."""
-    response = await client.delete(f"/api/schemes/{scheme.id}")
+    response = await authenticated_client.delete(f"/api/schemes/{scheme.id}")
     assert response.status_code == 204
 
     # Verify it's deleted
-    response = await client.get(f"/api/schemes/{scheme.id}")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_scheme_not_found(client: AsyncClient) -> None:
+async def test_delete_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test deleting a non-existent scheme."""
-    response = await client.delete(f"/api/schemes/{uuid4()}")
+    response = await authenticated_client.delete(f"/api/schemes/{uuid4()}")
     assert response.status_code == 404

@@ -38,7 +38,7 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 @pytest.mark.asyncio
 async def test_get_scheme_history(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting history for a scheme."""
     # Create some concepts to generate change events
@@ -53,7 +53,7 @@ async def test_get_scheme_history(
     )
 
     # Get the history
-    response = await client.get(f"/api/schemes/{scheme.id}/history")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history")
 
     assert response.status_code == 200
     data = response.json()
@@ -67,7 +67,7 @@ async def test_get_scheme_history(
 
 @pytest.mark.asyncio
 async def test_get_scheme_history_with_pagination(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test pagination for scheme history."""
     # Create multiple concepts to generate change events
@@ -79,13 +79,13 @@ async def test_get_scheme_history_with_pagination(
         )
 
     # Test limit
-    response = await client.get(f"/api/schemes/{scheme.id}/history?limit=2")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history?limit=2")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
 
     # Test offset
-    response = await client.get(f"/api/schemes/{scheme.id}/history?limit=2&offset=2")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history?limit=2&offset=2")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
@@ -93,7 +93,7 @@ async def test_get_scheme_history_with_pagination(
 
 @pytest.mark.asyncio
 async def test_get_concept_history(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting history for a specific concept."""
     # Create and update a concept
@@ -108,7 +108,7 @@ async def test_get_concept_history(
     )
 
     # Get the concept history
-    response = await client.get(f"/api/concepts/{concept.id}/history")
+    response = await authenticated_client.get(f"/api/concepts/{concept.id}/history")
 
     assert response.status_code == 200
     data = response.json()
@@ -123,14 +123,14 @@ async def test_get_concept_history(
 
 
 @pytest.mark.asyncio
-async def test_get_scheme_history_not_found(client: AsyncClient) -> None:
+async def test_get_scheme_history_not_found(authenticated_client: AsyncClient) -> None:
     """Test 404 for non-existent scheme."""
-    response = await client.get(f"/api/schemes/{uuid4()}/history")
+    response = await authenticated_client.get(f"/api/schemes/{uuid4()}/history")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_concept_history_not_found(client: AsyncClient) -> None:
+async def test_get_concept_history_not_found(authenticated_client: AsyncClient) -> None:
     """Test 404 for non-existent concept."""
-    response = await client.get(f"/api/concepts/{uuid4()}/history")
+    response = await authenticated_client.get(f"/api/concepts/{uuid4()}/history")
     assert response.status_code == 404

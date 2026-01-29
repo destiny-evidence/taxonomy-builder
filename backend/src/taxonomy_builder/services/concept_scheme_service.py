@@ -65,7 +65,7 @@ class ConceptSchemeService:
         return list(result.scalars().all())
 
     async def create_scheme(
-        self, project_id: UUID, scheme_in: ConceptSchemeCreate
+        self, project_id: UUID, scheme_in: ConceptSchemeCreate, user_id: UUID | None = None
     ) -> ConceptScheme:
         """Create a new concept scheme in a project."""
         # Verify project exists
@@ -95,6 +95,7 @@ class ConceptSchemeService:
             action="create",
             before=None,
             after=self._tracker.serialize_scheme(scheme),
+            user_id=user_id,
         )
 
         return scheme
@@ -110,7 +111,7 @@ class ConceptSchemeService:
         return scheme
 
     async def update_scheme(
-        self, scheme_id: UUID, scheme_in: ConceptSchemeUpdate
+        self, scheme_id: UUID, scheme_in: ConceptSchemeUpdate, user_id: UUID | None = None
     ) -> ConceptScheme:
         """Update an existing concept scheme."""
         scheme = await self.get_scheme(scheme_id)
@@ -145,11 +146,12 @@ class ConceptSchemeService:
             action="update",
             before=before_state,
             after=self._tracker.serialize_scheme(scheme),
+            user_id=user_id,
         )
 
         return scheme
 
-    async def delete_scheme(self, scheme_id: UUID) -> None:
+    async def delete_scheme(self, scheme_id: UUID, user_id: UUID | None = None) -> None:
         """Delete a concept scheme."""
         scheme = await self.get_scheme(scheme_id)
 
@@ -164,6 +166,7 @@ class ConceptSchemeService:
             action="delete",
             before=before_state,
             after=None,
+            user_id=user_id,
         )
 
         await self.db.delete(scheme)

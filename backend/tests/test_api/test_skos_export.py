@@ -71,10 +71,10 @@ async def scheme_with_concepts(
 
 @pytest.mark.asyncio
 async def test_export_turtle_default(
-    client: AsyncClient, scheme_with_concepts: ConceptScheme
+    authenticated_client: AsyncClient, scheme_with_concepts: ConceptScheme
 ) -> None:
     """Test export in Turtle format (default)."""
-    response = await client.get(f"/api/schemes/{scheme_with_concepts.id}/export")
+    response = await authenticated_client.get(f"/api/schemes/{scheme_with_concepts.id}/export")
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/turtle; charset=utf-8"
@@ -89,10 +89,10 @@ async def test_export_turtle_default(
 
 @pytest.mark.asyncio
 async def test_export_turtle_explicit(
-    client: AsyncClient, scheme_with_concepts: ConceptScheme
+    authenticated_client: AsyncClient, scheme_with_concepts: ConceptScheme
 ) -> None:
     """Test export with explicit Turtle format."""
-    response = await client.get(
+    response = await authenticated_client.get(
         f"/api/schemes/{scheme_with_concepts.id}/export?format=ttl"
     )
 
@@ -102,10 +102,10 @@ async def test_export_turtle_explicit(
 
 @pytest.mark.asyncio
 async def test_export_rdf_xml(
-    client: AsyncClient, scheme_with_concepts: ConceptScheme
+    authenticated_client: AsyncClient, scheme_with_concepts: ConceptScheme
 ) -> None:
     """Test export in RDF/XML format."""
-    response = await client.get(
+    response = await authenticated_client.get(
         f"/api/schemes/{scheme_with_concepts.id}/export?format=xml"
     )
 
@@ -120,10 +120,10 @@ async def test_export_rdf_xml(
 
 @pytest.mark.asyncio
 async def test_export_jsonld(
-    client: AsyncClient, scheme_with_concepts: ConceptScheme
+    authenticated_client: AsyncClient, scheme_with_concepts: ConceptScheme
 ) -> None:
     """Test export in JSON-LD format."""
-    response = await client.get(
+    response = await authenticated_client.get(
         f"/api/schemes/{scheme_with_concepts.id}/export?format=jsonld"
     )
 
@@ -143,10 +143,10 @@ async def test_export_jsonld(
 
 @pytest.mark.asyncio
 async def test_export_contains_scheme_metadata(
-    client: AsyncClient, scheme: ConceptScheme
+    authenticated_client: AsyncClient, scheme: ConceptScheme
 ) -> None:
     """Test that export contains scheme metadata."""
-    response = await client.get(f"/api/schemes/{scheme.id}/export")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/export")
 
     content = response.text
     assert "Test Taxonomy" in content
@@ -156,10 +156,10 @@ async def test_export_contains_scheme_metadata(
 
 @pytest.mark.asyncio
 async def test_export_contains_concepts(
-    client: AsyncClient, scheme_with_concepts: ConceptScheme
+    authenticated_client: AsyncClient, scheme_with_concepts: ConceptScheme
 ) -> None:
     """Test that export contains concepts."""
-    response = await client.get(f"/api/schemes/{scheme_with_concepts.id}/export")
+    response = await authenticated_client.get(f"/api/schemes/{scheme_with_concepts.id}/export")
 
     content = response.text
     assert "Animals" in content
@@ -169,10 +169,10 @@ async def test_export_contains_concepts(
 
 @pytest.mark.asyncio
 async def test_export_filename(
-    client: AsyncClient, scheme: ConceptScheme
+    authenticated_client: AsyncClient, scheme: ConceptScheme
 ) -> None:
     """Test that filename is based on scheme title."""
-    response = await client.get(f"/api/schemes/{scheme.id}/export")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/export")
 
     disposition = response.headers["content-disposition"]
     # Should slugify the title
@@ -183,19 +183,19 @@ async def test_export_filename(
 
 
 @pytest.mark.asyncio
-async def test_export_scheme_not_found(client: AsyncClient) -> None:
+async def test_export_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test export returns 404 for non-existent scheme."""
-    response = await client.get(f"/api/schemes/{uuid4()}/export")
+    response = await authenticated_client.get(f"/api/schemes/{uuid4()}/export")
 
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_export_invalid_format(
-    client: AsyncClient, scheme: ConceptScheme
+    authenticated_client: AsyncClient, scheme: ConceptScheme
 ) -> None:
     """Test export returns 422 for invalid format."""
-    response = await client.get(f"/api/schemes/{scheme.id}/export?format=invalid")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/export?format=invalid")
 
     assert response.status_code == 422
 
@@ -204,9 +204,9 @@ async def test_export_invalid_format(
 
 
 @pytest.mark.asyncio
-async def test_export_empty_scheme(client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_export_empty_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test export works for scheme with no concepts."""
-    response = await client.get(f"/api/schemes/{scheme.id}/export")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/export")
 
     assert response.status_code == 200
     content = response.text

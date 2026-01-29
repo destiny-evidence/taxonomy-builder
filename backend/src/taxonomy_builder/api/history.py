@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.models.concept import Concept
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/api", tags=["history"])
 @router.get("/schemes/{scheme_id}/history", response_model=list[ChangeEventRead])
 async def get_scheme_history(
     scheme_id: UUID,
+    current_user: CurrentUser,
     limit: int | None = None,
     offset: int | None = None,
     db: AsyncSession = Depends(get_db),
@@ -48,6 +50,7 @@ async def get_scheme_history(
 @router.get("/concepts/{concept_id}/history", response_model=list[ChangeEventRead])
 async def get_concept_history(
     concept_id: UUID,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[ChangeEvent]:
     """Get history of changes for a specific concept."""

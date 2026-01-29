@@ -38,10 +38,10 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 @pytest.mark.asyncio
 async def test_publish_version(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test creating/publishing a version."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0", "notes": "Initial release"},
     )
@@ -57,20 +57,20 @@ async def test_publish_version(
 
 @pytest.mark.asyncio
 async def test_list_versions(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test listing versions for a scheme."""
     # Create versions
-    await client.post(
+    await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )
-    await client.post(
+    await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "2.0"},
     )
 
-    response = await client.get(f"/api/schemes/{scheme.id}/versions")
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/versions")
 
     assert response.status_code == 200
     data = response.json()
@@ -82,17 +82,17 @@ async def test_list_versions(
 
 @pytest.mark.asyncio
 async def test_get_version(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting a specific version."""
     # Create a version
-    create_response = await client.post(
+    create_response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )
     version_id = create_response.json()["id"]
 
-    response = await client.get(f"/api/versions/{version_id}")
+    response = await authenticated_client.get(f"/api/versions/{version_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -101,25 +101,25 @@ async def test_get_version(
 
 
 @pytest.mark.asyncio
-async def test_get_version_not_found(client: AsyncClient) -> None:
+async def test_get_version_not_found(authenticated_client: AsyncClient) -> None:
     """Test 404 for non-existent version."""
-    response = await client.get(f"/api/versions/{uuid4()}")
+    response = await authenticated_client.get(f"/api/versions/{uuid4()}")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_export_version_ttl(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test exporting a version as Turtle (default format)."""
     # Create a version
-    create_response = await client.post(
+    create_response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )
     version_id = create_response.json()["id"]
 
-    response = await client.get(f"/api/versions/{version_id}/export")
+    response = await authenticated_client.get(f"/api/versions/{version_id}/export")
 
     assert response.status_code == 200
     assert "text/turtle" in response.headers["content-type"]
@@ -133,17 +133,17 @@ async def test_export_version_ttl(
 
 @pytest.mark.asyncio
 async def test_export_version_jsonld(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test exporting a version as JSON-LD."""
     # Create a version
-    create_response = await client.post(
+    create_response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )
     version_id = create_response.json()["id"]
 
-    response = await client.get(f"/api/versions/{version_id}/export?format=jsonld")
+    response = await authenticated_client.get(f"/api/versions/{version_id}/export?format=jsonld")
 
     assert response.status_code == 200
     assert "application/ld+json" in response.headers["content-type"]
@@ -152,17 +152,17 @@ async def test_export_version_jsonld(
 
 @pytest.mark.asyncio
 async def test_export_version_xml(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test exporting a version as RDF/XML."""
     # Create a version
-    create_response = await client.post(
+    create_response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )
     version_id = create_response.json()["id"]
 
-    response = await client.get(f"/api/versions/{version_id}/export?format=xml")
+    response = await authenticated_client.get(f"/api/versions/{version_id}/export?format=xml")
 
     assert response.status_code == 200
     assert "application/rdf+xml" in response.headers["content-type"]
@@ -171,15 +171,15 @@ async def test_export_version_xml(
 
 @pytest.mark.asyncio
 async def test_duplicate_version_label_returns_409(
-    client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that publishing with duplicate label returns 409."""
-    await client.post(
+    await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/schemes/{scheme.id}/versions",
         json={"version_label": "1.0"},
     )

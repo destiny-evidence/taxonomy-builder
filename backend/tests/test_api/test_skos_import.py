@@ -70,10 +70,10 @@ INVALID_RDF = b"This is not valid RDF content."
 
 @pytest.mark.asyncio
 async def test_import_preview_simple_scheme(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test previewing a simple single-scheme file."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
         params={"dry_run": "true"},
@@ -93,10 +93,10 @@ async def test_import_preview_simple_scheme(
 
 @pytest.mark.asyncio
 async def test_import_preview_multiple_schemes(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test previewing a file with multiple schemes."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", MULTI_SCHEME_TTL, "text/turtle")},
         params={"dry_run": "true"},
@@ -112,10 +112,10 @@ async def test_import_preview_multiple_schemes(
 
 @pytest.mark.asyncio
 async def test_import_preview_default_dry_run(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test that dry_run defaults to true."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
         # No dry_run param - should default to true
@@ -134,10 +134,10 @@ async def test_import_preview_default_dry_run(
 
 @pytest.mark.asyncio
 async def test_import_execute_simple_scheme(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test executing import of a simple scheme."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
         params={"dry_run": "false"},
@@ -155,17 +155,17 @@ async def test_import_execute_simple_scheme(
 
     # Verify scheme was created by fetching it
     scheme_id = data["schemes_created"][0]["id"]
-    get_response = await client.get(f"/api/schemes/{scheme_id}")
+    get_response = await authenticated_client.get(f"/api/schemes/{scheme_id}")
     assert get_response.status_code == 200
     assert get_response.json()["title"] == "Test Scheme"
 
 
 @pytest.mark.asyncio
 async def test_import_execute_multiple_schemes(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test executing import of multiple schemes."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", MULTI_SCHEME_TTL, "text/turtle")},
         params={"dry_run": "false"},
@@ -182,9 +182,9 @@ async def test_import_execute_multiple_schemes(
 
 
 @pytest.mark.asyncio
-async def test_import_project_not_found(client: AsyncClient) -> None:
+async def test_import_project_not_found(authenticated_client: AsyncClient) -> None:
     """Test import returns 404 for non-existent project."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{uuid4()}/import",
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
     )
@@ -194,10 +194,10 @@ async def test_import_project_not_found(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_import_invalid_rdf(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test import returns 400 for invalid RDF."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", INVALID_RDF, "text/turtle")},
     )
@@ -208,10 +208,10 @@ async def test_import_invalid_rdf(
 
 @pytest.mark.asyncio
 async def test_import_unsupported_format(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test import returns 400 for unsupported file format."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.xyz", SIMPLE_SCHEME_TTL, "application/octet-stream")},
     )
@@ -222,7 +222,7 @@ async def test_import_unsupported_format(
 
 @pytest.mark.asyncio
 async def test_import_uri_conflict(
-    db_session: AsyncSession, client: AsyncClient, project: Project
+    db_session: AsyncSession, authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test import returns 409 when scheme URI already exists."""
     # Create existing scheme with same URI
@@ -234,7 +234,7 @@ async def test_import_uri_conflict(
     db_session.add(existing)
     await db_session.flush()
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
     )
@@ -245,7 +245,7 @@ async def test_import_uri_conflict(
 
 @pytest.mark.asyncio
 async def test_import_title_conflict_auto_rename(
-    db_session: AsyncSession, client: AsyncClient, project: Project
+    db_session: AsyncSession, authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test that title conflict results in auto-rename on execute."""
     # Create existing scheme with same title but different URI
@@ -257,7 +257,7 @@ async def test_import_title_conflict_auto_rename(
     db_session.add(existing)
     await db_session.flush()
 
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
         params={"dry_run": "false"},
@@ -275,7 +275,7 @@ async def test_import_title_conflict_auto_rename(
 
 @pytest.mark.asyncio
 async def test_import_rdf_xml_format(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test import with RDF/XML format."""
     rdf_xml = b"""<?xml version="1.0"?>
@@ -287,7 +287,7 @@ async def test_import_rdf_xml_format(
   </skos:ConceptScheme>
 </rdf:RDF>
 """
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
         files={"file": ("test.rdf", rdf_xml, "application/rdf+xml")},
         params={"dry_run": "true"},
@@ -300,10 +300,10 @@ async def test_import_rdf_xml_format(
 
 @pytest.mark.asyncio
 async def test_import_no_file(
-    client: AsyncClient, project: Project
+    authenticated_client: AsyncClient, project: Project
 ) -> None:
     """Test import returns 422 when no file provided."""
-    response = await client.post(
+    response = await authenticated_client.post(
         f"/api/projects/{project.id}/import",
     )
 

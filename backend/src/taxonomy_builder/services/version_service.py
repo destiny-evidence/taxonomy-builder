@@ -100,6 +100,7 @@ class VersionService:
         scheme_id: UUID,
         version_label: str,
         notes: str | None = None,
+        user_id: UUID | None = None,
     ) -> PublishedVersion:
         """Publish a new version of a concept scheme.
 
@@ -109,6 +110,7 @@ class VersionService:
             scheme_id: The scheme to publish
             version_label: Version label (e.g., "1.0", "2.0")
             notes: Optional release notes
+            user_id: The ID of the user publishing the version
 
         Returns:
             The created PublishedVersion
@@ -146,6 +148,7 @@ class VersionService:
                 "version_label": version.version_label,
                 "notes": version.notes,
             },
+            user_id=user_id,
         )
 
         return version

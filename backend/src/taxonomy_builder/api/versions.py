@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.database import get_db
 from taxonomy_builder.schemas.version import (
     PublishedVersionCreate,
@@ -55,6 +56,7 @@ router = APIRouter(prefix="/api", tags=["versions"])
 async def publish_version(
     scheme_id: UUID,
     version_in: PublishedVersionCreate,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> PublishedVersionRead:
     """Publish a new version of a scheme."""
@@ -64,6 +66,7 @@ async def publish_version(
             scheme_id=scheme_id,
             version_label=version_in.version_label,
             notes=version_in.notes,
+            user_id=current_user.user.id,
         )
         return PublishedVersionRead.model_validate(version)
     except SchemeNotFoundError:
@@ -77,6 +80,7 @@ async def publish_version(
 @router.get("/schemes/{scheme_id}/versions", response_model=list[PublishedVersionRead])
 async def list_versions(
     scheme_id: UUID,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[PublishedVersionRead]:
     """List all published versions for a scheme."""
@@ -88,6 +92,7 @@ async def list_versions(
 @router.get("/versions/{version_id}", response_model=PublishedVersionRead)
 async def get_version(
     version_id: UUID,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> PublishedVersionRead:
     """Get a specific published version."""
@@ -101,6 +106,7 @@ async def get_version(
 @router.get("/versions/{version_id}/export")
 async def export_version(
     version_id: UUID,
+    current_user: CurrentUser,
     format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
