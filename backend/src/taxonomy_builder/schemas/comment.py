@@ -13,9 +13,12 @@ class CommentCreate(BaseModel):
 
     @field_validator("content")
     @classmethod
-    def strip_content(cls, v: str) -> str:
-        """Strip whitespace from content."""
-        return v.strip()
+    def strip_and_validate_content(cls, v: str) -> str:
+        """Strip whitespace and validate non-empty."""
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Content cannot be empty or whitespace only")
+        return stripped
 
 
 class CommentAuthor(BaseModel):
