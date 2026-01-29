@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import CurrentUser
+from taxonomy_builder.api.dependencies import CurrentUser, get_import_service
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
@@ -27,11 +27,6 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 def get_project_service(db: AsyncSession = Depends(get_db)) -> ProjectService:
     """Dependency that provides a ProjectService instance."""
     return ProjectService(db)
-
-
-def get_import_service(db: AsyncSession = Depends(get_db)) -> SKOSImportService:
-    """Dependency that provides a SKOSImportService instance."""
-    return SKOSImportService(db)
 
 
 @router.get("", response_model=list[ProjectRead])
@@ -104,7 +99,6 @@ async def delete_project(
 )
 async def import_skos(
     project_id: UUID,
-    current_user: CurrentUser,
     file: UploadFile = File(...),
     dry_run: bool = Query(default=True),
     project_service: ProjectService = Depends(get_project_service),
@@ -134,9 +128,7 @@ async def import_skos(
         if dry_run:
             return await import_service.preview(project_id, content, filename)
         else:
-            return await import_service.execute(
-                project_id, content, filename, user_id=current_user.user.id
-            )
+            return await import_service.execute(project_id, content, filename)
     except InvalidRDFError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except SchemeURIConflictError as e:

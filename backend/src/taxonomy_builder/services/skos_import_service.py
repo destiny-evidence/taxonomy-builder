@@ -55,9 +55,9 @@ FORMAT_MAP = {
 class SKOSImportService:
     """Service for importing SKOS RDF files into concept schemes."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
-        self._tracker = ChangeTracker(db)
+        self._tracker = ChangeTracker(db, user_id)
 
     def _detect_format(self, filename: str) -> str:
         """Detect RDF format from filename extension."""
@@ -327,7 +327,7 @@ class SKOSImportService:
         )
 
     async def execute(
-        self, project_id: UUID, content: bytes, filename: str, user_id: UUID | None = None
+        self, project_id: UUID, content: bytes, filename: str
     ) -> ImportResultResponse:
         """Parse RDF and create schemes/concepts in database.
 
@@ -335,7 +335,6 @@ class SKOSImportService:
             project_id: The project to import into
             content: The RDF file content
             filename: The filename (used for format detection)
-            user_id: The ID of the user performing the import
 
         Returns:
             ImportResultResponse with created scheme and concept information
@@ -386,7 +385,6 @@ class SKOSImportService:
                 action="create",
                 before=None,
                 after=self._tracker.serialize_scheme(scheme),
-                user_id=user_id,
             )
 
             # Create concepts - first pass: create all concepts
@@ -455,7 +453,6 @@ class SKOSImportService:
                     action="create",
                     before=None,
                     after=self._tracker.serialize_concept(concept),
-                    user_id=user_id,
                 )
 
             schemes_created.append(

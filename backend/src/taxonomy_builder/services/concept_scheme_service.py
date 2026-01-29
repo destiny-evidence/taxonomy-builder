@@ -40,9 +40,9 @@ class ProjectNotFoundError(Exception):
 class ConceptSchemeService:
     """Service for managing concept schemes."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
-        self._tracker = ChangeTracker(db)
+        self._tracker = ChangeTracker(db, user_id)
 
     async def _get_project(self, project_id: UUID) -> Project:
         """Get a project by ID or raise ProjectNotFoundError."""
@@ -65,7 +65,7 @@ class ConceptSchemeService:
         return list(result.scalars().all())
 
     async def create_scheme(
-        self, project_id: UUID, scheme_in: ConceptSchemeCreate, user_id: UUID | None = None
+        self, project_id: UUID, scheme_in: ConceptSchemeCreate
     ) -> ConceptScheme:
         """Create a new concept scheme in a project."""
         # Verify project exists
@@ -95,7 +95,6 @@ class ConceptSchemeService:
             action="create",
             before=None,
             after=self._tracker.serialize_scheme(scheme),
-            user_id=user_id,
         )
 
         return scheme
@@ -111,7 +110,7 @@ class ConceptSchemeService:
         return scheme
 
     async def update_scheme(
-        self, scheme_id: UUID, scheme_in: ConceptSchemeUpdate, user_id: UUID | None = None
+        self, scheme_id: UUID, scheme_in: ConceptSchemeUpdate
     ) -> ConceptScheme:
         """Update an existing concept scheme."""
         scheme = await self.get_scheme(scheme_id)
@@ -146,12 +145,11 @@ class ConceptSchemeService:
             action="update",
             before=before_state,
             after=self._tracker.serialize_scheme(scheme),
-            user_id=user_id,
         )
 
         return scheme
 
-    async def delete_scheme(self, scheme_id: UUID, user_id: UUID | None = None) -> None:
+    async def delete_scheme(self, scheme_id: UUID) -> None:
         """Delete a concept scheme."""
         scheme = await self.get_scheme(scheme_id)
 
@@ -166,7 +164,6 @@ class ConceptSchemeService:
             action="delete",
             before=before_state,
             after=None,
-            user_id=user_id,
         )
 
         await self.db.delete(scheme)

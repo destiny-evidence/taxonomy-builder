@@ -104,9 +104,9 @@ class RelatedSameSchemeError(Exception):
 class ConceptService:
     """Service for managing concepts."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
-        self._tracker = ChangeTracker(db)
+        self._tracker = ChangeTracker(db, user_id)
 
     async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
         """Get a scheme by ID or raise SchemeNotFoundError."""
@@ -135,7 +135,7 @@ class ConceptService:
         return list(result.scalars().all())
 
     async def create_concept(
-        self, scheme_id: UUID, concept_in: ConceptCreate, user_id: UUID | None = None
+        self, scheme_id: UUID, concept_in: ConceptCreate
     ) -> Concept:
         """Create a new concept in a scheme."""
         await self._get_scheme(scheme_id)
@@ -159,7 +159,6 @@ class ConceptService:
             action="create",
             before=None,
             after=self._tracker.serialize_concept(concept),
-            user_id=user_id,
         )
 
         # Re-fetch to get broader relationship loaded
@@ -183,7 +182,7 @@ class ConceptService:
         return concept
 
     async def update_concept(
-        self, concept_id: UUID, concept_in: ConceptUpdate, user_id: UUID | None = None
+        self, concept_id: UUID, concept_in: ConceptUpdate
     ) -> Concept:
         """Update an existing concept."""
         concept = await self.get_concept(concept_id)
@@ -212,13 +211,12 @@ class ConceptService:
             action="update",
             before=before_state,
             after=self._tracker.serialize_concept(concept),
-            user_id=user_id,
         )
 
         # Re-fetch to get fresh broader relationship
         return await self.get_concept(concept_id)
 
-    async def delete_concept(self, concept_id: UUID, user_id: UUID | None = None) -> None:
+    async def delete_concept(self, concept_id: UUID) -> None:
         """Delete a concept."""
         concept = await self.get_concept(concept_id)
 
@@ -246,7 +244,6 @@ class ConceptService:
                     broader_concept.pref_label,
                 ),
                 after=None,
-                user_id=user_id,
             )
 
         # Record deletion of narrower relationships (where this concept is the broader)
@@ -268,7 +265,6 @@ class ConceptService:
                     concept_label,
                 ),
                 after=None,
-                user_id=user_id,
             )
 
         # Record deletion of related relationships (either as subject or object)
@@ -309,7 +305,6 @@ class ConceptService:
                 action="delete",
                 before=self._tracker.serialize_related(id1, id2, label1, label2),
                 after=None,
-                user_id=user_id,
             )
 
         await self.db.delete(concept)
@@ -323,11 +318,10 @@ class ConceptService:
             action="delete",
             before=before_state,
             after=None,
-            user_id=user_id,
         )
 
     async def add_broader(
-        self, concept_id: UUID, broader_concept_id: UUID, user_id: UUID | None = None
+        self, concept_id: UUID, broader_concept_id: UUID
     ) -> None:
         """Add a broader relationship."""
         # Verify both concepts exist
@@ -355,11 +349,10 @@ class ConceptService:
                 concept.pref_label,
                 broader_concept.pref_label,
             ),
-            user_id=user_id,
         )
 
     async def remove_broader(
-        self, concept_id: UUID, broader_concept_id: UUID, user_id: UUID | None = None
+        self, concept_id: UUID, broader_concept_id: UUID
     ) -> None:
         """Remove a broader relationship."""
         concept = await self.get_concept(concept_id)
@@ -390,7 +383,6 @@ class ConceptService:
                 broader_concept.pref_label,
             ),
             after=None,
-            user_id=user_id,
         )
 
     async def get_tree(self, scheme_id: UUID) -> list[dict]:
@@ -457,7 +449,7 @@ class ConceptService:
         return [build_tree_node(root) for root in roots]
 
     async def add_related(
-        self, concept_id: UUID, related_concept_id: UUID, user_id: UUID | None = None
+        self, concept_id: UUID, related_concept_id: UUID
     ) -> None:
         """Add a related relationship between two concepts.
 
@@ -500,11 +492,10 @@ class ConceptService:
             action="create",
             before=None,
             after=self._tracker.serialize_related(id1, id2, label1, label2),
-            user_id=user_id,
         )
 
     async def remove_related(
-        self, concept_id: UUID, related_concept_id: UUID, user_id: UUID | None = None
+        self, concept_id: UUID, related_concept_id: UUID
     ) -> None:
         """Remove a related relationship between two concepts.
 
@@ -541,7 +532,6 @@ class ConceptService:
             action="delete",
             before=self._tracker.serialize_related(id1, id2, label1, label2),
             after=None,
-            user_id=user_id,
         )
 
     async def _is_descendant(self, concept_id: UUID, potential_descendant_id: UUID) -> bool:
@@ -579,7 +569,6 @@ class ConceptService:
         concept_id: UUID,
         new_parent_id: UUID | None,
         previous_parent_id: UUID | None,
-        user_id: UUID | None = None,
     ) -> Concept:
         """Move a concept to a new parent (or to root if new_parent_id is None).
 
@@ -587,7 +576,6 @@ class ConceptService:
             concept_id: The concept being moved
             new_parent_id: The new parent (None = move to root)
             previous_parent_id: The parent to replace (None = add new parent without removing)
-            user_id: The ID of the user performing the move
 
         Raises:
             ConceptNotFoundError: If concept or parent doesn't exist
@@ -612,14 +600,14 @@ class ConceptService:
         # Remove previous parent relationship (if specified)
         if previous_parent_id is not None:
             try:
-                await self.remove_broader(concept_id, previous_parent_id, user_id=user_id)
+                await self.remove_broader(concept_id, previous_parent_id)
             except BroaderRelationshipNotFoundError:
                 pass  # Previous parent was already removed, continue
 
         # Add new parent relationship (if specified)
         if new_parent_id is not None:
             try:
-                await self.add_broader(concept_id, new_parent_id, user_id=user_id)
+                await self.add_broader(concept_id, new_parent_id)
             except BroaderRelationshipExistsError:
                 pass  # Already has this parent, that's fine
 
