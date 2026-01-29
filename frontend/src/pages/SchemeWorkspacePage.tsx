@@ -142,13 +142,6 @@ export function SchemeWorkspacePage({
   }
 
 
-  function handleEdit() {
-    if (selectedConcept.value) {
-      setEditingConcept(selectedConcept.value);
-      setIsFormOpen(true);
-    }
-  }
-
   async function handleDelete() {
     if (selectedConcept.value && schemeId) {
       try {
@@ -170,13 +163,6 @@ export function SchemeWorkspacePage({
     handleFormClose();
     if (schemeId) {
       await handleRefresh();
-      // Refresh selected concept if it was edited
-      if (selectedConceptId.value) {
-        const updated = await conceptsApi.get(selectedConceptId.value);
-        concepts.value = concepts.value.map((c) =>
-          c.id === updated.id ? updated : c
-        );
-      }
     }
   }
 
@@ -242,7 +228,6 @@ export function SchemeWorkspacePage({
       <div class="scheme-workspace__detail">
         {schemeId ? (
           <ConceptPane
-            onEdit={handleEdit}
             onDelete={handleDelete}
             onRefresh={handleRefresh}
           />
