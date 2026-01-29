@@ -1,0 +1,319 @@
+"""Tests for the CommentService."""
+
+from datetime import datetime
+from uuid import UUID
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from taxonomy_builder.models.comment import Comment
+from taxonomy_builder.models.concept import Concept
+from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.user import User
+from taxonomy_builder.schemas.comment import CommentCreate
+from taxonomy_builder.services.comment_service import (
+    CommentNotFoundError,
+    CommentService,
+    ConceptNotFoundError,
+    NotCommentOwnerError,
+)
+
+
+@pytest.fixture
+async def project(db_session: AsyncSession) -> Project:
+    """Create a project for testing."""
+    project = Project(name="Test Project")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.fixture
+async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+    """Create a concept scheme for testing."""
+    scheme = ConceptScheme(
+        project_id=project.id,
+        title="Test Scheme",
+        uri="http://example.org/concepts",
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+    await db_session.refresh(scheme)
+    return scheme
+
+
+@pytest.fixture
+async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
+    """Create a concept for testing."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test Concept",
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+    return concept
+
+
+@pytest.fixture
+async def user(db_session: AsyncSession) -> User:
+    """Create a user for testing."""
+    user = User(
+        keycloak_user_id="test-keycloak-id",
+        email="test@example.com",
+        display_name="Test User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def other_user(db_session: AsyncSession) -> User:
+    """Create another user for testing."""
+    user = User(
+        keycloak_user_id="other-keycloak-id",
+        email="other@example.com",
+        display_name="Other User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    return user
+
+
+# ============ List Comments Tests ============
+
+
+@pytest.mark.asyncio
+async def test_list_comments_empty(
+    db_session: AsyncSession, concept: Concept
+) -> None:
+    """Test listing comments when none exist."""
+    service = CommentService(db_session)
+    comments = await service.list_comments(concept.id)
+    assert comments == []
+
+
+@pytest.mark.asyncio
+async def test_list_comments(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test listing comments for a concept."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Test comment",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session)
+    comments = await service.list_comments(concept.id)
+
+    assert len(comments) == 1
+    assert comments[0].content == "Test comment"
+    assert comments[0].user.display_name == "Test User"
+
+
+@pytest.mark.asyncio
+async def test_list_comments_excludes_deleted(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test that soft-deleted comments are excluded."""
+    active_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Active comment",
+    )
+    deleted_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Deleted comment",
+        deleted_at=datetime.now(),
+    )
+    db_session.add_all([active_comment, deleted_comment])
+    await db_session.flush()
+
+    service = CommentService(db_session)
+    comments = await service.list_comments(concept.id)
+
+    assert len(comments) == 1
+    assert comments[0].content == "Active comment"
+
+
+@pytest.mark.asyncio
+async def test_list_comments_ordered_by_created_at(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test comments are ordered by created_at ascending (oldest first)."""
+    comment1 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First comment",
+    )
+    db_session.add(comment1)
+    await db_session.flush()
+
+    comment2 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Second comment",
+    )
+    db_session.add(comment2)
+    await db_session.flush()
+
+    service = CommentService(db_session)
+    comments = await service.list_comments(concept.id)
+
+    assert len(comments) == 2
+    assert comments[0].created_at <= comments[1].created_at
+    assert comments[0].content == "First comment"
+    assert comments[1].content == "Second comment"
+
+
+@pytest.mark.asyncio
+async def test_list_comments_concept_not_found(db_session: AsyncSession) -> None:
+    """Test listing comments for non-existent concept."""
+    fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
+    service = CommentService(db_session)
+
+    with pytest.raises(ConceptNotFoundError) as exc_info:
+        await service.list_comments(fake_id)
+
+    assert str(fake_id) in str(exc_info.value)
+
+
+# ============ Create Comment Tests ============
+
+
+@pytest.mark.asyncio
+async def test_create_comment(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test creating a comment."""
+    service = CommentService(db_session)
+    comment_in = CommentCreate(content="New comment")
+
+    comment = await service.create_comment(concept.id, user.id, comment_in)
+
+    assert comment.id is not None
+    assert isinstance(comment.id, UUID)
+    assert comment.concept_id == concept.id
+    assert comment.user_id == user.id
+    assert comment.content == "New comment"
+    assert comment.user.display_name == "Test User"
+    assert comment.created_at is not None
+    assert comment.deleted_at is None
+
+
+@pytest.mark.asyncio
+async def test_create_comment_concept_not_found(
+    db_session: AsyncSession, user: User
+) -> None:
+    """Test creating comment for non-existent concept."""
+    fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
+    service = CommentService(db_session)
+    comment_in = CommentCreate(content="Test comment")
+
+    with pytest.raises(ConceptNotFoundError):
+        await service.create_comment(fake_id, user.id, comment_in)
+
+
+# ============ Delete Comment Tests ============
+
+
+@pytest.mark.asyncio
+async def test_delete_comment(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test soft-deleting a comment."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="To delete",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+    comment_id = comment.id
+
+    service = CommentService(db_session)
+    await service.delete_comment(comment_id, user.id)
+
+    # Verify the comment has deleted_at set
+    await db_session.refresh(comment)
+    assert comment.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_removes_from_list(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test that deleted comment doesn't appear in list."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="To delete",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session)
+    await service.delete_comment(comment.id, user.id)
+
+    comments = await service.list_comments(concept.id)
+    assert len(comments) == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_not_owner(
+    db_session: AsyncSession, concept: Concept, user: User, other_user: User
+) -> None:
+    """Test that users cannot delete others' comments."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="User's comment",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session)
+
+    with pytest.raises(NotCommentOwnerError):
+        await service.delete_comment(comment.id, other_user.id)
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_not_found(
+    db_session: AsyncSession, user: User
+) -> None:
+    """Test deleting non-existent comment."""
+    fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
+    service = CommentService(db_session)
+
+    with pytest.raises(CommentNotFoundError):
+        await service.delete_comment(fake_id, user.id)
+
+
+@pytest.mark.asyncio
+async def test_delete_already_deleted_comment(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test that already deleted comment returns not found."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Already deleted",
+        deleted_at=datetime.now(),
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session)
+
+    with pytest.raises(CommentNotFoundError):
+        await service.delete_comment(comment.id, user.id)
