@@ -3,7 +3,7 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { schemesApi } from "../../api/schemes";
 import { ApiError } from "../../api/client";
-import { schemes } from "../../state/schemes";
+import { schemes, currentScheme } from "../../state/schemes";
 import type { ConceptScheme } from "../../types/models";
 import "./SchemeDetail.css";
 
@@ -116,6 +116,10 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
       schemes.value = schemes.value.map((s) =>
         s.id === scheme.id ? updatedScheme : s
       );
+      // Update currentScheme so TreePane header reflects the changes
+      if (currentScheme.value?.id === scheme.id) {
+        currentScheme.value = updatedScheme;
+      }
       setEditDraft(null);
       setIsEditing(false);
       onRefresh();
