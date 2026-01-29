@@ -1,5 +1,5 @@
 .scheme-detail {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
 }
 
 .scheme-detail__header {
@@ -29,6 +29,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  position: relative;
+}
+
+.scheme-detail__actions-bottom {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .scheme-detail__field {
@@ -70,22 +77,20 @@
   color: var(--color-border);
 }
 
-.scheme-detail--editing {
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-lg);
-  margin: var(--spacing-md) 0;
+.scheme-detail--editing .scheme-detail__header {
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
-.scheme-detail--editing .scheme-detail__header {
-  flex-direction: column;
-  align-items: stretch;
+.scheme-detail--editing .scheme-detail__header .scheme-detail__field {
+  flex: 1;
 }
 
 .scheme-detail--editing .scheme-detail__actions {
-  justify-content: flex-end;
-  padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--color-border-light);
+  margin-top: var(--spacing-xs);
 }
 
 .scheme-detail__error {

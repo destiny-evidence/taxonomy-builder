@@ -149,39 +149,33 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
 
   return (
     <div class={`scheme-detail ${isEditing ? "scheme-detail--editing" : ""}`}>
-      <div class="scheme-detail__header">
-        {isEditing && (
-          <div class="scheme-detail__field">
-            <Input
-              label="Title"
-              name="title"
-              value={displayValues.title}
-              onChange={(value) => updateDraft("title", value)}
-              required
-              error={validationErrors.title}
-            />
-          </div>
-        )}
-        <div class="scheme-detail__actions">
-          {!isEditing ? (
-            <Button variant="ghost" size="sm" onClick={handleEditClick}>
-              Edit
-            </Button>
-          ) : (
-            <>
+      {isEditing && (
+        <>
+          <div class="scheme-detail__header">
+            <div class="scheme-detail__field">
+              <Input
+                label="Title"
+                name="title"
+                value={displayValues.title}
+                onChange={(value) => updateDraft("title", value)}
+                required
+                error={validationErrors.title}
+              />
+            </div>
+            <div class="scheme-detail__actions">
               <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
                 Cancel
               </Button>
               <Button variant="primary" size="sm" onClick={handleSave} disabled={loading || hasValidationErrors}>
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {error && isEditing && (
-        <div class="scheme-detail__error">{error}</div>
+          {error && (
+            <div class="scheme-detail__error">{error}</div>
+          )}
+        </>
       )}
 
       <div class="scheme-detail__content">
@@ -250,6 +244,16 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
               <span class="scheme-detail__meta-item">
                 Updated {formatDate(scheme.updated_at)}
               </span>
+            </div>
+
+            <div class="scheme-detail__actions-bottom">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleEditClick}
+              >
+                Edit
+              </Button>
             </div>
           </>
         )}
