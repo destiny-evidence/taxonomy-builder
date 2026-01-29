@@ -20,6 +20,7 @@ vi.mock("../../../src/components/common/ConfirmDialog", () => ({
 
 const mockConcept: Concept = {
   id: "concept-1",
+  scheme_id: "scheme-1",
   pref_label: "Test Concept",
   identifier: "001",
   definition: "Test definition",
@@ -27,7 +28,6 @@ const mockConcept: Concept = {
   alt_labels: ["Alternative 1", "Alternative 2"],
   uri: "http://example.org/concepts/001",
   broader: [],
-  narrower: [],
   related: [],
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-02T00:00:00Z",

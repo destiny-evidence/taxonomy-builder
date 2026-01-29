@@ -27,7 +27,6 @@ const mockConcept: Concept = {
 };
 
 describe("ConceptPane", () => {
-  const mockOnEdit = vi.fn();
   const mockOnDelete = vi.fn();
   const mockOnRefresh = vi.fn();
 
@@ -40,7 +39,6 @@ describe("ConceptPane", () => {
   it("shows empty state when no concept is selected", () => {
     render(
       <ConceptPane
-        onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onRefresh={mockOnRefresh}
       />
@@ -56,7 +54,6 @@ describe("ConceptPane", () => {
 
     render(
       <ConceptPane
-        onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onRefresh={mockOnRefresh}
       />
