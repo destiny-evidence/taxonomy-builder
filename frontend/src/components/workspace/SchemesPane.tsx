@@ -1,4 +1,6 @@
+import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
+import { Input } from "../common/Input";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import "./SchemesPane.css";
@@ -9,6 +11,14 @@ interface SchemesPaneProps {
   onSchemeSelect: (schemeId: string) => void;
   onNewScheme: () => void;
   onImport: () => void;
+}
+
+interface EditDraft {
+  title: string;
+  uri: string;
+  description: string;
+  publisher: string;
+  version: string;
 }
 
 function formatDate(dateString: string): string {
@@ -34,6 +44,50 @@ export function SchemesPane({
   const selectedScheme = currentSchemeId
     ? schemes.value.find((s) => s.id === currentSchemeId)
     : null;
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Exit edit mode when scheme changes (user selected different scheme)
+  useEffect(() => {
+    setIsEditing(false);
+    setEditDraft(null);
+    setError(null);
+  }, [currentSchemeId]);
+
+  // Use draft values when editing, otherwise use scheme values
+  const displayValues = editDraft ?? (selectedScheme ? {
+    title: selectedScheme.title,
+    uri: selectedScheme.uri ?? "",
+    description: selectedScheme.description ?? "",
+    publisher: selectedScheme.publisher ?? "",
+    version: selectedScheme.version ?? "",
+  } : null);
+
+  function handleEditClick() {
+    if (!selectedScheme) return;
+    setEditDraft({
+      title: selectedScheme.title,
+      uri: selectedScheme.uri ?? "",
+      description: selectedScheme.description ?? "",
+      publisher: selectedScheme.publisher ?? "",
+      version: selectedScheme.version ?? "",
+    });
+    setIsEditing(true);
+  }
+
+  function handleCancel() {
+    setEditDraft(null);
+    setError(null);
+    setIsEditing(false);
+  }
+
+  function updateDraft(field: keyof EditDraft, value: string) {
+    if (!editDraft) return;
+    setEditDraft({ ...editDraft, [field]: value });
+  }
 
   return (
     <div class="schemes-pane">
@@ -63,12 +117,38 @@ export function SchemesPane({
           </div>
         )}
 
-        {selectedScheme && (
-          <div class="schemes-pane__detail">
+        {selectedScheme && displayValues && (
+          <div class={`schemes-pane__detail ${isEditing ? "schemes-pane__detail--editing" : ""}`}>
             <div class="schemes-pane__detail-header">
-              <h3 class="schemes-pane__detail-title" data-testid="scheme-detail-title">
-                {selectedScheme.title}
-              </h3>
+              {isEditing ? (
+                <Input
+                  label="Title"
+                  name="title"
+                  value={displayValues.title}
+                  onChange={(value) => updateDraft("title", value)}
+                  required
+                />
+              ) : (
+                <h3 class="schemes-pane__detail-title" data-testid="scheme-detail-title">
+                  {selectedScheme.title}
+                </h3>
+              )}
+              <div class="schemes-pane__detail-actions">
+                {isEditing ? (
+                  <>
+                    <Button variant="secondary" onClick={handleCancel}>
+                      Cancel
+                    </Button>
+                    <Button variant="primary" loading={loading}>
+                      Save
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="secondary" onClick={handleEditClick}>
+                    Edit
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div class="schemes-pane__detail-content">

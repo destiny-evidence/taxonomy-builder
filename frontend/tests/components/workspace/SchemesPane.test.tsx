@@ -237,4 +237,128 @@ describe("SchemesPane", () => {
       expect(screen.queryByTestId("scheme-detail-title")).not.toBeInTheDocument();
     });
   });
+
+  describe("Scheme editing", () => {
+    it("displays Edit button in read-only mode", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+    });
+
+    it("switches to edit mode when Edit button is clicked", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Should show Cancel and Save buttons instead of Edit
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+    });
+
+    it("shows title input field in edit mode", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      expect(titleInput).toBeInTheDocument();
+      expect(titleInput.tagName.toLowerCase()).toBe("input");
+    });
+
+    it("updates title in draft when input changes", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "Updated Animals" } });
+
+      expect(titleInput).toHaveValue("Updated Animals");
+    });
+
+    it("exits edit mode and discards changes when Cancel is clicked", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "Updated Animals" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+      // Should return to read-only mode with original value
+      expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+      expect(screen.getByTestId("scheme-detail-title")).toHaveTextContent("Animals");
+    });
+
+    it("exits edit mode when a different scheme is selected", () => {
+      const { rerender } = render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Select different scheme
+      rerender(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-2"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      // Should be back in read-only mode
+      expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /cancel/i })).not.toBeInTheDocument();
+    });
+  });
 });

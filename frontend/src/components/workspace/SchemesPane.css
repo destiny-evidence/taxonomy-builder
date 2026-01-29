@@ -154,3 +154,18 @@
   color: var(--color-text-muted);
   font-style: italic;
 }
+
+.schemes-pane__detail--editing {
+  background: var(--color-bg-tertiary);
+}
+
+.schemes-pane__detail--editing .schemes-pane__detail-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.schemes-pane__detail--editing .schemes-pane__detail-actions {
+  justify-content: flex-end;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border-light);
+}
