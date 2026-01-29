@@ -30,7 +30,7 @@ describe("SchemeDetail", () => {
   it("displays scheme details", () => {
     render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
 
-    expect(screen.getByText("Animals")).toBeInTheDocument();
+    // Title is not shown in read-only mode to avoid repetition (it's in TreePane header)
     expect(screen.getByText("http://example.org/animals")).toBeInTheDocument();
     expect(screen.getByText("Animal taxonomy")).toBeInTheDocument();
   });
@@ -108,7 +108,8 @@ describe("SchemeDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
 
     expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
-    expect(screen.getByText("Animals")).toBeInTheDocument();
+    // Verify we're back in read-only mode (URI field is visible)
+    expect(screen.getByText("http://example.org/animals")).toBeInTheDocument();
   });
 
   it("exits edit mode when scheme changes", () => {

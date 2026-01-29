@@ -150,9 +150,7 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
   return (
     <div class={`scheme-detail ${isEditing ? "scheme-detail--editing" : ""}`}>
       <div class="scheme-detail__header">
-        {!isEditing ? (
-          <h3 class="scheme-detail__title">{scheme.title}</h3>
-        ) : (
+        {isEditing && (
           <div class="scheme-detail__field">
             <Input
               label="Title"
