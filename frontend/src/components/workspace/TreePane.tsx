@@ -109,7 +109,7 @@ export function TreePane({
             size="sm"
             onClick={() => toggleSection("schemeDetails")}
           >
-            {expandedSection === "schemeDetails" ? "Hide Details" : "Edit Details"}
+            {expandedSection === "schemeDetails" ? "Hide Details" : "Show Details"}
           </Button>
           {onExport && (
             <Button variant="secondary" size="sm" onClick={onExport}>
