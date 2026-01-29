@@ -616,4 +616,88 @@ describe("SchemesPane", () => {
       expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
     });
   });
+
+  describe("Error handling", () => {
+    it("displays error message when save fails", async () => {
+      const errorMessage = "Network error occurred";
+      vi.mocked(schemesApi.update).mockRejectedValue(new Error(errorMessage));
+
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      });
+
+      // Should still be in edit mode
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it("clears error message on retry", async () => {
+      const errorMessage = "Network error occurred";
+      vi.mocked(schemesApi.update)
+        .mockRejectedValueOnce(new Error(errorMessage))
+        .mockResolvedValueOnce({ ...mockSchemes[0] });
+
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      });
+
+      // Retry save
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(screen.queryByText(errorMessage)).not.toBeInTheDocument();
+      });
+    });
+
+    it("allows editing after save failure", async () => {
+      vi.mocked(schemesApi.update).mockRejectedValue(new Error("Save failed"));
+
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/save failed/i)).toBeInTheDocument();
+      });
+
+      // Should still be able to edit fields
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "New Title" } });
+      expect(titleInput).toHaveValue("New Title");
+    });
+  });
 });
