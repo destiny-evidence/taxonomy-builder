@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/preact";
+import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { SchemesPane } from "../../../src/components/workspace/SchemesPane";
 import { currentProject } from "../../../src/state/projects";
 import { schemes } from "../../../src/state/schemes";
+import { schemesApi } from "../../../src/api/schemes";
 import type { Project, ConceptScheme } from "../../../src/types/models";
+
+vi.mock("../../../src/api/schemes");
 
 const mockProject: Project = {
   id: "proj-1",
@@ -359,6 +362,133 @@ describe("SchemesPane", () => {
       // Should be back in read-only mode
       expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /cancel/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Saving changes", () => {
+    beforeEach(() => {
+      vi.mocked(schemesApi.update).mockResolvedValue({
+        ...mockSchemes[0],
+        title: "Updated Title",
+      });
+    });
+
+    it("displays input fields for all editable properties", () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Should have inputs for all editable fields
+      expect(screen.getByDisplayValue("Animals")).toBeInTheDocument(); // title
+      expect(screen.getByDisplayValue("http://example.org/animals")).toBeInTheDocument(); // uri
+      expect(screen.getByDisplayValue("Animal taxonomy")).toBeInTheDocument(); // description
+      // publisher and version are null, so they should be empty inputs
+      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(5);
+    });
+
+    it("calls API with updated data when Save is clicked", async () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const titleInput = screen.getByDisplayValue("Animals");
+      fireEvent.input(titleInput, { target: { value: "Updated Animals" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(schemesApi.update).toHaveBeenCalledWith("scheme-1", {
+          title: "Updated Animals",
+          uri: "http://example.org/animals",
+          description: "Animal taxonomy",
+          publisher: null,
+          version: null,
+        });
+      });
+    });
+
+    it("exits edit mode after successful save", async () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+      });
+    });
+
+    it("updates schemes signal after successful save", async () => {
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      const initialSchemesCount = schemes.value.length;
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+      });
+
+      // schemes array should still have same count but updated data
+      expect(schemes.value.length).toBe(initialSchemesCount);
+    });
+
+    it("shows loading state on Save button while saving", async () => {
+      vi.mocked(schemesApi.update).mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 100))
+      );
+
+      render(
+        <SchemesPane
+          projectId="proj-1"
+          currentSchemeId="scheme-1"
+          onSchemeSelect={mockOnSchemeSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+      // Button should show loading text and be disabled
+      await waitFor(() => {
+        const saveButton = screen.getByRole("button", { name: /saving/i });
+        expect(saveButton).toBeDisabled();
+      });
     });
   });
 });

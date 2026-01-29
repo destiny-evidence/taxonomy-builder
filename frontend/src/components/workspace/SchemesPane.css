@@ -169,3 +169,13 @@
   padding-top: var(--spacing-sm);
   border-top: 1px solid var(--color-border-light);
 }
+
+.schemes-pane__detail-error {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-danger-light);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-sm);
+}

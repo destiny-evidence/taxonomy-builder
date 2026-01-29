@@ -3,6 +3,8 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
+import { schemesApi } from "../../api/schemes";
+import { ApiError } from "../../api/client";
 import "./SchemesPane.css";
 
 interface SchemesPaneProps {
@@ -84,6 +86,39 @@ export function SchemesPane({
     setIsEditing(false);
   }
 
+  async function handleSave() {
+    if (!editDraft || !selectedScheme) return;
+
+    setLoading(true);
+    setError(null);
+
+    const data = {
+      title: editDraft.title,
+      uri: editDraft.uri || null,
+      description: editDraft.description || null,
+      publisher: editDraft.publisher || null,
+      version: editDraft.version || null,
+    };
+
+    try {
+      const updatedScheme = await schemesApi.update(selectedScheme.id, data);
+      // Update the schemes signal with the updated scheme
+      schemes.value = schemes.value.map((s) =>
+        s.id === selectedScheme.id ? updatedScheme : s
+      );
+      setEditDraft(null);
+      setIsEditing(false);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function updateDraft(field: keyof EditDraft, value: string) {
     if (!editDraft) return;
     setEditDraft({ ...editDraft, [field]: value });
@@ -136,11 +171,11 @@ export function SchemesPane({
               <div class="schemes-pane__detail-actions">
                 {isEditing ? (
                   <>
-                    <Button variant="secondary" onClick={handleCancel}>
+                    <Button variant="secondary" onClick={handleCancel} disabled={loading}>
                       Cancel
                     </Button>
-                    <Button variant="primary" loading={loading}>
-                      Save
+                    <Button variant="primary" onClick={handleSave} disabled={loading}>
+                      {loading ? "Saving..." : "Save"}
                     </Button>
                   </>
                 ) : (
@@ -151,48 +186,89 @@ export function SchemesPane({
               </div>
             </div>
 
+            {error && isEditing && (
+              <div class="schemes-pane__detail-error">{error}</div>
+            )}
+
             <div class="schemes-pane__detail-content">
-              <div class="schemes-pane__detail-field">
-                <label class="schemes-pane__detail-label">URI</label>
-                <div class="schemes-pane__detail-value">
-                  {selectedScheme.uri || <span class="schemes-pane__detail-empty">Not set</span>}
-                </div>
-              </div>
+              {isEditing ? (
+                <>
+                  <Input
+                    label="URI"
+                    name="uri"
+                    type="url"
+                    value={displayValues.uri}
+                    onChange={(value) => updateDraft("uri", value)}
+                    placeholder="https://example.org/my-scheme"
+                  />
+                  <Input
+                    label="Description"
+                    name="description"
+                    value={displayValues.description}
+                    onChange={(value) => updateDraft("description", value)}
+                    placeholder="A description of this concept scheme"
+                    multiline
+                  />
+                  <Input
+                    label="Publisher"
+                    name="publisher"
+                    value={displayValues.publisher}
+                    onChange={(value) => updateDraft("publisher", value)}
+                    placeholder="Organization or person"
+                  />
+                  <Input
+                    label="Version"
+                    name="version"
+                    value={displayValues.version}
+                    onChange={(value) => updateDraft("version", value)}
+                    placeholder="e.g., 1.0.0"
+                  />
+                </>
+              ) : (
+                <>
+                  <div class="schemes-pane__detail-field">
+                    <label class="schemes-pane__detail-label">URI</label>
+                    <div class="schemes-pane__detail-value">
+                      {selectedScheme.uri || <span class="schemes-pane__detail-empty">Not set</span>}
+                    </div>
+                  </div>
 
-              <div class="schemes-pane__detail-field">
-                <label class="schemes-pane__detail-label">Description</label>
-                <div class="schemes-pane__detail-value">
-                  {selectedScheme.description || <span class="schemes-pane__detail-empty">Not set</span>}
-                </div>
-              </div>
+                  <div class="schemes-pane__detail-field">
+                    <label class="schemes-pane__detail-label">Description</label>
+                    <div class="schemes-pane__detail-value">
+                      {selectedScheme.description || <span class="schemes-pane__detail-empty">Not set</span>}
+                    </div>
+                  </div>
 
-              <div class="schemes-pane__detail-field">
-                <label class="schemes-pane__detail-label">Publisher</label>
-                <div class="schemes-pane__detail-value">
-                  {selectedScheme.publisher || <span class="schemes-pane__detail-empty">Not set</span>}
-                </div>
-              </div>
+                  <div class="schemes-pane__detail-field">
+                    <label class="schemes-pane__detail-label">Publisher</label>
+                    <div class="schemes-pane__detail-value">
+                      {selectedScheme.publisher || <span class="schemes-pane__detail-empty">Not set</span>}
+                    </div>
+                  </div>
 
-              <div class="schemes-pane__detail-field">
-                <label class="schemes-pane__detail-label">Version</label>
-                <div class="schemes-pane__detail-value">
-                  {selectedScheme.version || <span class="schemes-pane__detail-empty">Not set</span>}
-                </div>
-              </div>
+                  <div class="schemes-pane__detail-field">
+                    <label class="schemes-pane__detail-label">Version</label>
+                    <div class="schemes-pane__detail-value">
+                      {selectedScheme.version || <span class="schemes-pane__detail-empty">Not set</span>}
+                    </div>
+                  </div>
 
-              <div class="schemes-pane__detail-field">
-                <label class="schemes-pane__detail-label">Created</label>
-                <div class="schemes-pane__detail-value">
-                  {formatDate(selectedScheme.created_at)}
-                </div>
-              </div>
+                  <div class="schemes-pane__detail-field">
+                    <label class="schemes-pane__detail-label">Created</label>
+                    <div class="schemes-pane__detail-value">
+                      {formatDate(selectedScheme.created_at)}
+                    </div>
+                  </div>
 
-              <div class="schemes-pane__detail-field">
-                <label class="schemes-pane__detail-label">Updated</label>
-                <div class="schemes-pane__detail-value">
-                  {formatDate(selectedScheme.updated_at)}
-                </div>
-              </div>
+                  <div class="schemes-pane__detail-field">
+                    <label class="schemes-pane__detail-label">Updated</label>
+                    <div class="schemes-pane__detail-value">
+                      {formatDate(selectedScheme.updated_at)}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
