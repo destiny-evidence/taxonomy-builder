@@ -58,5 +58,5 @@ provider "keycloak" {
   client_id = "admin-cli"
   username  = "admin"
   password  = var.keycloak_admin_password
-  url       = "https://${var.custom_domain}"
+  url       = "https://${azurerm_container_app.keycloak.ingress[0].fqdn}"
 }
