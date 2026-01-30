@@ -1,7 +1,9 @@
 """FastAPI dependencies for authentication and authorization."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.user import User
 from taxonomy_builder.services.auth_service import AuthenticationError, AuthService
+
+if TYPE_CHECKING:
+    from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+    from taxonomy_builder.services.concept_service import ConceptService
+    from taxonomy_builder.services.skos_import_service import SKOSImportService
+    from taxonomy_builder.services.version_service import VersionService
 
 
 async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
@@ -92,3 +100,47 @@ async def get_optional_user(
 # Type alias for use in route function signatures
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
 OptionalUser = Annotated[AuthenticatedUser | None, Depends(get_optional_user)]
+
+
+# Service factory functions that inject user_id from the current user
+# These are used by routes that need to track changes with user attribution
+
+
+def get_concept_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> ConceptService:
+    """Dependency that provides a ConceptService with user context."""
+    from taxonomy_builder.services.concept_service import ConceptService
+
+    return ConceptService(db, user_id=current_user.user.id)
+
+
+def get_scheme_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> ConceptSchemeService:
+    """Dependency that provides a ConceptSchemeService with user context."""
+    from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+
+    return ConceptSchemeService(db, user_id=current_user.user.id)
+
+
+def get_version_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> VersionService:
+    """Dependency that provides a VersionService with user context."""
+    from taxonomy_builder.services.version_service import VersionService
+
+    return VersionService(db, user_id=current_user.user.id)
+
+
+def get_import_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> SKOSImportService:
+    """Dependency that provides a SKOSImportService with user context."""
+    from taxonomy_builder.services.skos_import_service import SKOSImportService
+
+    return SKOSImportService(db, user_id=current_user.user.id)

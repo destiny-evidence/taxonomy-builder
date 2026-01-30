@@ -35,9 +35,9 @@ class DuplicateVersionLabelError(Exception):
 class VersionService:
     """Service for publishing and managing versions of concept schemes."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
-        self._tracker = ChangeTracker(db)
+        self._tracker = ChangeTracker(db, user_id)
 
     async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
         """Get a scheme by ID or raise SchemeNotFoundError."""

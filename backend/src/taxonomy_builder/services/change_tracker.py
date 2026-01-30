@@ -12,8 +12,9 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 class ChangeTracker:
     """Service for recording change events to the audit log."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
+        self._user_id = user_id
 
     async def record(
         self,
@@ -23,7 +24,6 @@ class ChangeTracker:
         action: str,
         before: dict | None,
         after: dict | None,
-        user_id: UUID | None = None,
     ) -> ChangeEvent:
         """Record a change event.
 
@@ -34,7 +34,6 @@ class ChangeTracker:
             action: The action performed (create, update, delete)
             before: State before the change (None for create)
             after: State after the change (None for delete)
-            user_id: Optional user who made the change
 
         Returns:
             The created ChangeEvent
@@ -46,7 +45,7 @@ class ChangeTracker:
             action=action,
             before_state=before,
             after_state=after,
-            user_id=user_id,
+            user_id=self._user_id,
         )
         self.db.add(event)
         await self.db.flush()

@@ -5,9 +5,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.database import get_db
+from taxonomy_builder.api.dependencies import get_concept_service
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.schemas.concept import (
     ConceptCreate,
@@ -46,11 +45,6 @@ class AddRelatedRequest(BaseModel):
     """Request body for adding a related relationship."""
 
     related_concept_id: UUID
-
-
-def get_concept_service(db: AsyncSession = Depends(get_db)) -> ConceptService:
-    """Dependency that provides a ConceptService instance."""
-    return ConceptService(db)
 
 
 @scheme_concepts_router.get("/{scheme_id}/concepts", response_model=list[ConceptRead])

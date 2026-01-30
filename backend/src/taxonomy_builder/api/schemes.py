@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import get_scheme_service
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept_scheme import (
@@ -31,11 +32,6 @@ project_schemes_router = APIRouter(prefix="/api/projects", tags=["schemes"])
 
 # Router for direct scheme operations
 schemes_router = APIRouter(prefix="/api/schemes", tags=["schemes"])
-
-
-def get_scheme_service(db: AsyncSession = Depends(get_db)) -> ConceptSchemeService:
-    """Dependency that provides a ConceptSchemeService instance."""
-    return ConceptSchemeService(db)
 
 
 def get_export_service(db: AsyncSession = Depends(get_db)) -> SKOSExportService:

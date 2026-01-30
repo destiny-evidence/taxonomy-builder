@@ -55,9 +55,9 @@ FORMAT_MAP = {
 class SKOSImportService:
     """Service for importing SKOS RDF files into concept schemes."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
-        self._tracker = ChangeTracker(db)
+        self._tracker = ChangeTracker(db, user_id)
 
     def _detect_format(self, filename: str) -> str:
         """Detect RDF format from filename extension."""

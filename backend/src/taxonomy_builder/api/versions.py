@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import get_version_service
 from taxonomy_builder.database import get_db
 from taxonomy_builder.schemas.version import (
     PublishedVersionCreate,
@@ -55,10 +56,9 @@ router = APIRouter(prefix="/api", tags=["versions"])
 async def publish_version(
     scheme_id: UUID,
     version_in: PublishedVersionCreate,
-    db: AsyncSession = Depends(get_db),
+    service: VersionService = Depends(get_version_service),
 ) -> PublishedVersionRead:
     """Publish a new version of a scheme."""
-    service = VersionService(db)
     try:
         version = await service.publish_version(
             scheme_id=scheme_id,
@@ -77,10 +77,9 @@ async def publish_version(
 @router.get("/schemes/{scheme_id}/versions", response_model=list[PublishedVersionRead])
 async def list_versions(
     scheme_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    service: VersionService = Depends(get_version_service),
 ) -> list[PublishedVersionRead]:
     """List all published versions for a scheme."""
-    service = VersionService(db)
     versions = await service.list_versions(scheme_id=scheme_id)
     return [PublishedVersionRead.model_validate(v) for v in versions]
 
@@ -88,10 +87,9 @@ async def list_versions(
 @router.get("/versions/{version_id}", response_model=PublishedVersionRead)
 async def get_version(
     version_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    service: VersionService = Depends(get_version_service),
 ) -> PublishedVersionRead:
     """Get a specific published version."""
-    service = VersionService(db)
     version = await service.get_version(version_id=version_id)
     if version is None:
         raise HTTPException(status_code=404, detail="Version not found")
@@ -102,6 +100,7 @@ async def get_version(
 async def export_version(
     version_id: UUID,
     format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
+    service: VersionService = Depends(get_version_service),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Export a version's snapshot as SKOS RDF.
@@ -111,8 +110,7 @@ async def export_version(
     - xml: RDF/XML (widest compatibility)
     - jsonld: JSON-LD (web-friendly)
     """
-    version_service = VersionService(db)
-    version = await version_service.get_version(version_id=version_id)
+    version = await service.get_version(version_id=version_id)
     if version is None:
         raise HTTPException(status_code=404, detail="Version not found")
 

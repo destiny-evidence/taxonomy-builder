@@ -11,8 +11,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
+from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
 from taxonomy_builder.database import db_manager
 from taxonomy_builder.main import app
+from taxonomy_builder.models.user import User
 
 
 async def _clean_tables() -> None:
@@ -23,6 +25,21 @@ async def _clean_tables() -> None:
         await conn.execute(text("DELETE FROM concepts"))
         await conn.execute(text("DELETE FROM concept_schemes"))
         await conn.execute(text("DELETE FROM projects"))
+        await conn.execute(text("DELETE FROM users"))
+
+
+async def _create_integration_user() -> User:
+    """Create a user for integration tests using a real session."""
+    async with db_manager.session() as session:
+        user = User(
+            keycloak_user_id="integration-test-user",
+            email="integration@example.com",
+            display_name="Integration Test User",
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
 
 
 @pytest.fixture
@@ -35,11 +52,26 @@ async def integration_client() -> AsyncGenerator[AsyncClient, None]:
     # Clean any existing data before tests
     await _clean_tables()
 
+    # Create a test user for auth
+    integration_user = await _create_integration_user()
+
+    async def override_get_current_user() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            user=integration_user,
+            org_id="integration-test-org",
+            org_name="Integration Test Organization",
+            org_roles=["user"],
+        )
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as client:
         yield client
+
+    app.dependency_overrides.clear()
 
     # Clean up after tests
     await _clean_tables()

@@ -104,9 +104,9 @@ class RelatedSameSchemeError(Exception):
 class ConceptService:
     """Service for managing concepts."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
-        self._tracker = ChangeTracker(db)
+        self._tracker = ChangeTracker(db, user_id)
 
     async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
         """Get a scheme by ID or raise SchemeNotFoundError."""
@@ -134,7 +134,9 @@ class ConceptService:
         )
         return list(result.scalars().all())
 
-    async def create_concept(self, scheme_id: UUID, concept_in: ConceptCreate) -> Concept:
+    async def create_concept(
+        self, scheme_id: UUID, concept_in: ConceptCreate
+    ) -> Concept:
         """Create a new concept in a scheme."""
         await self._get_scheme(scheme_id)
 
@@ -179,7 +181,9 @@ class ConceptService:
             raise ConceptNotFoundError(concept_id)
         return concept
 
-    async def update_concept(self, concept_id: UUID, concept_in: ConceptUpdate) -> Concept:
+    async def update_concept(
+        self, concept_id: UUID, concept_in: ConceptUpdate
+    ) -> Concept:
         """Update an existing concept."""
         concept = await self.get_concept(concept_id)
 
@@ -316,7 +320,9 @@ class ConceptService:
             after=None,
         )
 
-    async def add_broader(self, concept_id: UUID, broader_concept_id: UUID) -> None:
+    async def add_broader(
+        self, concept_id: UUID, broader_concept_id: UUID
+    ) -> None:
         """Add a broader relationship."""
         # Verify both concepts exist
         concept = await self.get_concept(concept_id)
@@ -345,7 +351,9 @@ class ConceptService:
             ),
         )
 
-    async def remove_broader(self, concept_id: UUID, broader_concept_id: UUID) -> None:
+    async def remove_broader(
+        self, concept_id: UUID, broader_concept_id: UUID
+    ) -> None:
         """Remove a broader relationship."""
         concept = await self.get_concept(concept_id)
         broader_concept = await self.get_concept(broader_concept_id)
@@ -440,7 +448,9 @@ class ConceptService:
 
         return [build_tree_node(root) for root in roots]
 
-    async def add_related(self, concept_id: UUID, related_concept_id: UUID) -> None:
+    async def add_related(
+        self, concept_id: UUID, related_concept_id: UUID
+    ) -> None:
         """Add a related relationship between two concepts.
 
         The relationship is symmetric and stored with concept_id < related_concept_id.
@@ -484,7 +494,9 @@ class ConceptService:
             after=self._tracker.serialize_related(id1, id2, label1, label2),
         )
 
-    async def remove_related(self, concept_id: UUID, related_concept_id: UUID) -> None:
+    async def remove_related(
+        self, concept_id: UUID, related_concept_id: UUID
+    ) -> None:
         """Remove a related relationship between two concepts.
 
         Works regardless of which concept is passed first (symmetric).

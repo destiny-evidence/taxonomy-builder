@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.api.dependencies import CurrentUser, get_import_service
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
@@ -28,13 +29,9 @@ def get_project_service(db: AsyncSession = Depends(get_db)) -> ProjectService:
     return ProjectService(db)
 
 
-def get_import_service(db: AsyncSession = Depends(get_db)) -> SKOSImportService:
-    """Dependency that provides a SKOSImportService instance."""
-    return SKOSImportService(db)
-
-
 @router.get("", response_model=list[ProjectRead])
 async def list_projects(
+    current_user: CurrentUser,
     service: ProjectService = Depends(get_project_service),
 ) -> list[Project]:
     """List all projects."""
@@ -44,6 +41,7 @@ async def list_projects(
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_in: ProjectCreate,
+    current_user: CurrentUser,
     service: ProjectService = Depends(get_project_service),
 ) -> Project:
     """Create a new project."""
@@ -56,6 +54,7 @@ async def create_project(
 @router.get("/{project_id}", response_model=ProjectRead)
 async def get_project(
     project_id: UUID,
+    current_user: CurrentUser,
     service: ProjectService = Depends(get_project_service),
 ) -> Project:
     """Get a single project by ID."""
@@ -69,6 +68,7 @@ async def get_project(
 async def update_project(
     project_id: UUID,
     project_in: ProjectUpdate,
+    current_user: CurrentUser,
     service: ProjectService = Depends(get_project_service),
 ) -> Project:
     """Update an existing project."""
@@ -83,6 +83,7 @@ async def update_project(
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(
     project_id: UUID,
+    current_user: CurrentUser,
     service: ProjectService = Depends(get_project_service),
 ) -> None:
     """Delete a project."""
