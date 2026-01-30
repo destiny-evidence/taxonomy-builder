@@ -40,8 +40,9 @@ class NotCommentOwnerError(Exception):
 class CommentService:
     """Service for managing comments on concepts."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID) -> None:
         self.db = db
+        self.user_id = user_id
 
     async def _get_concept(self, concept_id: UUID) -> Concept:
         """Get a concept by ID or raise ConceptNotFoundError."""
@@ -80,14 +81,14 @@ class CommentService:
         return list(result.scalars().all())
 
     async def create_comment(
-        self, concept_id: UUID, user_id: UUID, comment_in: CommentCreate
+        self, concept_id: UUID, comment_in: CommentCreate
     ) -> Comment:
         """Create a new comment on a concept."""
         await self._get_concept(concept_id)
 
         comment = Comment(
             concept_id=concept_id,
-            user_id=user_id,
+            user_id=self.user_id,
             content=comment_in.content,
         )
         self.db.add(comment)
@@ -96,12 +97,12 @@ class CommentService:
         # Re-fetch with user relationship loaded
         return await self._get_comment(comment.id)
 
-    async def delete_comment(self, comment_id: UUID, user_id: UUID) -> None:
+    async def delete_comment(self, comment_id: UUID) -> None:
         """Soft-delete a comment (only if user owns it)."""
         comment = await self._get_comment(comment_id)
 
-        if comment.user_id != user_id:
-            raise NotCommentOwnerError(comment_id, user_id)
+        if comment.user_id != self.user_id:
+            raise NotCommentOwnerError(comment_id, self.user_id)
 
         comment.deleted_at = datetime.now()
         await self.db.flush()
