@@ -30,6 +30,11 @@ terraform {
       source  = "integrations/github"
       version = "~> 6.6"
     }
+
+    keycloak = {
+      source  = "keycloak/keycloak"
+      version = "~> 5.0"
+    }
   }
 }
 
@@ -47,4 +52,11 @@ provider "github" {
     installation_id = var.github_app_installation_id
     pem_file        = var.github_app_pem
   }
+}
+
+provider "keycloak" {
+  client_id = "admin-cli"
+  username  = "admin"
+  password  = var.keycloak_admin_password
+  url       = "https://${var.custom_domain}"
 }
