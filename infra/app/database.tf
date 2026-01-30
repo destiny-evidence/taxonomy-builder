@@ -3,6 +3,8 @@ locals {
   dev_db_storage_mb    = 32768
   prod_db_storage_tier = "P10"
   dev_db_storage_tier  = "P4"
+  keycloak_db_name     = "keycloak"
+  taxonomy_db_name     = "taxonomy_builder"
 }
 
 data "azuread_group" "db_crud_group" {
