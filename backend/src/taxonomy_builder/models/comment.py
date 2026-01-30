@@ -28,6 +28,9 @@ class Comment(Base):
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    parent_comment_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("comments.id", ondelete="CASCADE"), nullable=True
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(

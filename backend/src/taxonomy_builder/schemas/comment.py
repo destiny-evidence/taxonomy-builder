@@ -10,6 +10,7 @@ class CommentCreate(BaseModel):
     """Schema for creating a new comment."""
 
     content: str = Field(..., min_length=1, max_length=10000)
+    parent_comment_id: UUID | None = None
 
     @field_validator("content")
     @classmethod
@@ -38,6 +39,7 @@ class CommentRead(BaseModel):
     id: UUID
     concept_id: UUID
     user_id: UUID
+    parent_comment_id: UUID | None
     content: str
     created_at: datetime
     updated_at: datetime

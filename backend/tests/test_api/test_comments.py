@@ -336,3 +336,90 @@ async def test_delete_comment_requires_auth(
 
     response = await client.delete(f"/api/comments/{comment.id}")
     assert response.status_code == 401
+
+
+# ============ Comment Threading API Tests ============
+
+
+@pytest.mark.asyncio
+async def test_create_reply_to_comment(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test creating a reply to a top-level comment via API."""
+    # Create parent comment
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Parent comment",
+    )
+    db_session.add(parent)
+    await db_session.flush()
+
+    # Create reply via API
+    response = await auth_client.post(
+        f"/api/concepts/{concept.id}/comments",
+        json={"content": "Reply comment", "parent_comment_id": str(parent.id)},
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["content"] == "Reply comment"
+    assert data["parent_comment_id"] == str(parent.id)
+
+
+@pytest.mark.asyncio
+async def test_reject_nested_reply_via_api(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that API rejects replies to replies (no nesting)."""
+    # Create parent comment
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Parent comment",
+    )
+    db_session.add(parent)
+    await db_session.flush()
+
+    # Create first reply
+    first_reply = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First reply",
+        parent_comment_id=parent.id,
+    )
+    db_session.add(first_reply)
+    await db_session.flush()
+
+    # Try to create nested reply via API (should be rejected)
+    response = await auth_client.post(
+        f"/api/concepts/{concept.id}/comments",
+        json={
+            "content": "Nested reply",
+            "parent_comment_id": str(first_reply.id),
+        },
+    )
+
+    assert response.status_code == 409  # Conflict
+    assert "reply" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reject_invalid_parent_comment_id_via_api(
+    auth_client: AsyncClient, concept: Concept
+) -> None:
+    """Test that API rejects invalid parent_comment_id."""
+    fake_id = uuid4()
+    response = await auth_client.post(
+        f"/api/concepts/{concept.id}/comments",
+        json={"content": "Test reply", "parent_comment_id": str(fake_id)},
+    )
+
+    assert response.status_code == 409  # Conflict
+    assert "parent" in response.json()["detail"].lower()

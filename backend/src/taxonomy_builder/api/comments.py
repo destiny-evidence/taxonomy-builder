@@ -15,6 +15,7 @@ from taxonomy_builder.services.comment_service import (
     CommentNotFoundError,
     CommentService,
     ConceptNotFoundError,
+    InvalidParentCommentError,
     NotCommentOwnerError,
 )
 
@@ -48,6 +49,7 @@ async def list_comments(
                 "id": comment.id,
                 "concept_id": comment.concept_id,
                 "user_id": comment.user_id,
+                "parent_comment_id": comment.parent_comment_id,
                 "content": comment.content,
                 "created_at": comment.created_at,
                 "updated_at": comment.updated_at,
@@ -80,6 +82,7 @@ async def create_comment(
             "id": comment.id,
             "concept_id": comment.concept_id,
             "user_id": comment.user_id,
+            "parent_comment_id": comment.parent_comment_id,
             "content": comment.content,
             "created_at": comment.created_at,
             "updated_at": comment.updated_at,
@@ -91,6 +94,8 @@ async def create_comment(
         }
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidParentCommentError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @comments_router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
