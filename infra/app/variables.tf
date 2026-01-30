@@ -96,6 +96,18 @@ variable "keycloak_image_tag" {
   default     = "26"
 }
 
+variable "keycloak_realm_name" {
+  description = "Name of the Keycloak realm to create"
+  type        = string
+  default     = "taxonomy-builder"
+}
+
+variable "existing_keycloak_realm_id" {
+  description = "ID of an existing Keycloak realm to use instead of creating one"
+  type        = string
+  default     = null
+}
+
 # Azure AD
 variable "azure_tenant_id" {
   description = "Azure AD tenant ID"
