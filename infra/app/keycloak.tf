@@ -87,6 +87,10 @@ resource "keycloak_openid_client_default_scopes" "ui" {
     "openid",
     "profile",
     "email",
+    "basic",       # Contains sub claim mapper
+    "roles",       # Contains audience resolve mapper
+    "web-origins",
+    "acr",
     keycloak_openid_client_scope.api.name,
   ]
 }
