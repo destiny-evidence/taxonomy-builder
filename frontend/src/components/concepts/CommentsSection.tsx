@@ -113,27 +113,60 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
           {comments.length > 0 ? (
             <div class="comments-section__list">
               {comments.map((comment) => (
-                <div key={comment.id} class="comments-section__comment">
-                  <div class="comments-section__comment-header">
-                    <span class="comments-section__author">
-                      {comment.user.display_name}
-                    </span>
-                    <span class="comments-section__time">
-                      {formatRelativeTime(comment.created_at)}
-                    </span>
-                    {comment.can_delete && (
-                      <button
-                        class="comments-section__delete"
-                        onClick={() => handleDelete(comment.id)}
-                        disabled={loading}
-                        title="Delete comment"
-                        type="button"
-                      >
-                        &times;
-                      </button>
-                    )}
+                <div key={comment.id} class="comments-section__thread">
+                  {/* Top-level comment */}
+                  <div class="comments-section__comment">
+                    <div class="comments-section__comment-header">
+                      <span class="comments-section__author">
+                        {comment.user.display_name}
+                      </span>
+                      <span class="comments-section__time">
+                        {formatRelativeTime(comment.created_at)}
+                      </span>
+                      {comment.can_delete && (
+                        <button
+                          class="comments-section__delete"
+                          onClick={() => handleDelete(comment.id)}
+                          disabled={loading}
+                          title="Delete comment"
+                          type="button"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                    <p class="comments-section__comment-content">{comment.content}</p>
                   </div>
-                  <p class="comments-section__comment-content">{comment.content}</p>
+
+                  {/* Replies */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div class="comments-section__replies">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} class="comments-section__comment comments-section__reply">
+                          <div class="comments-section__comment-header">
+                            <span class="comments-section__author">
+                              {reply.user.display_name}
+                            </span>
+                            <span class="comments-section__time">
+                              {formatRelativeTime(reply.created_at)}
+                            </span>
+                            {reply.can_delete && (
+                              <button
+                                class="comments-section__delete"
+                                onClick={() => handleDelete(reply.id)}
+                                disabled={loading}
+                                title="Delete reply"
+                                type="button"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                          <p class="comments-section__comment-content">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

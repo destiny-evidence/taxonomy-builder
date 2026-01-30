@@ -56,10 +56,30 @@
   gap: var(--spacing-sm);
 }
 
+.comments-section__thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
 .comments-section__comment {
   padding: var(--spacing-sm);
   background: var(--color-bg-secondary);
   border-radius: var(--radius-md);
+}
+
+.comments-section__replies {
+  margin-left: 2rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.comments-section__reply {
+  background: var(--color-bg);
+  border-left: 3px solid var(--color-primary-subtle);
 }
 
 .comments-section__comment-header {
