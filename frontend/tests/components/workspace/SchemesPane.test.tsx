@@ -104,8 +104,8 @@ describe("SchemesPane", () => {
       />
     );
 
-    const animalsItem = screen.getByText("Animals").closest("button");
-    expect(animalsItem).toHaveClass("schemes-pane__item--selected");
+    const schemeList = screen.getByRole("button", { name: "Animals" });
+    expect(schemeList).toHaveClass("schemes-pane__item--selected");
   });
 
   it("calls onSchemeSelect when scheme is clicked", () => {
