@@ -45,16 +45,10 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
+  // Load comments on mount and when concept changes
   useEffect(() => {
-    if (isExpanded) {
-      loadComments();
-    }
-  }, [conceptId, isExpanded]);
-
-  // Reset expansion when concept changes
-  useEffect(() => {
+    loadComments();
     setIsExpanded(false);
-    setComments([]);
     setNewComment("");
     setError(null);
   }, [conceptId]);
