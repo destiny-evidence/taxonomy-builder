@@ -100,7 +100,7 @@ module "container_app_api" {
 
   secrets = [
     {
-      name  = "db-password"
+      name  = "db-password" # TODO: This should use managed auth.
       value = var.db_admin_password
     },
   ]
