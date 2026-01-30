@@ -27,7 +27,6 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: false
-          tags: taxonomy-builder-api:test
 
   build-frontend:
     runs-on: ubuntu-latest
