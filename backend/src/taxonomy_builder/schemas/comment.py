@@ -45,3 +45,4 @@ class CommentRead(BaseModel):
     updated_at: datetime
     user: CommentAuthor
     can_delete: bool = False  # Computed at API layer
+    replies: list["CommentRead"] = []  # Nested replies for threaded response

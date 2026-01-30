@@ -423,3 +423,189 @@ async def test_reject_invalid_parent_comment_id_via_api(
 
     assert response.status_code == 409  # Conflict
     assert "parent" in response.json()["detail"].lower()
+
+
+# ============ Threaded Response Structure Tests ============
+
+
+@pytest.mark.asyncio
+async def test_list_comments_returns_threaded_structure(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that list endpoint returns comments grouped by thread."""
+    # Create parent comment
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Parent comment",
+    )
+    db_session.add(parent)
+    await db_session.flush()
+
+    # Create two replies
+    reply1 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First reply",
+        parent_comment_id=parent.id,
+    )
+    reply2 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Second reply",
+        parent_comment_id=parent.id,
+    )
+    db_session.add_all([reply1, reply2])
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return only top-level comments
+    assert len(data) == 1
+    thread = data[0]
+    assert thread["content"] == "Parent comment"
+    assert thread["parent_comment_id"] is None
+
+    # Replies should be nested under parent
+    assert "replies" in thread
+    assert len(thread["replies"]) == 2
+    assert thread["replies"][0]["content"] == "First reply"
+    assert thread["replies"][0]["parent_comment_id"] == str(parent.id)
+    assert thread["replies"][1]["content"] == "Second reply"
+    assert thread["replies"][1]["parent_comment_id"] == str(parent.id)
+
+
+@pytest.mark.asyncio
+async def test_list_comments_empty_thread(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that top-level comments without replies still return correctly."""
+    # Create top-level comment with no replies
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Solo comment",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["content"] == "Solo comment"
+    assert "replies" in data[0]
+    assert data[0]["replies"] == []
+
+
+@pytest.mark.asyncio
+async def test_list_comments_thread_ordering(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that threads and replies are ordered by created_at."""
+    # Create first parent
+    parent1 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First parent",
+    )
+    db_session.add(parent1)
+    await db_session.flush()
+
+    # Create second parent
+    parent2 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Second parent",
+    )
+    db_session.add(parent2)
+    await db_session.flush()
+
+    # Add replies to first parent (in specific order)
+    reply1a = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First parent - reply A",
+        parent_comment_id=parent1.id,
+    )
+    db_session.add(reply1a)
+    await db_session.flush()
+
+    reply1b = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First parent - reply B",
+        parent_comment_id=parent1.id,
+    )
+    db_session.add(reply1b)
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Top-level comments ordered by created_at
+    assert len(data) == 2
+    assert data[0]["content"] == "First parent"
+    assert data[1]["content"] == "Second parent"
+
+    # Replies within thread ordered by created_at
+    assert len(data[0]["replies"]) == 2
+    assert data[0]["replies"][0]["content"] == "First parent - reply A"
+    assert data[0]["replies"][1]["content"] == "First parent - reply B"
+
+
+@pytest.mark.asyncio
+async def test_list_comments_multiple_threads(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test listing multiple threads with mixed replies."""
+    # Create three parent comments
+    parent1 = Comment(concept_id=concept.id, user_id=user.id, content="Parent 1")
+    parent2 = Comment(concept_id=concept.id, user_id=user.id, content="Parent 2")
+    parent3 = Comment(concept_id=concept.id, user_id=user.id, content="Parent 3")
+    db_session.add_all([parent1, parent2, parent3])
+    await db_session.flush()
+
+    # Add replies only to parent1 and parent3
+    reply1 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Reply to parent 1",
+        parent_comment_id=parent1.id,
+    )
+    reply3 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Reply to parent 3",
+        parent_comment_id=parent3.id,
+    )
+    db_session.add_all([reply1, reply3])
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 3
+    assert data[0]["content"] == "Parent 1"
+    assert len(data[0]["replies"]) == 1
+    assert data[1]["content"] == "Parent 2"
+    assert len(data[1]["replies"]) == 0
+    assert data[2]["content"] == "Parent 3"
+    assert len(data[2]["replies"]) == 1
