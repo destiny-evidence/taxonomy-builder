@@ -3,7 +3,8 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
+from sqlalchemy import text
 
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
 from taxonomy_builder.api.history import router as history_router
@@ -17,7 +18,7 @@ from taxonomy_builder.database import db_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup application resources."""
-    db_manager.init(settings.database_url)
+    db_manager.init(settings.effective_database_url)
     yield
     await db_manager.close()
 
@@ -38,7 +39,16 @@ app.include_router(history_router)
 app.include_router(versions_router)
 
 
-@app.get("/health")
-async def health_check() -> dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "healthy"}
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health_check() -> Response:
+    """Health check endpoint. Returns 200 if database is accessible."""
+    try:
+        async with db_manager.session() as session:
+            await session.execute(text("SELECT 1"))
+        return Response(
+            status_code=200, content='{"status": "healthy"}', media_type="application/json"
+        )
+    except Exception:
+        return Response(
+            status_code=503, content='{"status": "unhealthy"}', media_type="application/json"
+        )
