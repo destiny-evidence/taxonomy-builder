@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI, Response
 from sqlalchemy import text
 
+from taxonomy_builder.api.comments import comments_router, concept_comments_router
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
 from taxonomy_builder.api.history import router as history_router
 from taxonomy_builder.api.projects import router as projects_router
@@ -35,6 +36,8 @@ app.include_router(project_schemes_router)
 app.include_router(schemes_router)
 app.include_router(scheme_concepts_router)
 app.include_router(concepts_router)
+app.include_router(concept_comments_router)
+app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(versions_router)
 
