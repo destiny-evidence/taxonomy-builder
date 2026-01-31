@@ -60,6 +60,12 @@ export function ProjectList({ onEdit, onDeleted }: ProjectListProps) {
               {project.description && (
                 <p class="project-card__description">{project.description}</p>
               )}
+              {project.namespace && (
+                <p class="project-card__namespace">
+                  <span class="project-card__namespace-label">Namespace:</span>{" "}
+                  <code>{project.namespace}</code>
+                </p>
+              )}
             </div>
             <div class="project-card__actions">
               <Button

@@ -20,6 +20,7 @@ describe("ProjectForm", () => {
         id: "p-1",
         name: "Existing Project",
         description: "Some description",
+        namespace: null,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -34,6 +35,7 @@ describe("ProjectForm", () => {
         id: "p-1",
         name: "My Project",
         description: "Project description",
+        namespace: null,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -56,7 +58,7 @@ describe("ProjectForm", () => {
     it("enables submit when name has value", () => {
       render(<ProjectForm {...defaultProps} />);
 
-      const nameInput = screen.getByLabelText(/Name/);
+      const nameInput = screen.getByPlaceholderText("Enter project name");
       fireEvent.input(nameInput, { target: { value: "New Project" } });
 
       const submitButton = screen.getByText("Create Project");
@@ -66,7 +68,7 @@ describe("ProjectForm", () => {
     it("disables submit when name is only whitespace", () => {
       render(<ProjectForm {...defaultProps} />);
 
-      const nameInput = screen.getByLabelText(/Name/);
+      const nameInput = screen.getByPlaceholderText("Enter project name");
       fireEvent.input(nameInput, { target: { value: "   " } });
 
       const submitButton = screen.getByText("Create Project");
