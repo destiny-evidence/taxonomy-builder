@@ -18,6 +18,12 @@
   z-index: 100;
 }
 
+.app-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
 .app-header__logo {
   font-size: var(--font-size-lg);
   font-weight: 600;
