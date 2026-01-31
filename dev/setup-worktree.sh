@@ -31,8 +31,7 @@ BRANCH="$1"
 BASE_BRANCH="${2:-}"
 
 # Sanitize branch name for use in paths and database names (lowercase for PostgreSQL)
-SAFE_NAME="${BRANCH//[^a-zA-Z0-9-]/_}"
-SAFE_NAME="${SAFE_NAME,,}"
+SAFE_NAME=$(echo "${BRANCH//[^a-zA-Z0-9-]/_}" | tr '[:upper:]' '[:lower:]')
 WORKTREE_PATH="$(dirname "$REPO_ROOT")/taxonomy-${SAFE_NAME}"
 DB_NAME="taxonomy_builder_${SAFE_NAME//-/_}"
 
