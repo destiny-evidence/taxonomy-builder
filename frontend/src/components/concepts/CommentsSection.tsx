@@ -187,6 +187,9 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                       class="comments-section__reply-form"
                       onSubmit={(e) => handleReplySubmit(e, comment.id)}
                     >
+                      <div class="comments-section__reply-indicator">
+                        Replying in thread
+                      </div>
                       <textarea
                         class="comments-section__input"
                         value={replyContent}
@@ -194,6 +197,7 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                         placeholder="Write a reply..."
                         rows={2}
                         disabled={loading}
+                        autoFocus
                       />
                       <div class="comments-section__reply-actions">
                         <Button
@@ -252,23 +256,26 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
             <p class="comments-section__empty">No comments yet</p>
           )}
 
-          <form class="comments-section__form" onSubmit={handleSubmit}>
-            <textarea
-              class="comments-section__input"
-              value={newComment}
-              onInput={(e) => setNewComment((e.target as HTMLTextAreaElement).value)}
-              placeholder="Add a comment..."
-              rows={2}
-              disabled={loading}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={loading || !newComment.trim()}
-            >
-              {loading ? "Posting..." : "Post"}
-            </Button>
-          </form>
+          {/* Hide main comment form when replying */}
+          {!replyingTo && (
+            <form class="comments-section__form" onSubmit={handleSubmit}>
+              <textarea
+                class="comments-section__input"
+                value={newComment}
+                onInput={(e) => setNewComment((e.target as HTMLTextAreaElement).value)}
+                placeholder="Add a comment..."
+                rows={2}
+                disabled={loading}
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={loading || !newComment.trim()}
+              >
+                {loading ? "Posting..." : "Post"}
+              </Button>
+            </form>
+          )}
         </div>
       )}
     </div>

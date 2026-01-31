@@ -197,6 +197,13 @@
   gap: var(--spacing-xs);
 }
 
+.comments-section__reply-indicator {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  margin-bottom: var(--spacing-xs);
+}
+
 .comments-section__reply-actions {
   display: flex;
   gap: var(--spacing-xs);
