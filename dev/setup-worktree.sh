@@ -82,7 +82,7 @@ TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB
 CADDY_CONFIG="$REPO_ROOT/dev/caddy/sites/${SAFE_NAME}.caddy"
 echo "Creating Caddy config at $CADDY_CONFIG..."
 cat > "$CADDY_CONFIG" << EOF
-${SAFE_NAME}.localdev {
+http://${SAFE_NAME}.localdev {
 	reverse_proxy /api/* host.docker.internal:${BACKEND_PORT}
 	reverse_proxy host.docker.internal:${FRONTEND_PORT}
 }

@@ -10,7 +10,7 @@ import sites/*
 
 # Catch-all for any subdomain not explicitly configured
 # Routes to main worktree (default ports)
-*.localdev {
+http://*.localdev {
 	reverse_proxy /api/* host.docker.internal:8000
 	reverse_proxy host.docker.internal:3000
 }
