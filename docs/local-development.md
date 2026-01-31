@@ -91,6 +91,38 @@ VITE_API_BASE="http://localhost:8001/api" npm run dev -- --port 3001
 
 The UI includes a branch indicator in the header showing the current git branch name with a color unique to that branch. This helps identify which worktree/branch you're looking at when running multiple instances.
 
+### Reverse Proxy with DNS-based Routing (Optional)
+
+For a nicer experience, you can use a reverse proxy with hostname-based routing. This lets you access different worktrees via URLs like:
+- `http://main.127.0.0.1.nip.io` → main worktree
+- `http://feature-x.127.0.0.1.nip.io` → feature-x worktree
+
+This uses [nip.io](https://nip.io), a free wildcard DNS service where any `*.127.0.0.1.nip.io` subdomain resolves to `127.0.0.1` - no local DNS configuration needed.
+
+**Start the proxy:**
+```bash
+docker compose -f docker-compose.proxy.yml up -d
+```
+
+**Configure routes** in `Caddyfile`:
+```
+# Add a new block for each worktree
+feature-x.127.0.0.1.nip.io {
+    reverse_proxy /api/* host.docker.internal:8001
+    reverse_proxy host.docker.internal:3001
+}
+```
+
+After editing, reload Caddy:
+```bash
+docker compose -f docker-compose.proxy.yml restart
+```
+
+**Benefits:**
+- Each worktree gets its own URL (easier to identify in browser tabs)
+- No port numbers to remember
+- Cookies are isolated per subdomain (no session conflicts)
+
 ## Seed Data
 
 Populate your database with sample data for testing:

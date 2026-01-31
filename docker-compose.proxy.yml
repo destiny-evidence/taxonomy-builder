@@ -1,0 +1,20 @@
+# Reverse proxy for multi-worktree development
+#
+# Start with: docker compose -f docker-compose.proxy.yml up -d
+#
+# This runs Caddy as a reverse proxy, routing different hostnames
+# to different local ports where your worktrees are running.
+#
+# See Caddyfile for routing configuration.
+
+services:
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      # Allow Caddy to reach host machine's localhost
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

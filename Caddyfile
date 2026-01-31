@@ -1,0 +1,39 @@
+# Reverse Proxy for Multi-Worktree Development
+#
+# This Caddyfile routes requests based on hostname to different local ports.
+# Uses nip.io for wildcard DNS - any *.127.0.0.1.nip.io resolves to 127.0.0.1
+#
+# Usage:
+#   docker compose -f docker-compose.proxy.yml up -d
+#
+# Then access:
+#   http://main.127.0.0.1.nip.io      → localhost:3000 (main worktree)
+#   http://feature-x.127.0.0.1.nip.io → localhost:3001 (feature-x worktree)
+#
+# Add more entries below as needed for your worktrees.
+
+# Main worktree (default ports)
+main.127.0.0.1.nip.io {
+	reverse_proxy /api/* host.docker.internal:8000
+	reverse_proxy host.docker.internal:3000
+}
+
+# Example: feature branch on ports 3001/8001
+# Uncomment and rename as needed:
+#
+# feature-x.127.0.0.1.nip.io {
+# 	reverse_proxy /api/* host.docker.internal:8001
+# 	reverse_proxy host.docker.internal:3001
+# }
+#
+# feature-y.127.0.0.1.nip.io {
+# 	reverse_proxy /api/* host.docker.internal:8002
+# 	reverse_proxy host.docker.internal:3002
+# }
+
+# Catch-all for any other subdomain - routes to main by default
+# Useful if you just want to test with any random subdomain
+*.127.0.0.1.nip.io {
+	reverse_proxy /api/* host.docker.internal:8000
+	reverse_proxy host.docker.internal:3000
+}
