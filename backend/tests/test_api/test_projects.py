@@ -215,3 +215,43 @@ async def test_create_project_with_namespace_stored_in_db(
     get_response = await authenticated_client.get(f"/api/projects/{project_id}")
     assert get_response.status_code == 200
     assert get_response.json()["namespace"] == "https://example.org/vocab"
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_invalid_namespace(authenticated_client: AsyncClient) -> None:
+    """Test that creating a project with an invalid namespace URI fails."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Invalid Namespace Project",
+            "namespace": "not-a-valid-uri",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_malformed_namespace(authenticated_client: AsyncClient) -> None:
+    """Test that creating a project with a malformed namespace URI fails."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Malformed Namespace Project",
+            "namespace": "ht!tp://bad-url",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_http_namespace(authenticated_client: AsyncClient) -> None:
+    """Test that http:// namespaces are accepted (not just https://)."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "HTTP Namespace Project",
+            "namespace": "http://example.org/vocab",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["namespace"] == "http://example.org/vocab"

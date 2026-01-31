@@ -1,5 +1,6 @@
 """Pydantic schemas for Project."""
 
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -19,6 +20,20 @@ class ProjectCreate(BaseModel):
         """Strip whitespace from name."""
         return v.strip()
 
+    @field_validator("namespace")
+    @classmethod
+    def validate_namespace_uri(cls, v: str | None) -> str | None:
+        """Validate that namespace is a valid URI."""
+        if v is None:
+            return v
+
+        # Basic URI validation: must start with http:// or https://
+        uri_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
+        if not re.match(uri_pattern, v):
+            raise ValueError("namespace must be a valid HTTP or HTTPS URI")
+
+        return v
+
 
 class ProjectUpdate(BaseModel):
     """Schema for updating an existing project."""
@@ -33,6 +48,20 @@ class ProjectUpdate(BaseModel):
         """Strip whitespace from name if provided."""
         if v is not None:
             return v.strip()
+        return v
+
+    @field_validator("namespace")
+    @classmethod
+    def validate_namespace_uri(cls, v: str | None) -> str | None:
+        """Validate that namespace is a valid URI."""
+        if v is None:
+            return v
+
+        # Basic URI validation: must start with http:// or https://
+        uri_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
+        if not re.match(uri_pattern, v):
+            raise ValueError("namespace must be a valid HTTP or HTTPS URI")
+
         return v
 
 
