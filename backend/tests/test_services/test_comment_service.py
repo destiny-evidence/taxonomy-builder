@@ -320,3 +320,123 @@ async def test_delete_already_deleted_comment(
 
     with pytest.raises(CommentNotFoundError):
         await service.delete_comment(comment.id)
+
+
+# ============ Comment Threading Tests ============
+
+
+@pytest.mark.asyncio
+async def test_create_top_level_comment(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test creating a top-level comment with no parent."""
+    service = CommentService(db_session, user_id=user.id)
+    comment_in = CommentCreate(content="Top-level comment")
+
+    comment = await service.create_comment(concept.id, comment_in)
+
+    assert comment.parent_comment_id is None
+    assert comment.content == "Top-level comment"
+
+
+@pytest.mark.asyncio
+async def test_create_reply_to_top_level_comment(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test creating a reply to a top-level comment."""
+    # Create parent comment
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Parent comment",
+    )
+    db_session.add(parent)
+    await db_session.flush()
+
+    # Create reply
+    service = CommentService(db_session, user_id=user.id)
+    reply_in = CommentCreate(content="Reply comment", parent_comment_id=parent.id)
+
+    reply = await service.create_comment(concept.id, reply_in)
+
+    assert reply.parent_comment_id == parent.id
+    assert reply.content == "Reply comment"
+    assert reply.concept_id == concept.id
+
+
+@pytest.mark.asyncio
+async def test_reject_nested_reply(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test that replies to replies are rejected (no nesting)."""
+    # Create parent comment
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Parent comment",
+    )
+    db_session.add(parent)
+    await db_session.flush()
+
+    # Create first reply
+    first_reply = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First reply",
+        parent_comment_id=parent.id,
+    )
+    db_session.add(first_reply)
+    await db_session.flush()
+
+    # Try to create nested reply (should fail)
+    service = CommentService(db_session, user_id=user.id)
+    nested_reply_in = CommentCreate(
+        content="Nested reply", parent_comment_id=first_reply.id
+    )
+
+    from taxonomy_builder.services.comment_service import InvalidParentCommentError
+
+    with pytest.raises(InvalidParentCommentError) as exc_info:
+        await service.create_comment(concept.id, nested_reply_in)
+
+    assert "reply" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_reject_invalid_parent_comment_id(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test that invalid parent_comment_id is rejected."""
+    fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
+    service = CommentService(db_session, user_id=user.id)
+    comment_in = CommentCreate(content="Test reply", parent_comment_id=fake_id)
+
+    from taxonomy_builder.services.comment_service import InvalidParentCommentError
+
+    with pytest.raises(InvalidParentCommentError):
+        await service.create_comment(concept.id, comment_in)
+
+
+@pytest.mark.asyncio
+async def test_reject_deleted_parent_comment(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test that replies to deleted comments are rejected."""
+    # Create and delete parent comment
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Deleted parent",
+        deleted_at=datetime.now(),
+    )
+    db_session.add(parent)
+    await db_session.flush()
+
+    # Try to reply to deleted comment
+    service = CommentService(db_session, user_id=user.id)
+    reply_in = CommentCreate(content="Reply to deleted", parent_comment_id=parent.id)
+
+    from taxonomy_builder.services.comment_service import InvalidParentCommentError
+
+    with pytest.raises(InvalidParentCommentError):
+        await service.create_comment(concept.id, reply_in)

@@ -27,6 +27,8 @@ function formatRelativeTime(dateString: string): string {
 export function CommentsSection({ conceptId }: CommentsSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -91,6 +93,37 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
+  async function handleReplySubmit(e: Event, parentId: string) {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await commentsApi.create(conceptId, {
+        content: replyContent.trim(),
+        parent_comment_id: parentId,
+      });
+      setReplyContent("");
+      setReplyingTo(null);
+      await loadComments();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Failed to post reply");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleCancelReply() {
+    setReplyingTo(null);
+    setReplyContent("");
+  }
+
   return (
     <div class="comments-section">
       <button
@@ -113,27 +146,111 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
           {comments.length > 0 ? (
             <div class="comments-section__list">
               {comments.map((comment) => (
-                <div key={comment.id} class="comments-section__comment">
-                  <div class="comments-section__comment-header">
-                    <span class="comments-section__author">
-                      {comment.user.display_name}
-                    </span>
-                    <span class="comments-section__time">
-                      {formatRelativeTime(comment.created_at)}
-                    </span>
-                    {comment.can_delete && (
-                      <button
-                        class="comments-section__delete"
-                        onClick={() => handleDelete(comment.id)}
-                        disabled={loading}
-                        title="Delete comment"
-                        type="button"
-                      >
-                        &times;
-                      </button>
-                    )}
+                <div key={comment.id} class="comments-section__thread">
+                  {/* Top-level comment */}
+                  <div class="comments-section__comment">
+                    <div class="comments-section__comment-header">
+                      <span class="comments-section__author">
+                        {comment.user.display_name}
+                      </span>
+                      <span class="comments-section__time">
+                        {formatRelativeTime(comment.created_at)}
+                      </span>
+                      {comment.can_delete && (
+                        <button
+                          class="comments-section__delete"
+                          onClick={() => handleDelete(comment.id)}
+                          disabled={loading}
+                          title="Delete comment"
+                          type="button"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                    <p class="comments-section__comment-content">{comment.content}</p>
                   </div>
-                  <p class="comments-section__comment-content">{comment.content}</p>
+
+                  {/* Replies */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div class="comments-section__replies">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} class="comments-section__comment comments-section__reply">
+                          <div class="comments-section__comment-header">
+                            <span class="comments-section__author">
+                              {reply.user.display_name}
+                            </span>
+                            <span class="comments-section__time">
+                              {formatRelativeTime(reply.created_at)}
+                            </span>
+                            {reply.can_delete && (
+                              <button
+                                class="comments-section__delete"
+                                onClick={() => handleDelete(reply.id)}
+                                disabled={loading}
+                                title="Delete reply"
+                                type="button"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                          <p class="comments-section__comment-content">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline reply form */}
+                  {replyingTo === comment.id && (
+                    <form
+                      class="comments-section__reply-form"
+                      onSubmit={(e) => handleReplySubmit(e, comment.id)}
+                    >
+                      <div class="comments-section__reply-indicator">
+                        Replying in thread
+                      </div>
+                      <textarea
+                        class="comments-section__input"
+                        value={replyContent}
+                        onInput={(e) => setReplyContent((e.target as HTMLTextAreaElement).value)}
+                        placeholder="Write a reply..."
+                        rows={2}
+                        disabled={loading}
+                        autoFocus
+                      />
+                      <div class="comments-section__reply-actions">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={loading || !replyContent.trim()}
+                        >
+                          {loading ? "Posting..." : "Reply"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleCancelReply}
+                          disabled={loading}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Reply button - at bottom of thread */}
+                  {!replyingTo && (
+                    <button
+                      class="comments-section__reply-btn"
+                      onClick={() => setReplyingTo(comment.id)}
+                      disabled={loading}
+                      type="button"
+                    >
+                      Reply
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -141,23 +258,26 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
             <p class="comments-section__empty">No comments yet</p>
           )}
 
-          <form class="comments-section__form" onSubmit={handleSubmit}>
-            <textarea
-              class="comments-section__input"
-              value={newComment}
-              onInput={(e) => setNewComment((e.target as HTMLTextAreaElement).value)}
-              placeholder="Add a comment..."
-              rows={2}
-              disabled={loading}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={loading || !newComment.trim()}
-            >
-              {loading ? "Posting..." : "Post"}
-            </Button>
-          </form>
+          {/* Hide main comment form when replying */}
+          {!replyingTo && (
+            <form class="comments-section__form" onSubmit={handleSubmit}>
+              <textarea
+                class="comments-section__input"
+                value={newComment}
+                onInput={(e) => setNewComment((e.target as HTMLTextAreaElement).value)}
+                placeholder="Add a comment..."
+                rows={2}
+                disabled={loading}
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={loading || !newComment.trim()}
+              >
+                {loading ? "Posting..." : "Post"}
+              </Button>
+            </form>
+          )}
         </div>
       )}
     </div>

@@ -37,6 +37,13 @@ class NotCommentOwnerError(Exception):
         super().__init__("Cannot delete another user's comment")
 
 
+class InvalidParentCommentError(Exception):
+    """Raised when parent comment is invalid for threading."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
 class CommentService:
     """Service for managing comments on concepts."""
 
@@ -67,6 +74,28 @@ class CommentService:
             raise CommentNotFoundError(comment_id)
         return comment
 
+    async def _validate_parent_comment(self, parent_comment_id: UUID) -> Comment:
+        """Validate that parent comment exists and is a top-level comment.
+
+        Raises:
+            InvalidParentCommentError: If parent doesn't exist, is deleted, or is itself a reply.
+        """
+        # Fetch parent comment (will raise CommentNotFoundError if not found or deleted)
+        try:
+            parent = await self._get_comment(parent_comment_id)
+        except CommentNotFoundError:
+            raise InvalidParentCommentError(
+                f"Parent comment with id '{parent_comment_id}' not found or was deleted"
+            )
+
+        # Ensure parent is a top-level comment (no nested replies allowed)
+        if parent.parent_comment_id is not None:
+            raise InvalidParentCommentError(
+                "Cannot reply to a reply. Replies are only allowed on top-level comments."
+            )
+
+        return parent
+
     async def list_comments(self, concept_id: UUID) -> list[Comment]:
         """List all non-deleted comments for a concept, ordered by created_at."""
         await self._get_concept(concept_id)
@@ -86,10 +115,15 @@ class CommentService:
         """Create a new comment on a concept."""
         await self._get_concept(concept_id)
 
+        # Validate parent comment if provided
+        if comment_in.parent_comment_id is not None:
+            await self._validate_parent_comment(comment_in.parent_comment_id)
+
         comment = Comment(
             concept_id=concept_id,
             user_id=self.user_id,
             content=comment_in.content,
+            parent_comment_id=comment_in.parent_comment_id,
         )
         self.db.add(comment)
         await self.db.flush()

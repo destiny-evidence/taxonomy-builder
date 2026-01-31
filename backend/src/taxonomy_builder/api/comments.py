@@ -1,5 +1,6 @@
 """Comment API endpoints."""
 
+from collections import defaultdict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,6 +16,7 @@ from taxonomy_builder.services.comment_service import (
     CommentNotFoundError,
     CommentService,
     ConceptNotFoundError,
+    InvalidParentCommentError,
     NotCommentOwnerError,
 )
 
@@ -40,14 +42,17 @@ async def list_comments(
     concept_id: UUID,
     service: CommentService = Depends(get_comment_service),
 ) -> list[dict]:
-    """List all comments for a concept."""
+    """List all comments for a concept, grouped by thread."""
     try:
         comments = await service.list_comments(concept_id)
-        return [
-            {
+
+        # Helper function to format a comment
+        def format_comment(comment):
+            return {
                 "id": comment.id,
                 "concept_id": comment.concept_id,
                 "user_id": comment.user_id,
+                "parent_comment_id": comment.parent_comment_id,
                 "content": comment.content,
                 "created_at": comment.created_at,
                 "updated_at": comment.updated_at,
@@ -56,9 +61,30 @@ async def list_comments(
                     "display_name": comment.user.display_name,
                 },
                 "can_delete": comment.user_id == service.user_id,
+                "replies": [],
             }
-            for comment in comments
-        ]
+
+        # Separate top-level comments from replies
+        top_level = []
+        replies_by_parent = defaultdict(list)
+
+        for comment in comments:
+            if comment.parent_comment_id is None:
+                top_level.append(comment)
+            else:
+                replies_by_parent[comment.parent_comment_id].append(comment)
+
+        # Build threaded structure
+        threads = []
+        for parent in top_level:
+            parent_dict = format_comment(parent)
+            # Add replies to parent
+            parent_dict["replies"] = [
+                format_comment(reply) for reply in replies_by_parent[parent.id]
+            ]
+            threads.append(parent_dict)
+
+        return threads
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -80,6 +106,7 @@ async def create_comment(
             "id": comment.id,
             "concept_id": comment.concept_id,
             "user_id": comment.user_id,
+            "parent_comment_id": comment.parent_comment_id,
             "content": comment.content,
             "created_at": comment.created_at,
             "updated_at": comment.updated_at,
@@ -91,6 +118,8 @@ async def create_comment(
         }
     except ConceptNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidParentCommentError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @comments_router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
