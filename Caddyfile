@@ -3,10 +3,10 @@
 # This Caddyfile routes requests based on hostname to different local ports.
 # Requires local DNS (dnsmasq) to resolve *.localdev to 127.0.0.1
 #
-# Usage:
-#   docker compose -f docker-compose.proxy.yml up -d
+# Starts automatically with: docker compose up -d
+# Reload after changes with: docker compose restart proxy
 #
-# Then access:
+# Access:
 #   http://main.localdev      → localhost:3000 (main worktree)
 #   http://feature-x.localdev → localhost:3001 (feature-x worktree)
 #

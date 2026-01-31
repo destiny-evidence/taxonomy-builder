@@ -134,15 +134,9 @@ Verify it works:
 ping test.localdev  # Should resolve to 127.0.0.1
 ```
 
-#### 2. Start the reverse proxy
+#### 2. Configure routes
 
-```bash
-docker compose -f docker-compose.proxy.yml up -d
-```
-
-#### 3. Configure routes
-
-Edit `Caddyfile` to add entries for each worktree:
+The proxy starts automatically with `docker compose up -d`. Edit `Caddyfile` to add entries for each worktree:
 ```
 feature-x.localdev {
     reverse_proxy /api/* host.docker.internal:8001
@@ -152,7 +146,7 @@ feature-x.localdev {
 
 After editing, reload Caddy:
 ```bash
-docker compose -f docker-compose.proxy.yml restart
+docker compose restart proxy
 ```
 
 **Benefits:**
