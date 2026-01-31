@@ -172,20 +172,22 @@
 
 .comments-section__reply-btn {
   margin-top: var(--spacing-sm);
-  font-size: 0.875rem;
+  margin-left: var(--spacing-sm);
+  font-size: 0.8125rem;
   color: var(--color-text-muted);
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  padding: 0.375rem 0.5rem;
-  text-align: left;
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-sm);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
+  align-self: flex-start;
 }
 
 .comments-section__reply-btn:hover {
   color: var(--color-primary);
   background-color: var(--color-bg-secondary);
+  border-color: var(--color-primary);
 }
 
 .comments-section__reply-btn:disabled {

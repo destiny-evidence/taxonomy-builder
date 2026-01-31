@@ -169,17 +169,37 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                       )}
                     </div>
                     <p class="comments-section__comment-content">{comment.content}</p>
-
-                    {/* Reply button */}
-                    <button
-                      class="comments-section__reply-btn"
-                      onClick={() => setReplyingTo(comment.id)}
-                      disabled={loading}
-                      type="button"
-                    >
-                      Reply
-                    </button>
                   </div>
+
+                  {/* Replies */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div class="comments-section__replies">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} class="comments-section__comment comments-section__reply">
+                          <div class="comments-section__comment-header">
+                            <span class="comments-section__author">
+                              {reply.user.display_name}
+                            </span>
+                            <span class="comments-section__time">
+                              {formatRelativeTime(reply.created_at)}
+                            </span>
+                            {reply.can_delete && (
+                              <button
+                                class="comments-section__delete"
+                                onClick={() => handleDelete(reply.id)}
+                                disabled={loading}
+                                title="Delete reply"
+                                type="button"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                          <p class="comments-section__comment-content">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Inline reply form */}
                   {replyingTo === comment.id && (
@@ -220,34 +240,16 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                     </form>
                   )}
 
-                  {/* Replies */}
-                  {comment.replies && comment.replies.length > 0 && (
-                    <div class="comments-section__replies">
-                      {comment.replies.map((reply) => (
-                        <div key={reply.id} class="comments-section__comment comments-section__reply">
-                          <div class="comments-section__comment-header">
-                            <span class="comments-section__author">
-                              {reply.user.display_name}
-                            </span>
-                            <span class="comments-section__time">
-                              {formatRelativeTime(reply.created_at)}
-                            </span>
-                            {reply.can_delete && (
-                              <button
-                                class="comments-section__delete"
-                                onClick={() => handleDelete(reply.id)}
-                                disabled={loading}
-                                title="Delete reply"
-                                type="button"
-                              >
-                                &times;
-                              </button>
-                            )}
-                          </div>
-                          <p class="comments-section__comment-content">{reply.content}</p>
-                        </div>
-                      ))}
-                    </div>
+                  {/* Reply button - at bottom of thread */}
+                  {!replyingTo && (
+                    <button
+                      class="comments-section__reply-btn"
+                      onClick={() => setReplyingTo(comment.id)}
+                      disabled={loading}
+                      type="button"
+                    >
+                      Reply
+                    </button>
                   )}
                 </div>
               ))}
