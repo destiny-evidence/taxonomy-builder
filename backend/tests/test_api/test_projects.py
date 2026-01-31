@@ -176,3 +176,42 @@ async def test_delete_project_not_found(authenticated_client: AsyncClient) -> No
     """Test deleting a non-existent project returns 404."""
     response = await authenticated_client.delete("/api/projects/01234567-89ab-7def-8123-456789abcdef")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_namespace(authenticated_client: AsyncClient) -> None:
+    """Test creating a project with a namespace."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "ESEA Vocabulary",
+            "description": "Education vocabulary",
+            "namespace": "https://esea.org/vocab",
+        },
+    )
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["name"] == "ESEA Vocabulary"
+    assert data["namespace"] == "https://esea.org/vocab"
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_namespace_stored_in_db(
+    authenticated_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Test that namespace is persisted to database."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Test Project",
+            "namespace": "https://example.org/vocab",
+        },
+    )
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+
+    # Verify it's in the database
+    get_response = await authenticated_client.get(f"/api/projects/{project_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["namespace"] == "https://example.org/vocab"

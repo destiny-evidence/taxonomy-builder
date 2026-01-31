@@ -11,6 +11,7 @@ class ProjectCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
+    namespace: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -24,6 +25,7 @@ class ProjectUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
+    namespace: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -42,5 +44,6 @@ class ProjectRead(BaseModel):
     id: UUID
     name: str
     description: str | None
+    namespace: str | None
     created_at: datetime
     updated_at: datetime
