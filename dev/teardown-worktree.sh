@@ -42,8 +42,9 @@ if [ -z "$BRANCH" ]; then
     exit 1
 fi
 
-# Sanitize branch name
+# Sanitize branch name (lowercase for PostgreSQL)
 SAFE_NAME="${BRANCH//[^a-zA-Z0-9-]/_}"
+SAFE_NAME="${SAFE_NAME,,}"
 WORKTREE_PATH="$(dirname "$REPO_ROOT")/taxonomy-${SAFE_NAME}"
 DB_NAME="taxonomy_builder_${SAFE_NAME//-/_}"
 
