@@ -1,0 +1,9 @@
+# Worktree-specific Caddy configs go here
+# Files in this directory are gitignored (except this file)
+#
+# Example: feature-x.caddy
+#
+#   feature-x.localdev {
+#       reverse_proxy /api/* host.docker.internal:8001
+#       reverse_proxy host.docker.internal:3001
+#   }

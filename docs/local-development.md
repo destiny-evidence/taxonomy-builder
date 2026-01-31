@@ -25,79 +25,40 @@ The app will be available at http://localhost:3000.
 
 ## Working with Multiple Worktrees
 
-When working on multiple features in parallel, each worktree needs its own database and server ports to avoid conflicts.
+When working on multiple features in parallel, use the provided scripts to set up isolated environments for each branch.
 
-### Database Setup per Worktree
-
-Each worktree should use its own database. Create a unique database for each branch:
+### Quick Setup with Scripts
 
 ```bash
-# Connect to postgres and create a new database
-docker exec -it taxonomy-builder-postgres-1 psql -U taxonomy -d postgres
+# Set up a new worktree (creates worktree, database, Caddy config)
+./dev/setup-worktree.sh feature-x
 
-# In psql:
-CREATE DATABASE taxonomy_builder_feature_x;
-\q
+# Or create a new branch from main
+./dev/setup-worktree.sh feature-y main
+
+# Tear down when done
+./dev/teardown-worktree.sh feature-x
+./dev/teardown-worktree.sh feature-y --keep-db  # Keep the database
 ```
 
-Then set the database URL when running the backend:
-
-```bash
-# Option 1: Full URL
-TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder_feature_x" \
-  uv run alembic upgrade head
-
-TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder_feature_x" \
-  uv run uvicorn taxonomy_builder.main:app --reload --port 8001
-
-# Option 2: Using components
-TAXONOMY_DB_NAME=taxonomy_builder_feature_x \
-TAXONOMY_DB_HOST=localhost \
-TAXONOMY_DB_USER=taxonomy \
-TAXONOMY_DB_PASSWORD=taxonomy \
-  uv run uvicorn taxonomy_builder.main:app --reload --port 8001
-```
-
-### Port Assignment per Worktree
-
-Use different ports for each worktree:
-
-| Worktree | Backend Port | Frontend Port |
-|----------|--------------|---------------|
-| main     | 8000         | 3000          |
-| feature-1| 8001         | 3001          |
-| feature-2| 8002         | 3002          |
-
-Frontend:
-```bash
-npm run dev -- --port 3001
-```
-
-Backend:
-```bash
-uv run uvicorn taxonomy_builder.main:app --reload --port 8001
-```
-
-### Configuring Frontend to Use Different Backend
-
-When using non-default ports, configure the frontend's API proxy:
-
-```bash
-# Edit frontend/vite.config.ts temporarily, or use env var:
-VITE_API_BASE="http://localhost:8001/api" npm run dev -- --port 3001
-```
+The setup script will:
+1. Create a git worktree at `../taxonomy-<branch>`
+2. Create a dedicated database
+3. Run migrations and seed data
+4. Configure Caddy routing (if using DNS-based routing)
+5. Print the commands to start the backend and frontend
 
 ### Branch Indicator
 
 The UI includes a branch indicator in the header showing the current git branch name with a color unique to that branch. This helps identify which worktree/branch you're looking at when running multiple instances.
 
-### Reverse Proxy with DNS-based Routing (Optional)
+### DNS-based Routing (Recommended)
 
-For a nicer experience, you can use a reverse proxy with hostname-based routing. This lets you access different worktrees via URLs like:
+For the best experience, set up local DNS so each worktree gets its own URL:
 - `http://main.localdev` → main worktree
 - `http://feature-x.localdev` → feature-x worktree
 
-#### 1. Set up local DNS with dnsmasq
+#### One-time DNS Setup
 
 Configure dnsmasq to resolve `*.localdev` to `127.0.0.1`:
 
@@ -134,19 +95,9 @@ Verify it works:
 ping test.localdev  # Should resolve to 127.0.0.1
 ```
 
-#### 2. Configure routes
-
-The proxy starts automatically with `docker compose up -d`. Edit `Caddyfile` to add entries for each worktree:
-```
-feature-x.localdev {
-    reverse_proxy /api/* host.docker.internal:8001
-    reverse_proxy host.docker.internal:3001
-}
-```
-
-After editing, reload Caddy:
+The setup script automatically creates Caddy configs in `dev/caddy/sites/` (gitignored). To manually reload Caddy after editing configs:
 ```bash
-docker compose restart proxy
+docker compose exec proxy caddy reload -c /etc/caddy/Caddyfile
 ```
 
 **Benefits:**
@@ -154,6 +105,25 @@ docker compose restart proxy
 - No port numbers to remember
 - Cookies are isolated per subdomain (no session conflicts)
 - Works offline (no external DNS dependency)
+
+### Manual Setup (Alternative)
+
+If you prefer manual control, each worktree needs:
+- Its own database
+- Different ports for backend (8000+) and frontend (3000+)
+
+```bash
+# Create database
+docker exec taxonomy-builder-db-1 psql -U taxonomy -d postgres \
+  -c "CREATE DATABASE taxonomy_builder_feature_x;"
+
+# Run backend on custom port
+TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder_feature_x" \
+  uv run uvicorn taxonomy_builder.main:app --reload --port 8001
+
+# Run frontend on custom port
+npm run dev -- --port 3001
+```
 
 ## Seed Data
 
@@ -201,62 +171,24 @@ The seed data includes:
 | `VITE_KEYCLOAK_REALM` | Keycloak realm | `taxonomy-builder` |
 | `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `taxonomy-builder-app` |
 
-## Convenience Script
-
-For managing multiple worktrees, you might want to create a helper script. Here's an example:
-
-```bash
-#!/bin/bash
-# save as: scripts/dev.sh
-
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-HASH=$(echo "$BRANCH" | md5sum | cut -c1-4)
-PORT_OFFSET=$((16#$HASH % 100))
-
-BACKEND_PORT=$((8000 + PORT_OFFSET))
-FRONTEND_PORT=$((3000 + PORT_OFFSET))
-DB_NAME="taxonomy_builder_${BRANCH//[^a-zA-Z0-9]/_}"
-
-echo "Branch: $BRANCH"
-echo "Database: $DB_NAME"
-echo "Backend: http://localhost:$BACKEND_PORT"
-echo "Frontend: http://localhost:$FRONTEND_PORT"
-
-# Create database if needed
-docker exec taxonomy-builder-postgres-1 psql -U taxonomy -d postgres -c "CREATE DATABASE $DB_NAME;" 2>/dev/null || true
-
-# Run migrations
-TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB_NAME" \
-  uv run alembic upgrade head
-
-# Seed data
-TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB_NAME" \
-  uv run seed-db
-```
-
 ## Tips
 
 1. **Use tmux or a terminal multiplexer** to manage multiple terminal sessions per worktree.
 
-2. **Browser profiles** - Use different browser profiles or incognito windows for each worktree to avoid session/cookie conflicts.
+2. **Browser profiles** - With DNS-based routing, cookies are isolated per subdomain so this is less necessary. But different browser profiles can still help keep things organized.
 
-3. **Git worktree commands**:
+3. **Database cleanup** - List and clean up databases from old branches:
    ```bash
-   # Create a worktree for a feature branch
-   git worktree add ../taxonomy-feature-x feature-x
+   # List all taxonomy databases
+   docker exec taxonomy-builder-db-1 psql -U taxonomy -d postgres \
+     -c "SELECT datname FROM pg_database WHERE datname LIKE 'taxonomy_builder%';"
 
-   # List worktrees
-   git worktree list
-
-   # Remove a worktree
-   git worktree remove ../taxonomy-feature-x
+   # Drop unused database
+   docker exec taxonomy-builder-db-1 psql -U taxonomy -d postgres \
+     -c "DROP DATABASE taxonomy_builder_old_feature;"
    ```
 
-4. **Database cleanup** - Periodically clean up databases from old branches:
-   ```sql
-   -- List all taxonomy databases
-   SELECT datname FROM pg_database WHERE datname LIKE 'taxonomy_builder%';
-
-   -- Drop unused database
-   DROP DATABASE taxonomy_builder_old_feature;
+4. **List worktrees**:
+   ```bash
+   git worktree list
    ```

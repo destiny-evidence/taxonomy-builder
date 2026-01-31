@@ -41,7 +41,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./dev/caddy:/etc/caddy:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

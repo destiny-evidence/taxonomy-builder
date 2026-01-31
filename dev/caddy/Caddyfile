@@ -1,0 +1,16 @@
+# Reverse Proxy for Multi-Worktree Development
+#
+# Routes *.localdev hostnames to different local ports.
+# Requires dnsmasq configured to resolve *.localdev to 127.0.0.1
+#
+# Reload after changes: docker compose exec proxy caddy reload -c /etc/caddy/Caddyfile
+
+# Import all worktree-specific configs
+import sites/*
+
+# Catch-all for any subdomain not explicitly configured
+# Routes to main worktree (default ports)
+*.localdev {
+	reverse_proxy /api/* host.docker.internal:8000
+	reverse_proxy host.docker.internal:3000
+}
