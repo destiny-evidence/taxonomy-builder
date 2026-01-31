@@ -94,20 +94,57 @@ The UI includes a branch indicator in the header showing the current git branch 
 ### Reverse Proxy with DNS-based Routing (Optional)
 
 For a nicer experience, you can use a reverse proxy with hostname-based routing. This lets you access different worktrees via URLs like:
-- `http://main.127.0.0.1.nip.io` → main worktree
-- `http://feature-x.127.0.0.1.nip.io` → feature-x worktree
+- `http://main.localdev` → main worktree
+- `http://feature-x.localdev` → feature-x worktree
 
-This uses [nip.io](https://nip.io), a free wildcard DNS service where any `*.127.0.0.1.nip.io` subdomain resolves to `127.0.0.1` - no local DNS configuration needed.
+#### 1. Set up local DNS with dnsmasq
 
-**Start the proxy:**
+Configure dnsmasq to resolve `*.localdev` to `127.0.0.1`:
+
+**macOS (with Homebrew):**
+```bash
+brew install dnsmasq
+
+# Configure wildcard resolution
+echo "address=/localdev/127.0.0.1" >> $(brew --prefix)/etc/dnsmasq.conf
+
+# Start dnsmasq
+sudo brew services start dnsmasq
+
+# Tell macOS to use dnsmasq for .localdev
+sudo mkdir -p /etc/resolver
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/localdev
+```
+
+**Linux (systemd-resolved):**
+```bash
+# Add to /etc/systemd/resolved.conf.d/localdev.conf:
+[Resolve]
+DNS=127.0.0.1
+Domains=~localdev
+
+# Or use dnsmasq directly
+sudo apt install dnsmasq
+echo "address=/localdev/127.0.0.1" | sudo tee /etc/dnsmasq.d/localdev.conf
+sudo systemctl restart dnsmasq
+```
+
+Verify it works:
+```bash
+ping test.localdev  # Should resolve to 127.0.0.1
+```
+
+#### 2. Start the reverse proxy
+
 ```bash
 docker compose -f docker-compose.proxy.yml up -d
 ```
 
-**Configure routes** in `Caddyfile`:
+#### 3. Configure routes
+
+Edit `Caddyfile` to add entries for each worktree:
 ```
-# Add a new block for each worktree
-feature-x.127.0.0.1.nip.io {
+feature-x.localdev {
     reverse_proxy /api/* host.docker.internal:8001
     reverse_proxy host.docker.internal:3001
 }
@@ -122,6 +159,7 @@ docker compose -f docker-compose.proxy.yml restart
 - Each worktree gets its own URL (easier to identify in browser tabs)
 - No port numbers to remember
 - Cookies are isolated per subdomain (no session conflicts)
+- Works offline (no external DNS dependency)
 
 ## Seed Data
 
