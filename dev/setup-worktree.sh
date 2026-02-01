@@ -92,20 +92,89 @@ EOF
 echo "Reloading Caddy..."
 docker compose -f "$REPO_ROOT/docker-compose.yml" exec proxy caddy reload -c /etc/caddy/Caddyfile 2>/dev/null || echo "  Caddy not running (start with: docker compose up -d)"
 
+# 7. Create VS Code configuration
+VSCODE_DIR="$WORKTREE_PATH/.vscode"
+echo "Creating VS Code configuration..."
+mkdir -p "$VSCODE_DIR"
+
+cat > "$VSCODE_DIR/tasks.json" << EOF
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend",
+      "type": "shell",
+      "command": "uv run uvicorn taxonomy_builder.main:app --reload --port ${BACKEND_PORT}",
+      "options": {
+        "cwd": "\${workspaceFolder}/backend",
+        "env": {
+          "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "group": "dev",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Frontend",
+      "type": "shell",
+      "command": "npm run dev -- --port ${FRONTEND_PORT}",
+      "options": {
+        "cwd": "\${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "group": "dev",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Dev Servers",
+      "dependsOn": ["Backend", "Frontend"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
+EOF
+
+cat > "$VSCODE_DIR/launch.json" << EOF
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend (Debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["taxonomy_builder.main:app", "--reload", "--port", "${BACKEND_PORT}"],
+      "cwd": "\${workspaceFolder}/backend",
+      "env": {
+        "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}
+EOF
+
 echo ""
 echo "Worktree ready!"
 echo ""
-echo "To start development:"
-echo "  cd $WORKTREE_PATH"
+echo "Open in VS Code:"
+echo "  code $WORKTREE_PATH"
 echo ""
-echo "  # Terminal 1 - Backend"
-echo "  cd backend"
-echo "  TAXONOMY_DATABASE_URL=\"postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB_NAME\" \\"
-echo "    uv run uvicorn taxonomy_builder.main:app --reload --port $BACKEND_PORT"
+echo "Then run 'Tasks: Run Build Task' (Cmd+Shift+B) to start both servers."
 echo ""
-echo "  # Terminal 2 - Frontend"
-echo "  cd frontend"
-echo "  npm install"
-echo "  npm run dev -- --port $FRONTEND_PORT"
+echo "Or start manually:"
+echo "  Backend:  Cmd+Shift+P -> 'Tasks: Run Task' -> 'Backend'"
+echo "  Frontend: Cmd+Shift+P -> 'Tasks: Run Task' -> 'Frontend'"
 echo ""
-echo "Then visit: http://${SAFE_NAME}.localdev"
+echo "Visit: http://${SAFE_NAME}.localdev"
