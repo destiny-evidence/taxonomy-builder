@@ -6,6 +6,10 @@
 # Reload after changes: docker compose exec proxy caddy reload -c /etc/caddy/Caddyfile
 
 # Import all worktree-specific configs
+{
+	auto_https disable_redirects
+}
+
 import sites/*
 
 # Catch-all for any subdomain not explicitly configured
