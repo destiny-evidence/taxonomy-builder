@@ -1,0 +1,13 @@
+# Local development configuration
+# Copy this file to dev/config.local to customize your setup.
+# This file is sourced by dev/setup-worktree.sh and dev/teardown-worktree.sh.
+
+# Internal contributors: Set DEV_DOMAIN to enable subdomain routing with HTTPS
+# Requires dnsmasq configured to resolve *.fef.dev to 127.0.0.1
+# and 1Password CLI access for DNSimple API token.
+#
+# DEV_DOMAIN=fef.dev
+
+# External contributors: Leave DEV_DOMAIN unset (or empty) to use localhost ports.
+# Each worktree will be accessible at http://localhost:PORT where PORT is
+# determined by hashing the branch name.
