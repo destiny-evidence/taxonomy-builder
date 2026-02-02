@@ -14,6 +14,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Source local config if it exists (sets DEV_DOMAIN, etc.)
+if [ -f "$SCRIPT_DIR/config.local" ]; then
+    source "$SCRIPT_DIR/config.local"
+fi
+
 KEEP_DB=false
 BRANCH=""
 
@@ -56,9 +61,13 @@ if [ -f "$CADDY_CONFIG" ]; then
     echo "Removing Caddy config..."
     rm "$CADDY_CONFIG"
 
-    # Reload Caddy
+    # Reload Caddy (use both compose files if DEV_DOMAIN is set)
     echo "Reloading Caddy..."
-    docker compose -f "$REPO_ROOT/docker-compose.yml" exec proxy caddy reload -c /etc/caddy/Caddyfile 2>/dev/null || true
+    if [ -n "$DEV_DOMAIN" ]; then
+        docker compose -f "$REPO_ROOT/docker-compose.yml" -f "$REPO_ROOT/docker-compose.fef.yml" exec proxy caddy reload -c /etc/caddy/Caddyfile 2>/dev/null || true
+    else
+        docker compose -f "$REPO_ROOT/docker-compose.yml" exec proxy caddy reload -c /etc/caddy/Caddyfile 2>/dev/null || true
+    fi
 else
     echo "No Caddy config found at $CADDY_CONFIG"
 fi

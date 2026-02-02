@@ -5,8 +5,7 @@ set -e
 #
 # Usage: ./dev/setup-worktree.sh <branch-name> [base-branch]
 #
-# Environment:
-#   DEV_DOMAIN - Domain for Caddy routing (e.g., fef.dev). If not set, uses localhost ports.
+# Configuration: Copy dev/config.local.example to dev/config.local
 #
 # This script:
 #   1. Creates a git worktree in ../taxonomy-<branch-name>
@@ -22,7 +21,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# DEV_DOMAIN can be set to enable subdomain routing (e.g., fef.dev)
+# Source local config if it exists (sets DEV_DOMAIN, OP_SECRET_REF, etc.)
+if [ -f "$SCRIPT_DIR/config.local" ]; then
+    source "$SCRIPT_DIR/config.local"
+fi
+
+# DEV_DOMAIN enables subdomain routing (e.g., fef.dev)
 # If not set, worktrees are accessed via localhost:PORT
 DEV_DOMAIN="${DEV_DOMAIN:-}"
 
@@ -33,8 +37,7 @@ if [ -z "$1" ]; then
     echo "  $0 feature-x              # Create worktree for existing branch"
     echo "  $0 feature-y main         # Create new branch from main"
     echo ""
-    echo "Environment:"
-    echo "  DEV_DOMAIN=fef.dev $0 feature-x   # Use subdomain routing"
+    echo "Configuration: Copy dev/config.local.example to dev/config.local"
     exit 1
 fi
 
@@ -208,7 +211,4 @@ if [ -n "$DEV_DOMAIN" ]; then
     echo "Visit: https://${SAFE_NAME}.${DEV_DOMAIN}"
 else
     echo "Visit: http://localhost:${FRONTEND_PORT}"
-    echo ""
-    echo "Note: For subdomain routing, set DEV_DOMAIN (internal only):"
-    echo "  DEV_DOMAIN=fef.dev $0 $BRANCH"
 fi
