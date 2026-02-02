@@ -148,9 +148,19 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
       }
     },
     {
+      "label": "Frontend: Install",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "\${workspaceFolder}/frontend"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Frontend",
       "type": "shell",
       "command": "npm run dev -- --port ${FRONTEND_PORT}",
+      "dependsOn": ["Frontend: Install"],
       "options": {
         "cwd": "\${workspaceFolder}/frontend",
         "env": {
