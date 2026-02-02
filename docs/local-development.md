@@ -25,19 +25,24 @@ The app will be available at <http://localhost:3000>.
 
 ## Internal Setup (fef.dev)
 
-Internal contributors with 1Password access can use HTTPS with real certificates:
+Internal contributors with 1Password access can use HTTPS with real certificates.
+
+**One-time setup:**
 
 ```bash
-# Start with fef.dev domain and HTTPS
-./dev/start.sh
+cp dev/config.local.example dev/config.local
+# Edit dev/config.local and uncomment OP_SECRET_REF and DEV_DOMAIN
+```
 
-# Or manually:
-docker compose -f docker-compose.yml -f docker-compose.fef.yml up -d
+**Starting services:**
+
+```bash
+./dev/start.sh
 ```
 
 This requires:
 
-- 1Password CLI with access to the DNSimple API token
+- 1Password CLI (`op`) with access to the DNSimple API token
 
 ## Working with Multiple Worktrees
 
@@ -76,10 +81,10 @@ Each worktree runs on different ports. Access via `localhost:PORT`:
 
 ### Internal Contributors
 
-With `DEV_DOMAIN` set, each worktree gets its own subdomain:
+With `DEV_DOMAIN` configured in `dev/config.local`, each worktree gets its own subdomain:
 
 ```bash
-DEV_DOMAIN=fef.dev ./dev/setup-worktree.sh feature-x
+./dev/setup-worktree.sh feature-x
 # Output shows: Visit: https://feature-x.fef.dev
 ```
 
@@ -89,37 +94,7 @@ The UI includes a branch indicator in the header showing the current git branch 
 
 ## DNS Setup (Internal)
 
-Configure dnsmasq to resolve `*.fef.dev` to `127.0.0.1`:
-
-**macOS (with Homebrew):**
-
-```bash
-brew install dnsmasq
-
-# Configure wildcard resolution
-echo "address=/fef.dev/127.0.0.1" >> $(brew --prefix)/etc/dnsmasq.conf
-
-# Start dnsmasq
-sudo brew services start dnsmasq
-
-# Tell macOS to use dnsmasq for .fef.dev
-sudo mkdir -p /etc/resolver
-echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/fef.dev
-```
-
-**Linux (systemd-resolved):**
-
-```bash
-# Add to /etc/systemd/resolved.conf.d/fef.conf:
-[Resolve]
-DNS=127.0.0.1
-Domains=~fef.dev
-
-# Or use dnsmasq directly
-sudo apt install dnsmasq
-echo "address=/fef.dev/127.0.0.1" | sudo tee /etc/dnsmasq.d/fef.conf
-sudo systemctl restart dnsmasq
-```
+The `fef.dev` domain already resolves to `127.0.0.1` globally (no local DNS setup required).
 
 Verify it works:
 
@@ -174,11 +149,12 @@ The seed data includes:
 | `VITE_KEYCLOAK_REALM` | Keycloak realm | `taxonomy-builder` |
 | `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `taxonomy-builder-app` |
 
-### Scripts
+### Scripts (dev/config.local)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DEV_DOMAIN` | Domain for Caddy routing | (none - uses localhost ports) |
+| `OP_SECRET_REF` | 1Password reference for DNSimple API token | (none) |
+| `DEV_DOMAIN` | Domain for Caddy routing (e.g., `fef.dev`) | (none - uses localhost ports) |
 
 ## Tips
 

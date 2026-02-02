@@ -1,18 +1,27 @@
-# Reverse Proxy for Multi-Worktree Development (localhost mode)
+# Reverse Proxy for Multi-Worktree Development (fef.dev)
 #
-# Simple HTTP proxy for external contributors.
-# No DNS setup required - just use localhost:PORT directly.
-#
-# For internal fef.dev setup with HTTPS, use:
-#   docker compose -f docker-compose.yml -f docker-compose.fef.yml up
+# Routes *.fef.dev hostnames to different local ports.
+# Requires:
+#   - DNSIMPLE_KEY env var for ACME DNS challenges
+#   - dnsmasq configured to resolve *.fef.dev to 127.0.0.1
 #
 # Reload after changes: docker compose exec proxy caddy reload -c /etc/caddy/Caddyfile
+
+{
+	acme_dns dnsimple {env.DNSIMPLE_KEY}
+}
 
 # Import all worktree-specific configs
 import sites/*
 
-# Catch-all - routes to main worktree (default ports)
-http://:80 {
+# Keycloak behind HTTPS
+https://keycloak.fef.dev {
+	reverse_proxy keycloak:8080
+}
+
+# Catch-all for any subdomain not explicitly configured
+# Routes to main worktree (default ports)
+https://*.fef.dev {
 	reverse_proxy /api/* host.docker.internal:8000
 	reverse_proxy host.docker.internal:3000
 }
