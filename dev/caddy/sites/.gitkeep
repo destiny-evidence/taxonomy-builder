@@ -3,7 +3,7 @@
 #
 # Example: feature-x.caddy
 #
-#   http://feature-x.localdev {
+#   http://feature-x.fef.dev {
 #       reverse_proxy /api/* host.docker.internal:8001
 #       reverse_proxy host.docker.internal:3001
 #   }

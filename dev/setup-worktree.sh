@@ -9,11 +9,11 @@ set -e
 #   1. Creates a git worktree in ../taxonomy-<branch-name>
 #   2. Creates a dedicated database
 #   3. Runs migrations and seeds data
-#   4. Configures Caddy routing for <branch-name>.localdev
+#   4. Configures Caddy routing for <branch-name>.fef.dev
 #
 # Prerequisites:
 #   - docker compose up -d (database and proxy running)
-#   - dnsmasq configured to resolve *.localdev to 127.0.0.1
+#   - dnsmasq configured to resolve *.fef.dev to 127.0.0.1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -46,7 +46,7 @@ echo "  Worktree path: $WORKTREE_PATH"
 echo "  Database: $DB_NAME"
 echo "  Backend port: $BACKEND_PORT"
 echo "  Frontend port: $FRONTEND_PORT"
-echo "  URL: http://${SAFE_NAME}.localdev"
+echo "  URL: http://${SAFE_NAME}.fef.dev"
 echo ""
 
 # 1. Create worktree
@@ -82,7 +82,7 @@ TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB
 CADDY_CONFIG="$REPO_ROOT/dev/caddy/sites/${SAFE_NAME}.caddy"
 echo "Creating Caddy config at $CADDY_CONFIG..."
 cat > "$CADDY_CONFIG" << EOF
-http://${SAFE_NAME}.localdev {
+http://${SAFE_NAME}.fef.dev {
 	reverse_proxy /api/* host.docker.internal:${BACKEND_PORT}
 	reverse_proxy host.docker.internal:${FRONTEND_PORT}
 }
@@ -177,4 +177,4 @@ echo "Or start manually:"
 echo "  Backend:  Cmd+Shift+P -> 'Tasks: Run Task' -> 'Backend'"
 echo "  Frontend: Cmd+Shift+P -> 'Tasks: Run Task' -> 'Frontend'"
 echo ""
-echo "Visit: http://${SAFE_NAME}.localdev"
+echo "Visit: http://${SAFE_NAME}.fef.dev"

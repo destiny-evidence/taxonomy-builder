@@ -20,7 +20,7 @@ services:
   # Keycloak - OIDC identity provider
   keycloak:
     image: quay.io/keycloak/keycloak:latest
-    command: start-dev
+    command: start-dev --proxy-headers=xforwarded
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -35,14 +35,21 @@ services:
         condition: service_healthy
 
   # Reverse proxy for multi-worktree development
-  # Routes *.localdev hostnames to different local ports
-  # Requires dnsmasq configured to resolve *.localdev to 127.0.0.1
+  # Routes *.fef.dev hostnames to different local ports
+  # Requires dnsmasq configured to resolve *.fef.dev to 127.0.0.1
   proxy:
-    image: caddy:2-alpine
+    build: 
+      context: .
+      dockerfile: dev/Dockerfile.caddy
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      - DNSIMPLE_KEY
     volumes:
       - ./dev/caddy:/etc/caddy:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

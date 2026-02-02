@@ -1,20 +1,24 @@
 # Reverse Proxy for Multi-Worktree Development
 #
-# Routes *.localdev hostnames to different local ports.
-# Requires dnsmasq configured to resolve *.localdev to 127.0.0.1
+# Routes *.fef.dev hostnames to different local ports.
+# Requires dnsmasq configured to resolve *.fef.dev to 127.0.0.1
 #
 # Reload after changes: docker compose exec proxy caddy reload -c /etc/caddy/Caddyfile
 
 # Import all worktree-specific configs
 {
 	auto_https disable_redirects
+	acme_dns dnsimple {env.DNSIMPLE_KEY}
 }
 
 import sites/*
 
+https://keycloak.fef.dev {
+	reverse_proxy keycloak:8080
+}
 # Catch-all for any subdomain not explicitly configured
 # Routes to main worktree (default ports)
-http://*.localdev {
+https://*.fef.dev {
 	reverse_proxy /api/* host.docker.internal:8000
 	reverse_proxy host.docker.internal:3000
 }
