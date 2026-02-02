@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-The app will be available at http://localhost:3000.
+The app will be available at <http://localhost:3000>.
 
 ## Internal Setup (fef.dev)
 
@@ -36,8 +36,8 @@ docker compose -f docker-compose.yml -f docker-compose.fef.yml up -d
 ```
 
 This requires:
+
 - 1Password CLI with access to the DNSimple API token
-- dnsmasq configured to resolve `*.fef.dev` to `127.0.0.1`
 
 ## Working with Multiple Worktrees
 
@@ -58,6 +58,7 @@ When working on multiple features in parallel, use the provided scripts to set u
 ```
 
 The setup script will:
+
 1. Create a git worktree at `../taxonomy-<branch>`
 2. Create a dedicated database
 3. Run migrations and seed data
@@ -91,6 +92,7 @@ The UI includes a branch indicator in the header showing the current git branch 
 Configure dnsmasq to resolve `*.fef.dev` to `127.0.0.1`:
 
 **macOS (with Homebrew):**
+
 ```bash
 brew install dnsmasq
 
@@ -106,6 +108,7 @@ echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/fef.dev
 ```
 
 **Linux (systemd-resolved):**
+
 ```bash
 # Add to /etc/systemd/resolved.conf.d/fef.conf:
 [Resolve]
@@ -119,6 +122,7 @@ sudo systemctl restart dnsmasq
 ```
 
 Verify it works:
+
 ```bash
 ping test.fef.dev  # Should resolve to 127.0.0.1
 ```
@@ -139,6 +143,7 @@ TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/tax
 ```
 
 The seed data includes:
+
 - **Evidence Synthesis Taxonomy** project with:
   - Study Design Types scheme (hierarchical concepts like RCTs, Systematic Reviews)
   - Risk of Bias Domains scheme
@@ -180,6 +185,7 @@ The seed data includes:
 1. **Use VS Code tasks** - The setup script creates `.vscode/tasks.json` with pre-configured tasks. Press `Cmd+Shift+B` to start both servers.
 
 2. **Database cleanup** - List and clean up databases from old branches:
+
    ```bash
    # List all taxonomy databases
    docker exec taxonomy-builder-db-1 psql -U taxonomy -d postgres \
@@ -191,6 +197,7 @@ The seed data includes:
    ```
 
 3. **List worktrees**:
+
    ```bash
    git worktree list
    ```
