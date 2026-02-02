@@ -52,11 +52,19 @@ PORT_OFFSET=$((16#$HASH % 100))
 BACKEND_PORT=$((8000 + PORT_OFFSET))
 FRONTEND_PORT=$((3000 + PORT_OFFSET))
 
+# Set Keycloak URL based on DEV_DOMAIN
+if [ -n "$DEV_DOMAIN" ]; then
+    KEYCLOAK_URL="https://keycloak.${DEV_DOMAIN}"
+else
+    KEYCLOAK_URL="http://localhost:8080"
+fi
+
 echo "Setting up worktree for branch: $BRANCH"
 echo "  Worktree path: $WORKTREE_PATH"
 echo "  Database: $DB_NAME"
 echo "  Backend port: $BACKEND_PORT"
 echo "  Frontend port: $FRONTEND_PORT"
+echo "  Keycloak: $KEYCLOAK_URL"
 if [ -n "$DEV_DOMAIN" ]; then
     echo "  URL: https://${SAFE_NAME}.${DEV_DOMAIN}"
 else
@@ -125,7 +133,8 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
       "options": {
         "cwd": "\${workspaceFolder}/backend",
         "env": {
-          "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}"
+          "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}",
+          "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}"
         }
       },
       "isBackground": true,
@@ -140,7 +149,11 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
       "type": "shell",
       "command": "npm run dev -- --port ${FRONTEND_PORT}",
       "options": {
-        "cwd": "\${workspaceFolder}/frontend"
+        "cwd": "\${workspaceFolder}/frontend",
+        "env": {
+          "VITE_KEYCLOAK_URL": "${KEYCLOAK_URL}",
+          "VITE_API_TARGET": "http://localhost:${BACKEND_PORT}"
+        }
       },
       "isBackground": true,
       "problemMatcher": [],
@@ -174,7 +187,8 @@ cat > "$VSCODE_DIR/launch.json" << EOF
       "args": ["taxonomy_builder.main:app", "--reload", "--port", "${BACKEND_PORT}"],
       "cwd": "\${workspaceFolder}/backend",
       "env": {
-        "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}"
+        "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}",
+        "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}"
       },
       "console": "integratedTerminal"
     }
