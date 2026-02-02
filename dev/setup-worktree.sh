@@ -5,18 +5,26 @@ set -e
 #
 # Usage: ./dev/setup-worktree.sh <branch-name> [base-branch]
 #
+# Environment:
+#   DEV_DOMAIN - Domain for Caddy routing (e.g., fef.dev). If not set, uses localhost ports.
+#
 # This script:
 #   1. Creates a git worktree in ../taxonomy-<branch-name>
 #   2. Creates a dedicated database
 #   3. Runs migrations and seeds data
-#   4. Configures Caddy routing for <branch-name>.fef.dev
+#   4. Configures Caddy routing (if DEV_DOMAIN is set)
+#   5. Creates VS Code tasks/launch configs
 #
 # Prerequisites:
-#   - docker compose up -d (database and proxy running)
-#   - dnsmasq configured to resolve *.fef.dev to 127.0.0.1
+#   - docker compose up -d (database running)
+#   - If using DEV_DOMAIN: dnsmasq configured to resolve *.$DEV_DOMAIN to 127.0.0.1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# DEV_DOMAIN can be set to enable subdomain routing (e.g., fef.dev)
+# If not set, worktrees are accessed via localhost:PORT
+DEV_DOMAIN="${DEV_DOMAIN:-}"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <branch-name> [base-branch]"
@@ -24,6 +32,9 @@ if [ -z "$1" ]; then
     echo "Examples:"
     echo "  $0 feature-x              # Create worktree for existing branch"
     echo "  $0 feature-y main         # Create new branch from main"
+    echo ""
+    echo "Environment:"
+    echo "  DEV_DOMAIN=fef.dev $0 feature-x   # Use subdomain routing"
     exit 1
 fi
 
@@ -46,7 +57,11 @@ echo "  Worktree path: $WORKTREE_PATH"
 echo "  Database: $DB_NAME"
 echo "  Backend port: $BACKEND_PORT"
 echo "  Frontend port: $FRONTEND_PORT"
-echo "  URL: http://${SAFE_NAME}.fef.dev"
+if [ -n "$DEV_DOMAIN" ]; then
+    echo "  URL: https://${SAFE_NAME}.${DEV_DOMAIN}"
+else
+    echo "  URL: http://localhost:${FRONTEND_PORT}"
+fi
 echo ""
 
 # 1. Create worktree
@@ -78,19 +93,21 @@ echo "Seeding database..."
 TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB_NAME" \
     uv run seed-db
 
-# 5. Create Caddy config
-CADDY_CONFIG="$REPO_ROOT/dev/caddy/sites/${SAFE_NAME}.caddy"
-echo "Creating Caddy config at $CADDY_CONFIG..."
-cat > "$CADDY_CONFIG" << EOF
-http://${SAFE_NAME}.fef.dev {
+# 5. Create Caddy config (only if DEV_DOMAIN is set)
+if [ -n "$DEV_DOMAIN" ]; then
+    CADDY_CONFIG="$REPO_ROOT/dev/caddy/sites/${SAFE_NAME}.caddy"
+    echo "Creating Caddy config at $CADDY_CONFIG..."
+    cat > "$CADDY_CONFIG" << EOF
+https://${SAFE_NAME}.${DEV_DOMAIN} {
 	reverse_proxy /api/* host.docker.internal:${BACKEND_PORT}
 	reverse_proxy host.docker.internal:${FRONTEND_PORT}
 }
 EOF
 
-# 6. Reload Caddy
-echo "Reloading Caddy..."
-docker compose -f "$REPO_ROOT/docker-compose.yml" exec proxy caddy reload -c /etc/caddy/Caddyfile 2>/dev/null || echo "  Caddy not running (start with: docker compose up -d)"
+    # 6. Reload Caddy
+    echo "Reloading Caddy..."
+    docker compose -f "$REPO_ROOT/docker-compose.yml" -f "$REPO_ROOT/docker-compose.fef.yml" exec proxy caddy reload -c /etc/caddy/Caddyfile 2>/dev/null || echo "  Caddy not running"
+fi
 
 # 7. Create VS Code configuration
 VSCODE_DIR="$WORKTREE_PATH/.vscode"
@@ -173,8 +190,11 @@ echo "  code $WORKTREE_PATH"
 echo ""
 echo "Then run 'Tasks: Run Build Task' (Cmd+Shift+B) to start both servers."
 echo ""
-echo "Or start manually:"
-echo "  Backend:  Cmd+Shift+P -> 'Tasks: Run Task' -> 'Backend'"
-echo "  Frontend: Cmd+Shift+P -> 'Tasks: Run Task' -> 'Frontend'"
-echo ""
-echo "Visit: http://${SAFE_NAME}.fef.dev"
+if [ -n "$DEV_DOMAIN" ]; then
+    echo "Visit: https://${SAFE_NAME}.${DEV_DOMAIN}"
+else
+    echo "Visit: http://localhost:${FRONTEND_PORT}"
+    echo ""
+    echo "Note: For subdomain routing, set DEV_DOMAIN (internal only):"
+    echo "  DEV_DOMAIN=fef.dev $0 $BRANCH"
+fi

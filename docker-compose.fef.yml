@@ -1,0 +1,25 @@
+# Override for internal fef.dev development
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.fef.yml up
+#
+# Requires:
+#   - DNSIMPLE_KEY environment variable (from 1password)
+#   - dnsmasq configured to resolve *.fef.dev to 127.0.0.1
+
+services:
+  keycloak:
+    command: start-dev --proxy-headers=xforwarded
+
+  proxy:
+    build:
+      context: .
+      dockerfile: dev/Dockerfile.caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DNSIMPLE_KEY
+    volumes:
+      - ./dev/caddy-fef:/etc/caddy:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro

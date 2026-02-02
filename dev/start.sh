@@ -21,4 +21,4 @@ echo "1Password access verified. Starting docker-compose..."
 
 # Run docker-compose with DNSIMPLE_KEY injected from 1Password
 cd "$(dirname "$0")/.."
-DNSIMPLE_KEY="$OP_SECRET_REF" op run -- docker compose up -d "$@"
+DNSIMPLE_KEY="$OP_SECRET_REF" op run -- docker compose -f docker-compose.yml -f docker-compose.fef.yml up -d "$@"
