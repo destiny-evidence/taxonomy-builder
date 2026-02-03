@@ -67,9 +67,9 @@ class ProjectService:
 
         if project_in.name is not None:
             project.name = project_in.name
-        if project_in.description is not None:
+        if "description" in project_in.model_fields_set:
             project.description = project_in.description
-        if project_in.namespace is not None:
+        if "namespace" in project_in.model_fields_set:
             project.namespace = project_in.namespace
 
         try:

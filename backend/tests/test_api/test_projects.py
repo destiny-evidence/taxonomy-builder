@@ -309,3 +309,21 @@ async def test_update_project_invalid_namespace(authenticated_client: AsyncClien
         json={"namespace": "not-a-valid-uri"},
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_project_clear_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+    """Test removing a namespace from a project."""
+    # Create project with namespace
+    project = Project(name="Has Namespace", namespace="https://example.org/vocab")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    # Clear namespace by setting to null
+    response = await authenticated_client.put(
+        f"/api/projects/{project.id}",
+        json={"namespace": None},
+    )
+    assert response.status_code == 200
+    assert response.json()["namespace"] is None
