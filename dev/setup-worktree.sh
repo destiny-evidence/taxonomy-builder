@@ -55,6 +55,47 @@ PORT_OFFSET=$((16#$HASH % 100))
 BACKEND_PORT=$((8000 + PORT_OFFSET))
 FRONTEND_PORT=$((3000 + PORT_OFFSET))
 
+# Compute branch color from hash (hue 0-360)
+# Use different hash digits to avoid correlation with port offset
+HUE_HASH=$(echo "$BRANCH" | md5sum | cut -c5-8)
+BRANCH_HUE=$((16#$HUE_HASH % 360))
+# HSL color string for CSS (saturation 70%, lightness 45%)
+BRANCH_COLOR="hsl(${BRANCH_HUE}, 70%, 45%)"
+
+# Convert HSL to hex for Peacock (S=0.7, L=0.45)
+hsl_to_hex() {
+    local h=$1 s=0.7 l=0.45
+
+    # Normalize h to 0-1 range
+    local h_norm=$(echo "scale=6; $h / 360" | bc)
+
+    # Calculate chroma
+    local c=$(echo "scale=6; (1 - sqrt((2*$l - 1)^2)) * $s" | bc)
+    local x=$(echo "scale=6; h_mod = $h_norm * 6; sector = h_mod - (h_mod / 1) * 1; $c * (1 - sqrt((sector - 1)^2))" | bc 2>/dev/null || echo "0")
+    local m=$(echo "scale=6; $l - $c / 2" | bc)
+
+    # Simplified: use awk for the full conversion
+    echo "$h" | awk -v s=0.7 -v l=0.45 '
+    function hue2rgb(p, q, t) {
+        if (t < 0) t += 1
+        if (t > 1) t -= 1
+        if (t < 1/6) return p + (q - p) * 6 * t
+        if (t < 1/2) return q
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+        return p
+    }
+    {
+        h = $1 / 360
+        q = l < 0.5 ? l * (1 + s) : l + s - l * s
+        p = 2 * l - q
+        r = hue2rgb(p, q, h + 1/3)
+        g = hue2rgb(p, q, h)
+        b = hue2rgb(p, q, h - 1/3)
+        printf "#%02x%02x%02x", int(r * 255), int(g * 255), int(b * 255)
+    }'
+}
+BRANCH_HEX=$(hsl_to_hex $BRANCH_HUE)
+
 # Set Keycloak URL based on DEV_DOMAIN
 if [ -n "$DEV_DOMAIN" ]; then
     KEYCLOAK_URL="https://keycloak.${DEV_DOMAIN}"
@@ -68,6 +109,7 @@ echo "  Database: $DB_NAME"
 echo "  Backend port: $BACKEND_PORT"
 echo "  Frontend port: $FRONTEND_PORT"
 echo "  Keycloak: $KEYCLOAK_URL"
+echo "  Branch color: $BRANCH_HEX"
 if [ -n "$DEV_DOMAIN" ]; then
     echo "  URL: https://${SAFE_NAME}.${DEV_DOMAIN}"
 else
@@ -125,6 +167,12 @@ VSCODE_DIR="$WORKTREE_PATH/.vscode"
 echo "Creating VS Code configuration..."
 mkdir -p "$VSCODE_DIR"
 
+cat > "$VSCODE_DIR/settings.json" << EOF
+{
+  "peacock.color": "${BRANCH_HEX}"
+}
+EOF
+
 cat > "$VSCODE_DIR/tasks.json" << EOF
 {
   "version": "2.0.0",
@@ -165,7 +213,9 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
         "cwd": "\${workspaceFolder}/frontend",
         "env": {
           "VITE_KEYCLOAK_URL": "${KEYCLOAK_URL}",
-          "VITE_API_TARGET": "http://localhost:${BACKEND_PORT}"
+          "VITE_API_TARGET": "http://localhost:${BACKEND_PORT}",
+          "VITE_BRANCH_NAME": "${BRANCH}",
+          "VITE_BRANCH_COLOR": "${BRANCH_COLOR}"
         }
       },
       "isBackground": true,

@@ -1,49 +1,18 @@
-import { useEffect, useState } from "preact/hooks";
-import { API_BASE } from "../../config";
 import "./BranchIndicator.css";
 
-interface DevInfo {
-  branch: string | null;
-  commit: string | null;
-}
-
-/**
- * Generate a consistent HSL color from a string.
- * Uses a simple hash function to get a hue value.
- */
-function stringToColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  // Use hash to get a hue (0-360), keep saturation and lightness for good visibility
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 70%, 45%)`;
-}
+// Branch info is set at build/dev time via environment variables
+// configured by the worktree setup script
+const BRANCH_NAME = import.meta.env.VITE_BRANCH_NAME as string | undefined;
+const BRANCH_COLOR = import.meta.env.VITE_BRANCH_COLOR as string | undefined;
 
 export function BranchIndicator() {
-  const [devInfo, setDevInfo] = useState<DevInfo | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/dev/info`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch dev info");
-        return res.json();
-      })
-      .then(setDevInfo)
-      .catch(() => setError(true));
-  }, []);
-
-  // Don't render anything in production or if there's an error
-  if (error || !devInfo?.branch) {
+  // Don't render anything if branch info is not set
+  if (!BRANCH_NAME) {
     return null;
   }
 
-  const branchColor = stringToColor(devInfo.branch);
-
   return (
-    <div class="branch-indicator" style={{ "--branch-color": branchColor }}>
+    <div class="branch-indicator" style={{ "--branch-color": BRANCH_COLOR }}>
       <span class="branch-indicator__icon">
         <svg
           width="14"
@@ -58,10 +27,7 @@ export function BranchIndicator() {
           />
         </svg>
       </span>
-      <span class="branch-indicator__name">{devInfo.branch}</span>
-      {devInfo.commit && (
-        <span class="branch-indicator__commit">{devInfo.commit}</span>
-      )}
+      <span class="branch-indicator__name">{BRANCH_NAME}</span>
     </div>
   );
 }

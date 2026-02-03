@@ -1,6 +1,5 @@
 """FastAPI application entry point."""
 
-import subprocess
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
@@ -56,48 +55,3 @@ async def health_check() -> Response:
         return Response(
             status_code=503, content='{"status": "unhealthy"}', media_type="application/json"
         )
-
-
-def _get_git_branch() -> str | None:
-    """Get the current git branch name."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return None
-
-
-def _get_git_commit() -> str | None:
-    """Get the current git commit hash (short)."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return None
-
-
-@app.get("/api/dev/info")
-async def dev_info() -> dict:
-    """Development info endpoint. Returns git branch and other dev info.
-
-    This endpoint is intended for local development to help identify
-    which worktree/branch you're looking at.
-    """
-    return {
-        "branch": _get_git_branch(),
-        "commit": _get_git_commit(),
-    }
