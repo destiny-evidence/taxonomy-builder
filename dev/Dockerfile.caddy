@@ -1,0 +1,12 @@
+FROM caddy:builder AS builder
+
+# Set Go environment variables to fetch dependencies directly
+ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.io
+ENV GOSUMDB=off
+
+RUN xcaddy build master --with github.com/caddy-dns/dnsimple
+
+FROM caddy:latest
+
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy

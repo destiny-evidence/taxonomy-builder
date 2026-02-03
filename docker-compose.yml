@@ -1,3 +1,4 @@
+name: taxonomy-builder
 services:
   db:
     image: postgres:17

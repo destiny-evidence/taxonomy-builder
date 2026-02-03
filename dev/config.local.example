@@ -1,0 +1,20 @@
+# Local development configuration
+# Copy this file to dev/config.local to customize your setup.
+# This file is sourced by dev scripts (start.sh, setup-worktree.sh, teardown-worktree.sh).
+
+# =============================================================================
+# Internal contributors (with 1Password access)
+# =============================================================================
+
+# 1Password secret reference for DNSimple API token (required for HTTPS certs)
+# OP_SECRET_REF="op://Evidence Data Platforms/DNSimple API Token/password"
+
+# Domain for subdomain routing with HTTPS (requires OP_SECRET_REF)
+# DEV_DOMAIN=fef.dev
+
+# =============================================================================
+# External contributors
+# =============================================================================
+# Leave both variables commented out to use localhost mode.
+# Each worktree will be accessible at http://localhost:PORT where PORT is
+# determined by hashing the branch name.

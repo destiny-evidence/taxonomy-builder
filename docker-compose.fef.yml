@@ -1,0 +1,28 @@
+# Override for internal fef.dev development with HTTPS
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.fef.yml up
+#
+# Requires:
+#   - DNSIMPLE_KEY environment variable (from 1Password)
+#   - dnsmasq configured to resolve *.fef.dev to 127.0.0.1
+
+services:
+  keycloak:
+    command: start-dev --proxy-headers=xforwarded
+
+  proxy:
+    build:
+      context: .
+      dockerfile: dev/Dockerfile.caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DNSIMPLE_KEY
+    volumes:
+      - ./dev/caddy:/etc/caddy:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
