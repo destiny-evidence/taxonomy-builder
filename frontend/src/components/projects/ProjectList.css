@@ -41,6 +41,12 @@
 .project-card__name {
   font-size: var(--font-size-lg);
   font-weight: 600;
+  margin: 0;
+}
+
+.project-card__namespace {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
   margin: 0 0 var(--spacing-xs);
 }
 
