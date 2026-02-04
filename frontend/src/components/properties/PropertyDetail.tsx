@@ -57,6 +57,8 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -65,6 +67,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     setIsEditing(false);
     setEditDraft(null);
     setValidationErrors({});
+    setSaveError(null);
   }, [property.id]);
 
   function handleEditClick() {
@@ -80,7 +83,30 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
   function handleCancel() {
     setEditDraft(null);
     setValidationErrors({});
+    setSaveError(null);
     setIsEditing(false);
+  }
+
+  async function handleSave() {
+    if (!editDraft) return;
+
+    setSaveLoading(true);
+    setSaveError(null);
+
+    try {
+      await propertiesApi.update(property.id, {
+        label: editDraft.label,
+        identifier: editDraft.identifier,
+        description: editDraft.description || null,
+      });
+      setEditDraft(null);
+      setIsEditing(false);
+      onRefresh();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save property");
+    } finally {
+      setSaveLoading(false);
+    }
   }
 
   function updateDraft(field: keyof EditDraft, value: string) {
@@ -133,6 +159,10 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
           ×
         </Button>
       </div>
+
+      {saveError && (
+        <div class="property-detail__error">{saveError}</div>
+      )}
 
       <div class="property-detail__content">
         {isEditing && editDraft ? (
@@ -253,15 +283,16 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
       <div class="property-detail__actions">
         {isEditing ? (
           <>
-            <Button variant="secondary" size="sm" onClick={handleCancel}>
+            <Button variant="secondary" size="sm" onClick={handleCancel} disabled={saveLoading}>
               Cancel
             </Button>
             <Button
               variant="primary"
               size="sm"
-              disabled={hasValidationErrors || isLabelEmpty}
+              onClick={handleSave}
+              disabled={hasValidationErrors || isLabelEmpty || saveLoading}
             >
-              Save
+              {saveLoading ? "Saving..." : "Save"}
             </Button>
           </>
         ) : (

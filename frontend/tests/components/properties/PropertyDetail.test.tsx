@@ -246,5 +246,77 @@ describe("PropertyDetail", () => {
 
       expect(screen.getByText(/must start with a letter/i)).toBeInTheDocument();
     });
+
+    it("calls API and refreshes on save", async () => {
+      vi.mocked(propertiesApi.update).mockResolvedValue({
+        ...mockProperty,
+        label: "Updated Label",
+      });
+
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "Updated Label" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(propertiesApi.update).toHaveBeenCalledWith("prop-1", {
+          label: "Updated Label",
+          identifier: "birthDate",
+          description: "The date when a person was born",
+        });
+      });
+
+      await waitFor(() => {
+        expect(mockOnRefresh).toHaveBeenCalled();
+      });
+    });
+
+    it("shows loading state on save button while saving", async () => {
+      vi.mocked(propertiesApi.update).mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 100))
+      );
+
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
+      });
+    });
+
+    it("exits edit mode after successful save", async () => {
+      vi.mocked(propertiesApi.update).mockResolvedValue({
+        ...mockProperty,
+        label: "Updated Label",
+      });
+
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+      });
+    });
+
+    it("shows error message on save failure", async () => {
+      vi.mocked(propertiesApi.update).mockRejectedValue(new Error("Network error"));
+
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      });
+    });
   });
 });
