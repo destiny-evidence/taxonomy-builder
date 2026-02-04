@@ -1,25 +1,26 @@
 """PropertyService for managing properties."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
+from taxonomy_builder.services.concept_scheme_service import (
+    ConceptSchemeService,
+    SchemeNotFoundError,
+)
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
+from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 
-
-class ProjectNotFoundError(Exception):
-    """Raised when a project is not found."""
-
-    def __init__(self, project_id: UUID) -> None:
-        self.project_id = project_id
-        super().__init__(f"Project with id '{project_id}' not found")
+if TYPE_CHECKING:
+    from taxonomy_builder.models.concept_scheme import ConceptScheme
 
 
 class DomainClassNotFoundError(Exception):
@@ -62,24 +63,17 @@ class PropertyIdentifierExistsError(Exception):
 class PropertyService:
     """Service for managing properties."""
 
-    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        project_service: ProjectService,
+        scheme_service: ConceptSchemeService,
+        user_id: UUID | None = None,
+    ) -> None:
         self.db = db
+        self._project_service = project_service
+        self._scheme_service = scheme_service
         self._tracker = ChangeTracker(db, user_id)
-
-    async def _get_project(self, project_id: UUID) -> Project:
-        """Get a project by ID or raise ProjectNotFoundError."""
-        result = await self.db.execute(select(Project).where(Project.id == project_id))
-        project = result.scalar_one_or_none()
-        if project is None:
-            raise ProjectNotFoundError(project_id)
-        return project
-
-    async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme | None:
-        """Get a scheme by ID or return None if not found."""
-        result = await self.db.execute(
-            select(ConceptScheme).where(ConceptScheme.id == scheme_id)
-        )
-        return result.scalar_one_or_none()
 
     def _validate_domain_class(self, domain_class: str) -> None:
         """Validate that domain_class exists in the core ontology."""
@@ -106,8 +100,11 @@ class PropertyService:
 
         # Validate scheme belongs to project
         if has_scheme:
-            scheme = await self._get_scheme(range_scheme_id)
-            if scheme is None or scheme.project_id != project_id:
+            try:
+                scheme = await self._scheme_service.get_scheme(range_scheme_id)
+            except SchemeNotFoundError:
+                raise SchemeNotInProjectError(range_scheme_id, project_id)
+            if scheme.project_id != project_id:
                 raise SchemeNotInProjectError(range_scheme_id, project_id)
 
     def _serialize_property(self, prop: Property) -> dict:
@@ -144,7 +141,7 @@ class PropertyService:
             PropertyIdentifierExistsError: If the identifier already exists
         """
         # Verify project exists
-        await self._get_project(project_id)
+        await self._project_service.get_project(project_id)
 
         # Validate domain class
         self._validate_domain_class(property_in.domain_class)
@@ -199,7 +196,7 @@ class PropertyService:
         Raises:
             ProjectNotFoundError: If the project doesn't exist
         """
-        await self._get_project(project_id)
+        await self._project_service.get_project(project_id)
         result = await self.db.execute(
             select(Property).where(Property.project_id == project_id)
         )

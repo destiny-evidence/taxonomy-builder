@@ -160,6 +160,10 @@ def get_property_service(
     current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> PropertyService:
     """Dependency that provides a PropertyService with user context."""
+    from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+    from taxonomy_builder.services.project_service import ProjectService
     from taxonomy_builder.services.property_service import PropertyService
 
-    return PropertyService(db, user_id=current_user.user.id)
+    project_service = ProjectService(db)
+    scheme_service = ConceptSchemeService(db, user_id=current_user.user.id)
+    return PropertyService(db, project_service, scheme_service, user_id=current_user.user.id)

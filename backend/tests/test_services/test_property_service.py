@@ -9,6 +9,8 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate
+from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
@@ -73,15 +75,23 @@ async def other_scheme(db_session: AsyncSession, other_project: Project) -> Conc
     return scheme
 
 
+@pytest.fixture
+def property_service(db_session: AsyncSession) -> PropertyService:
+    """Create a PropertyService with all required dependencies."""
+    project_service = ProjectService(db_session)
+    scheme_service = ConceptSchemeService(db_session)
+    return PropertyService(db_session, project_service, scheme_service)
+
+
 class TestCreateProperty:
     """Tests for PropertyService.create_property."""
 
     @pytest.mark.asyncio
     async def test_create_property_with_range_scheme(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test creating a property with range_scheme_id."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
@@ -102,10 +112,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_with_range_datatype(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test creating a property with range_datatype."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="sampleSize",
             label="Sample Size",
@@ -124,10 +134,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_invalid_domain_class(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test that invalid domain_class raises DomainClassNotFoundError."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -142,10 +152,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_both_range_fields_error(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test that providing both range_scheme_id and range_datatype raises error."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -161,10 +171,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_neither_range_field_error(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test that providing neither range field raises error."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -178,10 +188,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_scheme_not_in_project(
-        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test that referencing a scheme from another project raises error."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -195,10 +205,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_duplicate_identifier(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test that duplicate identifier in same project raises error."""
-        service = PropertyService(db_session)
+        service = property_service
 
         # Create first property
         prop_in1 = PropertyCreate(
@@ -223,10 +233,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_scheme_not_found(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test that referencing a non-existent scheme raises error."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -244,19 +254,19 @@ class TestListProperties:
 
     @pytest.mark.asyncio
     async def test_list_properties_empty(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test listing properties when none exist."""
-        service = PropertyService(db_session)
+        service = property_service
         properties = await service.list_properties(project.id)
         assert properties == []
 
     @pytest.mark.asyncio
     async def test_list_properties_returns_all_for_project(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test listing returns all properties for a project."""
-        service = PropertyService(db_session)
+        service = property_service
 
         # Create two properties
         prop1_in = PropertyCreate(
@@ -283,10 +293,10 @@ class TestListProperties:
 
     @pytest.mark.asyncio
     async def test_list_properties_excludes_other_projects(
-        self, db_session: AsyncSession, project: Project, other_project: Project
+        self, db_session: AsyncSession, project: Project, other_project: Project, property_service: PropertyService
     ) -> None:
         """Test that listing only returns properties for the specified project."""
-        service = PropertyService(db_session)
+        service = property_service
 
         # Create property in each project
         prop1_in = PropertyCreate(
@@ -312,10 +322,10 @@ class TestListProperties:
 
     @pytest.mark.asyncio
     async def test_list_properties_project_not_found(
-        self, db_session: AsyncSession
+        self, db_session: AsyncSession, property_service: PropertyService
     ) -> None:
         """Test that listing properties for non-existent project raises error."""
-        service = PropertyService(db_session)
+        service = property_service
         with pytest.raises(ProjectNotFoundError):
             await service.list_properties(uuid4())
 
@@ -325,10 +335,10 @@ class TestGetProperty:
 
     @pytest.mark.asyncio
     async def test_get_property_success(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test getting a property by ID."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test Property",
@@ -345,10 +355,10 @@ class TestGetProperty:
 
     @pytest.mark.asyncio
     async def test_get_property_not_found(
-        self, db_session: AsyncSession
+        self, db_session: AsyncSession, property_service: PropertyService
     ) -> None:
         """Test that getting a non-existent property returns None."""
-        service = PropertyService(db_session)
+        service = property_service
         prop = await service.get_property(uuid4())
         assert prop is None
 
@@ -358,12 +368,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_label(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test updating a property's label."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Original Label",
@@ -382,12 +392,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_description(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test updating a property's description."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -405,12 +415,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_required(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test updating a property's required flag."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -429,19 +439,19 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_not_found(
-        self, db_session: AsyncSession
+        self, db_session: AsyncSession, property_service: PropertyService
     ) -> None:
         """Test that updating a non-existent property returns None."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         update = PropertyUpdate(label="New Label")
         result = await service.update_property(uuid4(), update)
         assert result is None
 
     @pytest.mark.asyncio
     async def test_update_property_change_range_scheme(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test updating a property to use a different range scheme."""
         from taxonomy_builder.schemas.property import PropertyUpdate
@@ -456,7 +466,7 @@ class TestUpdateProperty:
         await db_session.flush()
         await db_session.refresh(scheme2)
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -474,12 +484,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_change_from_scheme_to_datatype(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test updating from range_scheme_id to range_datatype."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -499,12 +509,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_invalid_range_scheme(
-        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test that updating to a scheme from another project raises error."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -520,12 +530,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_both_range_fields_error(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test that setting both range fields on update raises error."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -541,12 +551,12 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_neither_range_field_error(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test that clearing both range fields raises error."""
         from taxonomy_builder.schemas.property import PropertyUpdate
 
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -567,10 +577,10 @@ class TestDeleteProperty:
 
     @pytest.mark.asyncio
     async def test_delete_property_success(
-        self, db_session: AsyncSession, project: Project
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test deleting a property."""
-        service = PropertyService(db_session)
+        service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
@@ -589,9 +599,9 @@ class TestDeleteProperty:
 
     @pytest.mark.asyncio
     async def test_delete_property_not_found(
-        self, db_session: AsyncSession
+        self, db_session: AsyncSession, property_service: PropertyService
     ) -> None:
         """Test that deleting a non-existent property returns False."""
-        service = PropertyService(db_session)
+        service = property_service
         result = await service.delete_property(uuid4())
         assert result is False
