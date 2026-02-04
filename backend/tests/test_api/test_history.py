@@ -144,6 +144,27 @@ async def test_get_scheme_history_includes_user_display_name(
 
 
 @pytest.mark.asyncio
+async def test_get_scheme_history_null_user_returns_null_display_name(
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that history with null user_id returns null for user_display_name."""
+    # Create a concept without user context (simulates system change or deleted user)
+    service = ConceptService(db_session)  # No user_id passed
+    await service.create_concept(
+        scheme_id=scheme.id,
+        concept_in=ConceptCreate(pref_label="System Concept"),
+    )
+
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    # user_display_name should be null when user_id is null
+    assert data[0]["user_display_name"] is None
+
+
+@pytest.mark.asyncio
 async def test_get_scheme_history_shows_user_display_name(
     authenticated_client: AsyncClient, scheme: ConceptScheme
 ) -> None:
