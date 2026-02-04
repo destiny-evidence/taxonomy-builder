@@ -1,18 +1,6 @@
-import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
-import { PropertyList } from "../properties/PropertyList";
-import { PropertyDetail } from "../properties/PropertyDetail";
-import { PropertyForm } from "../properties/PropertyForm";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
-import {
-  properties,
-  propertiesLoading,
-  propertiesError,
-  selectedPropertyId,
-  selectedProperty,
-} from "../../state/properties";
-import { propertiesApi } from "../../api/properties";
 import "./SchemesPane.css";
 
 interface SchemesPaneProps {
@@ -21,6 +9,7 @@ interface SchemesPaneProps {
   onSchemeSelect: (schemeId: string) => void;
   onNewScheme: () => void;
   onImport: () => void;
+  onShowModel: () => void;
 }
 
 export function SchemesPane({
@@ -29,49 +18,10 @@ export function SchemesPane({
   onSchemeSelect,
   onNewScheme,
   onImport,
+  onShowModel,
 }: SchemesPaneProps) {
-  const [propertiesExpanded, setPropertiesExpanded] = useState(true);
-  const [showPropertyForm, setShowPropertyForm] = useState(false);
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
   const project = currentProject.value;
-
-  // Load properties when project changes
-  useEffect(() => {
-    loadProperties();
-  }, [projectId]);
-
-  async function loadProperties() {
-    propertiesLoading.value = true;
-    propertiesError.value = null;
-    try {
-      properties.value = await propertiesApi.listForProject(projectId);
-    } catch (err) {
-      propertiesError.value = err instanceof Error ? err.message : "Failed to load properties";
-    } finally {
-      propertiesLoading.value = false;
-    }
-  }
-
-  function handlePropertySelect(propertyId: string) {
-    selectedPropertyId.value = propertyId;
-  }
-
-  function handlePropertyClose() {
-    selectedPropertyId.value = null;
-  }
-
-  function handleNewProperty() {
-    setShowPropertyForm(true);
-  }
-
-  function handlePropertyFormSuccess() {
-    setShowPropertyForm(false);
-    loadProperties();
-  }
-
-  function handlePropertyFormCancel() {
-    setShowPropertyForm(false);
-  }
 
   return (
     <div class="schemes-pane">
@@ -113,40 +63,12 @@ export function SchemesPane({
           </div>
         </div>
 
-        {/* Properties section */}
+        {/* Model section */}
         <div class="schemes-pane__section">
-          <button
-            class="schemes-pane__section-header"
-            onClick={() => setPropertiesExpanded(!propertiesExpanded)}
-          >
-            <span class={`schemes-pane__expand-icon ${propertiesExpanded ? "schemes-pane__expand-icon--expanded" : ""}`}>
-              ▶
-            </span>
-            <h3 class="schemes-pane__section-title">Properties</h3>
-          </button>
-
-          {propertiesExpanded && (
-            <div class="schemes-pane__section-content">
-              {showPropertyForm ? (
-                <PropertyForm
-                  projectId={projectId}
-                  onSuccess={handlePropertyFormSuccess}
-                  onCancel={handlePropertyFormCancel}
-                />
-              ) : selectedProperty.value ? (
-                <PropertyDetail
-                  property={selectedProperty.value}
-                  onRefresh={loadProperties}
-                  onClose={handlePropertyClose}
-                />
-              ) : (
-                <PropertyList
-                  onSelect={handlePropertySelect}
-                  onNew={handleNewProperty}
-                />
-              )}
-            </div>
-          )}
+          <h3 class="schemes-pane__section-title">Domain Model</h3>
+          <Button variant="secondary" size="sm" onClick={onShowModel}>
+            View Model
+          </Button>
         </div>
       </div>
     </div>

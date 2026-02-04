@@ -43,6 +43,7 @@ describe("SchemesPane", () => {
   const mockOnSchemeSelect = vi.fn();
   const mockOnNewScheme = vi.fn();
   const mockOnImport = vi.fn();
+  const mockOnShowModel = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -58,6 +59,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -72,6 +74,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -87,6 +90,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -102,6 +106,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -117,6 +122,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -135,6 +141,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -149,6 +156,7 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
@@ -165,11 +173,29 @@ describe("SchemesPane", () => {
         onSchemeSelect={mockOnSchemeSelect}
         onNewScheme={mockOnNewScheme}
         onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
       />
     );
 
     fireEvent.click(screen.getByText("Import"));
 
     expect(mockOnImport).toHaveBeenCalled();
+  });
+
+  it("calls onShowModel when View Model button is clicked", () => {
+    render(
+      <SchemesPane
+        projectId="proj-1"
+        currentSchemeId={null}
+        onSchemeSelect={mockOnSchemeSelect}
+        onNewScheme={mockOnNewScheme}
+        onImport={mockOnImport}
+        onShowModel={mockOnShowModel}
+      />
+    );
+
+    fireEvent.click(screen.getByText("View Model"));
+
+    expect(mockOnShowModel).toHaveBeenCalled();
   });
 });

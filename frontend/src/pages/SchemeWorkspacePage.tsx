@@ -8,6 +8,7 @@ import { SchemeForm } from "../components/schemes/SchemeForm";
 import { ExportModal } from "../components/schemes/ExportModal";
 import { ImportModal } from "../components/schemes/ImportModal";
 import { Modal } from "../components/common/Modal";
+import { ModelView } from "../components/model/ModelView";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
 import { currentProject } from "../state/projects";
@@ -35,6 +36,7 @@ export function SchemeWorkspacePage({
   projectId,
   schemeId,
 }: SchemeWorkspacePageProps) {
+  const [viewMode, setViewMode] = useState<"schemes" | "model">("schemes");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -197,6 +199,19 @@ export function SchemeWorkspacePage({
     return <div>Project ID required</div>;
   }
 
+  // Model view - full screen class diagram
+  if (viewMode === "model") {
+    return (
+      <ModelView
+        projectId={projectId}
+        projectName={currentProject.value?.name ?? ""}
+        onSchemeSelect={handleSchemeSelect}
+        onBack={() => setViewMode("schemes")}
+      />
+    );
+  }
+
+  // Schemes view - current three-pane layout
   return (
     <div class="scheme-workspace">
       <SchemesPane
@@ -205,6 +220,7 @@ export function SchemeWorkspacePage({
         onSchemeSelect={handleSchemeSelect}
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
+        onShowModel={() => setViewMode("model")}
       />
 
       <div class="scheme-workspace__main">

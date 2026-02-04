@@ -9,6 +9,7 @@ import "./PropertyForm.css";
 
 interface PropertyFormProps {
   projectId: string;
+  domainClassUri?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -47,13 +48,13 @@ function validateIdentifier(value: string): string | null {
   return null;
 }
 
-export function PropertyForm({ projectId, onSuccess, onCancel }: PropertyFormProps) {
+export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }: PropertyFormProps) {
   // Form state
   const [label, setLabel] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [identifierTouched, setIdentifierTouched] = useState(false);
   const [description, setDescription] = useState("");
-  const [domainClass, setDomainClass] = useState("");
+  const [domainClass, setDomainClass] = useState(domainClassUri ?? "");
   const [rangeType, setRangeType] = useState<"scheme" | "datatype">("datatype");
   const [rangeSchemeId, setRangeSchemeId] = useState("");
   const [rangeDatatype, setRangeDatatype] = useState("");
@@ -176,20 +177,26 @@ export function PropertyForm({ projectId, onSuccess, onCancel }: PropertyFormPro
         <label class="property-form__label" htmlFor="domain-class">
           Domain Class <span class="property-form__required">*</span>
         </label>
-        <select
-          id="domain-class"
-          class="property-form__select"
-          value={domainClass}
-          onChange={(e) => setDomainClass((e.target as HTMLSelectElement).value)}
-          required
-        >
-          <option value="">Select a class...</option>
-          {ontologyClasses.map((cls) => (
-            <option key={cls.uri} value={cls.uri}>
-              {cls.label}
-            </option>
-          ))}
-        </select>
+        {domainClassUri ? (
+          <div class="property-form__class-display">
+            {ontologyClasses.find((c) => c.uri === domainClassUri)?.label ?? domainClassUri}
+          </div>
+        ) : (
+          <select
+            id="domain-class"
+            class="property-form__select"
+            value={domainClass}
+            onChange={(e) => setDomainClass((e.target as HTMLSelectElement).value)}
+            required
+          >
+            <option value="">Select a class...</option>
+            {ontologyClasses.map((cls) => (
+              <option key={cls.uri} value={cls.uri}>
+                {cls.label}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div class="property-form__field">
