@@ -38,7 +38,12 @@ export function ProjectPane({
         <a href="/projects" class="project-pane__back-link">
           Projects
         </a>
-        <h2 class="project-pane__project-title">{project?.name}</h2>
+        <div class="project-pane__header-row">
+          <h2 class="project-pane__project-title">{project?.name}</h2>
+          <Button variant="ghost" size="sm" onClick={onImport}>
+            Import
+          </Button>
+        </div>
       </div>
 
       <div class="project-pane__content">
@@ -77,14 +82,9 @@ export function ProjectPane({
               ))}
             </div>
           )}
-          <div class="project-pane__section-actions">
-            <Button variant="secondary" size="sm" onClick={onNewScheme}>
-              + New Scheme
-            </Button>
-            <Button variant="secondary" size="sm" onClick={onImport}>
-              Import
-            </Button>
-          </div>
+          <button class="project-pane__add-button" onClick={onNewScheme}>
+            + New Scheme
+          </button>
         </div>
       </div>
     </div>
