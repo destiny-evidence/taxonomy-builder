@@ -1,9 +1,15 @@
 """Application configuration."""
 
+from pathlib import Path
 from urllib.parse import quote_plus
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings
+
+
+def _default_core_ontology_path() -> str:
+    """Get the default path to the bundled core ontology file."""
+    return str(Path(__file__).parent / "data" / "evrepo-core.ttl")
 
 
 class Settings(BaseSettings):
@@ -24,6 +30,9 @@ class Settings(BaseSettings):
     keycloak_url: str = "http://localhost:8080"
     keycloak_realm: str = "taxonomy-builder"
     keycloak_client_id: str = "taxonomy-builder-api"
+
+    # Core ontology file path
+    core_ontology_path: str = _default_core_ontology_path()
 
     model_config = {"env_prefix": "TAXONOMY_"}
 

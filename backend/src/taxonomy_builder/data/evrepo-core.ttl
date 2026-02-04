@@ -1,0 +1,212 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix evrepo: <https://evrepo.example.org/vocab/> .
+
+# =============================================================================
+# Evidence Repository Core Ontology
+# =============================================================================
+#
+# A lightweight ontology for structured research evidence. Defines the core
+# classes and properties that domain-specific vocabularies (education, health,
+# climate) extend.
+#
+# Design principles:
+#   - OWL for expressiveness, but no reasoning required
+#   - Union classes for shared property domains
+#   - SKOS Concepts for controlled vocabularies
+#   - Validation via SHACL, not OWL restrictions
+#
+# =============================================================================
+
+evrepo: a owl:Ontology ;
+    rdfs:label "Evidence Repository Core Ontology" ;
+    rdfs:comment """Core classes and properties for evidence repository systems.
+    Provides a foundation for domain-specific extensions (education, health, climate).""" ;
+    dcterms:created "2025-01-01"^^xsd:date ;
+    owl:versionInfo "0.1.0" .
+
+
+# =============================================================================
+# CORE CLASSES
+# =============================================================================
+
+evrepo:Investigation a owl:Class ;
+    rdfs:label "Investigation" ;
+    rdfs:comment """A discrete research effort reported within a reference. 
+    Corresponds to a study, trial, or evaluation. A single paper may report 
+    multiple investigations. An investigation produces one or more Findings.""" .
+
+evrepo:Finding a owl:Class ;
+    rdfs:label "Finding" ;
+    rdfs:comment """The atomic unit of evidence. A specific result for a specific 
+    intervention, outcome, population, and context. The level at which effect 
+    sizes are reported and meta-analysis operates.""" .
+
+evrepo:Intervention a owl:Class ;
+    rdfs:label "Intervention" ;
+    rdfs:comment """A policy, program, practice, or treatment being evaluated. 
+    May be described at varying levels of specificity.""" .
+
+evrepo:Outcome a owl:Class ;
+    rdfs:label "Outcome" ;
+    rdfs:comment """A measured result or endpoint. Outcomes are defined in 
+    domain-specific vocabularies (e.g., learning outcomes, health outcomes).""" .
+
+evrepo:EffectEstimate a owl:Class ;
+    rdfs:label "Effect Estimate" ;
+    rdfs:comment """A quantitative estimate of effect size with associated 
+    uncertainty measures. Supports multiple effect size metrics.""" .
+
+evrepo:Context a owl:Class ;
+    rdfs:label "Context" ;
+    rdfs:comment """The setting and circumstances in which an investigation 
+    took place. Includes geographic, institutional, and temporal context.""" .
+
+evrepo:Funder a owl:Class ;
+    rdfs:label "Funder" ;
+    rdfs:comment """An organisation providing financial support. May fund 
+    the intervention, the research, or both.""" .
+
+evrepo:Implementer a owl:Class ;
+    rdfs:label "Implementer" ;
+    rdfs:comment """An organisation or entity responsible for delivering 
+    an intervention.""" .
+
+
+# =============================================================================
+# UNION CLASSES (shared property domains)
+# =============================================================================
+
+evrepo:Fundable a owl:Class ;
+    owl:unionOf (evrepo:Investigation evrepo:Intervention) ;
+    rdfs:label "Fundable" ;
+    rdfs:comment """Entities that can receive funding. Both investigations 
+    (research funding) and interventions (program funding) are fundable.""" .
+
+
+
+
+# =============================================================================
+# OBJECT PROPERTIES (relationships between entities)
+# =============================================================================
+
+# -- Structural hierarchy --
+
+evrepo:hasFinding a owl:ObjectProperty ;
+    rdfs:label "has finding" ;
+    rdfs:comment "Links an investigation to its constituent findings." ;
+    rdfs:domain evrepo:Investigation ;
+    rdfs:range evrepo:Finding .
+
+evrepo:partOfInvestigation a owl:ObjectProperty ;
+    owl:inverseOf evrepo:hasFinding ;
+    rdfs:label "part of investigation" ;
+    rdfs:comment "Links a finding back to its parent investigation." ;
+    rdfs:domain evrepo:Finding ;
+    rdfs:range evrepo:Investigation .
+
+# -- What was studied --
+
+evrepo:evaluates a owl:ObjectProperty ;
+    rdfs:label "evaluates" ;
+    rdfs:comment "Links a finding to the intervention being evaluated." ;
+    rdfs:domain evrepo:Finding ;
+    rdfs:range evrepo:Intervention .
+
+evrepo:hasOutcome a owl:ObjectProperty ;
+    rdfs:label "has outcome" ;
+    rdfs:comment "Links a finding to its measured outcome." ;
+    rdfs:domain evrepo:Finding ;
+    rdfs:range evrepo:Outcome .
+
+evrepo:outcomeDescription a owl:DatatypeProperty ;
+    rdfs:label "outcome description" ;
+    rdfs:comment """Free-text description of the specific measure used, as described 
+    by the study author (e.g., 'EGRA oral reading fluency, words per minute').""" ;
+    rdfs:domain evrepo:Outcome ;
+    rdfs:range xsd:string .
+
+evrepo:hasContext a owl:ObjectProperty ;
+    rdfs:label "has context" ;
+    rdfs:comment """Links a finding to the geographic/institutional context where
+    the research took place. Context is on Finding (not Investigation) because
+    a single investigation may span multiple contexts.""" ;
+    rdfs:domain evrepo:Finding ;
+    rdfs:range evrepo:Context .
+
+# -- Funding and implementation --
+
+evrepo:fundedBy a owl:ObjectProperty ;
+    rdfs:label "funded by" ;
+    rdfs:comment "Links a fundable entity to its funder(s)." ;
+    rdfs:domain evrepo:Fundable ;
+    rdfs:range evrepo:Funder .
+
+evrepo:implementedBy a owl:ObjectProperty ;
+    rdfs:label "implemented by" ;
+    rdfs:comment "Links an intervention to its implementing organisation." ;
+    rdfs:domain evrepo:Intervention ;
+    rdfs:range evrepo:Implementer .
+
+# -- Effect estimates --
+
+evrepo:hasEffectEstimate a owl:ObjectProperty ;
+    rdfs:label "has effect estimate" ;
+    rdfs:comment "Links a finding to its quantitative effect estimate." ;
+    rdfs:domain evrepo:Finding ;
+    rdfs:range evrepo:EffectEstimate .
+
+
+# =============================================================================
+# DATATYPE PROPERTIES (literal values)
+# =============================================================================
+
+# -- Effect estimate components --
+
+evrepo:effectSize a owl:DatatypeProperty ;
+    rdfs:label "effect size" ;
+    rdfs:comment "The point estimate (e.g., Cohen's d, Hedges' g, odds ratio)." ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range xsd:decimal .
+
+evrepo:standardError a owl:DatatypeProperty ;
+    rdfs:label "standard error" ;
+    rdfs:comment "Standard error of the effect estimate." ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range xsd:decimal .
+
+evrepo:confidenceIntervalLower a owl:DatatypeProperty ;
+    rdfs:label "confidence interval (lower)" ;
+    rdfs:comment "Lower bound of confidence interval." ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range xsd:decimal .
+
+evrepo:confidenceIntervalUpper a owl:DatatypeProperty ;
+    rdfs:label "confidence interval (upper)" ;
+    rdfs:comment "Upper bound of confidence interval." ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range xsd:decimal .
+
+evrepo:effectSizeType a owl:ObjectProperty ;
+    rdfs:label "effect size type" ;
+    rdfs:comment "The metric used (Cohen's d, Hedges' g, OR, RR, etc.)." ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range skos:Concept .
+
+
+
+# =============================================================================
+# ANNOTATION PROPERTIES (metadata about entities)
+# =============================================================================
+
+evrepo:codingNote a owl:AnnotationProperty ;
+    rdfs:label "coding note" ;
+    rdfs:comment "Free-text note from the coder explaining a decision." .
+
+evrepo:codingConfidence a owl:AnnotationProperty ;
+    rdfs:label "coding confidence" ;
+    rdfs:comment "Coder's confidence in this coding (e.g., high/medium/low)." .

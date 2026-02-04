@@ -11,12 +11,16 @@ from taxonomy_builder.config import settings
 from taxonomy_builder.database import Base, db_manager, get_db
 from taxonomy_builder.main import app
 from taxonomy_builder.models.user import User
+from taxonomy_builder.services.core_ontology_service import get_core_ontology
 
 
 @pytest.fixture(scope="session", autouse=True)
 async def _init_db() -> AsyncGenerator[None, None]:
     """Initialize database manager for test session."""
     db_manager.init(settings.test_database_url)
+    # Warm the core ontology cache (normally done in app lifespan, but test
+    # client doesn't trigger lifespan)
+    get_core_ontology()
     async with db_manager.engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield

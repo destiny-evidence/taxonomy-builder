@@ -1,8 +1,8 @@
 """FastAPI application entry point."""
 
 import subprocess
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response
 from sqlalchemy import text
@@ -10,17 +10,21 @@ from sqlalchemy import text
 from taxonomy_builder.api.comments import comments_router, concept_comments_router
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
 from taxonomy_builder.api.history import router as history_router
+from taxonomy_builder.api.ontology import router as ontology_router
 from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
 from taxonomy_builder.api.versions import router as versions_router
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
+from taxonomy_builder.services.core_ontology_service import get_core_ontology
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup application resources."""
     db_manager.init(settings.effective_database_url)
+    # Warm the core ontology cache at startup
+    get_core_ontology()
     yield
     await db_manager.close()
 
@@ -41,6 +45,7 @@ app.include_router(concept_comments_router)
 app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(versions_router)
+app.include_router(ontology_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
