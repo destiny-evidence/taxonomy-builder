@@ -1,6 +1,8 @@
 .schemes-pane {
   display: flex;
   flex-direction: column;
+  width: 280px;
+  min-width: 280px;
   height: 100%;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
@@ -38,6 +40,65 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* Section styles */
+.schemes-pane__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.schemes-pane__section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.schemes-pane__section-header:hover .schemes-pane__section-title {
+  color: var(--color-primary);
+}
+
+.schemes-pane__expand-icon {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.schemes-pane__expand-icon--expanded {
+  transform: rotate(90deg);
+}
+
+.schemes-pane__section-title {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.schemes-pane__section-content {
+  margin-top: var(--spacing-xs);
+}
+
+.schemes-pane__section-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.schemes-pane__section-actions button {
+  flex: 1;
 }
 
 .schemes-pane__list {
@@ -75,20 +136,10 @@
 }
 
 .schemes-pane__empty {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   text-align: center;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
-.schemes-pane__footer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
-  border-top: 1px solid var(--color-border);
-}
-
-.schemes-pane__footer button {
-  width: 100%;
-}
+/* Footer removed - actions now in section */
