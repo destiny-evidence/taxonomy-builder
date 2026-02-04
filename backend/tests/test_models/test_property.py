@@ -138,3 +138,56 @@ async def test_property_relationships(
     assert prop.project.id == project.id
     assert prop.range_scheme is not None
     assert prop.range_scheme.id == scheme.id
+
+
+@pytest.mark.asyncio
+async def test_property_uri_computed_from_namespace(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that property URI is computed from project namespace and identifier."""
+    prop = Property(
+        project_id=project.id,
+        identifier="educationLevel",
+        label="Education Level",
+        domain_class="https://evrepo.example.org/vocab/Finding",
+        range_datatype="xsd:string",
+        cardinality="single",
+        required=False,
+    )
+    db_session.add(prop)
+    await db_session.flush()
+    await db_session.refresh(prop)
+
+    # Project namespace is "https://example.org/vocab/"
+    assert prop.uri == "https://example.org/vocab/educationLevel"
+
+
+@pytest.fixture
+async def project_without_namespace(db_session: AsyncSession) -> Project:
+    """Create a project without a namespace for testing."""
+    project = Project(name="Project Without Namespace")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.mark.asyncio
+async def test_property_uri_none_when_no_namespace(
+    db_session: AsyncSession, project_without_namespace: Project
+) -> None:
+    """Test that property URI is None when project has no namespace."""
+    prop = Property(
+        project_id=project_without_namespace.id,
+        identifier="educationLevel",
+        label="Education Level",
+        domain_class="https://evrepo.example.org/vocab/Finding",
+        range_datatype="xsd:string",
+        cardinality="single",
+        required=False,
+    )
+    db_session.add(prop)
+    await db_session.flush()
+    await db_session.refresh(prop)
+
+    assert prop.uri is None

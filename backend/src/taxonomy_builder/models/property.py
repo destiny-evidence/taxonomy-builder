@@ -54,3 +54,14 @@ class Property(Base):
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="properties", lazy="selectin")
     range_scheme: Mapped["ConceptScheme | None"] = relationship(lazy="selectin")
+
+    @property
+    def uri(self) -> str | None:
+        """Compute URI from project namespace and identifier.
+
+        Returns None if the project has no namespace.
+        """
+        if not self.project or not self.project.namespace:
+            return None
+        namespace = self.project.namespace.rstrip("/")
+        return f"{namespace}/{self.identifier}"
