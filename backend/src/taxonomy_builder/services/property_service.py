@@ -195,7 +195,11 @@ class PropertyService:
 
         Returns:
             List of properties in the project
+
+        Raises:
+            ProjectNotFoundError: If the project doesn't exist
         """
+        await self._get_project(project_id)
         result = await self.db.execute(
             select(Property).where(Property.project_id == project_id)
         )

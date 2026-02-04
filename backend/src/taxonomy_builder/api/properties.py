@@ -3,10 +3,8 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.api.dependencies import get_property_service
-from taxonomy_builder.database import get_db
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
 from taxonomy_builder.services.property_service import (
@@ -34,11 +32,6 @@ async def list_properties(
 ) -> list[Property]:
     """List all properties for a project."""
     try:
-        # Verify project exists by attempting to get it
-        from taxonomy_builder.services.property_service import PropertyService as PS
-
-        # Use the service's internal method to check project exists
-        await service._get_project(project_id)
         return await service.list_properties(project_id)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

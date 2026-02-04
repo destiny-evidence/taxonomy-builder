@@ -12,6 +12,7 @@ from taxonomy_builder.schemas.property import PropertyCreate
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
+    ProjectNotFoundError,
     PropertyIdentifierExistsError,
     PropertyService,
     SchemeNotInProjectError,
@@ -308,6 +309,15 @@ class TestListProperties:
         properties = await service.list_properties(project.id)
         assert len(properties) == 1
         assert properties[0].identifier == "prop1"
+
+    @pytest.mark.asyncio
+    async def test_list_properties_project_not_found(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Test that listing properties for non-existent project raises error."""
+        service = PropertyService(db_session)
+        with pytest.raises(ProjectNotFoundError):
+            await service.list_properties(uuid4())
 
 
 class TestGetProperty:
