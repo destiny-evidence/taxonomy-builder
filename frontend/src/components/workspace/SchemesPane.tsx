@@ -2,6 +2,7 @@ import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
 import { PropertyList } from "../properties/PropertyList";
 import { PropertyDetail } from "../properties/PropertyDetail";
+import { PropertyForm } from "../properties/PropertyForm";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import {
@@ -30,6 +31,7 @@ export function SchemesPane({
   onImport,
 }: SchemesPaneProps) {
   const [propertiesExpanded, setPropertiesExpanded] = useState(true);
+  const [showPropertyForm, setShowPropertyForm] = useState(false);
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
   const project = currentProject.value;
 
@@ -59,8 +61,16 @@ export function SchemesPane({
   }
 
   function handleNewProperty() {
-    // TODO: Implement new property creation flow
-    console.log("New property clicked");
+    setShowPropertyForm(true);
+  }
+
+  function handlePropertyFormSuccess() {
+    setShowPropertyForm(false);
+    loadProperties();
+  }
+
+  function handlePropertyFormCancel() {
+    setShowPropertyForm(false);
   }
 
   return (
@@ -117,7 +127,13 @@ export function SchemesPane({
 
           {propertiesExpanded && (
             <div class="schemes-pane__section-content">
-              {selectedProperty.value ? (
+              {showPropertyForm ? (
+                <PropertyForm
+                  projectId={projectId}
+                  onSuccess={handlePropertyFormSuccess}
+                  onCancel={handlePropertyFormCancel}
+                />
+              ) : selectedProperty.value ? (
                 <PropertyDetail
                   property={selectedProperty.value}
                   onRefresh={loadProperties}
