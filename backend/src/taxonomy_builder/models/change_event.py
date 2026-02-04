@@ -1,13 +1,19 @@
 """ChangeEvent model for tracking all changes."""
 
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid7
 
 from sqlalchemy import ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from taxonomy_builder.database import Base
+
+if TYPE_CHECKING:
+    from taxonomy_builder.models.user import User
 
 
 class ChangeEvent(Base):
@@ -20,6 +26,7 @@ class ChangeEvent(Base):
     user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    user: Mapped[User | None] = relationship("User", lazy="raise")
 
     # What changed
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -34,6 +41,11 @@ class ChangeEvent(Base):
     # State
     before_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     after_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    @property
+    def user_display_name(self) -> str | None:
+        """Get the display name of the user who made this change."""
+        return self.user.display_name if self.user else None
 
     __table_args__ = (
         Index("ix_change_events_scheme_timestamp", "scheme_id", timestamp.desc()),

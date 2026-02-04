@@ -19,5 +19,6 @@ class ChangeEventRead(BaseModel):
     before_state: dict[str, Any] | None
     after_state: dict[str, Any] | None
     user_id: UUID | None
+    user_display_name: str | None = None
 
     model_config = {"from_attributes": True}

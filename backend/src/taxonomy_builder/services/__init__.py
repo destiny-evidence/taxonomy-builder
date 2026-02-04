@@ -13,6 +13,7 @@ from taxonomy_builder.services.concept_service import (
     ConceptService,
     SchemeNotFoundError as ConceptSchemeNotFoundError,
 )
+from taxonomy_builder.services.history_service import HistoryService
 from taxonomy_builder.services.project_service import (
     ProjectNameExistsError,
     ProjectNotFoundError,
@@ -26,6 +27,7 @@ __all__ = [
     "ConceptSchemeNotFoundError",
     "ConceptSchemeService",
     "ConceptService",
+    "HistoryService",
     "ProjectNameExistsError",
     "ProjectNotFoundError",
     "ProjectService",

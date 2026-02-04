@@ -15,6 +15,7 @@ from taxonomy_builder.services.auth_service import AuthenticationError, AuthServ
 if TYPE_CHECKING:
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
     from taxonomy_builder.services.concept_service import ConceptService
+    from taxonomy_builder.services.history_service import HistoryService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
     from taxonomy_builder.services.version_service import VersionService
 
@@ -144,3 +145,10 @@ def get_import_service(
     from taxonomy_builder.services.skos_import_service import SKOSImportService
 
     return SKOSImportService(db, user_id=current_user.user.id)
+
+
+def get_history_service(db: AsyncSession = Depends(get_db)) -> HistoryService:
+    """Dependency that provides a HistoryService for querying change events."""
+    from taxonomy_builder.services.history_service import HistoryService
+
+    return HistoryService(db)

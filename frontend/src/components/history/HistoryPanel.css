@@ -75,9 +75,20 @@
   margin-bottom: var(--spacing-xs);
 }
 
-.history-panel__timestamp {
+.history-panel__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+}
+
+.history-panel__user {
+  font-weight: 500;
+}
+
+.history-panel__timestamp {
+  /* Inherited from .history-panel__meta */
 }
 
 .history-panel__details {

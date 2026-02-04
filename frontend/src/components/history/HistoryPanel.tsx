@@ -153,8 +153,13 @@ export function HistoryPanel({ schemeId, refreshKey }: HistoryPanelProps) {
               <div class="history-panel__description">
                 <ChangeDescription event={event} />
               </div>
-              <div class="history-panel__timestamp">
-                {formatTimestamp(event.timestamp)}
+              <div class="history-panel__meta">
+                <span class="history-panel__user">
+                  {event.user_display_name ?? "Unknown"}
+                </span>
+                <span class="history-panel__timestamp">
+                  {formatTimestamp(event.timestamp)}
+                </span>
               </div>
               {hasDetails && (
                 <details class="history-panel__details">

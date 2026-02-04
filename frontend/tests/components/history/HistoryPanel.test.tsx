@@ -18,6 +18,7 @@ describe("HistoryPanel", () => {
       before_state: { pref_label: "Old Label" },
       after_state: { pref_label: "New Label" },
       user_id: null,
+      user_display_name: null,
     },
     {
       id: "event-2",
@@ -29,6 +30,7 @@ describe("HistoryPanel", () => {
       before_state: null,
       after_state: { pref_label: "Test Concept" },
       user_id: null,
+      user_display_name: null,
     },
   ];
 
@@ -122,6 +124,7 @@ describe("HistoryPanel", () => {
           broader_label: "Animals",
         },
         user_id: null,
+        user_display_name: null,
       },
     ];
     vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(broaderHistory);
@@ -141,6 +144,40 @@ describe("HistoryPanel", () => {
 
     await waitFor(() => {
       expect(screen.getAllByText("View changes")).toHaveLength(2);
+    });
+  });
+
+  it("displays user display name when available", async () => {
+    const historyWithUser: ChangeEvent[] = [
+      {
+        id: "event-1",
+        timestamp: "2024-01-15T10:30:00Z",
+        entity_type: "concept",
+        entity_id: "concept-123",
+        scheme_id: "scheme-456",
+        action: "update",
+        before_state: { pref_label: "Old Label" },
+        after_state: { pref_label: "New Label" },
+        user_id: "user-123",
+        user_display_name: "Jane Smith",
+      },
+    ];
+    vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(historyWithUser);
+
+    render(<HistoryPanel schemeId="scheme-456" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Jane Smith")).toBeInTheDocument();
+    });
+  });
+
+  it("displays 'Unknown' when user_display_name is null", async () => {
+    vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mockHistory);
+
+    render(<HistoryPanel schemeId="scheme-456" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Unknown")).toHaveLength(2);
     });
   });
 
