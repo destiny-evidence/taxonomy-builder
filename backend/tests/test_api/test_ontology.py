@@ -51,6 +51,8 @@ async def test_classes_have_uri_label_comment(
     assert "label" in investigation
     assert "comment" in investigation
     assert investigation["label"] == "Investigation"
+    # Verify the evrepo namespace is used
+    assert "evrepo.example.org" in investigation["uri"]
 
 
 @pytest.mark.asyncio
