@@ -89,12 +89,13 @@ class ConceptSchemeService:
 
         # Record change event
         await self._tracker.record(
-            scheme_id=scheme.id,
+            project_id=project_id,
             entity_type="concept_scheme",
             entity_id=scheme.id,
             action="create",
             before=None,
             after=self._tracker.serialize_scheme(scheme),
+            scheme_id=scheme.id,
         )
 
         return scheme
@@ -139,12 +140,13 @@ class ConceptSchemeService:
 
         # Record change event
         await self._tracker.record(
-            scheme_id=scheme.id,
+            project_id=project_id,
             entity_type="concept_scheme",
             entity_id=scheme.id,
             action="update",
             before=before_state,
             after=self._tracker.serialize_scheme(scheme),
+            scheme_id=scheme.id,
         )
 
         return scheme
@@ -152,18 +154,20 @@ class ConceptSchemeService:
     async def delete_scheme(self, scheme_id: UUID) -> None:
         """Delete a concept scheme."""
         scheme = await self.get_scheme(scheme_id)
+        project_id = scheme.project_id
 
         # Capture before state before deletion
         before_state = self._tracker.serialize_scheme(scheme)
 
         # Record change event BEFORE deleting scheme (FK constraint)
         await self._tracker.record(
-            scheme_id=scheme_id,
+            project_id=project_id,
             entity_type="concept_scheme",
             entity_id=scheme_id,
             action="delete",
             before=before_state,
             after=None,
+            scheme_id=scheme_id,
         )
 
         await self.db.delete(scheme)

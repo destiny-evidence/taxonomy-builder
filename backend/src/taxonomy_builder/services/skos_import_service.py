@@ -379,12 +379,13 @@ class SKOSImportService:
 
             # Record change
             await self._tracker.record(
-                scheme_id=scheme.id,
+                project_id=project_id,
                 entity_type="scheme",
                 entity_id=scheme.id,
                 action="create",
                 before=None,
                 after=self._tracker.serialize_scheme(scheme),
+                scheme_id=scheme.id,
             )
 
             # Create concepts - first pass: create all concepts
@@ -447,12 +448,13 @@ class SKOSImportService:
             # Record concept changes
             for concept in uri_to_concept.values():
                 await self._tracker.record(
-                    scheme_id=scheme.id,
+                    project_id=project_id,
                     entity_type="concept",
                     entity_id=concept.id,
                     action="create",
                     before=None,
                     after=self._tracker.serialize_concept(concept),
+                    scheme_id=scheme.id,
                 )
 
             schemes_created.append(

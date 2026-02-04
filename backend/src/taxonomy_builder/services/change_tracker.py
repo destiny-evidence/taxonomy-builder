@@ -18,27 +18,30 @@ class ChangeTracker:
 
     async def record(
         self,
-        scheme_id: UUID,
+        project_id: UUID,
         entity_type: str,
         entity_id: UUID,
         action: str,
         before: dict | None,
         after: dict | None,
+        scheme_id: UUID | None = None,
     ) -> ChangeEvent:
         """Record a change event.
 
         Args:
-            scheme_id: The scheme this change belongs to
-            entity_type: Type of entity changed (concept, concept_scheme, etc.)
+            project_id: The project this change belongs to
+            entity_type: Type of entity changed (concept, concept_scheme, property, etc.)
             entity_id: ID of the entity that changed
             action: The action performed (create, update, delete)
             before: State before the change (None for create)
             after: State after the change (None for delete)
+            scheme_id: The scheme this change belongs to (optional, for scheme-level entities)
 
         Returns:
             The created ChangeEvent
         """
         event = ChangeEvent(
+            project_id=project_id,
             scheme_id=scheme_id,
             entity_type=entity_type,
             entity_id=entity_id,
