@@ -179,3 +179,256 @@ class TestParseClasses:
 
         investigation = result.classes[0]
         assert investigation.comment is None
+
+
+# Sample TTL data for testing property parsing
+
+OBJECT_PROPERTY_TTL = """
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/vocab/> .
+
+ex:Investigation a owl:Class ;
+    rdfs:label "Investigation" .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:hasFinding a owl:ObjectProperty ;
+    rdfs:label "has finding" ;
+    rdfs:comment "Links an investigation to its findings." ;
+    rdfs:domain ex:Investigation ;
+    rdfs:range ex:Finding .
+"""
+
+DATATYPE_PROPERTY_TTL = """
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/vocab/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:sampleSize a owl:DatatypeProperty ;
+    rdfs:label "sample size" ;
+    rdfs:comment "Number of participants in the finding." ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:integer .
+"""
+
+UNION_DOMAIN_TTL = """
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/vocab/> .
+
+ex:Investigation a owl:Class ;
+    rdfs:label "Investigation" .
+
+ex:Intervention a owl:Class ;
+    rdfs:label "Intervention" .
+
+ex:Funder a owl:Class ;
+    rdfs:label "Funder" .
+
+ex:Fundable a owl:Class ;
+    owl:unionOf (ex:Investigation ex:Intervention) ;
+    rdfs:label "Fundable" .
+
+ex:fundedBy a owl:ObjectProperty ;
+    rdfs:label "funded by" ;
+    rdfs:comment "Links a fundable entity to its funder(s)." ;
+    rdfs:domain ex:Fundable ;
+    rdfs:range ex:Funder .
+"""
+
+UNION_RANGE_TTL = """
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/vocab/> .
+
+ex:Investigation a owl:Class ;
+    rdfs:label "Investigation" .
+
+ex:Person a owl:Class ;
+    rdfs:label "Person" .
+
+ex:Organization a owl:Class ;
+    rdfs:label "Organization" .
+
+ex:Agent a owl:Class ;
+    owl:unionOf (ex:Person ex:Organization) ;
+    rdfs:label "Agent" .
+
+ex:conductedBy a owl:ObjectProperty ;
+    rdfs:label "conducted by" ;
+    rdfs:domain ex:Investigation ;
+    rdfs:range ex:Agent .
+"""
+
+PROPERTY_MISSING_DOMAIN_RANGE_TTL = """
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/vocab/> .
+
+ex:someProperty a owl:ObjectProperty ;
+    rdfs:label "some property" .
+
+ex:anotherProperty a owl:DatatypeProperty ;
+    rdfs:label "another property" .
+"""
+
+MULTIPLE_PROPERTIES_TTL = """
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/vocab/> .
+
+ex:Investigation a owl:Class ;
+    rdfs:label "Investigation" .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:hasFinding a owl:ObjectProperty ;
+    rdfs:label "has finding" ;
+    rdfs:domain ex:Investigation ;
+    rdfs:range ex:Finding .
+
+ex:partOfInvestigation a owl:ObjectProperty ;
+    rdfs:label "part of investigation" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range ex:Investigation .
+
+ex:sampleSize a owl:DatatypeProperty ;
+    rdfs:label "sample size" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:integer .
+
+ex:attritionRate a owl:DatatypeProperty ;
+    rdfs:label "attrition rate" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:decimal .
+"""
+
+
+class TestParseObjectProperties:
+    """Test object property parsing from TTL content."""
+
+    def test_parse_object_properties(self) -> None:
+        """Test that we can parse OWL object properties from TTL content."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(OBJECT_PROPERTY_TTL)
+
+        assert len(result.object_properties) == 1
+        prop = result.object_properties[0]
+        assert prop.uri == "http://example.org/vocab/hasFinding"
+        assert prop.label == "has finding"
+        assert prop.comment == "Links an investigation to its findings."
+        assert prop.property_type == "object"
+
+    def test_extracts_domain_and_range(self) -> None:
+        """Test that domain and range are extracted as lists."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(OBJECT_PROPERTY_TTL)
+
+        prop = result.object_properties[0]
+        assert prop.domain == ["http://example.org/vocab/Investigation"]
+        assert prop.range == ["http://example.org/vocab/Finding"]
+
+    def test_expands_union_class_in_domain(self) -> None:
+        """Test that union classes in domain are expanded to member classes."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(UNION_DOMAIN_TTL)
+
+        funded_by = next(
+            p for p in result.object_properties if "fundedBy" in p.uri
+        )
+        # Domain should be expanded to [Investigation, Intervention]
+        assert len(funded_by.domain) == 2
+        assert "http://example.org/vocab/Investigation" in funded_by.domain
+        assert "http://example.org/vocab/Intervention" in funded_by.domain
+        # Range should remain as is
+        assert funded_by.range == ["http://example.org/vocab/Funder"]
+
+    def test_expands_union_class_in_range(self) -> None:
+        """Test that union classes in range are expanded to member classes."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(UNION_RANGE_TTL)
+
+        conducted_by = next(
+            p for p in result.object_properties if "conductedBy" in p.uri
+        )
+        # Range should be expanded to [Person, Organization]
+        assert len(conducted_by.range) == 2
+        assert "http://example.org/vocab/Person" in conducted_by.range
+        assert "http://example.org/vocab/Organization" in conducted_by.range
+        # Domain should remain as is
+        assert conducted_by.domain == ["http://example.org/vocab/Investigation"]
+
+    def test_handles_missing_domain_or_range(self) -> None:
+        """Test that properties without domain/range have empty lists."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(PROPERTY_MISSING_DOMAIN_RANGE_TTL)
+
+        obj_prop = next(
+            p for p in result.object_properties if "someProperty" in p.uri
+        )
+        assert obj_prop.domain == []
+        assert obj_prop.range == []
+
+
+class TestParseDatatypeProperties:
+    """Test datatype property parsing from TTL content."""
+
+    def test_parse_datatype_properties(self) -> None:
+        """Test that we can parse OWL datatype properties from TTL content."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(DATATYPE_PROPERTY_TTL)
+
+        assert len(result.datatype_properties) == 1
+        prop = result.datatype_properties[0]
+        assert prop.uri == "http://example.org/vocab/sampleSize"
+        assert prop.label == "sample size"
+        assert prop.comment == "Number of participants in the finding."
+        assert prop.property_type == "datatype"
+
+    def test_datatype_property_has_range_datatype(self) -> None:
+        """Test that datatype properties have their XSD datatype in range."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(DATATYPE_PROPERTY_TTL)
+
+        prop = result.datatype_properties[0]
+        assert prop.domain == ["http://example.org/vocab/Finding"]
+        assert prop.range == ["http://www.w3.org/2001/XMLSchema#integer"]
+
+    def test_handles_missing_domain_or_range(self) -> None:
+        """Test that datatype properties without domain/range have empty lists."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(PROPERTY_MISSING_DOMAIN_RANGE_TTL)
+
+        dt_prop = next(
+            p for p in result.datatype_properties if "anotherProperty" in p.uri
+        )
+        assert dt_prop.domain == []
+        assert dt_prop.range == []
+
+
+class TestParseMultipleProperties:
+    """Test parsing multiple properties from a single TTL."""
+
+    def test_parses_both_object_and_datatype_properties(self) -> None:
+        """Test that both object and datatype properties are extracted."""
+        service = CoreOntologyService()
+        result = service.parse_from_string(MULTIPLE_PROPERTIES_TTL)
+
+        assert len(result.object_properties) == 2
+        assert len(result.datatype_properties) == 2
+
+        obj_uris = [p.uri for p in result.object_properties]
+        assert "http://example.org/vocab/hasFinding" in obj_uris
+        assert "http://example.org/vocab/partOfInvestigation" in obj_uris
+
+        dt_uris = [p.uri for p in result.datatype_properties]
+        assert "http://example.org/vocab/sampleSize" in dt_uris
+        assert "http://example.org/vocab/attritionRate" in dt_uris

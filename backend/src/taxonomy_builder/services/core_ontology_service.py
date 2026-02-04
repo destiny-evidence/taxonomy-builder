@@ -1,8 +1,10 @@
 """Service for parsing core ontology classes and properties from TTL files."""
 
 from dataclasses import dataclass, field
+from typing import Literal
 
 from rdflib import Graph, URIRef
+from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS
 
 
@@ -16,10 +18,24 @@ class OntologyClass:
 
 
 @dataclass
+class OntologyProperty:
+    """Represents an OWL property from the ontology."""
+
+    uri: str
+    label: str
+    comment: str | None
+    domain: list[str]
+    range: list[str]
+    property_type: Literal["object", "datatype"]
+
+
+@dataclass
 class CoreOntology:
     """The parsed core ontology structure."""
 
     classes: list[OntologyClass] = field(default_factory=list)
+    object_properties: list[OntologyProperty] = field(default_factory=list)
+    datatype_properties: list[OntologyProperty] = field(default_factory=list)
 
 
 class CoreOntologyService:
@@ -32,14 +48,22 @@ class CoreOntologyService:
             ttl_content: The TTL file content as a string.
 
         Returns:
-            CoreOntology with extracted classes.
+            CoreOntology with extracted classes and properties.
         """
         graph = Graph()
         graph.parse(data=ttl_content, format="turtle")
 
         classes = self._extract_classes(graph)
+        object_properties = self._extract_properties(graph, OWL.ObjectProperty, "object")
+        datatype_properties = self._extract_properties(
+            graph, OWL.DatatypeProperty, "datatype"
+        )
 
-        return CoreOntology(classes=classes)
+        return CoreOntology(
+            classes=classes,
+            object_properties=object_properties,
+            datatype_properties=datatype_properties,
+        )
 
     def _extract_classes(self, graph: Graph) -> list[OntologyClass]:
         """Extract OWL classes from the graph.
@@ -73,6 +97,81 @@ class CoreOntologyService:
             )
 
         return classes
+
+    def _extract_properties(
+        self,
+        graph: Graph,
+        property_type_uri: URIRef,
+        property_type: Literal["object", "datatype"],
+    ) -> list[OntologyProperty]:
+        """Extract OWL properties of a specific type from the graph.
+
+        Args:
+            graph: The RDF graph.
+            property_type_uri: OWL.ObjectProperty or OWL.DatatypeProperty.
+            property_type: "object" or "datatype" for the property_type field.
+
+        Returns:
+            List of OntologyProperty objects.
+        """
+        properties = []
+
+        for subject in graph.subjects(RDF.type, property_type_uri):
+            if not isinstance(subject, URIRef):
+                continue
+
+            uri = str(subject)
+            label = self._get_label(graph, subject, uri)
+            comment = self._get_comment(graph, subject)
+            domain = self._get_domain_or_range(graph, subject, RDFS.domain)
+            range_ = self._get_domain_or_range(graph, subject, RDFS.range)
+
+            properties.append(
+                OntologyProperty(
+                    uri=uri,
+                    label=label,
+                    comment=comment,
+                    domain=domain,
+                    range=range_,
+                    property_type=property_type,
+                )
+            )
+
+        return properties
+
+    def _get_domain_or_range(
+        self, graph: Graph, subject: URIRef, predicate: URIRef
+    ) -> list[str]:
+        """Get domain or range for a property, expanding union classes.
+
+        Args:
+            graph: The RDF graph.
+            subject: The property URI.
+            predicate: RDFS.domain or RDFS.range.
+
+        Returns:
+            List of class URIs. If the domain/range is a union class,
+            returns the member classes. Otherwise returns a single-item list.
+        """
+        value = graph.value(subject, predicate)
+        if value is None:
+            return []
+
+        if not isinstance(value, URIRef):
+            return []
+
+        # Check if this is a union class
+        union_list = graph.value(value, OWL.unionOf)
+        if union_list is not None:
+            # Expand the union to its members
+            members = []
+            collection = Collection(graph, union_list)
+            for member in collection:
+                if isinstance(member, URIRef):
+                    members.append(str(member))
+            return members
+
+        return [str(value)]
 
     def _get_label(self, graph: Graph, subject: URIRef, uri: str) -> str:
         """Get rdfs:label for a subject, falling back to URI fragment."""
