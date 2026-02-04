@@ -20,6 +20,7 @@ from taxonomy_builder.services.concept_scheme_service import (
     ConceptSchemeService,
     ProjectNotFoundError,
     SchemeNotFoundError,
+    SchemeReferencedByPropertyError,
     SchemeTitleExistsError,
 )
 from taxonomy_builder.services.skos_export_service import (
@@ -131,6 +132,8 @@ async def delete_scheme(
         await service.delete_scheme(scheme_id)
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except SchemeReferencedByPropertyError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @schemes_router.get("/{scheme_id}/export")
