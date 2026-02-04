@@ -143,6 +143,7 @@ export interface ChangeEvent {
   before_state: Record<string, unknown> | null;
   after_state: Record<string, unknown> | null;
   user_id: string | null;
+  user_display_name: string | null;
 }
 
 // ============ Published Versions ============

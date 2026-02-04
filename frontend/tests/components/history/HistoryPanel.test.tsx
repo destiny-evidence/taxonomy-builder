@@ -18,6 +18,7 @@ describe("HistoryPanel", () => {
       before_state: { pref_label: "Old Label" },
       after_state: { pref_label: "New Label" },
       user_id: null,
+      user_display_name: null,
     },
     {
       id: "event-2",
@@ -29,6 +30,7 @@ describe("HistoryPanel", () => {
       before_state: null,
       after_state: { pref_label: "Test Concept" },
       user_id: null,
+      user_display_name: null,
     },
   ];
 
@@ -122,6 +124,7 @@ describe("HistoryPanel", () => {
           broader_label: "Animals",
         },
         user_id: null,
+        user_display_name: null,
       },
     ];
     vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(broaderHistory);
