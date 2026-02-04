@@ -85,6 +85,13 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
     loadOntology();
   }, []);
 
+  // Sync domainClass state when prop changes (handles case where prop arrives after mount)
+  useEffect(() => {
+    if (domainClassUri) {
+      setDomainClass(domainClassUri);
+    }
+  }, [domainClassUri]);
+
   // Auto-generate identifier from label (only if not manually touched)
   useEffect(() => {
     if (!identifierTouched && label) {
