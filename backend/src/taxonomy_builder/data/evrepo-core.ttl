@@ -91,21 +91,6 @@ evrepo:Fundable a owl:Class ;
 
 
 # =============================================================================
-# DISJOINTNESS
-# =============================================================================
-
-# Core entity types are mutually exclusive
-[] a owl:AllDisjointClasses ;
-    owl:members (
-        evrepo:Investigation
-        evrepo:Finding
-        evrepo:Intervention
-        evrepo:EffectEstimate
-        evrepo:Context
-    ) .
-
-
-# =============================================================================
 # OBJECT PROPERTIES (relationships between entities)
 # =============================================================================
 
@@ -147,16 +132,11 @@ evrepo:outcomeDescription a owl:DatatypeProperty ;
 
 evrepo:hasContext a owl:ObjectProperty ;
     rdfs:label "has context" ;
-    rdfs:comment """Links a finding to the geographic/institutional context where 
-    the research took place. Context is on Finding (not Investigation) because 
+    rdfs:comment """Links a finding to the geographic/institutional context where
+    the research took place. Context is on Finding (not Investigation) because
     a single investigation may span multiple contexts.""" ;
     rdfs:domain evrepo:Finding ;
     rdfs:range evrepo:Context .
-
-evrepo:country a owl:ObjectProperty ;
-    rdfs:label "country" ;
-    rdfs:comment "The country where research took place. Values should be ISO 3166-1 codes." ;
-    rdfs:domain evrepo:Context .
 
 # -- Funding and implementation --
 
