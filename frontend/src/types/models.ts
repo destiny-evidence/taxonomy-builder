@@ -185,3 +185,72 @@ export interface CommentCreate {
   parent_comment_id?: string;
 }
 
+// ============ Properties ============
+// Brief scheme info nested in property responses
+export interface ConceptSchemeBrief {
+  id: string;
+  title: string;
+  uri: string | null;
+}
+
+export interface Property {
+  id: string;
+  project_id: string;
+  identifier: string;
+  label: string;
+  description: string | null;
+  domain_class: string;
+  range_scheme_id: string | null;
+  range_scheme: ConceptSchemeBrief | null;
+  range_datatype: string | null;
+  cardinality: "single" | "multiple";
+  required: boolean;
+  uri: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyCreate {
+  identifier: string;
+  label: string;
+  description?: string | null;
+  domain_class: string;
+  range_scheme_id?: string | null;
+  range_datatype?: string | null;
+  cardinality: "single" | "multiple";
+  required?: boolean;
+}
+
+export interface PropertyUpdate {
+  identifier?: string;
+  label?: string;
+  description?: string | null;
+  domain_class?: string;
+  range_scheme_id?: string | null;
+  range_datatype?: string | null;
+  cardinality?: "single" | "multiple";
+  required?: boolean;
+}
+
+// ============ Ontology ============
+export interface OntologyClass {
+  uri: string;
+  label: string;
+  comment: string | null;
+}
+
+export interface OntologyProperty {
+  uri: string;
+  label: string;
+  comment: string | null;
+  domain: string[];
+  range: string[];
+  property_type: "object" | "datatype";
+}
+
+export interface CoreOntology {
+  classes: OntologyClass[];
+  object_properties: OntologyProperty[];
+  datatype_properties: OntologyProperty[];
+}
+
