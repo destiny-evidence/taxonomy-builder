@@ -1,4 +1,4 @@
-import { api, ApiError } from "./client";
+import { api } from "./client";
 import { API_BASE } from "../config";
 import type {
   ConceptScheme,
@@ -43,31 +43,14 @@ export function getExportUrl(schemeId: string, format: ExportFormat): string {
   return `${API_BASE}/schemes/${schemeId}/export?format=${format}`;
 }
 
-async function importRequest<T>(
+function importRequest<T>(
   projectId: string,
   file: File,
   dryRun: boolean
 ): Promise<T> {
   const formData = new FormData();
   formData.append("file", file);
-
-  const response = await fetch(
-    `${API_BASE}/projects/${projectId}/import?dry_run=${dryRun}`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      error.detail || `Import failed: ${response.status}`
-    );
-  }
-
-  return response.json();
+  return api.postForm<T>(`/projects/${projectId}/import?dry_run=${dryRun}`, formData);
 }
 
 export const schemesApi = {

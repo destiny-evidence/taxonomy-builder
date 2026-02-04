@@ -16,17 +16,21 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
   skipAuth?: boolean;
+  isFormData?: boolean;
 }
 
 async function request<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, skipAuth = false } = options;
+  const { method = "GET", body, skipAuth = false, isFormData = false } = options;
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const headers: Record<string, string> = {};
+
+  // Don't set Content-Type for FormData - browser sets it with boundary
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
 
   // Add Authorization header with token from Keycloak
   if (!skipAuth) {
@@ -39,7 +43,7 @@ async function request<T>(
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
   });
 
   // Handle 401 Unauthorized
@@ -67,6 +71,8 @@ export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),
   post: <T>(endpoint: string, body: unknown) =>
     request<T>(endpoint, { method: "POST", body }),
+  postForm: <T>(endpoint: string, formData: FormData) =>
+    request<T>(endpoint, { method: "POST", body: formData, isFormData: true }),
   put: <T>(endpoint: string, body: unknown) =>
     request<T>(endpoint, { method: "PUT", body }),
   delete: (endpoint: string) => request<void>(endpoint, { method: "DELETE" }),
