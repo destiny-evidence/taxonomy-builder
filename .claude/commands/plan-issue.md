@@ -6,15 +6,14 @@ Read and plan the implementation for GitHub issue #$ARGUMENTS.
 
 1. **Fetch the issue** using `gh issue view $ARGUMENTS` to get the full issue details including title, body, labels, and any comments.
 
-2. **Understand the problem** by:
-   - Summarizing what the issue is asking for
-   - Identifying any ambiguities or missing information
-   - Asking clarifying questions if anything is unclear before proceeding
+2. **Summarize your understanding** of what the issue is asking for. Ask clarifying questions immediately if the issue description is ambiguous or incomplete - don't proceed until you understand the requirements.
 
 3. **Explore the codebase** to understand:
    - Which files/components are affected
    - How the current implementation works
    - What tests already exist for related functionality
+
+   As you explore, ask clarifying questions inline whenever you encounter ambiguity about intended behavior, scope, or approach. Don't batch questions - ask them as they arise so answers can inform subsequent exploration.
 
 4. **Plan implementation in TDD stripes** using red-green-refactor:
    - Break the work into small, incremental slices
@@ -35,9 +34,6 @@ Read and plan the implementation for GitHub issue #$ARGUMENTS.
 ```
 ## Issue Summary
 [Brief description of what needs to be done]
-
-## Questions (if any)
-[List any clarifications needed before implementation]
 
 ## Affected Files
 [List of files that will likely need changes]
