@@ -10,6 +10,7 @@ from sqlalchemy import text
 from taxonomy_builder.api.comments import comments_router, concept_comments_router
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
 from taxonomy_builder.api.history import router as history_router
+from taxonomy_builder.api.ontology import router as ontology_router
 from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
 from taxonomy_builder.api.versions import router as versions_router
@@ -41,6 +42,7 @@ app.include_router(concept_comments_router)
 app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(versions_router)
+app.include_router(ontology_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
