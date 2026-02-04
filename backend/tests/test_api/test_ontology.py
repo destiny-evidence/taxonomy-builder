@@ -93,16 +93,16 @@ async def test_datatype_properties_have_range_datatype(
     data = response.json()
     datatype_properties = data["datatype_properties"]
 
-    # Find the sampleSize property
-    sample_size = next(
-        (p for p in datatype_properties if "sampleSize" in p["uri"]), None
+    # Find the effectSize property
+    effect_size = next(
+        (p for p in datatype_properties if "effectSize" in p["uri"]), None
     )
-    assert sample_size is not None
-    assert "range" in sample_size
-    assert sample_size["property_type"] == "datatype"
+    assert effect_size is not None
+    assert "range" in effect_size
+    assert effect_size["property_type"] == "datatype"
 
     # Range should contain XSD datatype
-    assert any("XMLSchema" in r for r in sample_size["range"])
+    assert any("XMLSchema" in r for r in effect_size["range"])
 
 
 @pytest.mark.asyncio

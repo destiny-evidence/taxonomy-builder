@@ -165,36 +165,6 @@ evrepo:hasEffectEstimate a owl:ObjectProperty ;
 # DATATYPE PROPERTIES (literal values)
 # =============================================================================
 
-# -- Identification --
-
-evrepo:implementationName a owl:DatatypeProperty ;
-    rdfs:label "implementation name" ;
-    rdfs:comment "Common name for an intervention (e.g., 'Teaching at the Right Level')." ;
-    rdfs:domain evrepo:Intervention ;
-    rdfs:range xsd:string .
-
-# -- Sample characteristics --
-
-evrepo:sampleSize a owl:DatatypeProperty ;
-    rdfs:label "sample size" ;
-    rdfs:comment "Number of participants in the finding." ;
-    rdfs:domain evrepo:Finding ;
-    rdfs:range xsd:integer .
-
-evrepo:attritionRate a owl:DatatypeProperty ;
-    rdfs:label "attrition rate" ;
-    rdfs:comment "Percentage of sample lost to follow-up (0-100)." ;
-    rdfs:domain evrepo:Finding ;
-    rdfs:range xsd:decimal .
-
-# -- Timing --
-
-evrepo:durationWeeks a owl:DatatypeProperty ;
-    rdfs:label "duration (weeks)" ;
-    rdfs:comment "Duration of intervention in weeks." ;
-    rdfs:domain evrepo:Intervention ;
-    rdfs:range xsd:decimal .
-
 # -- Effect estimate components --
 
 evrepo:effectSize a owl:DatatypeProperty ;
