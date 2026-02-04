@@ -172,4 +172,79 @@ describe("PropertyDetail", () => {
       expect(dialog).not.toHaveAttribute("open");
     });
   });
+
+  describe("edit mode", () => {
+    it("switches to edit mode when Edit button clicked", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Should show Cancel and Save buttons
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+    });
+
+    it("shows input for label pre-filled with current value", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      expect(screen.getByDisplayValue("Birth Date")).toBeInTheDocument();
+    });
+
+    it("shows input for identifier pre-filled with current value", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      expect(screen.getByDisplayValue("birthDate")).toBeInTheDocument();
+    });
+
+    it("shows textarea for description", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      expect(screen.getByDisplayValue("The date when a person was born")).toBeInTheDocument();
+    });
+
+    it("exits edit mode on cancel without saving", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Modify a field
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "Modified Label" } });
+
+      // Cancel
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+      // Should be back in view mode with original values
+      expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+      expect(screen.getByText("Birth Date")).toBeInTheDocument();
+    });
+
+    it("disables save when label is empty", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "" } });
+
+      expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    });
+
+    it("shows validation error for invalid identifier", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const identifierInput = screen.getByDisplayValue("birthDate");
+      fireEvent.input(identifierInput, { target: { value: "123-invalid" } });
+
+      expect(screen.getByText(/must start with a letter/i)).toBeInTheDocument();
+    });
+  });
 });
