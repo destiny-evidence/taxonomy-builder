@@ -6,8 +6,7 @@ from unittest.mock import patch
 from taxonomy_builder.config import Settings
 from taxonomy_builder.services.core_ontology_service import (
     CoreOntologyService,
-    get_cached_ontology,
-    load_core_ontology,
+    get_core_ontology,
 )
 
 # Sample TTL data for testing class parsing
@@ -470,41 +469,28 @@ class TestConfiguration:
 class TestCaching:
     """Test ontology caching functionality."""
 
-    def test_load_core_ontology_returns_ontology(self) -> None:
-        """Test that load_core_ontology loads and returns the ontology."""
-        ontology = load_core_ontology()
+    def test_get_core_ontology_returns_ontology(self) -> None:
+        """Test that get_core_ontology loads and returns the ontology."""
+        ontology = get_core_ontology()
         assert ontology is not None
         assert len(ontology.classes) > 0
-
-    def test_get_cached_ontology_returns_cached_value(self) -> None:
-        """Test that get_cached_ontology returns the cached ontology."""
-        # First ensure it's loaded
-        load_core_ontology()
-
-        # Get cached version
-        cached = get_cached_ontology()
-        assert cached is not None
-        assert len(cached.classes) > 0
 
     def test_ontology_is_cached_after_load(self) -> None:
         """Test that the ontology is only loaded once."""
         # Clear any existing cache
-        import taxonomy_builder.services.core_ontology_service as module
-        module._core_ontology_cache = None
+        get_core_ontology.cache_clear()
 
         # Load it
-        first = load_core_ontology()
+        first = get_core_ontology()
 
-        # Get cached - should be the same object
-        second = get_cached_ontology()
+        # Call again - should be the same object
+        second = get_core_ontology()
         assert first is second
 
     def test_warns_if_file_missing_in_dev(self, tmp_path: Path) -> None:
         """Test that a warning is logged if file is missing in dev mode."""
-        import taxonomy_builder.services.core_ontology_service as module
-
-        # Clear cache
-        module._core_ontology_cache = None
+        # Clear cache so our patched settings takes effect
+        get_core_ontology.cache_clear()
 
         # Use a non-existent path
         fake_path = str(tmp_path / "nonexistent.ttl")
@@ -521,7 +507,7 @@ class TestCaching:
             with patch(
                 "taxonomy_builder.services.core_ontology_service.logger"
             ) as mock_logger:
-                result = load_core_ontology()
+                result = get_core_ontology()
 
                 # Should return empty ontology
                 assert len(result.classes) == 0
@@ -530,3 +516,6 @@ class TestCaching:
 
                 # Should have logged a warning
                 mock_logger.warning.assert_called_once()
+
+        # Clear cache again so we don't affect other tests
+        get_core_ontology.cache_clear()

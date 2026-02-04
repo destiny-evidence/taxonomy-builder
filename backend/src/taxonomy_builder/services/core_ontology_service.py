@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -208,21 +209,13 @@ class CoreOntologyService:
         return None
 
 
-# Module-level cache for the core ontology
-_core_ontology_cache: CoreOntology | None = None
-
-
-def load_core_ontology() -> CoreOntology:
-    """Load the core ontology from the configured file path.
-
-    This function loads the ontology and caches it. If the file doesn't exist,
-    it logs a warning and returns an empty ontology (graceful degradation for dev).
+@lru_cache(maxsize=1)
+def get_core_ontology() -> CoreOntology:
+    """Get the core ontology, loading and caching on first call.
 
     Returns:
         The parsed CoreOntology, or an empty one if the file is missing.
     """
-    global _core_ontology_cache
-
     from taxonomy_builder.config import settings
 
     file_path = Path(settings.core_ontology_path)
@@ -233,18 +226,7 @@ def load_core_ontology() -> CoreOntology:
             "Returning empty ontology. This is expected during development "
             "if the file hasn't been created yet."
         )
-        _core_ontology_cache = CoreOntology()
-        return _core_ontology_cache
+        return CoreOntology()
 
     service = CoreOntologyService()
-    _core_ontology_cache = service.parse_from_file(str(file_path))
-    return _core_ontology_cache
-
-
-def get_cached_ontology() -> CoreOntology | None:
-    """Get the cached core ontology.
-
-    Returns:
-        The cached CoreOntology, or None if not yet loaded.
-    """
-    return _core_ontology_cache
+    return service.parse_from_file(str(file_path))

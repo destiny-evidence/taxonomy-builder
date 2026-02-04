@@ -7,23 +7,9 @@ from taxonomy_builder.schemas.ontology import (
     OntologyClass,
     OntologyProperty,
 )
-from taxonomy_builder.services.core_ontology_service import (
-    CoreOntology,
-    get_cached_ontology,
-    load_core_ontology,
-)
+from taxonomy_builder.services.core_ontology_service import get_core_ontology
 
 router = APIRouter(prefix="/api/ontology", tags=["ontology"])
-
-
-def _get_ontology() -> CoreOntology:
-    """Get the ontology from cache, or load it if not cached yet."""
-    ontology = get_cached_ontology()
-    if ontology is None:
-        # This shouldn't happen in normal operation since we load at startup,
-        # but fall back to loading if needed
-        ontology = load_core_ontology()
-    return ontology
 
 
 @router.get("", response_model=CoreOntologyResponse)
@@ -33,7 +19,7 @@ async def get_ontology() -> CoreOntologyResponse:
     Returns the classes, object properties, and datatype properties
     from the cached core ontology (loaded at startup).
     """
-    ontology = _get_ontology()
+    ontology = get_core_ontology()
 
     return CoreOntologyResponse(
         classes=[

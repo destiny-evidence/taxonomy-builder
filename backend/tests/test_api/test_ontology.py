@@ -118,7 +118,7 @@ async def test_endpoint_uses_cached_ontology(
     )
 
     with patch(
-        "taxonomy_builder.api.ontology.get_cached_ontology",
+        "taxonomy_builder.api.ontology.get_core_ontology",
         return_value=mock_ontology,
     ):
         response = await authenticated_client.get("/api/ontology")
