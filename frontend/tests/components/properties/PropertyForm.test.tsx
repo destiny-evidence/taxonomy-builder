@@ -296,4 +296,90 @@ describe("PropertyForm", () => {
       });
     });
   });
+
+  describe("with domainClassUri prop", () => {
+    it("shows class label instead of dropdown when domainClassUri provided", async () => {
+      render(
+        <PropertyForm
+          projectId="proj-1"
+          domainClassUri="http://example.org/Person"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        // Should show the class label as text, not a dropdown
+        expect(screen.getByText("Person")).toBeInTheDocument();
+      });
+
+      // Should NOT have a domain class dropdown
+      expect(screen.queryByRole("combobox", { name: /domain/i })).not.toBeInTheDocument();
+    });
+
+    it("pre-fills domain class in submission when domainClassUri provided", async () => {
+      vi.mocked(propertiesApi.create).mockResolvedValue({
+        id: "prop-new",
+        project_id: "proj-1",
+        identifier: "test",
+        label: "Test",
+        description: null,
+        domain_class: "http://example.org/Person",
+        range_scheme_id: null,
+        range_scheme: null,
+        range_datatype: "xsd:string",
+        cardinality: "single",
+        required: false,
+        uri: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      });
+
+      render(
+        <PropertyForm
+          projectId="proj-1"
+          domainClassUri="http://example.org/Person"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
+      });
+
+      // Fill in required fields (domain class is pre-filled)
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^Range Datatype/)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/^Range Datatype/), { target: { value: "xsd:string" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /create/i }));
+
+      await waitFor(() => {
+        expect(propertiesApi.create).toHaveBeenCalledWith("proj-1", expect.objectContaining({
+          domain_class: "http://example.org/Person",
+        }));
+      });
+    });
+
+    it("shows URI when class label not found", async () => {
+      render(
+        <PropertyForm
+          projectId="proj-1"
+          domainClassUri="http://example.org/UnknownClass"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        // Should fall back to showing the URI
+        expect(screen.getByText("http://example.org/UnknownClass")).toBeInTheDocument();
+      });
+    });
+  });
 });
