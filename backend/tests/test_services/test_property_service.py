@@ -236,3 +236,352 @@ class TestCreateProperty:
 
         with pytest.raises(SchemeNotInProjectError):
             await service.create_property(project.id, prop_in)
+
+
+class TestListProperties:
+    """Tests for PropertyService.list_properties."""
+
+    @pytest.mark.asyncio
+    async def test_list_properties_empty(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test listing properties when none exist."""
+        service = PropertyService(db_session)
+        properties = await service.list_properties(project.id)
+        assert properties == []
+
+    @pytest.mark.asyncio
+    async def test_list_properties_returns_all_for_project(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test listing returns all properties for a project."""
+        service = PropertyService(db_session)
+
+        # Create two properties
+        prop1_in = PropertyCreate(
+            identifier="prop1",
+            label="Property 1",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop2_in = PropertyCreate(
+            identifier="prop2",
+            label="Property 2",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:integer",
+            cardinality="multiple",
+        )
+        await service.create_property(project.id, prop1_in)
+        await service.create_property(project.id, prop2_in)
+
+        properties = await service.list_properties(project.id)
+        assert len(properties) == 2
+        identifiers = {p.identifier for p in properties}
+        assert identifiers == {"prop1", "prop2"}
+
+    @pytest.mark.asyncio
+    async def test_list_properties_excludes_other_projects(
+        self, db_session: AsyncSession, project: Project, other_project: Project
+    ) -> None:
+        """Test that listing only returns properties for the specified project."""
+        service = PropertyService(db_session)
+
+        # Create property in each project
+        prop1_in = PropertyCreate(
+            identifier="prop1",
+            label="Property 1",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop2_in = PropertyCreate(
+            identifier="prop2",
+            label="Property 2",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        await service.create_property(project.id, prop1_in)
+        await service.create_property(other_project.id, prop2_in)
+
+        properties = await service.list_properties(project.id)
+        assert len(properties) == 1
+        assert properties[0].identifier == "prop1"
+
+
+class TestGetProperty:
+    """Tests for PropertyService.get_property."""
+
+    @pytest.mark.asyncio
+    async def test_get_property_success(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test getting a property by ID."""
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test Property",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        prop = await service.get_property(created.id)
+        assert prop is not None
+        assert prop.id == created.id
+        assert prop.identifier == "testProp"
+
+    @pytest.mark.asyncio
+    async def test_get_property_not_found(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Test that getting a non-existent property returns None."""
+        service = PropertyService(db_session)
+        prop = await service.get_property(uuid4())
+        assert prop is None
+
+
+class TestUpdateProperty:
+    """Tests for PropertyService.update_property."""
+
+    @pytest.mark.asyncio
+    async def test_update_property_label(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test updating a property's label."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Original Label",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(label="Updated Label")
+        updated = await service.update_property(created.id, update)
+
+        assert updated is not None
+        assert updated.label == "Updated Label"
+        assert updated.identifier == "testProp"  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_update_property_description(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test updating a property's description."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(description="New description")
+        updated = await service.update_property(created.id, update)
+
+        assert updated is not None
+        assert updated.description == "New description"
+
+    @pytest.mark.asyncio
+    async def test_update_property_required(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test updating a property's required flag."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(required=True)
+        updated = await service.update_property(created.id, update)
+
+        assert updated is not None
+        assert updated.required is True
+
+    @pytest.mark.asyncio
+    async def test_update_property_not_found(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Test that updating a non-existent property returns None."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        update = PropertyUpdate(label="New Label")
+        result = await service.update_property(uuid4(), update)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_property_change_range_scheme(
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    ) -> None:
+        """Test updating a property to use a different range scheme."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        # Create a second scheme
+        scheme2 = ConceptScheme(
+            project_id=project.id,
+            title="Second Scheme",
+            uri="http://example.org/schemes/second",
+        )
+        db_session.add(scheme2)
+        await db_session.flush()
+        await db_session.refresh(scheme2)
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_scheme_id=scheme.id,
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(range_scheme_id=scheme2.id)
+        updated = await service.update_property(created.id, update)
+
+        assert updated is not None
+        assert updated.range_scheme_id == scheme2.id
+
+    @pytest.mark.asyncio
+    async def test_update_property_change_from_scheme_to_datatype(
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    ) -> None:
+        """Test updating from range_scheme_id to range_datatype."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_scheme_id=scheme.id,
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        # Clear scheme, set datatype
+        update = PropertyUpdate(range_scheme_id=None, range_datatype="xsd:string")
+        updated = await service.update_property(created.id, update)
+
+        assert updated is not None
+        assert updated.range_scheme_id is None
+        assert updated.range_datatype == "xsd:string"
+
+    @pytest.mark.asyncio
+    async def test_update_property_invalid_range_scheme(
+        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme
+    ) -> None:
+        """Test that updating to a scheme from another project raises error."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(range_scheme_id=other_scheme.id, range_datatype=None)
+        with pytest.raises(SchemeNotInProjectError):
+            await service.update_property(created.id, update)
+
+    @pytest.mark.asyncio
+    async def test_update_property_both_range_fields_error(
+        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    ) -> None:
+        """Test that setting both range fields on update raises error."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(range_scheme_id=scheme.id, range_datatype="xsd:integer")
+        with pytest.raises(InvalidRangeError):
+            await service.update_property(created.id, update)
+
+    @pytest.mark.asyncio
+    async def test_update_property_neither_range_field_error(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test that clearing both range fields raises error."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        # Explicitly set both to None
+        update = PropertyUpdate(range_scheme_id=None, range_datatype=None)
+        with pytest.raises(InvalidRangeError):
+            await service.update_property(created.id, update)
+
+
+class TestDeleteProperty:
+    """Tests for PropertyService.delete_property."""
+
+    @pytest.mark.asyncio
+    async def test_delete_property_success(
+        self, db_session: AsyncSession, project: Project
+    ) -> None:
+        """Test deleting a property."""
+        service = PropertyService(db_session)
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        result = await service.delete_property(created.id)
+        assert result is True
+
+        # Verify it's gone
+        prop = await service.get_property(created.id)
+        assert prop is None
+
+    @pytest.mark.asyncio
+    async def test_delete_property_not_found(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Test that deleting a non-existent property returns False."""
+        service = PropertyService(db_session)
+        result = await service.delete_property(uuid4())
+        assert result is False

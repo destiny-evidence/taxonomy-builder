@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
-from taxonomy_builder.schemas.property import PropertyCreate
+from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
 
@@ -186,3 +186,119 @@ class PropertyService:
         )
 
         return prop
+
+    async def list_properties(self, project_id: UUID) -> list[Property]:
+        """List all properties for a project.
+
+        Args:
+            project_id: The project ID
+
+        Returns:
+            List of properties in the project
+        """
+        result = await self.db.execute(
+            select(Property).where(Property.project_id == project_id)
+        )
+        return list(result.scalars().all())
+
+    async def get_property(self, property_id: UUID) -> Property | None:
+        """Get a property by ID.
+
+        Args:
+            property_id: The property ID
+
+        Returns:
+            The property or None if not found
+        """
+        result = await self.db.execute(
+            select(Property).where(Property.id == property_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_property(
+        self, property_id: UUID, property_in: PropertyUpdate
+    ) -> Property | None:
+        """Update a property.
+
+        Args:
+            property_id: The property ID
+            property_in: The update data
+
+        Returns:
+            The updated property or None if not found
+
+        Raises:
+            InvalidRangeError: If range specification becomes invalid
+            SchemeNotInProjectError: If scheme doesn't belong to the project
+        """
+        prop = await self.get_property(property_id)
+        if prop is None:
+            return None
+
+        before = self._serialize_property(prop)
+
+        # Determine what the new range values will be
+        new_scheme_id = prop.range_scheme_id
+        new_datatype = prop.range_datatype
+
+        # Check if we're updating range fields
+        update_data = property_in.model_dump(exclude_unset=True)
+        if "range_scheme_id" in update_data:
+            new_scheme_id = update_data["range_scheme_id"]
+        if "range_datatype" in update_data:
+            new_datatype = update_data["range_datatype"]
+
+        # Validate range if either range field is being updated
+        if "range_scheme_id" in update_data or "range_datatype" in update_data:
+            await self._validate_range(prop.project_id, new_scheme_id, new_datatype)
+
+        # Apply updates
+        for key, value in update_data.items():
+            setattr(prop, key, value)
+
+        await self.db.flush()
+        await self.db.refresh(prop)
+
+        # Record change event
+        await self._tracker.record(
+            project_id=prop.project_id,
+            entity_type="property",
+            entity_id=prop.id,
+            action="update",
+            before=before,
+            after=self._serialize_property(prop),
+        )
+
+        return prop
+
+    async def delete_property(self, property_id: UUID) -> bool:
+        """Delete a property.
+
+        Args:
+            property_id: The property ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        prop = await self.get_property(property_id)
+        if prop is None:
+            return False
+
+        before = self._serialize_property(prop)
+        project_id = prop.project_id
+        entity_id = prop.id
+
+        await self.db.delete(prop)
+        await self.db.flush()
+
+        # Record change event
+        await self._tracker.record(
+            project_id=project_id,
+            entity_type="property",
+            entity_id=entity_id,
+            action="delete",
+            before=before,
+            after=None,
+        )
+
+        return True
