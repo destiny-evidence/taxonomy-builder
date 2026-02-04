@@ -1,7 +1,10 @@
 """Tests for Core Ontology Service - parsing OWL classes and properties from TTL."""
 
+from pathlib import Path
+
 import pytest
 
+from taxonomy_builder.config import Settings
 from taxonomy_builder.services.core_ontology_service import CoreOntologyService
 
 
@@ -432,3 +435,31 @@ class TestParseMultipleProperties:
         dt_uris = [p.uri for p in result.datatype_properties]
         assert "http://example.org/vocab/sampleSize" in dt_uris
         assert "http://example.org/vocab/attritionRate" in dt_uris
+
+
+class TestConfiguration:
+    """Test configuration and file loading."""
+
+    def test_settings_has_core_ontology_path(self) -> None:
+        """Test that Settings has a core_ontology_path field."""
+        settings = Settings()
+        assert hasattr(settings, "core_ontology_path")
+
+    def test_default_path_points_to_bundled_file(self) -> None:
+        """Test that the default path points to the bundled evrepo-core.ttl file."""
+        settings = Settings()
+        path = Path(settings.core_ontology_path)
+        assert path.name == "evrepo-core.ttl"
+        assert path.exists(), f"Bundled file does not exist at {path}"
+
+    def test_service_loads_from_file_path(self) -> None:
+        """Test that the service can load from a file path."""
+        settings = Settings()
+        service = CoreOntologyService()
+        result = service.parse_from_file(settings.core_ontology_path)
+
+        # Should have parsed the bundled ontology
+        assert len(result.classes) > 0
+        # Should have Investigation class from the core ontology
+        uris = [c.uri for c in result.classes]
+        assert any("Investigation" in uri for uri in uris)

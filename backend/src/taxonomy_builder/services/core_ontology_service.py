@@ -1,6 +1,7 @@
 """Service for parsing core ontology classes and properties from TTL files."""
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
 
 from rdflib import Graph, URIRef
@@ -40,6 +41,18 @@ class CoreOntology:
 
 class CoreOntologyService:
     """Service for loading and parsing core ontology from TTL content."""
+
+    def parse_from_file(self, file_path: str) -> CoreOntology:
+        """Parse a TTL file and extract ontology structure.
+
+        Args:
+            file_path: Path to the TTL file.
+
+        Returns:
+            CoreOntology with extracted classes and properties.
+        """
+        content = Path(file_path).read_text()
+        return self.parse_from_string(content)
 
     def parse_from_string(self, ttl_content: str) -> CoreOntology:
         """Parse TTL content and extract ontology structure.
