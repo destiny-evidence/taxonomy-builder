@@ -75,6 +75,7 @@ class TestProjectRead:
             description="A test project",
             created_at=now,
             updated_at=now,
+            namespace=None,
         )
         assert project.id == UUID("01234567-89ab-7def-8123-456789abcdef")
         assert project.name == "Test Project"

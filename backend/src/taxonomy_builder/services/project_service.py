@@ -39,7 +39,11 @@ class ProjectService:
 
     async def create_project(self, project_in: ProjectCreate) -> Project:
         """Create a new project."""
-        project = Project(name=project_in.name, description=project_in.description)
+        project = Project(
+            name=project_in.name,
+            description=project_in.description,
+            namespace=project_in.namespace,
+        )
         self.db.add(project)
         try:
             await self.db.flush()
@@ -63,8 +67,10 @@ class ProjectService:
 
         if project_in.name is not None:
             project.name = project_in.name
-        if project_in.description is not None:
+        if "description" in project_in.model_fields_set:
             project.description = project_in.description
+        if "namespace" in project_in.model_fields_set:
+            project.namespace = project_in.namespace
 
         try:
             await self.db.flush()

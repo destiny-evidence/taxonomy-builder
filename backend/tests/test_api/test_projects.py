@@ -176,3 +176,154 @@ async def test_delete_project_not_found(authenticated_client: AsyncClient) -> No
     """Test deleting a non-existent project returns 404."""
     response = await authenticated_client.delete("/api/projects/01234567-89ab-7def-8123-456789abcdef")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_namespace(authenticated_client: AsyncClient) -> None:
+    """Test creating a project with a namespace."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "ESEA Vocabulary",
+            "description": "Education vocabulary",
+            "namespace": "https://esea.org/vocab",
+        },
+    )
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["name"] == "ESEA Vocabulary"
+    assert data["namespace"] == "https://esea.org/vocab"
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_namespace_stored_in_db(
+    authenticated_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Test that namespace is persisted to database."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Test Project",
+            "namespace": "https://example.org/vocab",
+        },
+    )
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+
+    # Verify it's in the database
+    get_response = await authenticated_client.get(f"/api/projects/{project_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["namespace"] == "https://example.org/vocab"
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_invalid_namespace(authenticated_client: AsyncClient) -> None:
+    """Test that creating a project with an invalid namespace URI fails."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Invalid Namespace Project",
+            "namespace": "not-a-valid-uri",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_malformed_namespace(authenticated_client: AsyncClient) -> None:
+    """Test that creating a project with a malformed namespace URI fails."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Malformed Namespace Project",
+            "namespace": "ht!tp://bad-url",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_http_namespace(authenticated_client: AsyncClient) -> None:
+    """Test that http:// namespaces are accepted (not just https://)."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "HTTP Namespace Project",
+            "namespace": "http://example.org/vocab",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["namespace"] == "http://example.org/vocab"
+
+
+@pytest.mark.asyncio
+async def test_update_project_add_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+    """Test adding a namespace to an existing project."""
+    # Create project without namespace
+    project = Project(name="No Namespace", description="Project without namespace")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    # Add namespace via update
+    response = await authenticated_client.put(
+        f"/api/projects/{project.id}",
+        json={"namespace": "https://example.org/new-vocab"},
+    )
+    assert response.status_code == 200
+    assert response.json()["namespace"] == "https://example.org/new-vocab"
+    assert response.json()["name"] == "No Namespace"  # Name unchanged
+
+
+@pytest.mark.asyncio
+async def test_update_project_change_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+    """Test changing a project's namespace."""
+    # Create project with namespace
+    project = Project(name="With Namespace", namespace="https://old.example.org/vocab")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    # Change namespace via update
+    response = await authenticated_client.put(
+        f"/api/projects/{project.id}",
+        json={"namespace": "https://new.example.org/vocab"},
+    )
+    assert response.status_code == 200
+    assert response.json()["namespace"] == "https://new.example.org/vocab"
+
+
+@pytest.mark.asyncio
+async def test_update_project_invalid_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+    """Test that updating to an invalid namespace fails."""
+    # Create project
+    project = Project(name="Test Project", namespace="https://example.org/vocab")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    # Try to update with invalid namespace
+    response = await authenticated_client.put(
+        f"/api/projects/{project.id}",
+        json={"namespace": "not-a-valid-uri"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_project_clear_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+    """Test removing a namespace from a project."""
+    # Create project with namespace
+    project = Project(name="Has Namespace", namespace="https://example.org/vocab")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    # Clear namespace by setting to null
+    response = await authenticated_client.put(
+        f"/api/projects/{project.id}",
+        json={"namespace": None},
+    )
+    assert response.status_code == 200
+    assert response.json()["namespace"] is None

@@ -3,6 +3,7 @@
 import contextlib
 from collections.abc import AsyncIterator
 
+from sqlalchemy import String
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -10,12 +11,27 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.types import TypeDecorator
 
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
 
     pass
+
+
+class UrlString(TypeDecorator):
+    """Column type that converts URL objects to strings on bind."""
+
+    impl = String
+    cache_ok = True
+
+    def __init__(self, length: int = 2048) -> None:
+        super().__init__(length)
+
+    def process_bind_param(self, value: object, dialect: object) -> str | None:
+        """Convert value to string before storing."""
+        return str(value) if value is not None else None
 
 
 class DatabaseSessionManager:

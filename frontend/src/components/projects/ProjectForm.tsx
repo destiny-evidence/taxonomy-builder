@@ -15,6 +15,7 @@ interface ProjectFormProps {
 export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) {
   const [name, setName] = useState(project?.name ?? "");
   const [description, setDescription] = useState(project?.description ?? "");
+  const [namespace, setNamespace] = useState(project?.namespace ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
   useEffect(() => {
     setName(project?.name ?? "");
     setDescription(project?.description ?? "");
+    setNamespace(project?.namespace ?? "");
     setError(null);
   }, [project]);
 
@@ -32,9 +34,17 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
 
     try {
       if (project) {
-        await projectsApi.update(project.id, { name, description: description || null });
+        await projectsApi.update(project.id, {
+          name,
+          description: description || null,
+          namespace: namespace || null,
+        });
       } else {
-        await projectsApi.create({ name, description: description || null });
+        await projectsApi.create({
+          name,
+          description: description || null,
+          namespace: namespace || null,
+        });
       }
       onSuccess();
     } catch (err) {
@@ -68,6 +78,15 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         placeholder="Optional description"
         multiline
         onChange={setDescription}
+      />
+
+      <Input
+        label="Namespace (optional)"
+        name="namespace"
+        type="url"
+        value={namespace}
+        placeholder="https://example.org/vocab"
+        onChange={setNamespace}
       />
 
       <div class="project-form__actions">
