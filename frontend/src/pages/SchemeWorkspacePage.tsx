@@ -1,14 +1,16 @@
 import { useEffect, useState } from "preact/hooks";
 import { route } from "preact-router";
-import { SchemesPane } from "../components/workspace/SchemesPane";
+import { ProjectPane } from "../components/workspace/ProjectPane";
 import { TreePane } from "../components/workspace/TreePane";
 import { ConceptPane } from "../components/workspace/ConceptPane";
+import { ClassDetailPane } from "../components/workspace/ClassDetailPane";
+import { PropertyPane } from "../components/workspace/PropertyPane";
 import { ConceptForm } from "../components/concepts/ConceptForm";
+import { PropertyForm } from "../components/properties/PropertyForm";
 import { SchemeForm } from "../components/schemes/SchemeForm";
 import { ExportModal } from "../components/schemes/ExportModal";
 import { ImportModal } from "../components/schemes/ImportModal";
 import { Modal } from "../components/common/Modal";
-import { ModelView } from "../components/model/ModelView";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
 import { currentProject } from "../state/projects";
@@ -20,9 +22,14 @@ import {
   selectedConceptId,
   selectedConcept,
 } from "../state/concepts";
+import { selectionMode, isClassMode, isSchemeMode } from "../state/workspace";
+import { selectedClassUri, selectedClass, ontology } from "../state/ontology";
+import { properties, selectedPropertyId } from "../state/properties";
 import { projectsApi } from "../api/projects";
 import { schemesApi } from "../api/schemes";
 import { conceptsApi } from "../api/concepts";
+import { ontologyApi } from "../api/ontology";
+import { propertiesApi } from "../api/properties";
 import type { Concept } from "../types/models";
 import "./SchemeWorkspacePage.css";
 
@@ -36,11 +43,11 @@ export function SchemeWorkspacePage({
   projectId,
   schemeId,
 }: SchemeWorkspacePageProps) {
-  const [viewMode, setViewMode] = useState<"schemes" | "model">("schemes");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isSchemeFormOpen, setIsSchemeFormOpen] = useState(false);
+  const [isPropertyFormOpen, setIsPropertyFormOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
@@ -49,11 +56,17 @@ export function SchemeWorkspacePage({
     if (projectId) {
       loadProject(projectId);
       loadSchemes(projectId);
+      loadOntology();
+      loadProperties(projectId);
     }
   }, [projectId]);
 
   useEffect(() => {
     if (schemeId) {
+      // When navigating to a scheme, set scheme mode
+      selectionMode.value = "scheme";
+      selectedClassUri.value = null;
+      selectedPropertyId.value = null;
       loadScheme(schemeId);
       loadTree(schemeId);
       loadConcepts(schemeId);
@@ -62,7 +75,7 @@ export function SchemeWorkspacePage({
       treeData.value = [];
       concepts.value = [];
     }
-    // Clear selection when changing schemes
+    // Clear concept selection when changing schemes
     selectedConceptId.value = null;
   }, [schemeId]);
 
@@ -84,6 +97,22 @@ export function SchemeWorkspacePage({
       schemes.value = await schemesApi.listForProject(projectId);
     } catch (err) {
       console.error("Failed to load schemes:", err);
+    }
+  }
+
+  async function loadOntology() {
+    try {
+      ontology.value = await ontologyApi.get();
+    } catch (err) {
+      console.error("Failed to load ontology:", err);
+    }
+  }
+
+  async function loadProperties(projectId: string) {
+    try {
+      properties.value = await propertiesApi.listForProject(projectId);
+    } catch (err) {
+      console.error("Failed to load properties:", err);
     }
   }
 
@@ -120,6 +149,12 @@ export function SchemeWorkspacePage({
     }
   }
 
+  async function handlePropertiesRefresh() {
+    if (projectId) {
+      await loadProperties(projectId);
+    }
+  }
+
   function handleExpandAll() {
     const allPaths = new Set<string>();
     function collectPaths(nodes: typeof treeData.value, parentPath = "") {
@@ -139,12 +174,32 @@ export function SchemeWorkspacePage({
     expandedPaths.value = new Set();
   }
 
+  function handleClassSelect(classUri: string) {
+    selectionMode.value = "class";
+    selectedClassUri.value = classUri;
+    selectedPropertyId.value = null;
+    selectedConceptId.value = null;
+    // Clear scheme from URL when selecting a class
+    route(`/projects/${projectId}`);
+  }
+
   function handleSchemeSelect(schemeId: string) {
+    selectionMode.value = "scheme";
+    selectedClassUri.value = null;
+    selectedPropertyId.value = null;
+    selectedConceptId.value = null;
     route(`/projects/${projectId}/schemes/${schemeId}`);
   }
 
+  function handleSchemeNavigate(schemeId: string) {
+    handleSchemeSelect(schemeId);
+  }
 
-  async function handleDelete() {
+  function handlePropertySelect(propertyId: string) {
+    selectedPropertyId.value = propertyId;
+  }
+
+  async function handleConceptDelete() {
     if (selectedConcept.value && schemeId) {
       try {
         await conceptsApi.delete(selectedConcept.value.id);
@@ -154,6 +209,11 @@ export function SchemeWorkspacePage({
         console.error("Failed to delete concept:", err);
       }
     }
+  }
+
+  async function handlePropertyDelete() {
+    // PropertyDetail handles deletion internally
+    await handlePropertiesRefresh();
   }
 
   function handleFormClose() {
@@ -182,6 +242,15 @@ export function SchemeWorkspacePage({
     setIsFormOpen(true);
   }
 
+  function handleNewProperty() {
+    setIsPropertyFormOpen(true);
+  }
+
+  async function handlePropertyFormSuccess() {
+    setIsPropertyFormOpen(false);
+    await handlePropertiesRefresh();
+  }
+
   async function handleImportSuccess() {
     if (projectId) {
       await loadSchemes(projectId);
@@ -199,32 +268,29 @@ export function SchemeWorkspacePage({
     return <div>Project ID required</div>;
   }
 
-  // Model view - full screen class diagram
-  if (viewMode === "model") {
-    return (
-      <ModelView
-        projectId={projectId}
-        projectName={currentProject.value?.name ?? ""}
-        onSchemeSelect={handleSchemeSelect}
-        onBack={() => setViewMode("schemes")}
-      />
-    );
-  }
-
-  // Schemes view - current three-pane layout
   return (
     <div class="scheme-workspace">
-      <SchemesPane
+      {/* Pane 1: Project navigation */}
+      <ProjectPane
         projectId={projectId}
         currentSchemeId={schemeId ?? null}
         onSchemeSelect={handleSchemeSelect}
+        onClassSelect={handleClassSelect}
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
-        onShowModel={() => setViewMode("model")}
       />
 
+      {/* Pane 2: Context-dependent detail */}
       <div class="scheme-workspace__main">
-        {schemeId ? (
+        {isClassMode.value && selectedClass.value ? (
+          <ClassDetailPane
+            classUri={selectedClassUri.value!}
+            projectId={projectId}
+            onPropertySelect={handlePropertySelect}
+            onNewProperty={handleNewProperty}
+            onSchemeNavigate={handleSchemeNavigate}
+          />
+        ) : isSchemeMode.value && schemeId ? (
           <TreePane
             schemeId={schemeId}
             onExpandAll={handleExpandAll}
@@ -236,24 +302,32 @@ export function SchemeWorkspacePage({
           />
         ) : (
           <div class="scheme-workspace__placeholder">
-            Select a scheme from the list
+            Select a class or scheme from the list
           </div>
         )}
       </div>
 
+      {/* Pane 3: Context-dependent item detail */}
       <div class="scheme-workspace__detail">
-        {schemeId ? (
+        {isClassMode.value ? (
+          <PropertyPane
+            onDelete={handlePropertyDelete}
+            onRefresh={handlePropertiesRefresh}
+            onSchemeNavigate={handleSchemeNavigate}
+          />
+        ) : isSchemeMode.value && schemeId ? (
           <ConceptPane
-            onDelete={handleDelete}
+            onDelete={handleConceptDelete}
             onRefresh={handleRefresh}
           />
         ) : (
           <div class="scheme-workspace__placeholder">
-            Select a scheme to view concepts
+            Select an item to view details
           </div>
         )}
       </div>
 
+      {/* Concept form modal */}
       <Modal
         isOpen={isFormOpen}
         title={editingConcept ? "Edit Concept" : "New Concept"}
@@ -267,6 +341,20 @@ export function SchemeWorkspacePage({
           initialBroaderId={initialBroaderId}
           onSuccess={handleFormSuccess}
           onCancel={handleFormClose}
+        />
+      </Modal>
+
+      {/* Property form modal */}
+      <Modal
+        isOpen={isPropertyFormOpen}
+        title="New Property"
+        onClose={() => setIsPropertyFormOpen(false)}
+      >
+        <PropertyForm
+          projectId={projectId}
+          domainClassUri={selectedClassUri.value ?? undefined}
+          onSuccess={handlePropertyFormSuccess}
+          onCancel={() => setIsPropertyFormOpen(false)}
         />
       </Modal>
 

@@ -10,6 +10,7 @@ interface PropertyDetailProps {
   property: Property;
   onRefresh: () => void;
   onClose: () => void;
+  onSchemeNavigate?: (schemeId: string) => void;
 }
 
 interface EditDraft {
@@ -53,7 +54,7 @@ function validateIdentifier(value: string): string | null {
   return null;
 }
 
-export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailProps) {
+export function PropertyDetail({ property, onRefresh, onClose, onSchemeNavigate }: PropertyDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
@@ -250,9 +251,20 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
             <div class="property-detail__field">
               <label class="property-detail__label">Range</label>
               <div class="property-detail__value">
-                {property.range_scheme
-                  ? property.range_scheme.title
-                  : property.range_datatype}
+                {property.range_scheme ? (
+                  onSchemeNavigate ? (
+                    <button
+                      class="property-detail__scheme-link"
+                      onClick={() => onSchemeNavigate(property.range_scheme_id!)}
+                    >
+                      {property.range_scheme.title}
+                    </button>
+                  ) : (
+                    property.range_scheme.title
+                  )
+                ) : (
+                  property.range_datatype
+                )}
               </div>
             </div>
 
