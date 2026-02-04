@@ -123,6 +123,27 @@ async def test_get_concept_history(
 
 
 @pytest.mark.asyncio
+async def test_get_scheme_history_includes_user_display_name(
+    authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that history response includes user_display_name field."""
+    # Create a concept to generate a change event
+    service = ConceptService(db_session)
+    await service.create_concept(
+        scheme_id=scheme.id,
+        concept_in=ConceptCreate(pref_label="Test Concept"),
+    )
+
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    # Verify user_display_name field is present
+    assert "user_display_name" in data[0]
+
+
+@pytest.mark.asyncio
 async def test_get_scheme_history_not_found(authenticated_client: AsyncClient) -> None:
     """Test 404 for non-existent scheme."""
     response = await authenticated_client.get(f"/api/schemes/{uuid4()}/history")
