@@ -7,7 +7,7 @@ from uuid import UUID, uuid7
 from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from taxonomy_builder.database import Base
+from taxonomy_builder.database import Base, UrlString
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.concept_scheme import ConceptScheme
@@ -21,7 +21,7 @@ class Project(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    namespace: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    namespace: Mapped[str | None] = mapped_column(UrlString(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
