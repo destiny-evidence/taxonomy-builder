@@ -8,7 +8,6 @@ from httpx import AsyncClient
 from taxonomy_builder.services.core_ontology_service import (
     CoreOntology,
     OntologyClass,
-    get_cached_ontology,
 )
 
 

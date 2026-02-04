@@ -3,16 +3,12 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from taxonomy_builder.config import Settings
 from taxonomy_builder.services.core_ontology_service import (
     CoreOntologyService,
     get_cached_ontology,
     load_core_ontology,
-    _core_ontology_cache,
 )
-
 
 # Sample TTL data for testing class parsing
 
