@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.database import get_db
@@ -33,9 +34,10 @@ async def get_scheme_history(
     if scheme is None:
         raise HTTPException(status_code=404, detail="Scheme not found")
 
-    # Get change events for this scheme
+    # Get change events for this scheme with user info
     query = (
         select(ChangeEvent)
+        .options(joinedload(ChangeEvent.user))
         .where(ChangeEvent.scheme_id == scheme_id)
         .order_by(ChangeEvent.timestamp.desc())
     )
@@ -60,9 +62,10 @@ async def get_concept_history(
     if concept is None:
         raise HTTPException(status_code=404, detail="Concept not found")
 
-    # Get change events for this concept
+    # Get change events for this concept with user info
     result = await db.execute(
         select(ChangeEvent)
+        .options(joinedload(ChangeEvent.user))
         .where(
             ChangeEvent.entity_type == "concept",
             ChangeEvent.entity_id == concept_id,

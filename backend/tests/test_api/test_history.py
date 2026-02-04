@@ -144,6 +144,27 @@ async def test_get_scheme_history_includes_user_display_name(
 
 
 @pytest.mark.asyncio
+async def test_get_scheme_history_shows_user_display_name(
+    authenticated_client: AsyncClient, scheme: ConceptScheme
+) -> None:
+    """Test that history shows the display name of the user who made changes."""
+    # Create a concept via API (which records user_id from authenticated user)
+    response = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Test Concept"},
+    )
+    assert response.status_code == 201
+
+    # Get history - should show "Test User" (from test_user fixture)
+    response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    assert data[0]["user_display_name"] == "Test User"
+
+
+@pytest.mark.asyncio
 async def test_get_scheme_history_not_found(authenticated_client: AsyncClient) -> None:
     """Test 404 for non-existent scheme."""
     response = await authenticated_client.get(f"/api/schemes/{uuid4()}/history")
