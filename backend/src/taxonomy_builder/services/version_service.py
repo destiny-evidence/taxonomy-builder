@@ -117,7 +117,7 @@ class VersionService:
             SchemeNotFoundError: If the scheme doesn't exist
         """
         # Verify scheme exists before creating snapshot
-        await self._get_scheme(scheme_id)
+        scheme = await self._get_scheme(scheme_id)
         snapshot = await self._create_snapshot(scheme_id)
 
         version = PublishedVersion(
@@ -136,7 +136,7 @@ class VersionService:
 
         # Record the publish event
         await self._tracker.record(
-            scheme_id=scheme_id,
+            project_id=scheme.project_id,
             entity_type="published_version",
             entity_id=version.id,
             action="publish",
@@ -146,6 +146,7 @@ class VersionService:
                 "version_label": version.version_label,
                 "notes": version.notes,
             },
+            scheme_id=scheme_id,
         )
 
         return version

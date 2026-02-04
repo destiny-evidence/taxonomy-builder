@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
     from taxonomy_builder.services.concept_service import ConceptService
     from taxonomy_builder.services.history_service import HistoryService
+    from taxonomy_builder.services.property_service import PropertyService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
     from taxonomy_builder.services.version_service import VersionService
 
@@ -152,3 +153,17 @@ def get_history_service(db: AsyncSession = Depends(get_db)) -> HistoryService:
     from taxonomy_builder.services.history_service import HistoryService
 
     return HistoryService(db)
+
+
+def get_property_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> PropertyService:
+    """Dependency that provides a PropertyService with user context."""
+    from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+    from taxonomy_builder.services.project_service import ProjectService
+    from taxonomy_builder.services.property_service import PropertyService
+
+    project_service = ProjectService(db)
+    scheme_service = ConceptSchemeService(db, user_id=current_user.user.id)
+    return PropertyService(db, project_service, scheme_service, user_id=current_user.user.id)

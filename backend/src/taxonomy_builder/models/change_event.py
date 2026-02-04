@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class ChangeEvent(Base):
-    """Immutable log of all changes to schemes and concepts."""
+    """Immutable log of all changes to projects, schemes, concepts, and properties."""
 
     __tablename__ = "change_events"
 
@@ -31,6 +31,11 @@ class ChangeEvent(Base):
     # What changed
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[UUID] = mapped_column(nullable=False)
+
+    # Context: project and optionally scheme
+    project_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
     scheme_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("concept_schemes.id", ondelete="SET NULL"), nullable=True
     )
@@ -48,6 +53,7 @@ class ChangeEvent(Base):
         return self.user.display_name if self.user else None
 
     __table_args__ = (
+        Index("ix_change_events_project_timestamp", "project_id", timestamp.desc()),
         Index("ix_change_events_scheme_timestamp", "scheme_id", timestamp.desc()),
         Index(
             "ix_change_events_entity",

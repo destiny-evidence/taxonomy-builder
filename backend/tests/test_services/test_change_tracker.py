@@ -39,22 +39,24 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 @pytest.mark.asyncio
 async def test_record_creates_change_event(
-    db_session: AsyncSession, scheme: ConceptScheme
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test that record() creates a ChangeEvent."""
     tracker = ChangeTracker(db_session)
     entity_id = uuid4()
 
     event = await tracker.record(
-        scheme_id=scheme.id,
+        project_id=project.id,
         entity_type="concept",
         entity_id=entity_id,
         action="create",
         before=None,
         after={"pref_label": "Dogs"},
+        scheme_id=scheme.id,
     )
 
     assert event.id is not None
+    assert event.project_id == project.id
     assert event.scheme_id == scheme.id
     assert event.entity_type == "concept"
     assert event.entity_id == entity_id
@@ -164,3 +166,49 @@ async def test_serialize_related_includes_labels(db_session: AsyncSession) -> No
     assert serialized["related_concept_id"] == str(related_id)
     assert serialized["concept_label"] == "Dogs"
     assert serialized["related_label"] == "Cats"
+
+
+@pytest.mark.asyncio
+async def test_record_with_project_id_and_no_scheme(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test recording a project-level event without scheme_id."""
+    tracker = ChangeTracker(db_session)
+    entity_id = uuid4()
+
+    event = await tracker.record(
+        project_id=project.id,
+        scheme_id=None,
+        entity_type="property",
+        entity_id=entity_id,
+        action="create",
+        before=None,
+        after={"identifier": "educationLevel", "label": "Education Level"},
+    )
+
+    assert event.project_id == project.id
+    assert event.scheme_id is None
+    assert event.entity_type == "property"
+    assert event.action == "create"
+
+
+@pytest.mark.asyncio
+async def test_record_with_both_project_and_scheme(
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+) -> None:
+    """Test recording an event with both project_id and scheme_id."""
+    tracker = ChangeTracker(db_session)
+    entity_id = uuid4()
+
+    event = await tracker.record(
+        project_id=project.id,
+        scheme_id=scheme.id,
+        entity_type="concept",
+        entity_id=entity_id,
+        action="create",
+        before=None,
+        after={"pref_label": "Test Concept"},
+    )
+
+    assert event.project_id == project.id
+    assert event.scheme_id == scheme.id

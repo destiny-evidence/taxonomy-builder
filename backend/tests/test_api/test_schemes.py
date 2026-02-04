@@ -248,3 +248,29 @@ async def test_delete_scheme_not_found(authenticated_client: AsyncClient) -> Non
     """Test deleting a non-existent scheme."""
     response = await authenticated_client.delete(f"/api/schemes/{uuid4()}")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_scheme_referenced_by_property(
+    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+) -> None:
+    """Test deleting a scheme that is referenced by a property fails."""
+    from taxonomy_builder.models.property import Property
+
+    # Create a property that references this scheme
+    prop = Property(
+        project_id=project.id,
+        identifier="testProp",
+        label="Test Property",
+        domain_class="https://evrepo.example.org/vocab/Finding",
+        range_scheme_id=scheme.id,
+        cardinality="single",
+        required=False,
+    )
+    db_session.add(prop)
+    await db_session.flush()
+
+    # Try to delete the scheme
+    response = await authenticated_client.delete(f"/api/schemes/{scheme.id}")
+    assert response.status_code == 409
+    assert "referenced by" in response.json()["detail"].lower()

@@ -137,3 +137,59 @@ async def test_change_event_delete_with_before_only(
     assert event.action == "delete"
     assert event.before_state == {"pref_label": "Dogs", "definition": "A domestic animal"}
     assert event.after_state is None
+
+
+@pytest.mark.asyncio
+async def test_change_event_with_project_id_and_no_scheme(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test creating a change event with project_id and no scheme_id.
+
+    This supports tracking changes to project-level entities like properties.
+    """
+    from uuid import uuid4
+
+    entity_id = uuid4()
+
+    event = ChangeEvent(
+        project_id=project.id,
+        scheme_id=None,
+        entity_type="property",
+        entity_id=entity_id,
+        action="create",
+        after_state={"identifier": "educationLevel", "label": "Education Level"},
+    )
+    db_session.add(event)
+    await db_session.flush()
+    await db_session.refresh(event)
+
+    assert event.id is not None
+    assert event.project_id == project.id
+    assert event.scheme_id is None
+    assert event.entity_type == "property"
+    assert event.action == "create"
+
+
+@pytest.mark.asyncio
+async def test_change_event_with_both_project_and_scheme(
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+) -> None:
+    """Test creating a change event with both project_id and scheme_id."""
+    from uuid import uuid4
+
+    entity_id = uuid4()
+
+    event = ChangeEvent(
+        project_id=project.id,
+        scheme_id=scheme.id,
+        entity_type="concept",
+        entity_id=entity_id,
+        action="create",
+        after_state={"pref_label": "Test Concept"},
+    )
+    db_session.add(event)
+    await db_session.flush()
+    await db_session.refresh(event)
+
+    assert event.project_id == project.id
+    assert event.scheme_id == scheme.id

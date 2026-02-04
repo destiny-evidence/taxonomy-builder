@@ -37,6 +37,16 @@ class ProjectNotFoundError(Exception):
         super().__init__(f"Project with id '{project_id}' not found")
 
 
+class SchemeReferencedByPropertyError(Exception):
+    """Raised when attempting to delete a scheme that is referenced by properties."""
+
+    def __init__(self, scheme_id: UUID) -> None:
+        self.scheme_id = scheme_id
+        super().__init__(
+            f"Concept scheme '{scheme_id}' cannot be deleted because it is referenced by one or more properties"
+        )
+
+
 class ConceptSchemeService:
     """Service for managing concept schemes."""
 
@@ -89,12 +99,13 @@ class ConceptSchemeService:
 
         # Record change event
         await self._tracker.record(
-            scheme_id=scheme.id,
+            project_id=project_id,
             entity_type="concept_scheme",
             entity_id=scheme.id,
             action="create",
             before=None,
             after=self._tracker.serialize_scheme(scheme),
+            scheme_id=scheme.id,
         )
 
         return scheme
@@ -139,32 +150,44 @@ class ConceptSchemeService:
 
         # Record change event
         await self._tracker.record(
-            scheme_id=scheme.id,
+            project_id=project_id,
             entity_type="concept_scheme",
             entity_id=scheme.id,
             action="update",
             before=before_state,
             after=self._tracker.serialize_scheme(scheme),
+            scheme_id=scheme.id,
         )
 
         return scheme
 
     async def delete_scheme(self, scheme_id: UUID) -> None:
-        """Delete a concept scheme."""
+        """Delete a concept scheme.
+
+        Raises:
+            SchemeNotFoundError: If the scheme doesn't exist
+            SchemeReferencedByPropertyError: If the scheme is referenced by properties
+        """
         scheme = await self.get_scheme(scheme_id)
+        project_id = scheme.project_id
 
         # Capture before state before deletion
         before_state = self._tracker.serialize_scheme(scheme)
 
         # Record change event BEFORE deleting scheme (FK constraint)
         await self._tracker.record(
-            scheme_id=scheme_id,
+            project_id=project_id,
             entity_type="concept_scheme",
             entity_id=scheme_id,
             action="delete",
             before=before_state,
             after=None,
+            scheme_id=scheme_id,
         )
 
         await self.db.delete(scheme)
-        await self.db.flush()
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            raise SchemeReferencedByPropertyError(scheme_id)
