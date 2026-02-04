@@ -16,12 +16,15 @@ from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
 from taxonomy_builder.api.versions import router as versions_router
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
+from taxonomy_builder.services.core_ontology_service import load_core_ontology
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup application resources."""
     db_manager.init(settings.effective_database_url)
+    # Load and cache the core ontology at startup
+    load_core_ontology()
     yield
     await db_manager.close()
 

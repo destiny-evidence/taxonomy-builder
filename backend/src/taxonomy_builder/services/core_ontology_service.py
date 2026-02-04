@@ -1,5 +1,6 @@
 """Service for parsing core ontology classes and properties from TTL files."""
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -7,6 +8,8 @@ from typing import Literal
 from rdflib import Graph, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -203,3 +206,45 @@ class CoreOntologyService:
         if comment:
             return str(comment)
         return None
+
+
+# Module-level cache for the core ontology
+_core_ontology_cache: CoreOntology | None = None
+
+
+def load_core_ontology() -> CoreOntology:
+    """Load the core ontology from the configured file path.
+
+    This function loads the ontology and caches it. If the file doesn't exist,
+    it logs a warning and returns an empty ontology (graceful degradation for dev).
+
+    Returns:
+        The parsed CoreOntology, or an empty one if the file is missing.
+    """
+    global _core_ontology_cache
+
+    from taxonomy_builder.config import settings
+
+    file_path = Path(settings.core_ontology_path)
+
+    if not file_path.exists():
+        logger.warning(
+            f"Core ontology file not found at {file_path}. "
+            "Returning empty ontology. This is expected during development "
+            "if the file hasn't been created yet."
+        )
+        _core_ontology_cache = CoreOntology()
+        return _core_ontology_cache
+
+    service = CoreOntologyService()
+    _core_ontology_cache = service.parse_from_file(str(file_path))
+    return _core_ontology_cache
+
+
+def get_cached_ontology() -> CoreOntology | None:
+    """Get the cached core ontology.
+
+    Returns:
+        The cached CoreOntology, or None if not yet loaded.
+    """
+    return _core_ontology_cache

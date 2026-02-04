@@ -1,7 +1,15 @@
 """Tests for the Ontology API endpoints."""
 
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
+
+from taxonomy_builder.services.core_ontology_service import (
+    CoreOntology,
+    OntologyClass,
+    get_cached_ontology,
+)
 
 
 @pytest.mark.asyncio
@@ -94,3 +102,28 @@ async def test_datatype_properties_have_range_datatype(
 
     # Range should contain XSD datatype
     assert any("XMLSchema" in r for r in sample_size["range"])
+
+
+@pytest.mark.asyncio
+async def test_endpoint_uses_cached_ontology(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Test that the endpoint uses the cached ontology rather than loading each time."""
+    # Create a simple cached ontology
+    mock_ontology = CoreOntology(
+        classes=[OntologyClass(uri="http://test/Class", label="Test", comment=None)],
+        object_properties=[],
+        datatype_properties=[],
+    )
+
+    with patch(
+        "taxonomy_builder.api.ontology.get_cached_ontology",
+        return_value=mock_ontology,
+    ):
+        response = await authenticated_client.get("/api/ontology")
+        assert response.status_code == 200
+
+        data = response.json()
+        # Should have our mocked class
+        assert len(data["classes"]) == 1
+        assert data["classes"][0]["uri"] == "http://test/Class"
