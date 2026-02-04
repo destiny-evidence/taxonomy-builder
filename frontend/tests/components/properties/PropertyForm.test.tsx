@@ -183,6 +183,97 @@ describe("PropertyForm", () => {
         expect(screen.getByText("xsd:date")).toBeInTheDocument();
       });
     });
+
+    it("enables create button when scheme is selected as range", async () => {
+      render(
+        <PropertyForm
+          projectId="proj-1"
+          domainClassUri="http://example.org/Person"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
+      });
+
+      // Fill in label
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Nationality" } });
+
+      // Switch to scheme range type
+      fireEvent.click(screen.getByRole("radio", { name: /scheme/i }));
+
+      // Select a scheme
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^Range Scheme/)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/^Range Scheme/), { target: { value: "scheme-1" } });
+
+      // Button should be enabled
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /create/i })).not.toBeDisabled();
+      });
+    });
+
+    it("submits with scheme range correctly", async () => {
+      vi.mocked(propertiesApi.create).mockResolvedValue({
+        id: "prop-new",
+        project_id: "proj-1",
+        identifier: "nationality",
+        label: "Nationality",
+        description: null,
+        domain_class: "http://example.org/Person",
+        range_scheme_id: "scheme-1",
+        range_scheme: { id: "scheme-1", title: "Countries", uri: "http://example.org/countries" },
+        range_datatype: null,
+        cardinality: "single",
+        required: false,
+        uri: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      });
+
+      render(
+        <PropertyForm
+          projectId="proj-1"
+          domainClassUri="http://example.org/Person"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
+      });
+
+      // Fill in label
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Nationality" } });
+
+      // Switch to scheme range type
+      fireEvent.click(screen.getByRole("radio", { name: /scheme/i }));
+
+      // Select a scheme
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^Range Scheme/)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/^Range Scheme/), { target: { value: "scheme-1" } });
+
+      // Submit
+      fireEvent.click(screen.getByRole("button", { name: /create/i }));
+
+      await waitFor(() => {
+        expect(propertiesApi.create).toHaveBeenCalledWith("proj-1", expect.objectContaining({
+          label: "Nationality",
+          identifier: "nationality",
+          domain_class: "http://example.org/Person",
+          range_scheme_id: "scheme-1",
+          cardinality: "single",
+        }));
+      });
+    });
   });
 
   describe("form submission", () => {

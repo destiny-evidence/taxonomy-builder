@@ -100,12 +100,13 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
 
   // Validation: check if form is complete
-  const isValid =
-    label.trim() &&
-    identifier.trim() &&
-    !identifierError &&
-    domainClass &&
-    (rangeType === "scheme" ? rangeSchemeId : rangeDatatype);
+  const hasLabel = !!label.trim();
+  const hasIdentifier = !!identifier.trim();
+  const hasValidIdentifier = !identifierError;
+  const hasDomainClass = !!domainClass;
+  const hasRangeValue = rangeType === "scheme" ? !!rangeSchemeId : !!rangeDatatype;
+
+  const isValid = hasLabel && hasIdentifier && hasValidIdentifier && hasDomainClass && hasRangeValue;
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -305,6 +306,18 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
           <span>Required</span>
         </label>
       </div>
+
+      {!isValid && (hasLabel || hasIdentifier) && (
+        <div class="property-form__validation-hint">
+          {!hasLabel && <span>Label required. </span>}
+          {!hasIdentifier && <span>Identifier required. </span>}
+          {!hasValidIdentifier && <span>Invalid identifier. </span>}
+          {!hasDomainClass && <span>Domain class required. </span>}
+          {!hasRangeValue && (
+            <span>{rangeType === "scheme" ? "Range scheme" : "Range datatype"} required. </span>
+          )}
+        </div>
+      )}
 
       <div class="property-form__actions">
         <Button variant="secondary" onClick={onCancel} disabled={submitLoading}>
