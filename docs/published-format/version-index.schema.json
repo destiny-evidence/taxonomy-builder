@@ -4,13 +4,45 @@
   "title": "Published Version Index",
   "description": "Index for a single published version. Lists the vocabularies included in this version with term counts and file references. Immutable once published. Served at /{project-id}/{version-label}/index.json.",
   "type": "object",
-  "required": ["format_version", "version_label", "published_at", "vocabularies"],
+  "required": [
+    "format_version",
+    "project",
+    "version_label",
+    "published_at",
+    "vocabularies"
+  ],
   "additionalProperties": false,
   "properties": {
     "format_version": {
       "type": "string",
       "const": "1.0",
       "description": "Schema version for forwards compatibility."
+    },
+    "project": {
+      "type": "object",
+      "description": "Project metadata",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Project UUID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable project name."
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Project description."
+        },
+        "namespace": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "Project namespace URI."
+        }
+      }
     },
     "version_label": {
       "type": "string",
