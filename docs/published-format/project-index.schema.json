@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/project-index.schema.json",
+  "title": "Published Project Index",
+  "description": "Top-level index for a published project. Contains current project metadata and a list of available versions. Regenerated whenever any vocabulary publishes a new version. Served at /{project-id}/index.json.",
+  "type": "object",
+  "required": ["format_version", "project", "versions"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forwards compatibility."
+    },
+    "project": {
+      "type": "object",
+      "description": "Current project metadata.",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Project UUID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable project name."
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Project description."
+        },
+        "namespace": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "Project namespace URI."
+        }
+      }
+    },
+    "versions": {
+      "type": "array",
+      "description": "Available published versions, ordered newest-first.",
+      "items": {
+        "type": "object",
+        "required": ["version_label", "published_at", "path"],
+        "additionalProperties": false,
+        "properties": {
+          "version_label": {
+            "type": "string",
+            "description": "Version label (e.g. \"1.0\", \"2.0-beta\")."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of when this version was published."
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative path to the version index.",
+            "examples": ["1.0/index.json"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/version-index.schema.json",
+  "title": "Published Version Index",
+  "description": "Index for a single published version. Lists the vocabularies included in this version with term counts and file references. Immutable once published. Served at /{project-id}/{version-label}/index.json.",
+  "type": "object",
+  "required": ["format_version", "version_label", "published_at", "vocabularies"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forwards compatibility."
+    },
+    "version_label": {
+      "type": "string",
+      "description": "Version label for this published snapshot."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of when this version was published."
+    },
+    "vocabularies": {
+      "type": "array",
+      "description": "Vocabularies included in this version.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "term_count", "file"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Concept scheme UUID."
+          },
+          "title": {
+            "type": "string",
+            "description": "Vocabulary title."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Vocabulary description."
+          },
+          "term_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of concepts in the vocabulary."
+          },
+          "file": {
+            "type": "string",
+            "description": "Relative path to the vocabulary JSON file.",
+            "examples": ["b2c3d4e5-f6a7-8901-bcde-f12345678901.json"]
+          }
+        }
+      }
+    }
+  }
+}

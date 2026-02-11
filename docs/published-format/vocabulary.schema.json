@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/vocabulary.schema.json",
   "title": "Published Vocabulary",
-  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the top_concepts list and broader/narrower references.",
+  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the root_concepts list and broader references. Served at /{project-id}/{version-label}/{scheme-id}.json.",
   "type": "object",
-  "required": ["format_version", "scheme", "concepts", "top_concepts"],
+  "required": ["format_version", "scheme", "concepts", "root_concepts"],
   "additionalProperties": false,
   "properties": {
     "format_version": {
@@ -15,7 +15,7 @@
     "scheme": {
       "type": "object",
       "description": "Concept scheme metadata.",
-      "required": ["id", "title", "version_label", "published_at"],
+      "required": ["id", "title"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -40,14 +40,9 @@
           "type": ["string", "null"],
           "description": "Publisher name."
         },
-        "version_label": {
-          "type": "string",
-          "description": "Version label for this published snapshot."
-        },
-        "published_at": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp of when this version was published."
+        "version": {
+          "type": ["string", "null"],
+          "description": "Scheme version string (from the concept scheme, not the published version label)."
         }
       }
     },
@@ -92,7 +87,7 @@
         }
       }
     },
-    "top_concepts": {
+    "root_concepts": {
       "type": "array",
       "items": { "type": "string", "format": "uuid" },
       "description": "UUIDs of root concepts (no broader relationships). Entry points for tree rendering."
