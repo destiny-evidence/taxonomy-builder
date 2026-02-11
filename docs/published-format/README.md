@@ -1,27 +1,21 @@
 # Published Document Format
 
-Static JSON format served to the taxonomy reader frontend. Separate from
-the internal `PublishedVersion.snapshot` stored in the database — that
-remains the archival source of truth, and this reader format is derived
-from it at publish time.
+Static JSON format served to the taxonomy reader frontend, projected from `PublishedVersion.snapshot`. These are compressed to `.gz` at the blob level - this compression factor should be quite favourable as the majority of the data are `UUIDv7`s which have similar prefixes.
 
 ## Storage layout
 
-```
+```none
 /{project-id}/
-  index.json                          # project metadata + version list
-  latest/                             # copy of most recent version
-    index.json
-    {scheme-id}.json
-  {version-label}/                    # e.g. "1.0/", "2.0-beta/"
-    index.json                        # vocabulary list for this version
-    {scheme-id}.json                  # concept data
+  index.json            # project metadata + version list
+  {version-label}/      # e.g. "1.0/", "2.0-beta/"
+    index.json          # vocabulary list for this version
+    {scheme-id}.json    # concept data
+  latest/               # copy of most recent non-draft version
+    index.json          # UI default entrypoint
+    {scheme-id}.json    # most recent concept data
 ```
 
-The project index is regenerated whenever any vocabulary publishes a new
-version. Version directories and their contents are immutable once
-published. `latest/` is a copy of the most recent version's files (not a
-symlink/alias, since blob storage providers vary in alias support).
+The project index is regenerated whenever any vocabulary publishes a new version. Version directories and their contents are immutable once published. `latest/` is a copy of the most recent version's files, providing a direct and predictable interface for the UI to load by default.
 
 ## File types
 
@@ -29,35 +23,18 @@ Three file types, each with a JSON Schema definition:
 
 ### Project index (`project-index.schema.json`)
 
-Served at `/{project-id}/index.json`. Contains current project metadata
-and a list of available versions with timestamps. This is the reader's
-entry point.
+Served at `/{project-id}/index.json`. Contains current project metadata and a list of available versions with timestamps. Generally is not downloaded by the UI unless it needs to access a specific version, in which case it will use this to understand what is available.
 
 ### Version index (`version-index.schema.json`)
 
-Served at `/{project-id}/{version-label}/index.json`. Lists the
-vocabularies included in this version with term counts and file
-references. Immutable once published. Handles schemes being
-added/removed/renamed between versions.
+Served at `/{project-id}/{version-label}/index.json`. Lists the vocabularies included in this version with term counts and file references. `/{project-id}/latest/index.json` is the UI entrypoint.
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
-Served at `/{project-id}/{version-label}/{scheme-id}.json`. Contains
-scheme metadata and all concepts as a flat map keyed by UUID. Each
-concept carries `pref_label`, `definition`, `scope_note`, `alt_labels`,
-`broader` (parent IDs), and `related` (related concept IDs). A
-`root_concepts` array lists root entry points for tree rendering.
+Served at `/{project-id}/{version-label}/{scheme-id}.json`. Contains scheme metadata and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering.
 
-This requires the client to build the tree in `O(n)`.
+This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time.
 
-## Why a flat map
+## Considerations
 
-Concepts are stored in a flat `{ [uuid]: concept }` map rather than a
-nested tree structure. This avoids duplicating concepts that appear under
-multiple parents (polyhierarchy), gives O(1) lookup by ID for detail
-views and breadcrumbs, and lets the client build whatever view it
-needs — tree browse, search results, or detail page — from the same data.
-
-The client computes the tree by starting from `root_concepts` and walking
-`broader` references. This is a single pass over the concept map and is
-trivial for vocabularies in the low thousands.
+Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only if draft is False should `latest/` (unless there are no versions with `draft=False`).

@@ -176,12 +176,8 @@ async def test_export_with_hierarchy(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    animals_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "animals" in str(uri)
-    )
-    mammals_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "mammals" in str(uri)
-    )
+    animals_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "animals" in str(uri))
+    mammals_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "mammals" in str(uri))
 
     # Check broader relationship
     broader = g.value(mammals_uri, SKOS.broader)
@@ -226,9 +222,7 @@ async def test_export_polyhierarchy(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    dogs_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
-    )
+    dogs_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri))
 
     # Dogs should have two broader concepts
     broader_list = list(g.objects(dogs_uri, SKOS.broader))
@@ -330,9 +324,7 @@ async def test_export_concept_without_identifier(
 
 
 @pytest.mark.asyncio
-async def test_export_scheme_without_uri(
-    db_session: AsyncSession, project: Project
-) -> None:
+async def test_export_scheme_without_uri(db_session: AsyncSession, project: Project) -> None:
     """Test exporting a scheme without a URI generates a default."""
     scheme = ConceptScheme(
         project_id=project.id,
@@ -377,9 +369,7 @@ async def test_export_concept_with_alt_labels(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    concept_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
-    )
+    concept_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri))
 
     # Should have exactly 3 alt labels
     alt_labels = list(g.objects(concept_uri, SKOS.altLabel))
@@ -408,9 +398,7 @@ async def test_export_concept_without_alt_labels(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    concept_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "animals" in str(uri)
-    )
+    concept_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "animals" in str(uri))
 
     # Should have no alt labels
     alt_labels = list(g.objects(concept_uri, SKOS.altLabel))
@@ -443,17 +431,13 @@ async def test_export_multiple_concepts_with_alt_labels(
     g.parse(data=result, format="turtle")
 
     # Check dogs
-    dogs_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
-    )
+    dogs_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri))
     dogs_alt = list(g.objects(dogs_uri, SKOS.altLabel))
     assert len(dogs_alt) == 1
     assert str(dogs_alt[0]) == "Canines"
 
     # Check cats
-    cats_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "cats" in str(uri)
-    )
+    cats_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "cats" in str(uri))
     cats_alt = list(g.objects(cats_uri, SKOS.altLabel))
     assert len(cats_alt) == 2
     cats_alt_values = {str(label) for label in cats_alt}
@@ -485,9 +469,7 @@ async def test_export_includes_related_relationship(
     g.parse(data=result, format="turtle")
 
     # Find dogs concept
-    dogs_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
-    )
+    dogs_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri))
 
     # Dogs should have a related relationship
     related_list = list(g.objects(dogs_uri, SKOS.related))
@@ -516,12 +498,8 @@ async def test_export_related_is_symmetric(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    dogs_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri)
-    )
-    cats_uri = next(
-        uri for uri in g.subjects(RDF.type, SKOS.Concept) if "cats" in str(uri)
-    )
+    dogs_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "dogs" in str(uri))
+    cats_uri = next(uri for uri in g.subjects(RDF.type, SKOS.Concept) if "cats" in str(uri))
 
     # Dogs should show related to cats
     dogs_related = list(g.objects(dogs_uri, SKOS.related))
