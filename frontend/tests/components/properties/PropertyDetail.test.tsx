@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { PropertyDetail } from "../../../src/components/properties/PropertyDetail";
 import { propertiesApi } from "../../../src/api/properties";
+import { ontology } from "../../../src/state/ontology";
+import { schemes } from "../../../src/state/schemes";
 import type { Property } from "../../../src/types/models";
 
 vi.mock("../../../src/api/properties");
@@ -42,6 +44,45 @@ describe("PropertyDetail", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // Set up ontology classes for edit mode dropdowns
+    ontology.value = {
+      classes: [
+        { uri: "http://example.org/Person", label: "Person", comment: null },
+        { uri: "http://example.org/Organization", label: "Organization", comment: null },
+      ],
+      object_properties: [],
+      datatype_properties: [],
+    };
+    // Set up schemes for edit mode dropdowns
+    schemes.value = [
+      {
+        id: "scheme-1",
+        project_id: "proj-1",
+        title: "Countries",
+        description: null,
+        uri: "http://example.org/countries",
+        publisher: null,
+        version: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      },
+      {
+        id: "scheme-2",
+        project_id: "proj-1",
+        title: "Languages",
+        description: null,
+        uri: "http://example.org/languages",
+        publisher: null,
+        version: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      },
+    ];
+  });
+
+  afterEach(() => {
+    ontology.value = null;
+    schemes.value = [];
   });
 
   describe("view mode", () => {
@@ -180,12 +221,14 @@ describe("PropertyDetail", () => {
       expect(screen.getByDisplayValue("Birth Date")).toBeInTheDocument();
     });
 
-    it("shows input for identifier pre-filled with current value", () => {
+    it("shows identifier as read-only text in edit mode", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
-      expect(screen.getByDisplayValue("birthDate")).toBeInTheDocument();
+      // Identifier should be displayed as text, not an editable input
+      expect(screen.getByText("birthDate")).toBeInTheDocument();
+      expect(screen.queryByDisplayValue("birthDate")).not.toBeInTheDocument();
     });
 
     it("shows textarea for description", () => {
@@ -194,6 +237,120 @@ describe("PropertyDetail", () => {
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
       expect(screen.getByDisplayValue("The date when a person was born")).toBeInTheDocument();
+    });
+
+    it("shows domain class dropdown pre-selected in edit mode", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const select = screen.getByRole("combobox", { name: /domain/i });
+      expect(select).toBeInTheDocument();
+      expect(select).toHaveValue("http://example.org/Person");
+    });
+
+    it("allows changing domain class", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const select = screen.getByRole("combobox", { name: /domain/i });
+      fireEvent.change(select, { target: { value: "http://example.org/Organization" } });
+      expect(select).toHaveValue("http://example.org/Organization");
+    });
+
+    it("shows range type radios in edit mode for datatype property", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const datatypeRadio = screen.getByRole("radio", { name: /datatype/i });
+      const schemeRadio = screen.getByRole("radio", { name: /scheme/i });
+      expect(datatypeRadio).toBeChecked();
+      expect(schemeRadio).not.toBeChecked();
+    });
+
+    it("shows range type radios in edit mode for scheme property", () => {
+      render(<PropertyDetail property={mockSchemeProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const schemeRadio = screen.getByRole("radio", { name: /scheme/i });
+      const datatypeRadio = screen.getByRole("radio", { name: /datatype/i });
+      expect(schemeRadio).toBeChecked();
+      expect(datatypeRadio).not.toBeChecked();
+    });
+
+    it("shows datatype dropdown when range type is datatype", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const select = screen.getByRole("combobox", { name: /range datatype/i });
+      expect(select).toHaveValue("xsd:date");
+    });
+
+    it("shows scheme dropdown when range type is scheme", () => {
+      render(<PropertyDetail property={mockSchemeProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const select = screen.getByRole("combobox", { name: /range scheme/i });
+      expect(select).toHaveValue("scheme-1");
+    });
+
+    it("toggles between scheme and datatype range dropdowns", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Initially shows datatype dropdown
+      expect(screen.getByRole("combobox", { name: /range datatype/i })).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: /range scheme/i })).not.toBeInTheDocument();
+
+      // Switch to scheme
+      fireEvent.click(screen.getByRole("radio", { name: /scheme/i }));
+
+      expect(screen.getByRole("combobox", { name: /range scheme/i })).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: /range datatype/i })).not.toBeInTheDocument();
+    });
+
+    it("shows cardinality radios pre-selected in edit mode", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      expect(screen.getByRole("radio", { name: /single value/i })).toBeChecked();
+      expect(screen.getByRole("radio", { name: /multiple values/i })).not.toBeChecked();
+    });
+
+    it("allows changing cardinality", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      fireEvent.click(screen.getByRole("radio", { name: /multiple values/i }));
+      expect(screen.getByRole("radio", { name: /multiple values/i })).toBeChecked();
+      expect(screen.getByRole("radio", { name: /single value/i })).not.toBeChecked();
+    });
+
+    it("shows required checkbox in edit mode", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const checkbox = screen.getByRole("checkbox", { name: /required/i });
+      expect(checkbox).not.toBeChecked();
+    });
+
+    it("allows toggling required checkbox", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const checkbox = screen.getByRole("checkbox", { name: /required/i });
+      fireEvent.click(checkbox);
+      expect(checkbox).toBeChecked();
     });
 
     it("exits edit mode on cancel without saving", () => {
@@ -224,18 +381,7 @@ describe("PropertyDetail", () => {
       expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
     });
 
-    it("shows validation error for invalid identifier", () => {
-      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
-
-      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
-
-      const identifierInput = screen.getByDisplayValue("birthDate");
-      fireEvent.input(identifierInput, { target: { value: "123-invalid" } });
-
-      expect(screen.getByText(/must start with a letter/i)).toBeInTheDocument();
-    });
-
-    it("calls API and refreshes on save", async () => {
+    it("sends all config fields in update payload on save", async () => {
       vi.mocked(propertiesApi.update).mockResolvedValue({
         ...mockProperty,
         label: "Updated Label",
@@ -253,13 +399,74 @@ describe("PropertyDetail", () => {
       await waitFor(() => {
         expect(propertiesApi.update).toHaveBeenCalledWith("prop-1", {
           label: "Updated Label",
-          identifier: "birthDate",
           description: "The date when a person was born",
+          domain_class: "http://example.org/Person",
+          range_scheme_id: null,
+          range_datatype: "xsd:date",
+          cardinality: "single",
+          required: false,
         });
       });
 
       await waitFor(() => {
         expect(mockOnRefresh).toHaveBeenCalled();
+      });
+    });
+
+    it("sends changed config fields on save", async () => {
+      vi.mocked(propertiesApi.update).mockResolvedValue({
+        ...mockProperty,
+        domain_class: "http://example.org/Organization",
+        cardinality: "multiple",
+        required: true,
+      });
+
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Change domain class
+      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
+        target: { value: "http://example.org/Organization" },
+      });
+      // Change cardinality
+      fireEvent.click(screen.getByRole("radio", { name: /multiple values/i }));
+      // Toggle required
+      fireEvent.click(screen.getByRole("checkbox", { name: /required/i }));
+
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(propertiesApi.update).toHaveBeenCalledWith("prop-1", {
+          label: "Birth Date",
+          description: "The date when a person was born",
+          domain_class: "http://example.org/Organization",
+          range_scheme_id: null,
+          range_datatype: "xsd:date",
+          cardinality: "multiple",
+          required: true,
+        });
+      });
+    });
+
+    it("sends scheme range when range type is scheme", async () => {
+      vi.mocked(propertiesApi.update).mockResolvedValue(mockSchemeProperty);
+
+      render(<PropertyDetail property={mockSchemeProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(propertiesApi.update).toHaveBeenCalledWith("prop-2", {
+          label: "Nationality",
+          description: null,
+          domain_class: "http://example.org/Person",
+          range_scheme_id: "scheme-1",
+          range_datatype: null,
+          cardinality: "multiple",
+          required: true,
+        });
       });
     });
 

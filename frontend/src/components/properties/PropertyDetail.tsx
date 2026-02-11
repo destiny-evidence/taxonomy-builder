@@ -3,6 +3,8 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { propertiesApi } from "../../api/properties";
+import { ontologyClasses } from "../../state/ontology";
+import { schemes } from "../../state/schemes";
 import type { Property } from "../../types/models";
 import "./PropertyDetail.css";
 
@@ -14,12 +16,24 @@ interface PropertyDetailProps {
 
 interface EditDraft {
   label: string;
-  identifier: string;
   description: string;
+  domain_class: string;
+  range_type: "scheme" | "datatype";
+  range_scheme_id: string;
+  range_datatype: string;
+  cardinality: "single" | "multiple";
+  required: boolean;
 }
 
-// Pattern for URI-safe identifiers: alphanumeric, underscores, hyphens, starting with letter
-const IDENTIFIER_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const ALLOWED_DATATYPES = [
+  "xsd:string",
+  "xsd:integer",
+  "xsd:decimal",
+  "xsd:boolean",
+  "xsd:date",
+  "xsd:dateTime",
+  "xsd:anyURI",
+];
 
 function extractLocalName(uri: string): string {
   // Extract the local part after the last / or #
@@ -40,23 +54,10 @@ function formatDate(dateString: string): string {
   });
 }
 
-function validateIdentifier(value: string): string | null {
-  if (!value.trim()) {
-    return "Identifier is required";
-  }
-  if (!value[0].match(/[a-zA-Z]/)) {
-    return "Identifier must start with a letter";
-  }
-  if (!IDENTIFIER_PATTERN.test(value)) {
-    return "Identifier must be URI-safe: letters, numbers, underscores, and hyphens only";
-  }
-  return null;
-}
-
 export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
+  const [validationErrors, setValidationErrors] = useState<Partial<Record<string, string>>>({});
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -70,11 +71,19 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     setSaveError(null);
   }, [property.id]);
 
+  const classes = ontologyClasses.value;
+  const projectSchemes = schemes.value.filter((s) => s.project_id === property.project_id);
+
   function handleEditClick() {
     setEditDraft({
       label: property.label,
-      identifier: property.identifier,
       description: property.description ?? "",
+      domain_class: property.domain_class,
+      range_type: property.range_scheme_id ? "scheme" : "datatype",
+      range_scheme_id: property.range_scheme_id ?? "",
+      range_datatype: property.range_datatype ?? "",
+      cardinality: property.cardinality,
+      required: property.required,
     });
     setValidationErrors({});
     setIsEditing(true);
@@ -96,8 +105,12 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     try {
       await propertiesApi.update(property.id, {
         label: editDraft.label,
-        identifier: editDraft.identifier,
         description: editDraft.description || null,
+        domain_class: editDraft.domain_class,
+        range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id : null,
+        range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype : null,
+        cardinality: editDraft.cardinality,
+        required: editDraft.required,
       });
       setEditDraft(null);
       setIsEditing(false);
@@ -109,16 +122,14 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     }
   }
 
-  function updateDraft(field: keyof EditDraft, value: string) {
+  function updateDraft<K extends keyof EditDraft>(field: K, value: EditDraft[K]) {
     if (!editDraft) return;
     setEditDraft({ ...editDraft, [field]: value });
 
     // Validate the field
     let error: string | null = null;
-    if (field === "label" && !value.trim()) {
+    if (field === "label" && !(value as string).trim()) {
       error = "Label is required";
-    } else if (field === "identifier") {
-      error = validateIdentifier(value);
     }
 
     setValidationErrors((prev) => {
@@ -175,14 +186,14 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               required
               error={validationErrors.label}
             />
-            <Input
-              label="Identifier"
-              name="identifier"
-              value={editDraft.identifier}
-              onChange={(value) => updateDraft("identifier", value)}
-              required
-              error={validationErrors.identifier}
-            />
+
+            <div class="property-detail__field">
+              <label class="property-detail__label">Identifier</label>
+              <div class="property-detail__value property-detail__value--mono">
+                {property.identifier}
+              </div>
+            </div>
+
             <Input
               label="Description"
               name="description"
@@ -191,37 +202,126 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               multiline
             />
 
-            {/* Display non-editable fields for reference */}
             <div class="property-detail__field">
-              <label class="property-detail__label">Domain</label>
-              <div class="property-detail__value">
-                {extractLocalName(property.domain_class)}
+              <label class="property-detail__label" htmlFor="edit-domain-class">
+                Domain
+              </label>
+              <select
+                id="edit-domain-class"
+                class="property-detail__select"
+                value={editDraft.domain_class}
+                onChange={(e) => updateDraft("domain_class", (e.target as HTMLSelectElement).value)}
+              >
+                <option value="">Select a class...</option>
+                {classes.map((cls) => (
+                  <option key={cls.uri} value={cls.uri}>
+                    {cls.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div class="property-detail__field">
+              <label class="property-detail__label">Range Type</label>
+              <div class="property-detail__radio-group">
+                <label class="property-detail__radio">
+                  <input
+                    type="radio"
+                    name="rangeType"
+                    value="scheme"
+                    checked={editDraft.range_type === "scheme"}
+                    onChange={() => updateDraft("range_type", "scheme")}
+                  />
+                  <span>Scheme</span>
+                </label>
+                <label class="property-detail__radio">
+                  <input
+                    type="radio"
+                    name="rangeType"
+                    value="datatype"
+                    checked={editDraft.range_type === "datatype"}
+                    onChange={() => updateDraft("range_type", "datatype")}
+                  />
+                  <span>Datatype</span>
+                </label>
+              </div>
+            </div>
+
+            {editDraft.range_type === "scheme" ? (
+              <div class="property-detail__field">
+                <label class="property-detail__label" htmlFor="edit-range-scheme">
+                  Range Scheme
+                </label>
+                <select
+                  id="edit-range-scheme"
+                  class="property-detail__select"
+                  value={editDraft.range_scheme_id}
+                  onChange={(e) => updateDraft("range_scheme_id", (e.target as HTMLSelectElement).value)}
+                >
+                  <option value="">Select a scheme...</option>
+                  {projectSchemes.map((scheme) => (
+                    <option key={scheme.id} value={scheme.id}>
+                      {scheme.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div class="property-detail__field">
+                <label class="property-detail__label" htmlFor="edit-range-datatype">
+                  Range Datatype
+                </label>
+                <select
+                  id="edit-range-datatype"
+                  class="property-detail__select"
+                  value={editDraft.range_datatype}
+                  onChange={(e) => updateDraft("range_datatype", (e.target as HTMLSelectElement).value)}
+                >
+                  <option value="">Select a datatype...</option>
+                  {ALLOWED_DATATYPES.map((dt) => (
+                    <option key={dt} value={dt}>
+                      {dt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div class="property-detail__field">
+              <label class="property-detail__label">Cardinality</label>
+              <div class="property-detail__radio-group">
+                <label class="property-detail__radio">
+                  <input
+                    type="radio"
+                    name="cardinality"
+                    value="single"
+                    checked={editDraft.cardinality === "single"}
+                    onChange={() => updateDraft("cardinality", "single")}
+                  />
+                  <span>Single value</span>
+                </label>
+                <label class="property-detail__radio">
+                  <input
+                    type="radio"
+                    name="cardinality"
+                    value="multiple"
+                    checked={editDraft.cardinality === "multiple"}
+                    onChange={() => updateDraft("cardinality", "multiple")}
+                  />
+                  <span>Multiple values</span>
+                </label>
               </div>
             </div>
 
             <div class="property-detail__field">
-              <label class="property-detail__label">Range</label>
-              <div class="property-detail__value">
-                {property.range_scheme
-                  ? property.range_scheme.title
-                  : property.range_datatype}
-              </div>
-            </div>
-
-            <div class="property-detail__row">
-              <div class="property-detail__field property-detail__field--half">
-                <label class="property-detail__label">Cardinality</label>
-                <div class="property-detail__value">
-                  {property.cardinality === "single" ? "Single value" : "Multiple values"}
-                </div>
-              </div>
-
-              <div class="property-detail__field property-detail__field--half">
-                <label class="property-detail__label">Required</label>
-                <div class="property-detail__value">
-                  {property.required ? "Yes" : "No"}
-                </div>
-              </div>
+              <label class="property-detail__checkbox">
+                <input
+                  type="checkbox"
+                  checked={editDraft.required}
+                  onChange={(e) => updateDraft("required", (e.target as HTMLInputElement).checked)}
+                />
+                <span>Required</span>
+              </label>
             </div>
           </>
         ) : (

@@ -82,6 +82,50 @@
   font-size: 0.875rem;
 }
 
+.property-detail__select {
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.property-detail__select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.property-detail__radio-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.property-detail__radio {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.property-detail__radio input {
+  margin: 0;
+}
+
+.property-detail__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.property-detail__checkbox input {
+  margin: 0;
+}
+
 .property-detail__scheme-link {
   background: none;
   border: none;
