@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/project-index.schema.json",
   "title": "Published Project Index",
-  "description": "Top-level index for a published project. Contains current project metadata and a list of available versions. Regenerated whenever any vocabulary publishes a new version. Served at /{project-id}/index.json.",
+  "description": "Top-level index for a published project. Contains current project metadata and a list of published schemes. Regenerated whenever any scheme publishes a new version. Served at /{project-id}/index.json.",
   "type": "object",
-  "required": ["format_version", "project", "versions"],
+  "required": ["format_version", "project", "schemes"],
   "additionalProperties": false,
   "properties": {
     "format_version": {
@@ -38,31 +38,40 @@
         }
       }
     },
-    "versions": {
+    "schemes": {
       "type": "array",
-      "description": "Available published versions, ordered newest-first.",
+      "description": "Published concept schemes in this project.",
       "items": {
         "type": "object",
-        "required": ["version_label", "published_at", "path"],
+        "required": ["id", "title", "latest_version", "term_count", "path"],
         "additionalProperties": false,
         "properties": {
-          "version_label": {
+          "id": {
             "type": "string",
-            "description": "Version label (e.g. \"1.0\", \"2.0-beta\")."
+            "format": "uuid",
+            "description": "Concept scheme UUID."
           },
-          "published_at": {
+          "title": {
             "type": "string",
-            "format": "date-time",
-            "description": "Timestamp of when this version was published."
+            "description": "Vocabulary title."
           },
-          "notes": {
+          "description": {
             "type": ["string", "null"],
-            "description": "Release notes for this version."
+            "description": "Vocabulary description."
+          },
+          "latest_version": {
+            "type": "string",
+            "description": "Version label of the latest published version."
+          },
+          "term_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of concepts in the latest version."
           },
           "path": {
             "type": "string",
-            "description": "Relative path to the version index.",
-            "examples": ["1.0/index.json"]
+            "description": "Relative path to the latest vocabulary file.",
+            "examples": ["01965a00-0000-7000-8000-000000000001/latest.json"]
           }
         }
       }
