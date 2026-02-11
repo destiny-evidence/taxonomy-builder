@@ -1,13 +1,6 @@
 {
   "format_version": "1.0",
-  "scheme": {
-    "id": "01965a00-0000-7000-8000-000000000001",
-    "title": "Colors",
-    "description": "A simple color taxonomy.",
-    "uri": "http://example.org/demo/colors",
-    "publisher": null,
-    "version": null
-  },
+  "scheme_id": "01965a00-0000-7000-8000-000000000001",
   "concepts": {
     "01965a00-0000-7000-8000-000000000002": {
       "pref_label": "Red",

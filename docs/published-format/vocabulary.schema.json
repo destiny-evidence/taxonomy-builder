@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/vocabulary.schema.json",
   "title": "Published Vocabulary",
-  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the top_concepts list and broader references. Served at /{project-id}/{version-label}/{scheme-id}.json.",
+  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the top_concepts list and broader references. Served at /{project-id}/{scheme-id}/{version-label}.json.",
   "type": "object",
-  "required": ["format_version", "scheme", "concepts", "top_concepts"],
+  "required": ["format_version", "scheme_id", "concepts", "top_concepts"],
   "additionalProperties": false,
   "properties": {
     "format_version": {
@@ -12,39 +12,10 @@
       "const": "1.0",
       "description": "Schema version for forwards compatibility."
     },
-    "scheme": {
-      "type": "object",
-      "description": "Concept scheme metadata.",
-      "required": ["id", "title"],
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "type": "string",
-          "format": "uuid",
-          "description": "Concept scheme UUID."
-        },
-        "title": {
-          "type": "string",
-          "description": "Vocabulary title."
-        },
-        "description": {
-          "type": ["string", "null"],
-          "description": "Vocabulary description."
-        },
-        "uri": {
-          "type": ["string", "null"],
-          "format": "uri",
-          "description": "SKOS ConceptScheme URI."
-        },
-        "publisher": {
-          "type": ["string", "null"],
-          "description": "Publisher name."
-        },
-        "version": {
-          "type": ["string", "null"],
-          "description": "Scheme version string (from the concept scheme, not the published version label)."
-        }
-      }
+    "scheme_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Concept scheme UUID. Full scheme metadata is available from the project and scheme indexes."
     },
     "concepts": {
       "type": "object",
