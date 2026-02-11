@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/vocabulary.schema.json",
+  "title": "Published Vocabulary",
+  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the top_concepts list and broader/narrower references.",
+  "type": "object",
+  "required": ["format_version", "scheme", "concepts", "top_concepts"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forwards compatibility."
+    },
+    "scheme": {
+      "type": "object",
+      "description": "Concept scheme metadata.",
+      "required": ["id", "title", "version_label", "published_at"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Concept scheme UUID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Vocabulary title."
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Vocabulary description."
+        },
+        "uri": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "SKOS ConceptScheme URI."
+        },
+        "publisher": {
+          "type": ["string", "null"],
+          "description": "Publisher name."
+        },
+        "version_label": {
+          "type": "string",
+          "description": "Version label for this published snapshot."
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when this version was published."
+        }
+      }
+    },
+    "concepts": {
+      "type": "object",
+      "description": "Map of concept UUID to concept data. Keyed by UUID for O(1) lookup.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["pref_label"],
+        "additionalProperties": false,
+        "properties": {
+          "pref_label": {
+            "type": "string",
+            "description": "Preferred label for the concept."
+          },
+          "definition": {
+            "type": ["string", "null"],
+            "description": "Concept definition."
+          },
+          "scope_note": {
+            "type": ["string", "null"],
+            "description": "Scope note clarifying the intended use of this concept."
+          },
+          "alt_labels": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "description": "Alternative labels (synonyms, abbreviations)."
+          },
+          "broader": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "default": [],
+            "description": "UUIDs of broader (parent) concepts. Empty for top concepts."
+          },
+          "related": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "default": [],
+            "description": "UUIDs of related concepts (symmetric SKOS related)."
+          }
+        }
+      }
+    },
+    "top_concepts": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "description": "UUIDs of root concepts (no broader relationships). Entry points for tree rendering."
+    }
+  }
+}
