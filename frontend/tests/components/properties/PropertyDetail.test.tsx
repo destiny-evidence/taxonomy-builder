@@ -39,7 +39,6 @@ const mockSchemeProperty: Property = {
 describe("PropertyDetail", () => {
   const mockOnRefresh = vi.fn();
   const mockOnClose = vi.fn();
-  const mockOnSchemeNavigate = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -74,42 +73,6 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       expect(screen.getByText("Person")).toBeInTheDocument();
-    });
-
-    it("displays range datatype for datatype properties", () => {
-      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
-
-      expect(screen.getByText("xsd:date")).toBeInTheDocument();
-    });
-
-    it("displays range scheme title for scheme properties", () => {
-      render(<PropertyDetail property={mockSchemeProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
-
-      expect(screen.getByText("Countries")).toBeInTheDocument();
-    });
-
-    it("makes range scheme clickable when onSchemeNavigate provided", () => {
-      render(
-        <PropertyDetail
-          property={mockSchemeProperty}
-          onRefresh={mockOnRefresh}
-          onClose={mockOnClose}
-          onSchemeNavigate={mockOnSchemeNavigate}
-        />
-      );
-
-      const schemeLink = screen.getByRole("button", { name: "Countries" });
-      fireEvent.click(schemeLink);
-
-      expect(mockOnSchemeNavigate).toHaveBeenCalledWith("scheme-1");
-    });
-
-    it("does not make range scheme clickable when onSchemeNavigate not provided", () => {
-      render(<PropertyDetail property={mockSchemeProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
-
-      // Should be text, not a button
-      expect(screen.queryByRole("button", { name: "Countries" })).not.toBeInTheDocument();
-      expect(screen.getByText("Countries")).toBeInTheDocument();
     });
 
     it("displays cardinality", () => {

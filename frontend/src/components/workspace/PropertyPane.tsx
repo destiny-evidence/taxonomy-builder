@@ -1,4 +1,5 @@
 import { PropertyDetail } from "../properties/PropertyDetail";
+import { SchemePreview } from "../properties/SchemePreview";
 import { selectedProperty, selectedPropertyId } from "../../state/properties";
 import "./PropertyPane.css";
 
@@ -29,8 +30,27 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate 
         property={property}
         onRefresh={onRefresh}
         onClose={handleClose}
-        onSchemeNavigate={onSchemeNavigate}
       />
+
+      {/* Values section - shows what values this property can have */}
+      <div class="property-pane__values">
+        {property.range_datatype ? (
+          <span class="property-pane__datatype">{property.range_datatype}</span>
+        ) : property.range_scheme ? (
+          <>
+            <div class="property-pane__scheme-header">
+              <span class="property-pane__scheme-name">{property.range_scheme.title}</span>
+              <button
+                class="property-pane__scheme-link"
+                onClick={() => onSchemeNavigate(property.range_scheme!.id)}
+              >
+                View →
+              </button>
+            </div>
+            <SchemePreview schemeId={property.range_scheme.id} />
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

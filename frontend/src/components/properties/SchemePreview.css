@@ -1,0 +1,17 @@
+.scheme-preview {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.scheme-preview__loading,
+.scheme-preview__error,
+.scheme-preview__empty {
+  padding: var(--spacing-md);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.scheme-preview__error {
+  color: var(--color-error);
+}
