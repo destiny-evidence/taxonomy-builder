@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/vocabulary.schema.json",
   "title": "Published Vocabulary",
-  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the top_concepts list and broader references. Served at /{project-id}/{scheme-id}/{version-label}.json.",
+  "description": "A single published vocabulary (concept scheme) containing all concepts and their relationships. Concepts are stored as a flat map keyed by UUID, with relationship references as ID arrays. The reader frontend builds tree views from the top_concepts list and broader references. Served at /{project-id}/{scheme-id}/{version-id}.json.",
   "type": "object",
   "required": ["format_version", "scheme_id", "concepts", "top_concepts"],
   "additionalProperties": false,

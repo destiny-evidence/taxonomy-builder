@@ -45,7 +45,7 @@
     "01965a00-0000-7000-8000-000000000007": {
       "pref_label": "Turquoise",
       "definition": "A cyan-like color between blue and green.",
-      "scope_note": null,
+      "scope_note": "Used when a color is perceived as both blue and green.",
       "alt_labels": ["Teal"],
       "broader": ["01965a00-0000-7000-8000-000000000006"],
       "related": [

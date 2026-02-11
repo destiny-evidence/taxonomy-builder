@@ -70,8 +70,8 @@
           },
           "file": {
             "type": "string",
-            "description": "Relative path to the vocabulary file.",
-            "examples": ["1.0.json"]
+            "description": "Filename of the vocabulary file (version UUID + .json).",
+            "examples": ["01965a00-0000-7000-8000-100000000000.json"]
           }
         }
       }

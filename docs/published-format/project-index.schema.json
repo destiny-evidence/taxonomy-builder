@@ -43,13 +43,13 @@
       "description": "Published concept schemes in this project.",
       "items": {
         "type": "object",
-        "required": ["id", "title", "latest_version", "term_count"],
+        "required": ["id", "title", "latest_version", "latest_path", "term_count"],
         "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "Concept scheme UUID. Reader constructs data path as {scheme-id}/{latest_version}.json."
+            "description": "Concept scheme UUID."
           },
           "title": {
             "type": "string",
@@ -61,7 +61,12 @@
           },
           "latest_version": {
             "type": "string",
-            "description": "Version label of the latest published version."
+            "description": "Version label of the latest published version (display only)."
+          },
+          "latest_path": {
+            "type": "string",
+            "description": "Relative path to the latest vocabulary file.",
+            "examples": ["01965a00-0000-7000-8000-000000000001/01965a00-0000-7000-8000-100000000000.json"]
           },
           "term_count": {
             "type": "integer",

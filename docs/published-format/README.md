@@ -11,16 +11,16 @@ Each scheme is versioned independently.
   index.json                  # project metadata + list of schemes
   {scheme-id}/
     index.json                # scheme metadata + version list
-    {version-label}.json      # concept data for a specific version
+    {version-id}.json         # concept data for a specific version
 ```
 
-The project index is regenerated whenever any scheme publishes a new version. Version files are immutable once published. The project index carries `latest_version` per scheme, so the reader constructs the path to the latest vocabulary file directly as `{scheme-id}/{latest_version}.json`.
+The project index is regenerated whenever any scheme publishes a new version. Version files are immutable once published. Filenames use version UUIDs rather than user-provided version labels, avoiding filename-safety concerns. The project index carries `latest_path` per scheme, giving the reader a direct relative path to the latest vocabulary file.
 
 ### Reader flow
 
-1. Fetch `/{project-id}/index.json` — render scheme list
-2. User picks a scheme — fetch `/{project-id}/{scheme-id}/{latest_version}.json` — render concepts
-3. (Optional) User wants a different version — fetch `/{project-id}/{scheme-id}/index.json` — show version picker — fetch `/{project-id}/{scheme-id}/{version-label}.json`
+1. Fetch `/{project-id}/index.json` — render scheme list. Each scheme includes `latest_path`
+2. User picks a scheme — fetch `/{project-id}/{latest_path}` — render concepts
+3. (Optional) User wants a different version — fetch `/{project-id}/{scheme-id}/index.json` — show version picker — fetch `/{project-id}/{scheme-id}/{file}`
 
 ## File types
 
@@ -28,7 +28,7 @@ Three file types, each with a JSON Schema definition:
 
 ### Project index (`project-index.schema.json`)
 
-Served at `/{project-id}/index.json`. Contains current project metadata and a list of published schemes with their latest version label and term count. This is the reader's entry point.
+Served at `/{project-id}/index.json`. Contains current project metadata and a list of published schemes with their latest version label, path to the latest vocabulary file, and term count. This is the reader's entry point.
 
 ### Scheme index (`scheme-index.schema.json`)
 
@@ -36,7 +36,7 @@ Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a 
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
-Served at `/{project-id}/{scheme-id}/{version-label}.json`. Contains scheme metadata and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering.
+Served at `/{project-id}/{scheme-id}/{version-id}.json`. Contains scheme metadata and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering.
 
 This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time.
 
