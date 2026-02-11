@@ -1,0 +1,89 @@
+.graph-view {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+.graph-view:active {
+  cursor: grabbing;
+}
+
+.graph-view__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Nodes */
+.graph-view__node {
+  cursor: pointer;
+}
+
+.graph-view__node circle {
+  fill: var(--color-primary);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  transition: opacity 0.2s;
+}
+
+.graph-view__node--root circle {
+  r: 8;
+}
+
+.graph-view__node--selected circle {
+  stroke: var(--color-warning, #ffc107);
+  stroke-width: 3;
+}
+
+.graph-view__node text {
+  font-size: 10px;
+  fill: var(--color-text);
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: opacity 0.2s;
+}
+
+/* Edges */
+.graph-view__edge {
+  fill: none;
+  stroke-width: 1.5;
+  transition: opacity 0.2s;
+}
+
+.graph-view__edge--broader {
+  stroke: var(--color-text-muted);
+}
+
+.graph-view__edge--related {
+  stroke: var(--color-text-muted);
+  stroke-dasharray: 4 3;
+  opacity: 0.6;
+}
+
+.graph-view__arrow {
+  fill: var(--color-text-muted);
+}
+
+/* Hover dimming */
+.graph-view--hovering .graph-view__node--dimmed circle,
+.graph-view--hovering .graph-view__node--dimmed text {
+  opacity: 0.15;
+}
+
+.graph-view--hovering .graph-view__edge--dimmed {
+  opacity: 0.08;
+}
+
+/* Search dimming */
+.graph-view__node--search-dimmed circle {
+  opacity: 0.2;
+}
+
+.graph-view__node--search-dimmed text {
+  opacity: 0.2;
+}

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/preact";
 import { TreeControls } from "../../src/components/tree/TreeControls";
 import { searchQuery, hideNonMatches } from "../../src/state/search";
+import { viewMode } from "../../src/state/graph";
 
 const defaultProps = {
   onExpandAll: vi.fn(),
@@ -13,15 +14,43 @@ describe("TreeControls", () => {
     vi.clearAllMocks();
     searchQuery.value = "";
     hideNonMatches.value = false;
+    viewMode.value = "tree";
+  });
+
+  describe("view mode toggle", () => {
+    it("renders Tree and Graph toggle buttons", () => {
+      render(<TreeControls {...defaultProps} />);
+      expect(screen.getByRole("button", { name: "Tree" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Graph" })).toBeInTheDocument();
+    });
+
+    it("has Tree active by default", () => {
+      render(<TreeControls {...defaultProps} />);
+      expect(screen.getByRole("button", { name: "Tree" })).toHaveClass("tree-controls__toggle-btn--active");
+      expect(screen.getByRole("button", { name: "Graph" })).not.toHaveClass("tree-controls__toggle-btn--active");
+    });
+
+    it("switches viewMode to graph when Graph is clicked", () => {
+      render(<TreeControls {...defaultProps} />);
+      fireEvent.click(screen.getByRole("button", { name: "Graph" }));
+      expect(viewMode.value).toBe("graph");
+    });
+
+    it("switches viewMode back to tree when Tree is clicked", () => {
+      viewMode.value = "graph";
+      render(<TreeControls {...defaultProps} />);
+      fireEvent.click(screen.getByRole("button", { name: "Tree" }));
+      expect(viewMode.value).toBe("tree");
+    });
   });
 
   describe("expand/collapse buttons", () => {
-    it("renders Expand All button", () => {
+    it("renders Expand All button in tree mode", () => {
       render(<TreeControls {...defaultProps} />);
       expect(screen.getByText("Expand All")).toBeInTheDocument();
     });
 
-    it("renders Collapse All button", () => {
+    it("renders Collapse All button in tree mode", () => {
       render(<TreeControls {...defaultProps} />);
       expect(screen.getByText("Collapse All")).toBeInTheDocument();
     });
@@ -36,6 +65,13 @@ describe("TreeControls", () => {
       render(<TreeControls {...defaultProps} />);
       fireEvent.click(screen.getByText("Collapse All"));
       expect(defaultProps.onCollapseAll).toHaveBeenCalled();
+    });
+
+    it("hides Expand All and Collapse All in graph mode", () => {
+      viewMode.value = "graph";
+      render(<TreeControls {...defaultProps} />);
+      expect(screen.queryByText("Expand All")).not.toBeInTheDocument();
+      expect(screen.queryByText("Collapse All")).not.toBeInTheDocument();
     });
   });
 

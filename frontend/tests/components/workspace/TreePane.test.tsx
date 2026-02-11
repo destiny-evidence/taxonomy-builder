@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/preact";
 import { TreePane } from "../../../src/components/workspace/TreePane";
 import { currentScheme } from "../../../src/state/schemes";
 import { treeLoading } from "../../../src/state/concepts";
+import { viewMode } from "../../../src/state/graph";
 import type { ConceptScheme } from "../../../src/types/models";
 
 // Mock TreeView since it has complex dependencies
@@ -12,6 +13,11 @@ vi.mock("../../../src/components/tree/TreeView", () => ({
       TreeView for {schemeId}
     </div>
   ),
+}));
+
+// Mock GraphView
+vi.mock("../../../src/components/graph/GraphView", () => ({
+  GraphView: () => <div data-testid="graph-view">GraphView</div>,
 }));
 
 // Mock TreeControls
@@ -50,6 +56,7 @@ describe("TreePane", () => {
     vi.resetAllMocks();
     currentScheme.value = mockScheme;
     treeLoading.value = false;
+    viewMode.value = "tree";
   });
 
   it("renders scheme title in header", () => {
@@ -254,5 +261,37 @@ describe("TreePane", () => {
     fireEvent.click(historyButton);
     expect(screen.queryByTestId("history-panel")).not.toBeInTheDocument();
     expect(historyButton).toHaveAttribute("aria-expanded", "false");
+  });
+
+  describe("view mode switching", () => {
+    it("renders TreeView when viewMode is tree", () => {
+      viewMode.value = "tree";
+      render(
+        <TreePane
+          schemeId="scheme-1"
+          onExpandAll={() => {}}
+          onCollapseAll={() => {}}
+          onRefresh={async () => {}}
+        />
+      );
+
+      expect(screen.getByTestId("tree-view")).toBeInTheDocument();
+      expect(screen.queryByTestId("graph-view")).not.toBeInTheDocument();
+    });
+
+    it("renders GraphView when viewMode is graph", () => {
+      viewMode.value = "graph";
+      render(
+        <TreePane
+          schemeId="scheme-1"
+          onExpandAll={() => {}}
+          onCollapseAll={() => {}}
+          onRefresh={async () => {}}
+        />
+      );
+
+      expect(screen.getByTestId("graph-view")).toBeInTheDocument();
+      expect(screen.queryByTestId("tree-view")).not.toBeInTheDocument();
+    });
   });
 });

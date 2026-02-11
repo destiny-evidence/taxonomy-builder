@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import { TreeView } from "../tree/TreeView";
+import { GraphView } from "../graph/GraphView";
 import { TreeControls } from "../tree/TreeControls";
 import { HistoryPanel } from "../history/HistoryPanel";
 import { VersionsPanel } from "../versions/VersionsPanel";
@@ -7,6 +8,7 @@ import { SchemeDetail } from "../schemes/SchemeDetail";
 import { Button } from "../common/Button";
 import { currentScheme } from "../../state/schemes";
 import { treeLoading } from "../../state/concepts";
+import { viewMode } from "../../state/graph";
 import "./TreePane.css";
 
 type ExpandedSection = "history" | "versions" | "schemeDetails" | null;
@@ -128,12 +130,16 @@ export function TreePane({
       <TreeControls onExpandAll={onExpandAll} onCollapseAll={onCollapseAll} />
 
       <div class="tree-pane__content">
-        <TreeView
-          schemeId={schemeId}
-          onRefresh={onRefresh}
-          onCreate={onCreate}
-          onAddChild={onAddChild}
-        />
+        {viewMode.value === "graph" ? (
+          <GraphView />
+        ) : (
+          <TreeView
+            schemeId={schemeId}
+            onRefresh={onRefresh}
+            onCreate={onCreate}
+            onAddChild={onAddChild}
+          />
+        )}
       </div>
 
       <div class="tree-pane__footer">
