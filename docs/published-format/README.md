@@ -11,16 +11,15 @@ Each scheme is versioned independently.
   index.json                  # project metadata + list of schemes
   {scheme-id}/
     index.json                # scheme metadata + version list
-    latest.json               # copy of most recent non-draft version
     {version-label}.json      # concept data for a specific version
 ```
 
-The project index is regenerated whenever any scheme publishes a new version. Version files are immutable once published. `latest.json` is overwritten on each publish to provide a stable path for the UI.
+The project index is regenerated whenever any scheme publishes a new version. Version files are immutable once published. The project index carries `latest_version` per scheme, so the reader constructs the path to the latest vocabulary file directly as `{scheme-id}/{latest_version}.json`.
 
 ### Reader flow
 
 1. Fetch `/{project-id}/index.json` — render scheme list
-2. User picks a scheme — fetch `/{project-id}/{scheme-id}/latest.json` — render concepts
+2. User picks a scheme — fetch `/{project-id}/{scheme-id}/{latest_version}.json` — render concepts
 3. (Optional) User wants a different version — fetch `/{project-id}/{scheme-id}/index.json` — show version picker — fetch `/{project-id}/{scheme-id}/{version-label}.json`
 
 ## File types
@@ -37,7 +36,7 @@ Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a 
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
-Served at `/{project-id}/{scheme-id}/{version-label}.json` or `/{project-id}/{scheme-id}/latest.json`. Contains scheme metadata and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering.
+Served at `/{project-id}/{scheme-id}/{version-label}.json`. Contains scheme metadata and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering.
 
 This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time.
 
@@ -45,7 +44,7 @@ This is normalized, meaning each concept's information is only represented once,
 
 ### Future implications
 
-Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only if draft is False should `latest.json` be updated (unless there are no versions with `draft=False`).
+Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only non-draft versions should be reflected in the project index's `latest_version` field.
 
 ### Size estimates
 
