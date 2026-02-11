@@ -14,7 +14,7 @@
     },
     "project": {
       "type": "object",
-      "description": "Current project metadata.",
+      "description": "Latest project metadata.",
       "required": ["id", "name"],
       "additionalProperties": false,
       "properties": {
@@ -54,6 +54,10 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp of when this version was published."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Release notes for this version."
           },
           "path": {
             "type": "string",
