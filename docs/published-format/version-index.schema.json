@@ -20,7 +20,7 @@
     },
     "project": {
       "type": "object",
-      "description": "Project metadata",
+      "description": "Project metadata.",
       "required": ["id", "name"],
       "additionalProperties": false,
       "properties": {
