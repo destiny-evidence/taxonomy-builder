@@ -36,7 +36,7 @@ Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a 
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
-Served at `/{project-id}/{scheme-id}/{version-id}.json`. Contains scheme metadata and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering.
+Served at `/{project-id}/{scheme-id}/{version-id}.json`. Contains the scheme ID and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering. Scheme metadata is taken from the higher index file.
 
 This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time.
 
@@ -44,7 +44,7 @@ This is normalized, meaning each concept's information is only represented once,
 
 ### Future implications
 
-Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only non-draft versions should be reflected in the project index's `latest_version` field.
+Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only non-draft versions should be reflected in the project index's `latest_version` and `latest_path` fields.
 
 ### Size estimates
 
