@@ -3,6 +3,7 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { propertiesApi } from "../../api/properties";
+import { ApiError } from "../../api/client";
 import { ontologyClasses } from "../../state/ontology";
 import { schemes } from "../../state/schemes";
 import type { Property } from "../../types/models";
@@ -107,8 +108,8 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
         label: editDraft.label,
         description: editDraft.description || null,
         domain_class: editDraft.domain_class,
-        range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id : null,
-        range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype : null,
+        range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || null : null,
+        range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || null : null,
         cardinality: editDraft.cardinality,
         required: editDraft.required,
       });
@@ -116,7 +117,11 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
       setIsEditing(false);
       onRefresh();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save property");
+      if (err instanceof ApiError && err.status === 409) {
+        setSaveError("A property with this identifier already exists");
+      } else {
+        setSaveError(err instanceof Error ? err.message : "Failed to save property");
+      }
     } finally {
       setSaveLoading(false);
     }
@@ -144,7 +149,32 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
   }
 
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
-  const isLabelEmpty = !editDraft?.label.trim();
+  const isFormValid = editDraft
+    ? !!editDraft.label.trim() &&
+      !!editDraft.domain_class &&
+      (editDraft.range_type === "scheme" ? !!editDraft.range_scheme_id : !!editDraft.range_datatype)
+    : false;
+
+  const hasChanges = editDraft
+    ? editDraft.label !== property.label ||
+      (editDraft.description || "") !== (property.description ?? "") ||
+      editDraft.domain_class !== property.domain_class ||
+      editDraft.range_type !== (property.range_scheme_id ? "scheme" : "datatype") ||
+      editDraft.range_scheme_id !== (property.range_scheme_id ?? "") ||
+      editDraft.range_datatype !== (property.range_datatype ?? "") ||
+      editDraft.cardinality !== property.cardinality ||
+      editDraft.required !== property.required
+    : false;
+
+  function getMissingFields(): string[] {
+    if (!editDraft) return [];
+    const missing: string[] = [];
+    if (!editDraft.label.trim()) missing.push("Label");
+    if (!editDraft.domain_class) missing.push("Domain class");
+    if (editDraft.range_type === "scheme" && !editDraft.range_scheme_id) missing.push("Range scheme");
+    if (editDraft.range_type === "datatype" && !editDraft.range_datatype) missing.push("Range datatype");
+    return missing;
+  }
 
   async function handleDelete() {
     setDeleteLoading(true);
@@ -172,7 +202,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
       </div>
 
       {saveError && (
-        <div class="property-detail__error">{saveError}</div>
+        <div class="property-detail__error" role="alert">{saveError}</div>
       )}
 
       <div class="property-detail__content">
@@ -210,6 +240,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
                 id="edit-domain-class"
                 class="property-detail__select"
                 value={editDraft.domain_class}
+                aria-required="true"
                 onChange={(e) => updateDraft("domain_class", (e.target as HTMLSelectElement).value)}
               >
                 <option value="">Select a class...</option>
@@ -221,8 +252,8 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               </select>
             </div>
 
-            <div class="property-detail__field">
-              <label class="property-detail__label">Range Type</label>
+            <fieldset class="property-detail__fieldset">
+              <legend class="property-detail__legend">Range Type</legend>
               <div class="property-detail__radio-group">
                 <label class="property-detail__radio">
                   <input
@@ -245,50 +276,50 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
                   <span>Datatype</span>
                 </label>
               </div>
-            </div>
 
-            {editDraft.range_type === "scheme" ? (
-              <div class="property-detail__field">
-                <label class="property-detail__label" htmlFor="edit-range-scheme">
-                  Range Scheme
-                </label>
-                <select
-                  id="edit-range-scheme"
-                  class="property-detail__select"
-                  value={editDraft.range_scheme_id}
-                  onChange={(e) => updateDraft("range_scheme_id", (e.target as HTMLSelectElement).value)}
-                >
-                  <option value="">Select a scheme...</option>
-                  {projectSchemes.map((scheme) => (
-                    <option key={scheme.id} value={scheme.id}>
-                      {scheme.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div class="property-detail__field">
-                <label class="property-detail__label" htmlFor="edit-range-datatype">
-                  Range Datatype
-                </label>
-                <select
-                  id="edit-range-datatype"
-                  class="property-detail__select"
-                  value={editDraft.range_datatype}
-                  onChange={(e) => updateDraft("range_datatype", (e.target as HTMLSelectElement).value)}
-                >
-                  <option value="">Select a datatype...</option>
-                  {ALLOWED_DATATYPES.map((dt) => (
-                    <option key={dt} value={dt}>
-                      {dt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+              {editDraft.range_type === "scheme" ? (
+                <div class="property-detail__field">
+                  <label class="property-detail__label" htmlFor="edit-range-scheme">
+                    Range Scheme
+                  </label>
+                  <select
+                    id="edit-range-scheme"
+                    class="property-detail__select"
+                    value={editDraft.range_scheme_id}
+                    onChange={(e) => updateDraft("range_scheme_id", (e.target as HTMLSelectElement).value)}
+                  >
+                    <option value="">Select a scheme...</option>
+                    {projectSchemes.map((scheme) => (
+                      <option key={scheme.id} value={scheme.id}>
+                        {scheme.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div class="property-detail__field">
+                  <label class="property-detail__label" htmlFor="edit-range-datatype">
+                    Range Datatype
+                  </label>
+                  <select
+                    id="edit-range-datatype"
+                    class="property-detail__select"
+                    value={editDraft.range_datatype}
+                    onChange={(e) => updateDraft("range_datatype", (e.target as HTMLSelectElement).value)}
+                  >
+                    <option value="">Select a datatype...</option>
+                    {ALLOWED_DATATYPES.map((dt) => (
+                      <option key={dt} value={dt}>
+                        {dt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </fieldset>
 
-            <div class="property-detail__field">
-              <label class="property-detail__label">Cardinality</label>
+            <fieldset class="property-detail__fieldset">
+              <legend class="property-detail__legend">Cardinality</legend>
               <div class="property-detail__radio-group">
                 <label class="property-detail__radio">
                   <input
@@ -311,7 +342,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
                   <span>Multiple values</span>
                 </label>
               </div>
-            </div>
+            </fieldset>
 
             <div class="property-detail__field">
               <label class="property-detail__checkbox">
@@ -371,6 +402,16 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
         )}
       </div>
 
+      {isEditing && !saveLoading && !isFormValid && getMissingFields().length > 0 && (
+        <div class="property-detail__missing" aria-live="polite">
+          Still needed: {getMissingFields().join(", ")}
+        </div>
+      )}
+
+      {isEditing && !saveLoading && isFormValid && !hasChanges && (
+        <div class="property-detail__hint" aria-live="polite">No changes to save</div>
+      )}
+
       <div class="property-detail__actions">
         {isEditing ? (
           <>
@@ -381,7 +422,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               variant="primary"
               size="sm"
               onClick={handleSave}
-              disabled={hasValidationErrors || isLabelEmpty || saveLoading}
+              disabled={hasValidationErrors || !isFormValid || !hasChanges || saveLoading}
             >
               {saveLoading ? "Saving..." : "Save"}
             </Button>

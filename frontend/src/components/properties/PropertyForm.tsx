@@ -2,6 +2,7 @@ import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { propertiesApi } from "../../api/properties";
+import { ApiError } from "../../api/client";
 import { ontologyApi } from "../../api/ontology";
 import { schemes } from "../../state/schemes";
 import type { OntologyClass, PropertyCreate } from "../../types/models";
@@ -28,11 +29,19 @@ const ALLOWED_DATATYPES = [
 const IDENTIFIER_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
 function toCamelCase(str: string): string {
-  return str
+  // Already looks like an identifier — just lcfirst
+  if (/^[a-zA-Z][a-zA-Z0-9]*$/.test(str)) {
+    return str[0].toLowerCase() + str.slice(1);
+  }
+  let result = str
     .toLowerCase()
     .replace(/[^a-zA-Z0-9]+(.)/g, (_, char) => char.toUpperCase())
     .replace(/^./, (char) => char.toLowerCase())
     .replace(/[^a-zA-Z0-9]/g, "");
+  if (result && !result[0].match(/[a-zA-Z]/)) {
+    result = "prop-" + result;
+  }
+  return result;
 }
 
 function validateIdentifier(value: string): string | null {
@@ -115,6 +124,16 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
 
   const isValid = hasLabel && hasIdentifier && hasValidIdentifier && hasDomainClass && hasRangeValue;
 
+  function getMissingFields(): string[] {
+    const missing: string[] = [];
+    if (!hasLabel) missing.push("Label");
+    if (!hasIdentifier) missing.push("Identifier");
+    else if (!hasValidIdentifier) missing.push("Valid identifier");
+    if (!hasDomainClass) missing.push("Domain class");
+    if (!hasRangeValue) missing.push(rangeType === "scheme" ? "Range scheme" : "Range datatype");
+    return missing;
+  }
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!isValid) return;
@@ -127,8 +146,8 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
       identifier: identifier.trim(),
       description: description.trim() || undefined,
       domain_class: domainClass,
-      range_scheme_id: rangeType === "scheme" ? rangeSchemeId : undefined,
-      range_datatype: rangeType === "datatype" ? rangeDatatype : undefined,
+      range_scheme_id: rangeType === "scheme" ? rangeSchemeId || undefined : undefined,
+      range_datatype: rangeType === "datatype" ? rangeDatatype || undefined : undefined,
       cardinality,
       required,
     };
@@ -137,7 +156,11 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
       await propertiesApi.create(projectId, data);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create property");
+      if (err instanceof ApiError && err.status === 409) {
+        setError("A property with this identifier already exists");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to create property");
+      }
     } finally {
       setSubmitLoading(false);
     }
@@ -151,7 +174,7 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
     <form class="property-form" onSubmit={handleSubmit}>
       <h3 class="property-form__title">New Property</h3>
 
-      {error && <div class="property-form__error">{error}</div>}
+      {error && <div class="property-form__error" role="alert">{error}</div>}
 
       <Input
         label="Label"
@@ -194,6 +217,7 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
             id="domain-class"
             class="property-form__select"
             value={domainClass}
+            aria-required="true"
             onChange={(e) => setDomainClass((e.target as HTMLSelectElement).value)}
             required
           >
@@ -218,9 +242,13 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
               name="rangeType"
               value="scheme"
               checked={rangeType === "scheme"}
+              disabled={projectSchemes.length === 0}
               onChange={() => setRangeType("scheme")}
             />
             <span>Scheme</span>
+            {projectSchemes.length === 0 && (
+              <span class="property-form__hint" style="font-style: italic">Create a scheme first</span>
+            )}
           </label>
           <label class="property-form__radio">
             <input
@@ -314,15 +342,9 @@ export function PropertyForm({ projectId, domainClassUri, onSuccess, onCancel }:
         </label>
       </div>
 
-      {!isValid && (hasLabel || hasIdentifier) && (
-        <div class="property-form__validation-hint">
-          {!hasLabel && <span>Label required. </span>}
-          {!hasIdentifier && <span>Identifier required. </span>}
-          {!hasValidIdentifier && <span>Invalid identifier. </span>}
-          {!hasDomainClass && <span>Domain class required. </span>}
-          {!hasRangeValue && (
-            <span>{rangeType === "scheme" ? "Range scheme" : "Range datatype"} required. </span>
-          )}
+      {!isValid && !submitLoading && (
+        <div class="property-form__missing" aria-live="polite">
+          Still needed: {getMissingFields().join(", ")}
         </div>
       )}
 

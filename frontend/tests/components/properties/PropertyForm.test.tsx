@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { PropertyForm } from "../../../src/components/properties/PropertyForm";
 import { propertiesApi } from "../../../src/api/properties";
+import { ApiError } from "../../../src/api/client";
 import { ontologyApi } from "../../../src/api/ontology";
 import { schemes } from "../../../src/state/schemes";
 import type { ConceptScheme, CoreOntology } from "../../../src/types/models";
@@ -384,6 +385,75 @@ describe("PropertyForm", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /create/i })).toBeDisabled();
+      });
+    });
+  });
+
+  describe("validation hints", () => {
+    it("shows 'Still needed' hint listing missing fields", async () => {
+      render(<PropertyForm projectId="proj-1" onSuccess={mockOnSuccess} onCancel={mockOnCancel} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
+      });
+
+      const hint = screen.getByText(/still needed/i);
+      expect(hint).toBeInTheDocument();
+      expect(hint.textContent).toContain("Label");
+      expect(hint.textContent).toContain("Identifier");
+      expect(hint.textContent).toContain("Domain class");
+      expect(hint.textContent).toContain("Range datatype");
+    });
+
+    it("shows specific message on 409 conflict error", async () => {
+      vi.mocked(propertiesApi.create).mockRejectedValue(new ApiError(409, "Conflict"));
+
+      render(
+        <PropertyForm
+          projectId="proj-1"
+          domainClassUri="http://example.org/Person"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
+      });
+
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^Range Datatype/)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/^Range Datatype/), { target: { value: "xsd:string" } });
+      fireEvent.click(screen.getByRole("button", { name: /create/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("A property with this identifier already exists")).toBeInTheDocument();
+      });
+    });
+
+    it("disables scheme radio when no schemes exist", async () => {
+      schemes.value = [];
+
+      render(<PropertyForm projectId="proj-1" onSuccess={mockOnSuccess} onCancel={mockOnCancel} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("radio", { name: /scheme/i })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole("radio", { name: /scheme/i })).toBeDisabled();
+    });
+
+    it("shows 'Create a scheme first' hint when no schemes", async () => {
+      schemes.value = [];
+
+      render(<PropertyForm projectId="proj-1" onSuccess={mockOnSuccess} onCancel={mockOnCancel} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/create a scheme first/i)).toBeInTheDocument();
       });
     });
   });

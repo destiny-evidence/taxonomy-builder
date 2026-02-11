@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { PropertyDetail } from "../../../src/components/properties/PropertyDetail";
 import { propertiesApi } from "../../../src/api/properties";
+import { ApiError } from "../../../src/api/client";
 import { ontology } from "../../../src/state/ontology";
 import { schemes } from "../../../src/state/schemes";
 import type { Property } from "../../../src/types/models";
@@ -450,16 +451,23 @@ describe("PropertyDetail", () => {
     });
 
     it("sends scheme range when range type is scheme", async () => {
-      vi.mocked(propertiesApi.update).mockResolvedValue(mockSchemeProperty);
+      vi.mocked(propertiesApi.update).mockResolvedValue({
+        ...mockSchemeProperty,
+        label: "Nationality Updated",
+      });
 
       render(<PropertyDetail property={mockSchemeProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Nationality");
+      fireEvent.input(labelInput, { target: { value: "Nationality Updated" } });
+
       fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
       await waitFor(() => {
         expect(propertiesApi.update).toHaveBeenCalledWith("prop-2", {
-          label: "Nationality",
+          label: "Nationality Updated",
           description: null,
           domain_class: "http://example.org/Person",
           range_scheme_id: "scheme-1",
@@ -478,6 +486,10 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "Changed" } });
+
       fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
       await waitFor(() => {
@@ -494,6 +506,10 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "Updated Label" } });
+
       fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
       await waitFor(() => {
@@ -507,10 +523,47 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "Changed" } });
+
       fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      });
+    });
+
+    it("disables save when no changes made", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    });
+
+    it("shows 'No changes to save' hint when no changes made", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      expect(screen.getByText("No changes to save")).toBeInTheDocument();
+    });
+
+    it("shows specific message on 409 conflict error", async () => {
+      vi.mocked(propertiesApi.update).mockRejectedValue(new ApiError(409, "Conflict"));
+
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const labelInput = screen.getByDisplayValue("Birth Date");
+      fireEvent.input(labelInput, { target: { value: "Changed" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("A property with this identifier already exists")).toBeInTheDocument();
       });
     });
   });
