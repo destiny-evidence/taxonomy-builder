@@ -20,7 +20,7 @@ The project index is regenerated whenever any scheme publishes a new version. Ve
 
 1. Fetch `/{project-id}/index.json` — render scheme list. Each scheme includes `latest_path`
 2. User picks a scheme — fetch `/{project-id}/{latest_path}` — render concepts
-3. (Optional) User wants a different version — fetch `/{project-id}/{scheme-id}/index.json` — show version picker — fetch `/{project-id}/{scheme-id}/{file}`
+3. (Optional) User wants a different version — fetch `/{project-id}/{scheme-id}/index.json` — show version picker — fetch `/{project-id}/{scheme-id}/{path}`
 
 ## File types
 

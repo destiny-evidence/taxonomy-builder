@@ -47,7 +47,7 @@
       "description": "Available versions, ordered newest-first.",
       "items": {
         "type": "object",
-        "required": ["version_label", "published_at", "term_count", "file"],
+        "required": ["version_label", "published_at", "term_count", "path"],
         "additionalProperties": false,
         "properties": {
           "version_label": {
@@ -68,7 +68,7 @@
             "minimum": 0,
             "description": "Number of concepts in this version."
           },
-          "file": {
+          "path": {
             "type": "string",
             "description": "Filename of the vocabulary file (version UUID + .json).",
             "examples": ["01965a00-0000-7000-8000-100000000000.json"]
