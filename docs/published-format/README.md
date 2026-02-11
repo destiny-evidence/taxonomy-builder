@@ -38,3 +38,13 @@ This is normalized, meaning each concept's information is only represented once,
 ## Considerations
 
 Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only if draft is False should `latest/` (unless there are no versions with `draft=False`).
+
+### Size estimates
+
+For a vocabulary with 1000 concepts, ~2 broader refs and ~0.5 related refs per concept:
+
+| | Uncompressed | Gzipped |
+|---|---|---|
+| Vocabulary file | ~300 KB | ~70-80 KB |
+| Version index | <1 KB | <1 KB |
+| Project index | <1 KB | <1 KB |
