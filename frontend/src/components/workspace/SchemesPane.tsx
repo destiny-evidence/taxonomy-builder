@@ -6,7 +6,9 @@ import "./SchemesPane.css";
 interface SchemesPaneProps {
   projectId: string;
   currentSchemeId: string | null;
+  showProperties: boolean;
   onSchemeSelect: (schemeId: string) => void;
+  onPropertiesSelect: () => void;
   onNewScheme: () => void;
   onImport: () => void;
 }
@@ -14,7 +16,9 @@ interface SchemesPaneProps {
 export function SchemesPane({
   projectId,
   currentSchemeId,
+  showProperties,
   onSchemeSelect,
+  onPropertiesSelect,
   onNewScheme,
   onImport,
 }: SchemesPaneProps) {
@@ -31,6 +35,17 @@ export function SchemesPane({
       </div>
 
       <div class="schemes-pane__content">
+        <div class="schemes-pane__nav">
+          <button
+            class={`schemes-pane__item ${showProperties ? "schemes-pane__item--selected" : ""}`}
+            onClick={onPropertiesSelect}
+          >
+            Properties
+          </button>
+        </div>
+
+        <div class="schemes-pane__section-label">Schemes</div>
+
         {projectSchemes.length === 0 ? (
           <div class="schemes-pane__empty">No schemes in this project</div>
         ) : (

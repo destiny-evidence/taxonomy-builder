@@ -3,14 +3,24 @@ import { route } from "preact-router";
 import { SchemesPane } from "../components/workspace/SchemesPane";
 import { TreePane } from "../components/workspace/TreePane";
 import { ConceptPane } from "../components/workspace/ConceptPane";
+import { PropertiesPane } from "../components/properties/PropertiesPane";
+import { PropertyForm } from "../components/properties/PropertyForm";
 import { ConceptForm } from "../components/concepts/ConceptForm";
 import { SchemeForm } from "../components/schemes/SchemeForm";
 import { ExportModal } from "../components/schemes/ExportModal";
 import { ImportModal } from "../components/schemes/ImportModal";
 import { Modal } from "../components/common/Modal";
+import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
 import { currentProject } from "../state/projects";
+import {
+  properties,
+  propertiesLoading,
+  propertiesError,
+  coreOntology,
+  coreOntologyLoading,
+} from "../state/properties";
 import {
   concepts,
   treeData,
@@ -22,7 +32,8 @@ import {
 import { projectsApi } from "../api/projects";
 import { schemesApi } from "../api/schemes";
 import { conceptsApi } from "../api/concepts";
-import type { Concept } from "../types/models";
+import { propertiesApi, ontologyApi } from "../api/properties";
+import type { Concept, Property } from "../types/models";
 import "./SchemeWorkspacePage.css";
 
 interface SchemeWorkspacePageProps {
@@ -43,10 +54,18 @@ export function SchemeWorkspacePage({
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
 
+  // Property modal state
+  const [isPropertyFormOpen, setIsPropertyFormOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [deletingProperty, setDeletingProperty] = useState<Property | null>(null);
+  const [propertyFormKey, setPropertyFormKey] = useState(0);
+
   useEffect(() => {
     if (projectId) {
       loadProject(projectId);
       loadSchemes(projectId);
+      loadProperties(projectId);
+      loadOntology();
     }
   }, [projectId]);
 
@@ -112,6 +131,32 @@ export function SchemeWorkspacePage({
     }
   }
 
+  async function loadProperties(projectId: string) {
+    propertiesLoading.value = true;
+    propertiesError.value = null;
+    try {
+      properties.value = await propertiesApi.listForProject(projectId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An error occurred";
+      propertiesError.value = message;
+      console.error("Failed to load properties:", err);
+    } finally {
+      propertiesLoading.value = false;
+    }
+  }
+
+  async function loadOntology() {
+    if (coreOntology.value) return; // cached
+    coreOntologyLoading.value = true;
+    try {
+      coreOntology.value = await ontologyApi.get();
+    } catch (err) {
+      console.error("Failed to load ontology:", err);
+    } finally {
+      coreOntologyLoading.value = false;
+    }
+  }
+
   async function handleRefresh() {
     if (schemeId) {
       await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
@@ -141,6 +186,9 @@ export function SchemeWorkspacePage({
     route(`/projects/${projectId}/schemes/${schemeId}`);
   }
 
+  function handlePropertiesSelect() {
+    route(`/projects/${projectId}`);
+  }
 
   async function handleDelete() {
     if (selectedConcept.value && schemeId) {
@@ -193,21 +241,67 @@ export function SchemeWorkspacePage({
     }
   }
 
+  // Property handlers
+  function handlePropertyCreate() {
+    setEditingProperty(null);
+    setPropertyFormKey((k) => k + 1);
+    setIsPropertyFormOpen(true);
+  }
+
+  function handlePropertyEdit(property: Property) {
+    setEditingProperty(property);
+    setPropertyFormKey((k) => k + 1);
+    setIsPropertyFormOpen(true);
+  }
+
+  function handlePropertyFormClose() {
+    setIsPropertyFormOpen(false);
+    setEditingProperty(null);
+  }
+
+  async function handlePropertyFormSuccess() {
+    handlePropertyFormClose();
+    if (projectId) {
+      await loadProperties(projectId);
+    }
+  }
+
+  function handlePropertyDeleteRequest(property: Property) {
+    setDeletingProperty(property);
+  }
+
+  async function handlePropertyDeleteConfirm() {
+    if (deletingProperty && projectId) {
+      try {
+        await propertiesApi.delete(deletingProperty.id);
+        setDeletingProperty(null);
+        await loadProperties(projectId);
+      } catch (err) {
+        console.error("Failed to delete property:", err);
+      }
+    }
+  }
+
   if (!projectId) {
     return <div>Project ID required</div>;
   }
+
+  const showProperties = !schemeId;
+  const ontologyClasses = coreOntology.value?.classes ?? [];
 
   return (
     <div class="scheme-workspace">
       <SchemesPane
         projectId={projectId}
         currentSchemeId={schemeId ?? null}
+        showProperties={showProperties}
         onSchemeSelect={handleSchemeSelect}
+        onPropertiesSelect={handlePropertiesSelect}
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
       />
 
-      <div class="scheme-workspace__main">
+      <div class={schemeId ? "scheme-workspace__main" : "scheme-workspace__main--wide"}>
         {schemeId ? (
           <TreePane
             schemeId={schemeId}
@@ -219,24 +313,28 @@ export function SchemeWorkspacePage({
             onExport={() => setIsExportOpen(true)}
           />
         ) : (
-          <div class="scheme-workspace__placeholder">
-            Select a scheme from the list
-          </div>
+          <PropertiesPane
+            projectId={projectId}
+            properties={properties.value}
+            schemes={schemes.value}
+            ontologyClasses={ontologyClasses}
+            loading={propertiesLoading.value}
+            error={propertiesError.value}
+            onCreate={handlePropertyCreate}
+            onEdit={handlePropertyEdit}
+            onDelete={handlePropertyDeleteRequest}
+          />
         )}
       </div>
 
-      <div class="scheme-workspace__detail">
-        {schemeId ? (
+      {schemeId && (
+        <div class="scheme-workspace__detail">
           <ConceptPane
             onDelete={handleDelete}
             onRefresh={handleRefresh}
           />
-        ) : (
-          <div class="scheme-workspace__placeholder">
-            Select a scheme to view concepts
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <Modal
         isOpen={isFormOpen}
@@ -279,6 +377,32 @@ export function SchemeWorkspacePage({
           onCancel={() => setIsSchemeFormOpen(false)}
         />
       </Modal>
+
+      <Modal
+        isOpen={isPropertyFormOpen}
+        title={editingProperty ? "Edit Property" : "New Property"}
+        onClose={handlePropertyFormClose}
+      >
+        <PropertyForm
+          key={editingProperty?.id ?? propertyFormKey}
+          projectId={projectId}
+          schemes={schemes.value}
+          ontologyClasses={ontologyClasses}
+          property={editingProperty}
+          onSuccess={handlePropertyFormSuccess}
+          onCancel={handlePropertyFormClose}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deletingProperty}
+        title="Delete Property"
+        message={`Are you sure you want to delete "${deletingProperty?.label}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handlePropertyDeleteConfirm}
+        onCancel={() => setDeletingProperty(null)}
+      />
     </div>
   );
 }

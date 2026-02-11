@@ -21,6 +21,14 @@
   background: var(--color-bg-secondary);
 }
 
+.scheme-workspace__main--wide {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  grid-column: 2 / -1;
+}
+
 .scheme-workspace__placeholder {
   display: flex;
   align-items: center;

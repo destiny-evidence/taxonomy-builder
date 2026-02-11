@@ -7,6 +7,7 @@ interface ButtonProps {
   size?: "sm" | "md" | "lg";
   type?: "button" | "submit";
   disabled?: boolean;
+  "aria-label"?: string;
   onClick?: (e: JSX.TargetedMouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -16,6 +17,7 @@ export function Button({
   size = "md",
   type = "button",
   disabled = false,
+  "aria-label": ariaLabel,
   onClick,
 }: ButtonProps) {
   return (
@@ -23,6 +25,7 @@ export function Button({
       type={type}
       class={`btn btn--${variant} btn--${size}`}
       disabled={disabled}
+      aria-label={ariaLabel}
       onClick={onClick}
     >
       {children}
