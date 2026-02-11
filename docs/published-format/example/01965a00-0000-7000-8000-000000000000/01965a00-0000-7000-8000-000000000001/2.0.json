@@ -23,7 +23,7 @@
       "scope_note": null,
       "alt_labels": ["Azure", "Navy"],
       "broader": ["01965a00-0000-7000-8000-000000000006"],
-      "related": []
+      "related": ["01965a00-0000-7000-8000-000000000007"]
     },
     "01965a00-0000-7000-8000-000000000004": {
       "pref_label": "Green",
@@ -31,7 +31,7 @@
       "scope_note": null,
       "alt_labels": ["Emerald"],
       "broader": ["01965a00-0000-7000-8000-000000000006"],
-      "related": []
+      "related": ["01965a00-0000-7000-8000-000000000007"]
     },
     "01965a00-0000-7000-8000-000000000005": {
       "pref_label": "Warm Colors",
@@ -48,6 +48,17 @@
       "alt_labels": [],
       "broader": [],
       "related": []
+    },
+    "01965a00-0000-7000-8000-000000000007": {
+      "pref_label": "Turquoise",
+      "definition": "A cyan-like color between blue and green.",
+      "scope_note": null,
+      "alt_labels": ["Teal"],
+      "broader": ["01965a00-0000-7000-8000-000000000006"],
+      "related": [
+        "01965a00-0000-7000-8000-000000000003",
+        "01965a00-0000-7000-8000-000000000004"
+      ]
     }
   },
   "top_concepts": [
