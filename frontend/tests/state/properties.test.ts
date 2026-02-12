@@ -5,6 +5,7 @@ import {
   propertiesError,
   selectedPropertyId,
   selectedProperty,
+  creatingProperty,
 } from "../../src/state/properties";
 import type { Property } from "../../src/types/models";
 
@@ -31,6 +32,7 @@ describe("properties state", () => {
     propertiesLoading.value = false;
     propertiesError.value = null;
     selectedPropertyId.value = null;
+    creatingProperty.value = null;
   });
 
   describe("properties signal", () => {
@@ -92,6 +94,20 @@ describe("properties state", () => {
 
       properties.value = [mockProperty];
       expect(selectedProperty.value).toEqual(mockProperty);
+    });
+  });
+
+  describe("creatingProperty signal", () => {
+    it("starts as null", () => {
+      expect(creatingProperty.value).toBeNull();
+    });
+
+    it("can store create config with projectId and classUri", () => {
+      creatingProperty.value = { projectId: "proj-1", domainClassUri: "http://example.org/Person" };
+      expect(creatingProperty.value).toEqual({
+        projectId: "proj-1",
+        domainClassUri: "http://example.org/Person",
+      });
     });
   });
 });

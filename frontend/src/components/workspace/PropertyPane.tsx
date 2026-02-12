@@ -1,6 +1,6 @@
 import { PropertyDetail } from "../properties/PropertyDetail";
 import { SchemePreview } from "../properties/SchemePreview";
-import { selectedProperty, selectedPropertyId } from "../../state/properties";
+import { selectedProperty, selectedPropertyId, creatingProperty } from "../../state/properties";
 import "./PropertyPane.css";
 
 interface PropertyPaneProps {
@@ -10,10 +10,35 @@ interface PropertyPaneProps {
 }
 
 export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate }: PropertyPaneProps) {
+  const creating = creatingProperty.value;
   const property = selectedProperty.value;
 
   function handleClose() {
     selectedPropertyId.value = null;
+  }
+
+  function handleCreateSuccess() {
+    creatingProperty.value = null;
+    onRefresh();
+  }
+
+  function handleCreateCancel() {
+    creatingProperty.value = null;
+  }
+
+  if (creating) {
+    return (
+      <div class="property-pane">
+        <PropertyDetail
+          mode="create"
+          projectId={creating.projectId}
+          domainClassUri={creating.domainClassUri}
+          onSuccess={handleCreateSuccess}
+          onCancel={handleCreateCancel}
+          onRefresh={onRefresh}
+        />
+      </div>
+    );
   }
 
   if (!property) {
