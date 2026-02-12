@@ -6,7 +6,6 @@ import { ConceptPane } from "../components/workspace/ConceptPane";
 import { ClassDetailPane } from "../components/workspace/ClassDetailPane";
 import { PropertyPane } from "../components/workspace/PropertyPane";
 import { ConceptForm } from "../components/concepts/ConceptForm";
-import { PropertyForm } from "../components/properties/PropertyForm";
 import { SchemeForm } from "../components/schemes/SchemeForm";
 import { ExportModal } from "../components/schemes/ExportModal";
 import { ImportModal } from "../components/schemes/ImportModal";
@@ -47,7 +46,6 @@ export function SchemeWorkspacePage({
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isSchemeFormOpen, setIsSchemeFormOpen] = useState(false);
-  const [isPropertyFormOpen, setIsPropertyFormOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
@@ -242,15 +240,6 @@ export function SchemeWorkspacePage({
     setIsFormOpen(true);
   }
 
-  function handleNewProperty() {
-    setIsPropertyFormOpen(true);
-  }
-
-  async function handlePropertyFormSuccess() {
-    setIsPropertyFormOpen(false);
-    await handlePropertiesRefresh();
-  }
-
   async function handleImportSuccess() {
     if (projectId) {
       await loadSchemes(projectId);
@@ -287,7 +276,6 @@ export function SchemeWorkspacePage({
             classUri={selectedClassUri.value!}
             projectId={projectId}
             onPropertySelect={handlePropertySelect}
-            onNewProperty={handleNewProperty}
             onSchemeNavigate={handleSchemeNavigate}
           />
         ) : isSchemeMode.value && schemeId ? (
@@ -341,20 +329,6 @@ export function SchemeWorkspacePage({
           initialBroaderId={initialBroaderId}
           onSuccess={handleFormSuccess}
           onCancel={handleFormClose}
-        />
-      </Modal>
-
-      {/* Property form modal */}
-      <Modal
-        isOpen={isPropertyFormOpen}
-        title="New Property"
-        onClose={() => setIsPropertyFormOpen(false)}
-      >
-        <PropertyForm
-          projectId={projectId}
-          domainClassUri={selectedClassUri.value ?? undefined}
-          onSuccess={handlePropertyFormSuccess}
-          onCancel={() => setIsPropertyFormOpen(false)}
         />
       </Modal>
 

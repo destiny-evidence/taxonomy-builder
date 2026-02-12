@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/preact";
 import { ClassDetailPane } from "../../../src/components/workspace/ClassDetailPane";
-import { properties, selectedPropertyId } from "../../../src/state/properties";
+import { properties, selectedPropertyId, creatingProperty } from "../../../src/state/properties";
 import type { Property } from "../../../src/types/models";
 
 const mockProperties: Property[] = [
@@ -71,13 +71,13 @@ vi.mock("../../../src/state/ontology", async () => {
 
 describe("ClassDetailPane", () => {
   const mockOnPropertySelect = vi.fn();
-  const mockOnNewProperty = vi.fn();
   const mockOnSchemeNavigate = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
     properties.value = mockProperties;
     selectedPropertyId.value = null;
+    creatingProperty.value = null;
   });
 
   describe("header", () => {
@@ -87,7 +87,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -101,7 +100,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -115,7 +113,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Unknown"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -131,7 +128,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -146,7 +142,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -161,7 +156,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -175,7 +169,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -189,7 +182,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Organization"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -206,7 +198,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -222,7 +213,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
@@ -232,20 +222,39 @@ describe("ClassDetailPane", () => {
       expect(mockOnSchemeNavigate).toHaveBeenCalledWith("scheme-1");
     });
 
-    it("calls onNewProperty when Add Property button clicked", () => {
+    it("sets creatingProperty signal when Add Property clicked", () => {
       render(
         <ClassDetailPane
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );
 
       fireEvent.click(screen.getByText("+ Add Property"));
 
-      expect(mockOnNewProperty).toHaveBeenCalled();
+      expect(creatingProperty.value).toEqual({
+        projectId: "proj-1",
+        domainClassUri: "http://example.org/Person",
+      });
+    });
+
+    it("clears selectedPropertyId when Add Property clicked", () => {
+      selectedPropertyId.value = "prop-1";
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+        />
+      );
+
+      fireEvent.click(screen.getByText("+ Add Property"));
+
+      expect(selectedPropertyId.value).toBeNull();
     });
 
     it("highlights selected property", () => {
@@ -256,7 +265,6 @@ describe("ClassDetailPane", () => {
           classUri="http://example.org/Person"
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
-          onNewProperty={mockOnNewProperty}
           onSchemeNavigate={mockOnSchemeNavigate}
         />
       );

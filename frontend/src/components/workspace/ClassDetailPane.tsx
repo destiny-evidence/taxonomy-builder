@@ -1,13 +1,12 @@
 import { Button } from "../common/Button";
 import { ontologyClasses } from "../../state/ontology";
-import { properties, selectedPropertyId } from "../../state/properties";
+import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
 import "./ClassDetailPane.css";
 
 interface ClassDetailPaneProps {
   classUri: string;
   projectId: string;
   onPropertySelect: (propertyId: string) => void;
-  onNewProperty: () => void;
   onSchemeNavigate: (schemeId: string) => void;
 }
 
@@ -15,7 +14,6 @@ export function ClassDetailPane({
   classUri,
   projectId: _projectId,
   onPropertySelect,
-  onNewProperty,
   onSchemeNavigate,
 }: ClassDetailPaneProps) {
   const ontologyClass = ontologyClasses.value.find((c) => c.uri === classUri);
@@ -23,6 +21,11 @@ export function ClassDetailPane({
 
   const classLabel = ontologyClass?.label ?? classUri;
   const classDescription = ontologyClass?.comment;
+
+  function handleAddProperty() {
+    creatingProperty.value = { projectId, domainClassUri: classUri };
+    selectedPropertyId.value = null;
+  }
 
   return (
     <div class="class-detail-pane">
@@ -37,7 +40,7 @@ export function ClassDetailPane({
         <div class="class-detail-pane__section">
           <div class="class-detail-pane__section-header">
             <h3 class="class-detail-pane__section-title">Properties</h3>
-            <Button variant="ghost" size="sm" onClick={onNewProperty}>
+            <Button variant="ghost" size="sm" onClick={handleAddProperty}>
               + Add Property
             </Button>
           </div>
