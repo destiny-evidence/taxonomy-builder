@@ -118,6 +118,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
       : null,
   );
   const [identifierTouched, setIdentifierTouched] = useState(false);
+  const [formTouched, setFormTouched] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Partial<Record<string, string>>>({});
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -221,6 +222,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
 
   function updateDraft<K extends keyof EditDraft>(field: K, value: EditDraft[K]) {
     if (!editDraft) return;
+    setFormTouched(true);
     setEditDraft({ ...editDraft, [field]: value });
 
     // Validate the field
@@ -524,7 +526,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
         ) : null}
       </div>
 
-      {isEditing && !saveLoading && !isFormValid && getMissingFields().length > 0 && (
+      {isEditing && formTouched && !saveLoading && !isFormValid && getMissingFields().length > 0 && (
         <div class="property-detail__missing" aria-live="polite">
           Still needed: {getMissingFields().join(", ")}
         </div>

@@ -804,8 +804,13 @@ describe("PropertyDetail", () => {
       expect(screen.getByRole("button", { name: /create property/i })).toBeDisabled();
     });
 
-    it("shows 'Still needed' hints when fields missing", () => {
+    it("shows 'Still needed' hints after user interacts with form", () => {
       renderCreate();
+      expect(screen.queryByText(/still needed/i)).not.toBeInTheDocument();
+
+      // Type something in description to trigger formTouched, leaving required fields empty
+      fireEvent.input(screen.getByLabelText(/description/i), { target: { value: "test" } });
+
       const hint = screen.getByText(/still needed/i);
       expect(hint).toBeInTheDocument();
       expect(hint.textContent).toContain("Label");
