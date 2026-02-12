@@ -40,13 +40,11 @@ Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a 
 
 Served at `/{project-id}/ontology.json`. Contains the domain classes from the core ontology and the properties that link them to concept schemes or datatypes. Properties reference schemes by UUID (cross-reference with the project index's `schemes` array) and domain classes by URI (resolve labels from the `domain_classes` array in the same file). Loaded on demand when the reader needs to display the domain model.
 
-As a first pass this is updated whenever a property is updated. We should consider a publishing mechanism.
-
 ### Vocabulary file (`vocabulary.schema.json`)
 
 Served at `/{project-id}/{scheme-id}/{version-id}.json`. Contains the scheme ID and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering. Scheme metadata is taken from the higher index file.
 
-This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time.
+This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time. `narrower` is omitted because it's derivable from `broader` and hence superfluous.
 
 ## Considerations
 

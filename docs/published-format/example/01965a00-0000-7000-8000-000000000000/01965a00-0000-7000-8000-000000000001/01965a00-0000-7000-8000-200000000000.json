@@ -34,6 +34,14 @@
       "broader": [],
       "related": []
     },
+    "01965a00-0000-7000-8000-000000000008": {
+      "pref_label": "Orange",
+      "definition": null,
+      "scope_note": null,
+      "alt_labels": ["Amber"],
+      "broader": ["01965a00-0000-7000-8000-000000000005"],
+      "related": []
+    },
     "01965a00-0000-7000-8000-000000000006": {
       "pref_label": "Cool Colors",
       "definition": "Colors associated with coolness.",

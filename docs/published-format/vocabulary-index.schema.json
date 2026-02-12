@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/scheme-index.schema.json",
-  "title": "Published Scheme Index",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/vocabulary-index.schema.json",
+  "title": "Published Vocabulary Index",
   "description": "Version history for a single concept scheme. Lists available versions with release notes. Loaded on demand when the reader needs to switch versions. Served at /{project-id}/{scheme-id}/index.json.",
   "type": "object",
   "required": ["format_version", "scheme", "versions"],
