@@ -12,7 +12,7 @@ interface ClassDetailPaneProps {
 
 export function ClassDetailPane({
   classUri,
-  projectId: _projectId,
+  projectId,
   onPropertySelect,
   onSchemeNavigate,
 }: ClassDetailPaneProps) {
