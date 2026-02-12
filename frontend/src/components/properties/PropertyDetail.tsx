@@ -6,17 +6,30 @@ import { propertiesApi } from "../../api/properties";
 import { ApiError } from "../../api/client";
 import { ontologyClasses } from "../../state/ontology";
 import { schemes } from "../../state/schemes";
-import type { Property } from "../../types/models";
+import type { Property, PropertyCreate } from "../../types/models";
 import "./PropertyDetail.css";
 
-interface PropertyDetailProps {
+interface ViewEditProps {
+  mode?: "view";
   property: Property;
   onRefresh: () => void;
   onClose: () => void;
 }
 
+interface CreateProps {
+  mode: "create";
+  projectId: string;
+  domainClassUri?: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  onRefresh: () => void;
+}
+
+type PropertyDetailProps = ViewEditProps | CreateProps;
+
 interface EditDraft {
   label: string;
+  identifier: string;
   description: string;
   domain_class: string;
   range_type: "scheme" | "datatype";
@@ -36,8 +49,37 @@ const ALLOWED_DATATYPES = [
   "xsd:anyURI",
 ];
 
+const IDENTIFIER_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+
+function toCamelCase(str: string): string {
+  if (/^[a-zA-Z][a-zA-Z0-9]*$/.test(str)) {
+    return str[0].toLowerCase() + str.slice(1);
+  }
+  let result = str
+    .toLowerCase()
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, char) => char.toUpperCase())
+    .replace(/^./, (char) => char.toLowerCase())
+    .replace(/[^a-zA-Z0-9]/g, "");
+  if (result && !result[0].match(/[a-zA-Z]/)) {
+    result = "prop-" + result;
+  }
+  return result;
+}
+
+function validateIdentifier(value: string): string | null {
+  if (!value.trim()) {
+    return "Identifier is required";
+  }
+  if (!value[0].match(/[a-zA-Z]/)) {
+    return "Identifier must start with a letter";
+  }
+  if (!IDENTIFIER_PATTERN.test(value)) {
+    return "Identifier must be URI-safe: letters, numbers, underscores, and hyphens only";
+  }
+  return null;
+}
+
 function extractLocalName(uri: string): string {
-  // Extract the local part after the last / or #
   const hashIndex = uri.lastIndexOf("#");
   const slashIndex = uri.lastIndexOf("/");
   const index = Math.max(hashIndex, slashIndex);
@@ -55,29 +97,60 @@ function formatDate(dateString: string): string {
   });
 }
 
-export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+export function PropertyDetail(props: PropertyDetailProps) {
+  const isCreateMode = props.mode === "create";
+  const property = isCreateMode ? null : props.property;
+
+  const [isEditing, setIsEditing] = useState(isCreateMode);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(
+    isCreateMode
+      ? {
+          label: "",
+          identifier: "",
+          description: "",
+          domain_class: (props as CreateProps).domainClassUri ?? "",
+          range_type: "datatype",
+          range_scheme_id: "",
+          range_datatype: "",
+          cardinality: "single",
+          required: false,
+        }
+      : null,
+  );
+  const [identifierTouched, setIdentifierTouched] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Partial<Record<string, string>>>({});
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Exit edit mode when property changes
+  // Exit edit mode when property changes (view/edit mode only)
   useEffect(() => {
-    setIsEditing(false);
-    setEditDraft(null);
-    setValidationErrors({});
-    setSaveError(null);
-  }, [property.id]);
+    if (!isCreateMode) {
+      setIsEditing(false);
+      setEditDraft(null);
+      setValidationErrors({});
+      setSaveError(null);
+    }
+  }, [isCreateMode, property?.id]);
+
+  // Auto-generate identifier from label in create mode
+  useEffect(() => {
+    if (isCreateMode && !identifierTouched && editDraft?.label) {
+      setEditDraft((prev) => prev ? { ...prev, identifier: toCamelCase(prev.label) } : prev);
+    }
+  }, [isCreateMode, editDraft?.label, identifierTouched]);
 
   const classes = ontologyClasses.value;
-  const projectSchemes = schemes.value.filter((s) => s.project_id === property.project_id);
+  const projectSchemes = schemes.value.filter((s) =>
+    isCreateMode ? s.project_id === (props as CreateProps).projectId : s.project_id === property!.project_id,
+  );
 
   function handleEditClick() {
+    if (!property) return;
     setEditDraft({
       label: property.label,
+      identifier: property.identifier,
       description: property.description ?? "",
       domain_class: property.domain_class,
       range_type: property.range_scheme_id ? "scheme" : "datatype",
@@ -91,6 +164,10 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
   }
 
   function handleCancel() {
+    if (isCreateMode) {
+      (props as CreateProps).onCancel();
+      return;
+    }
     setEditDraft(null);
     setValidationErrors({});
     setSaveError(null);
@@ -104,23 +181,38 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     setSaveError(null);
 
     try {
-      await propertiesApi.update(property.id, {
-        label: editDraft.label,
-        description: editDraft.description || null,
-        domain_class: editDraft.domain_class,
-        range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || null : null,
-        range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || null : null,
-        cardinality: editDraft.cardinality,
-        required: editDraft.required,
-      });
-      setEditDraft(null);
-      setIsEditing(false);
-      onRefresh();
+      if (isCreateMode) {
+        const data: PropertyCreate = {
+          label: editDraft.label.trim(),
+          identifier: editDraft.identifier.trim(),
+          description: editDraft.description.trim() || undefined,
+          domain_class: editDraft.domain_class,
+          range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || undefined : undefined,
+          range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || undefined : undefined,
+          cardinality: editDraft.cardinality,
+          required: editDraft.required,
+        };
+        await propertiesApi.create((props as CreateProps).projectId, data);
+        (props as CreateProps).onSuccess();
+      } else {
+        await propertiesApi.update(property!.id, {
+          label: editDraft.label,
+          description: editDraft.description || null,
+          domain_class: editDraft.domain_class,
+          range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || null : null,
+          range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || null : null,
+          cardinality: editDraft.cardinality,
+          required: editDraft.required,
+        });
+        setEditDraft(null);
+        setIsEditing(false);
+        props.onRefresh();
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setSaveError("A property with this identifier already exists");
       } else {
-        setSaveError(err instanceof Error ? err.message : "Failed to save property");
+        setSaveError(err instanceof Error ? err.message : isCreateMode ? "Failed to create property" : "Failed to save property");
       }
     } finally {
       setSaveLoading(false);
@@ -136,6 +228,9 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     if (field === "label" && !(value as string).trim()) {
       error = "Label is required";
     }
+    if (field === "identifier" && isCreateMode) {
+      error = validateIdentifier(value as string);
+    }
 
     setValidationErrors((prev) => {
       const newErrors = { ...prev };
@@ -148,28 +243,41 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     });
   }
 
+  function handleIdentifierChange(value: string) {
+    setIdentifierTouched(true);
+    updateDraft("identifier", value);
+  }
+
+  const identifierError = isCreateMode && editDraft?.identifier ? validateIdentifier(editDraft.identifier) : null;
+
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
+
   const isFormValid = editDraft
     ? !!editDraft.label.trim() &&
       !!editDraft.domain_class &&
-      (editDraft.range_type === "scheme" ? !!editDraft.range_scheme_id : !!editDraft.range_datatype)
+      (editDraft.range_type === "scheme" ? !!editDraft.range_scheme_id : !!editDraft.range_datatype) &&
+      (isCreateMode ? !!editDraft.identifier.trim() && !identifierError : true)
     : false;
 
-  const hasChanges = editDraft
-    ? editDraft.label !== property.label ||
-      (editDraft.description || "") !== (property.description ?? "") ||
-      editDraft.domain_class !== property.domain_class ||
-      editDraft.range_type !== (property.range_scheme_id ? "scheme" : "datatype") ||
-      editDraft.range_scheme_id !== (property.range_scheme_id ?? "") ||
-      editDraft.range_datatype !== (property.range_datatype ?? "") ||
-      editDraft.cardinality !== property.cardinality ||
-      editDraft.required !== property.required
-    : false;
+  const hasChanges = isCreateMode
+    ? true // Create mode always has "changes"
+    : editDraft && property
+      ? editDraft.label !== property.label ||
+        (editDraft.description || "") !== (property.description ?? "") ||
+        editDraft.domain_class !== property.domain_class ||
+        editDraft.range_type !== (property.range_scheme_id ? "scheme" : "datatype") ||
+        editDraft.range_scheme_id !== (property.range_scheme_id ?? "") ||
+        editDraft.range_datatype !== (property.range_datatype ?? "") ||
+        editDraft.cardinality !== property.cardinality ||
+        editDraft.required !== property.required
+      : false;
 
   function getMissingFields(): string[] {
     if (!editDraft) return [];
     const missing: string[] = [];
     if (!editDraft.label.trim()) missing.push("Label");
+    if (isCreateMode && !editDraft.identifier.trim()) missing.push("Identifier");
+    else if (isCreateMode && identifierError) missing.push("Valid identifier");
     if (!editDraft.domain_class) missing.push("Domain class");
     if (editDraft.range_type === "scheme" && !editDraft.range_scheme_id) missing.push("Range scheme");
     if (editDraft.range_type === "datatype" && !editDraft.range_datatype) missing.push("Range datatype");
@@ -177,11 +285,12 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
   }
 
   async function handleDelete() {
+    if (!property) return;
     setDeleteLoading(true);
     try {
       await propertiesApi.delete(property.id);
-      onRefresh();
-      onClose();
+      props.onRefresh();
+      (props as ViewEditProps).onClose();
     } catch (err) {
       console.error("Failed to delete property:", err);
     } finally {
@@ -190,15 +299,17 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
     }
   }
 
+  const title = isCreateMode ? "New Property" : isEditing ? "Edit Property" : property!.label;
+
   return (
     <div class="property-detail">
       <div class="property-detail__header">
-        <h3 class="property-detail__title">
-          {isEditing ? "Edit Property" : property.label}
-        </h3>
-        <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-          ×
-        </Button>
+        <h3 class="property-detail__title">{title}</h3>
+        {!isCreateMode && (
+          <Button variant="ghost" size="sm" onClick={(props as ViewEditProps).onClose} aria-label="Close">
+            ×
+          </Button>
+        )}
       </div>
 
       {saveError && (
@@ -214,15 +325,26 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               value={editDraft.label}
               onChange={(value) => updateDraft("label", value)}
               required
-              error={validationErrors.label}
             />
 
-            <div class="property-detail__field">
-              <label class="property-detail__label">Identifier</label>
-              <div class="property-detail__value property-detail__value--mono">
-                {property.identifier}
+            {isCreateMode ? (
+              <Input
+                label="Identifier"
+                name="identifier"
+                value={editDraft.identifier}
+                onChange={handleIdentifierChange}
+                required
+                error={identifierError ?? undefined}
+                placeholder="e.g., dateOfBirth"
+              />
+            ) : (
+              <div class="property-detail__field">
+                <label class="property-detail__label">Identifier</label>
+                <div class="property-detail__value property-detail__value--mono">
+                  {property!.identifier}
+                </div>
               </div>
-            </div>
+            )}
 
             <Input
               label="Description"
@@ -355,7 +477,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               </label>
             </div>
           </>
-        ) : (
+        ) : property ? (
           <>
             <div class="property-detail__field">
               <label class="property-detail__label">Identifier</label>
@@ -399,7 +521,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               <span>Updated {formatDate(property.updated_at)}</span>
             </div>
           </>
-        )}
+        ) : null}
       </div>
 
       {isEditing && !saveLoading && !isFormValid && getMissingFields().length > 0 && (
@@ -408,7 +530,7 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
         </div>
       )}
 
-      {isEditing && !saveLoading && isFormValid && !hasChanges && (
+      {isEditing && !isCreateMode && !saveLoading && isFormValid && !hasChanges && (
         <div class="property-detail__hint" aria-live="polite">No changes to save</div>
       )}
 
@@ -422,9 +544,11 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
               variant="primary"
               size="sm"
               onClick={handleSave}
-              disabled={hasValidationErrors || !isFormValid || !hasChanges || saveLoading}
+              disabled={hasValidationErrors || !isFormValid || (!isCreateMode && !hasChanges) || saveLoading}
             >
-              {saveLoading ? "Saving..." : "Save"}
+              {isCreateMode
+                ? saveLoading ? "Creating..." : "Create Property"
+                : saveLoading ? "Saving..." : "Save"}
             </Button>
           </>
         ) : (
@@ -443,14 +567,16 @@ export function PropertyDetail({ property, onRefresh, onClose }: PropertyDetailP
         )}
       </div>
 
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Delete Property"
-        message={`Are you sure you want to delete "${property.label}"?`}
-        confirmLabel={deleteLoading ? "Deleting..." : "Confirm"}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {!isCreateMode && property && (
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          title="Delete Property"
+          message={`Are you sure you want to delete "${property.label}"?`}
+          confirmLabel={deleteLoading ? "Deleting..." : "Confirm"}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }

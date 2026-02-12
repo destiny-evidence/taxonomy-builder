@@ -42,6 +42,8 @@ const mockSchemeProperty: Property = {
 describe("PropertyDetail", () => {
   const mockOnRefresh = vi.fn();
   const mockOnClose = vi.fn();
+  const mockOnSuccess = vi.fn();
+  const mockOnCancel = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -561,6 +563,275 @@ describe("PropertyDetail", () => {
       fireEvent.input(labelInput, { target: { value: "Changed" } });
 
       fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("A property with this identifier already exists")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("create mode", () => {
+    function renderCreate(overrides: Record<string, unknown> = {}) {
+      return render(
+        <PropertyDetail
+          mode="create"
+          projectId="proj-1"
+          onSuccess={mockOnSuccess}
+          onCancel={mockOnCancel}
+          onRefresh={mockOnRefresh}
+          {...overrides}
+        />
+      );
+    }
+
+    it("shows 'New Property' as title", () => {
+      renderCreate();
+      expect(screen.getByText("New Property")).toBeInTheDocument();
+    });
+
+    it("shows all form fields", () => {
+      renderCreate();
+
+      expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/identifier/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: /domain/i })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /scheme/i })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /datatype/i })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /single value/i })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /multiple values/i })).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: /required/i })).toBeInTheDocument();
+    });
+
+    it("shows editable identifier input (not read-only text)", () => {
+      renderCreate();
+
+      const identifierInput = screen.getByLabelText(/identifier/i);
+      expect(identifierInput.tagName).toBe("INPUT");
+    });
+
+    it("does not show Delete button", () => {
+      renderCreate();
+      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+    });
+
+    it("does not show metadata (created_at, updated_at)", () => {
+      renderCreate();
+      expect(screen.queryByText(/created/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/updated/i)).not.toBeInTheDocument();
+    });
+
+    it("shows 'Create Property' button", () => {
+      renderCreate();
+      expect(screen.getByRole("button", { name: /create property/i })).toBeInTheDocument();
+    });
+
+    it("does not show 'Save' button", () => {
+      renderCreate();
+      expect(screen.queryByRole("button", { name: /^save$/i })).not.toBeInTheDocument();
+    });
+
+    it("shows Cancel button", () => {
+      renderCreate();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it("calls onCancel when Cancel clicked", () => {
+      renderCreate();
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+      expect(mockOnCancel).toHaveBeenCalled();
+    });
+
+    it("auto-generates identifier from label", async () => {
+      renderCreate();
+
+      const labelInput = screen.getByLabelText(/label/i);
+      fireEvent.input(labelInput, { target: { value: "My Cool Property" } });
+
+      await waitFor(() => {
+        const identifierInput = screen.getByLabelText(/identifier/i) as HTMLInputElement;
+        expect(identifierInput.value).toBe("myCoolProperty");
+      });
+    });
+
+    it("stops auto-generating after manual identifier edit", async () => {
+      renderCreate();
+
+      const labelInput = screen.getByLabelText(/label/i);
+      fireEvent.input(labelInput, { target: { value: "My Cool Property" } });
+
+      const identifierInput = screen.getByLabelText(/identifier/i);
+      fireEvent.input(identifierInput, { target: { value: "customId" } });
+
+      // Changing label again should not overwrite
+      fireEvent.input(labelInput, { target: { value: "Another Label" } });
+
+      await waitFor(() => {
+        expect((identifierInput as HTMLInputElement).value).toBe("customId");
+      });
+    });
+
+    it("shows validation error for invalid identifier", () => {
+      renderCreate();
+
+      const identifierInput = screen.getByLabelText(/identifier/i);
+      fireEvent.input(identifierInput, { target: { value: "123invalid" } });
+
+      expect(screen.getByText(/must start with a letter/i)).toBeInTheDocument();
+    });
+
+    it("calls propertiesApi.create on submit with valid fields", async () => {
+      vi.mocked(propertiesApi.create).mockResolvedValue({
+        id: "prop-new",
+        project_id: "proj-1",
+        identifier: "myCoolProperty",
+        label: "My Cool Property",
+        description: null,
+        domain_class: "http://example.org/Person",
+        range_scheme_id: null,
+        range_scheme: null,
+        range_datatype: "xsd:string",
+        cardinality: "single",
+        required: false,
+        uri: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      });
+
+      renderCreate();
+
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "My Cool Property" } });
+      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
+        target: { value: "http://example.org/Person" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
+        target: { value: "xsd:string" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /create property/i }));
+
+      await waitFor(() => {
+        expect(propertiesApi.create).toHaveBeenCalledWith("proj-1", expect.objectContaining({
+          label: "My Cool Property",
+          identifier: "myCoolProperty",
+          domain_class: "http://example.org/Person",
+          range_datatype: "xsd:string",
+          cardinality: "single",
+          required: false,
+        }));
+      });
+    });
+
+    it("calls onSuccess after successful create", async () => {
+      vi.mocked(propertiesApi.create).mockResolvedValue({
+        id: "prop-new",
+        project_id: "proj-1",
+        identifier: "test",
+        label: "Test",
+        description: null,
+        domain_class: "http://example.org/Person",
+        range_scheme_id: null,
+        range_scheme: null,
+        range_datatype: "xsd:string",
+        cardinality: "single",
+        required: false,
+        uri: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      });
+
+      renderCreate();
+
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
+      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
+        target: { value: "http://example.org/Person" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
+        target: { value: "xsd:string" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /create property/i }));
+
+      await waitFor(() => {
+        expect(mockOnSuccess).toHaveBeenCalled();
+      });
+    });
+
+    it("shows loading state during submission", async () => {
+      vi.mocked(propertiesApi.create).mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 100))
+      );
+
+      renderCreate();
+
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
+      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
+        target: { value: "http://example.org/Person" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
+        target: { value: "xsd:string" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /create property/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /creating/i })).toBeDisabled();
+      });
+    });
+
+    it("shows error message on API failure", async () => {
+      vi.mocked(propertiesApi.create).mockRejectedValue(new Error("Network error"));
+
+      renderCreate();
+
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
+      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
+        target: { value: "http://example.org/Person" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
+        target: { value: "xsd:string" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /create property/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      });
+    });
+
+    it("disables Create button when required fields missing", () => {
+      renderCreate();
+      expect(screen.getByRole("button", { name: /create property/i })).toBeDisabled();
+    });
+
+    it("shows 'Still needed' hints when fields missing", () => {
+      renderCreate();
+      const hint = screen.getByText(/still needed/i);
+      expect(hint).toBeInTheDocument();
+      expect(hint.textContent).toContain("Label");
+    });
+
+    it("pre-fills domain class when domainClassUri provided", () => {
+      renderCreate({ domainClassUri: "http://example.org/Person" });
+
+      const select = screen.getByRole("combobox", { name: /domain/i });
+      expect(select).toHaveValue("http://example.org/Person");
+    });
+
+    it("shows 409 conflict error message", async () => {
+      vi.mocked(propertiesApi.create).mockRejectedValue(new ApiError(409, "Conflict"));
+
+      renderCreate();
+
+      fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
+      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
+        target: { value: "http://example.org/Person" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
+        target: { value: "xsd:string" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /create property/i }));
 
       await waitFor(() => {
         expect(screen.getByText("A property with this identifier already exists")).toBeInTheDocument();
