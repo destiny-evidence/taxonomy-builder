@@ -38,7 +38,7 @@ Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a 
 
 ### Ontology file (`ontology.schema.json`)
 
-Served at `/{project-id}/ontology.json`. Contains the domain classes from the core ontology and the properties that link them to concept schemes or datatypes. Properties reference schemes by UUID (cross-reference with the project index's `schemes` array) and domain classes by URI (resolve labels from the `domain_classes` array in the same file). Loaded on demand when the reader needs to display the domain model.
+Served at `/{project-id}/ontology.json`. Contains the domain classes from the core ontology and the properties that link them to concept schemes or datatypes. Properties reference schemes by UUID (cross-reference with the project index's `schemes` array) and domain classes by URI (resolve labels from the `domain_classes` array in the same file). Loaded on demand when the reader needs to display the domain model. Separating from the index also allows it to be on a different cache cycle.
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
