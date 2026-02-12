@@ -28,11 +28,11 @@ Three file types, each with a JSON Schema definition:
 
 ### Project index (`project-index.schema.json`)
 
-Served at `/{project-id}/index.json`. Contains current project metadata and a list of published schemes with their latest version label, path to the latest vocabulary file, and term count. This is the reader's entry point.
+Served at `/{project-id}/index.json`. Contains current project metadata and a list of published schemes with their latest version label, path to the latest vocabulary file, and concept count - only the information required for navigation from a landing page. This is the reader's entry point.
 
 ### Scheme index (`scheme-index.schema.json`)
 
-Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a scheme with release notes. Only loaded on demand when the reader needs to switch versions.
+Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a scheme with release notes and timestamps. Only loaded on demand when the reader needs to view/switch versions.
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
@@ -44,7 +44,7 @@ This is normalized, meaning each concept's information is only represented once,
 
 ### Future implications
 
-Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only non-draft versions should be reflected in the project index's `latest_version` and `latest_path` fields.
+Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only non-draft versions should update the root project `index.json`.
 
 ### Size estimates
 
@@ -70,3 +70,5 @@ File-level estimates:
 | Vocabulary file (1000 concepts) | ~400 KB      | ~80-100 KB |
 | Scheme index                    | <1 KB        | <1 KB      |
 | Project index                   | <1 KB        | <1 KB      |
+
+We can consider two versions of the vocabulary file if we need even lighter files, which might exclude things like related concepts and definitions.

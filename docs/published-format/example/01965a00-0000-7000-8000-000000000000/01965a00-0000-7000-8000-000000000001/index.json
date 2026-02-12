@@ -12,14 +12,14 @@
       "version_label": "2.0",
       "published_at": "2026-03-01T09:00:00Z",
       "notes": "Organised into warm and cool categories, added turquoise.",
-      "term_count": 6,
+      "concept_count": 6,
       "path": "01965a00-0000-7000-8000-200000000000.json"
     },
     {
       "version_label": "1.0",
       "published_at": "2026-02-01T09:00:00Z",
       "notes": null,
-      "term_count": 3,
+      "concept_count": 3,
       "path": "01965a00-0000-7000-8000-100000000000.json"
     }
   ]

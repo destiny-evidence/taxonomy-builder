@@ -43,7 +43,7 @@
       "description": "Published concept schemes in this project.",
       "items": {
         "type": "object",
-        "required": ["id", "title", "latest_version", "latest_path", "term_count"],
+        "required": ["id", "title", "latest_version", "latest_path", "concept_count"],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -68,7 +68,7 @@
             "description": "Relative path to the latest vocabulary file.",
             "examples": ["01965a00-0000-7000-8000-000000000001/01965a00-0000-7000-8000-100000000000.json"]
           },
-          "term_count": {
+          "concept_count": {
             "type": "integer",
             "minimum": 0,
             "description": "Number of concepts in the latest version."

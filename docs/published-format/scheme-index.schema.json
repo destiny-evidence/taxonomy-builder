@@ -47,7 +47,7 @@
       "description": "Available versions, ordered newest-first.",
       "items": {
         "type": "object",
-        "required": ["version_label", "published_at", "term_count", "path"],
+        "required": ["version_label", "published_at", "concept_count", "path"],
         "additionalProperties": false,
         "properties": {
           "version_label": {
@@ -63,7 +63,7 @@
             "type": ["string", "null"],
             "description": "Release notes for this version."
           },
-          "term_count": {
+          "concept_count": {
             "type": "integer",
             "minimum": 0,
             "description": "Number of concepts in this version."
