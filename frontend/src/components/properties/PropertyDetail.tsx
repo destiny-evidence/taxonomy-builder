@@ -117,6 +117,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
         }
       : null,
   );
+  const [initialDraft, setInitialDraft] = useState<EditDraft | null>(editDraft);
   const [identifierTouched, setIdentifierTouched] = useState(false);
   const [formTouched, setFormTouched] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Partial<Record<string, string>>>({});
@@ -149,7 +150,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
 
   function handleEditClick() {
     if (!property) return;
-    setEditDraft({
+    const draft: EditDraft = {
       label: property.label,
       identifier: property.identifier,
       description: property.description ?? "",
@@ -159,7 +160,9 @@ export function PropertyDetail(props: PropertyDetailProps) {
       range_datatype: property.range_datatype ?? "",
       cardinality: property.cardinality,
       required: property.required,
-    });
+    };
+    setEditDraft(draft);
+    setInitialDraft(draft);
     setValidationErrors({});
     setIsEditing(true);
   }
@@ -262,16 +265,9 @@ export function PropertyDetail(props: PropertyDetailProps) {
     : false;
 
   const hasChanges = isCreateMode
-    ? true // Create mode always has "changes"
-    : editDraft && property
-      ? editDraft.label !== property.label ||
-        (editDraft.description || "") !== (property.description ?? "") ||
-        editDraft.domain_class !== property.domain_class ||
-        editDraft.range_type !== (property.range_scheme_id ? "scheme" : "datatype") ||
-        editDraft.range_scheme_id !== (property.range_scheme_id ?? "") ||
-        editDraft.range_datatype !== (property.range_datatype ?? "") ||
-        editDraft.cardinality !== property.cardinality ||
-        editDraft.required !== property.required
+    ? true
+    : editDraft && initialDraft
+      ? JSON.stringify(editDraft) !== JSON.stringify(initialDraft)
       : false;
 
   function getMissingFields(): string[] {
