@@ -30,6 +30,7 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate 
     return (
       <div class="property-pane">
         <PropertyDetail
+          key="create"
           mode="create"
           projectId={creating.projectId}
           domainClassUri={creating.domainClassUri}
@@ -52,6 +53,7 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate 
   return (
     <div class="property-pane">
       <PropertyDetail
+        key={property.id}
         property={property}
         onRefresh={onRefresh}
         onClose={handleClose}

@@ -99,7 +99,7 @@
   cursor: pointer;
 }
 
-.class-detail-pane__property-name:hover {
+.class-detail-pane__property:not(.class-detail-pane__property--selected) .class-detail-pane__property-name:hover {
   color: var(--color-primary);
 }
 
