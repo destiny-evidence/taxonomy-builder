@@ -44,6 +44,8 @@ This requires:
 
 - 1Password CLI (`op`) with access to the DNSimple API token
 
+This will create a user with username `user` and password `user` for development.
+
 ## Working with Multiple Worktrees
 
 When working on multiple features in parallel, use the provided scripts to set up isolated environments for each branch.
@@ -129,32 +131,32 @@ The seed data includes:
 
 ### Backend
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `TAXONOMY_DATABASE_URL` | Full database URL | `postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder` |
-| `TAXONOMY_DB_HOST` | Database host (if not using URL) | - |
-| `TAXONOMY_DB_NAME` | Database name (if not using URL) | - |
-| `TAXONOMY_DB_USER` | Database user (if not using URL) | - |
-| `TAXONOMY_DB_PASSWORD` | Database password (if not using URL) | - |
-| `TAXONOMY_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` |
-| `TAXONOMY_KEYCLOAK_REALM` | Keycloak realm | `taxonomy-builder` |
-| `TAXONOMY_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `taxonomy-builder-api` |
+| Variable                      | Description                          | Default                                                                  |
+| ----------------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
+| `TAXONOMY_DATABASE_URL`       | Full database URL                    | `postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder` |
+| `TAXONOMY_DB_HOST`            | Database host (if not using URL)     | -                                                                        |
+| `TAXONOMY_DB_NAME`            | Database name (if not using URL)     | -                                                                        |
+| `TAXONOMY_DB_USER`            | Database user (if not using URL)     | -                                                                        |
+| `TAXONOMY_DB_PASSWORD`        | Database password (if not using URL) | -                                                                        |
+| `TAXONOMY_KEYCLOAK_URL`       | Keycloak server URL                  | `http://localhost:8080`                                                  |
+| `TAXONOMY_KEYCLOAK_REALM`     | Keycloak realm                       | `taxonomy-builder`                                                       |
+| `TAXONOMY_KEYCLOAK_CLIENT_ID` | Keycloak client ID                   | `taxonomy-builder-api`                                                   |
 
 ### Frontend
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_BASE` | API base URL | `/api` (proxied) |
-| `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` |
-| `VITE_KEYCLOAK_REALM` | Keycloak realm | `taxonomy-builder` |
-| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `taxonomy-builder-app` |
+| Variable                  | Description         | Default                 |
+| ------------------------- | ------------------- | ----------------------- |
+| `VITE_API_BASE`           | API base URL        | `/api` (proxied)        |
+| `VITE_KEYCLOAK_URL`       | Keycloak server URL | `http://localhost:8080` |
+| `VITE_KEYCLOAK_REALM`     | Keycloak realm      | `taxonomy-builder`      |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID  | `taxonomy-builder-app`  |
 
 ### Scripts (dev/config.local)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OP_SECRET_REF` | 1Password reference for DNSimple API token | (none) |
-| `DEV_DOMAIN` | Domain for Caddy routing (e.g., `fef.dev`) | (none - uses localhost ports) |
+| Variable        | Description                                | Default                       |
+| --------------- | ------------------------------------------ | ----------------------------- |
+| `OP_SECRET_REF` | 1Password reference for DNSimple API token | (none)                        |
+| `DEV_DOMAIN`    | Domain for Caddy routing (e.g., `fef.dev`) | (none - uses localhost ports) |
 
 ## Tips
 
