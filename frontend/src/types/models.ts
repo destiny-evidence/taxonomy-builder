@@ -232,6 +232,20 @@ export interface PropertyUpdate {
   required?: boolean;
 }
 
+export const DATATYPE_LABELS: Record<string, string> = {
+  "xsd:string": "Text",
+  "xsd:integer": "Integer",
+  "xsd:decimal": "Decimal",
+  "xsd:boolean": "Yes / No",
+  "xsd:date": "Date",
+  "xsd:dateTime": "Date & Time",
+  "xsd:anyURI": "URL",
+};
+
+export function datatypeLabel(xsdType: string): string {
+  return DATATYPE_LABELS[xsdType] ?? xsdType;
+}
+
 // ============ Ontology ============
 export interface OntologyClass {
   uri: string;

@@ -1,4 +1,5 @@
 import { properties, propertiesLoading, propertiesError } from "../../state/properties";
+import { datatypeLabel } from "../../types/models";
 import { Button } from "../common/Button";
 import "./PropertyList.css";
 
@@ -32,7 +33,7 @@ export function PropertyList({ onSelect, onNew }: PropertyListProps) {
               <span class="property-list__range">
                 {property.range_scheme
                   ? property.range_scheme.title
-                  : property.range_datatype}
+                  : property.range_datatype ? datatypeLabel(property.range_datatype) : null}
               </span>
               {property.required && (
                 <span class="property-list__required">required</span>

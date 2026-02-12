@@ -60,7 +60,7 @@ describe("PropertyList", () => {
   it("shows range datatype for datatype properties", () => {
     render(<PropertyList onSelect={mockOnSelect} onNew={mockOnNew} />);
 
-    expect(screen.getByText("xsd:date")).toBeInTheDocument();
+    expect(screen.getByText("Date")).toBeInTheDocument();
   });
 
   it("shows range scheme title for scheme properties", () => {

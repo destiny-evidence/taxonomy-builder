@@ -1,6 +1,7 @@
 import { Button } from "../common/Button";
 import { ontologyClasses } from "../../state/ontology";
 import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
+import { datatypeLabel } from "../../types/models";
 import "./ClassDetailPane.css";
 
 interface ClassDetailPaneProps {
@@ -82,7 +83,7 @@ export function ClassDetailPane({
                       </button>
                     ) : (
                       <span class="class-detail-pane__datatype">
-                        {prop.range_datatype}
+                        {prop.range_datatype ? datatypeLabel(prop.range_datatype) : null}
                       </span>
                     )}
                   </span>

@@ -1,6 +1,7 @@
 import { PropertyDetail } from "../properties/PropertyDetail";
 import { SchemePreview } from "../properties/SchemePreview";
 import { selectedProperty, selectedPropertyId, creatingProperty } from "../../state/properties";
+import { datatypeLabel } from "../../types/models";
 import "./PropertyPane.css";
 
 interface PropertyPaneProps {
@@ -62,7 +63,7 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate 
       {/* Values section - shows what values this property can have */}
       <div class="property-pane__values">
         {property.range_datatype ? (
-          <span class="property-pane__datatype">{property.range_datatype}</span>
+          <span class="property-pane__datatype">{datatypeLabel(property.range_datatype)}</span>
         ) : property.range_scheme ? (
           <>
             <div class="property-pane__scheme-header">

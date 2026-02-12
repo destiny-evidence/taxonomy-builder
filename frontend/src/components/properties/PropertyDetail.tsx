@@ -6,6 +6,7 @@ import { propertiesApi } from "../../api/properties";
 import { ApiError } from "../../api/client";
 import { ontologyClasses } from "../../state/ontology";
 import { schemes } from "../../state/schemes";
+import { DATATYPE_LABELS } from "../../types/models";
 import type { Property, PropertyCreate } from "../../types/models";
 import "./PropertyDetail.css";
 
@@ -39,15 +40,6 @@ interface EditDraft {
   required: boolean;
 }
 
-const ALLOWED_DATATYPES = [
-  "xsd:string",
-  "xsd:integer",
-  "xsd:decimal",
-  "xsd:boolean",
-  "xsd:date",
-  "xsd:dateTime",
-  "xsd:anyURI",
-];
 
 const IDENTIFIER_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
@@ -415,9 +407,9 @@ export function PropertyDetail(props: PropertyDetailProps) {
                     onChange={(e) => updateDraft("range_datatype", (e.target as HTMLSelectElement).value)}
                   >
                     <option value="">Select a datatype...</option>
-                    {ALLOWED_DATATYPES.map((dt) => (
-                      <option key={dt} value={dt}>
-                        {dt}
+                    {Object.entries(DATATYPE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
                       </option>
                     ))}
                   </select>

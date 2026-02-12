@@ -160,7 +160,7 @@ describe("ClassDetailPane", () => {
         />
       );
 
-      expect(screen.getByText("xsd:date")).toBeInTheDocument();
+      expect(screen.getByText("Date")).toBeInTheDocument();
     });
 
     it("shows scheme name for scheme-range properties", () => {

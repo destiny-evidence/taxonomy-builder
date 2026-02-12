@@ -285,13 +285,21 @@ describe("PropertyDetail", () => {
       expect(datatypeRadio).not.toBeChecked();
     });
 
-    it("shows datatype dropdown when range type is datatype", () => {
+    it("shows datatype dropdown with friendly names", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
       const select = screen.getByRole("combobox", { name: /range datatype/i });
       expect(select).toHaveValue("xsd:date");
+
+      // Options should show friendly names, not xsd prefixes
+      const options = select.querySelectorAll("option");
+      const labels = Array.from(options).map((o) => o.textContent).filter(Boolean);
+      expect(labels).toContain("Date");
+      expect(labels).not.toContain("xsd:date");
+      expect(labels).toContain("Text");
+      expect(labels).not.toContain("xsd:string");
     });
 
     it("shows scheme dropdown when range type is scheme", () => {
