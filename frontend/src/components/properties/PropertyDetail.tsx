@@ -276,7 +276,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
     if (!editDraft.label.trim()) missing.push("Label");
     if (isCreateMode && !editDraft.identifier.trim()) missing.push("Identifier");
     else if (isCreateMode && identifierError) missing.push("Valid identifier");
-    if (!editDraft.domain_class) missing.push("Domain class");
+    if (!editDraft.domain_class) missing.push("Class");
     if (editDraft.range_type === "scheme" && !editDraft.range_scheme_id) missing.push("Range scheme");
     if (editDraft.range_type === "datatype" && !editDraft.range_datatype) missing.push("Range datatype");
     return missing;
@@ -353,23 +353,10 @@ export function PropertyDetail(props: PropertyDetailProps) {
             />
 
             <div class="property-detail__field">
-              <label class="property-detail__label" htmlFor="edit-domain-class">
-                Domain
-              </label>
-              <select
-                id="edit-domain-class"
-                class="property-detail__select"
-                value={editDraft.domain_class}
-                aria-required="true"
-                onChange={(e) => updateDraft("domain_class", (e.target as HTMLSelectElement).value)}
-              >
-                <option value="">Select a class...</option>
-                {classes.map((cls) => (
-                  <option key={cls.uri} value={cls.uri}>
-                    {cls.label}
-                  </option>
-                ))}
-              </select>
+              <label class="property-detail__label">Class</label>
+              <div class="property-detail__value">
+                {classes.find((c) => c.uri === editDraft.domain_class)?.label ?? extractLocalName(editDraft.domain_class)}
+              </div>
             </div>
 
             <fieldset class="property-detail__fieldset">
@@ -492,9 +479,9 @@ export function PropertyDetail(props: PropertyDetailProps) {
             )}
 
             <div class="property-detail__field">
-              <label class="property-detail__label">Domain</label>
+              <label class="property-detail__label">Class</label>
               <div class="property-detail__value">
-                {extractLocalName(property.domain_class)}
+                {classes.find((c) => c.uri === property.domain_class)?.label ?? extractLocalName(property.domain_class)}
               </div>
             </div>
 

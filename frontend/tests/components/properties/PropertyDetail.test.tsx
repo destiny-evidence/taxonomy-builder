@@ -113,10 +113,22 @@ describe("PropertyDetail", () => {
       expect(screen.queryByText("Description")).not.toBeInTheDocument();
     });
 
-    it("displays domain class", () => {
+    it("displays class label (not 'Domain')", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
+      expect(screen.getByText("Class")).toBeInTheDocument();
       expect(screen.getByText("Person")).toBeInTheDocument();
+      expect(screen.queryByText("Domain")).not.toBeInTheDocument();
+    });
+
+    it("falls back to local name from URI when class not in ontology", () => {
+      const unknownClassProperty = {
+        ...mockProperty,
+        domain_class: "http://example.org/UnknownThing",
+      };
+      render(<PropertyDetail property={unknownClassProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      expect(screen.getByText("UnknownThing")).toBeInTheDocument();
     });
 
     it("displays cardinality", () => {
@@ -242,24 +254,13 @@ describe("PropertyDetail", () => {
       expect(screen.getByDisplayValue("The date when a person was born")).toBeInTheDocument();
     });
 
-    it("shows domain class dropdown pre-selected in edit mode", () => {
+    it("shows class as read-only text in edit mode", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
-      const select = screen.getByRole("combobox", { name: /domain/i });
-      expect(select).toBeInTheDocument();
-      expect(select).toHaveValue("http://example.org/Person");
-    });
-
-    it("allows changing domain class", () => {
-      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
-
-      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
-
-      const select = screen.getByRole("combobox", { name: /domain/i });
-      fireEvent.change(select, { target: { value: "http://example.org/Organization" } });
-      expect(select).toHaveValue("http://example.org/Organization");
+      expect(screen.getByText("Person")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: /class/i })).not.toBeInTheDocument();
     });
 
     it("shows range type radios in edit mode for datatype property", () => {
@@ -419,7 +420,6 @@ describe("PropertyDetail", () => {
     it("sends changed config fields on save", async () => {
       vi.mocked(propertiesApi.update).mockResolvedValue({
         ...mockProperty,
-        domain_class: "http://example.org/Organization",
         cardinality: "multiple",
         required: true,
       });
@@ -428,10 +428,6 @@ describe("PropertyDetail", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
-      // Change domain class
-      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
-        target: { value: "http://example.org/Organization" },
-      });
       // Change cardinality
       fireEvent.click(screen.getByRole("radio", { name: /multiple values/i }));
       // Toggle required
@@ -443,7 +439,7 @@ describe("PropertyDetail", () => {
         expect(propertiesApi.update).toHaveBeenCalledWith("prop-1", {
           label: "Birth Date",
           description: "The date when a person was born",
-          domain_class: "http://example.org/Organization",
+          domain_class: "http://example.org/Person",
           range_scheme_id: null,
           range_datatype: "xsd:date",
           cardinality: "multiple",
@@ -590,12 +586,14 @@ describe("PropertyDetail", () => {
     });
 
     it("shows all form fields", () => {
-      renderCreate();
+      renderCreate({ domainClassUri: "http://example.org/Person" });
 
       expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/identifier/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-      expect(screen.getByRole("combobox", { name: /domain/i })).toBeInTheDocument();
+      expect(screen.getByText("Class")).toBeInTheDocument();
+      expect(screen.getByText("Person")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: /class/i })).not.toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /scheme/i })).toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /datatype/i })).toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /single value/i })).toBeInTheDocument();
@@ -698,12 +696,9 @@ describe("PropertyDetail", () => {
         updated_at: "2024-01-01T00:00:00Z",
       });
 
-      renderCreate();
+      renderCreate({ domainClassUri: "http://example.org/Person" });
 
       fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "My Cool Property" } });
-      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
-        target: { value: "http://example.org/Person" },
-      });
       fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
         target: { value: "xsd:string" },
       });
@@ -740,12 +735,9 @@ describe("PropertyDetail", () => {
         updated_at: "2024-01-01T00:00:00Z",
       });
 
-      renderCreate();
+      renderCreate({ domainClassUri: "http://example.org/Person" });
 
       fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
-      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
-        target: { value: "http://example.org/Person" },
-      });
       fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
         target: { value: "xsd:string" },
       });
@@ -762,12 +754,9 @@ describe("PropertyDetail", () => {
         () => new Promise((resolve) => setTimeout(resolve, 100))
       );
 
-      renderCreate();
+      renderCreate({ domainClassUri: "http://example.org/Person" });
 
       fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
-      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
-        target: { value: "http://example.org/Person" },
-      });
       fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
         target: { value: "xsd:string" },
       });
@@ -782,12 +771,9 @@ describe("PropertyDetail", () => {
     it("shows error message on API failure", async () => {
       vi.mocked(propertiesApi.create).mockRejectedValue(new Error("Network error"));
 
-      renderCreate();
+      renderCreate({ domainClassUri: "http://example.org/Person" });
 
       fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
-      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
-        target: { value: "http://example.org/Person" },
-      });
       fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
         target: { value: "xsd:string" },
       });
@@ -816,22 +802,20 @@ describe("PropertyDetail", () => {
       expect(hint.textContent).toContain("Label");
     });
 
-    it("pre-fills domain class when domainClassUri provided", () => {
+    it("shows class as read-only text when domainClassUri provided", () => {
       renderCreate({ domainClassUri: "http://example.org/Person" });
 
-      const select = screen.getByRole("combobox", { name: /domain/i });
-      expect(select).toHaveValue("http://example.org/Person");
+      expect(screen.getByText("Class")).toBeInTheDocument();
+      expect(screen.getByText("Person")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: /class/i })).not.toBeInTheDocument();
     });
 
     it("shows 409 conflict error message", async () => {
       vi.mocked(propertiesApi.create).mockRejectedValue(new ApiError(409, "Conflict"));
 
-      renderCreate();
+      renderCreate({ domainClassUri: "http://example.org/Person" });
 
       fireEvent.input(screen.getByLabelText(/label/i), { target: { value: "Test" } });
-      fireEvent.change(screen.getByRole("combobox", { name: /domain/i }), {
-        target: { value: "http://example.org/Person" },
-      });
       fireEvent.change(screen.getByRole("combobox", { name: /range datatype/i }), {
         target: { value: "xsd:string" },
       });
