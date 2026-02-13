@@ -102,7 +102,7 @@ export function ClassDetailPane({
 
       <div class="class-detail-pane__footer">
         <button
-          class={`class-detail-pane__section-header ${historyExpanded ? "class-detail-pane__section-header--expanded" : ""}`}
+          class={`class-detail-pane__history-toggle ${historyExpanded ? "class-detail-pane__history-toggle--expanded" : ""}`}
           onClick={() => setHistoryExpanded((v) => !v)}
           aria-expanded={historyExpanded}
         >
