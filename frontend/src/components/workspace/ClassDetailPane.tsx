@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useState } from "preact/hooks";
 import { Button } from "../common/Button";
 import { HistoryPanel } from "../history/HistoryPanel";
+import { useResizeHandle } from "../../hooks/useResizeHandle";
 import { ontologyClasses } from "../../state/ontology";
 import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
 import { datatypeLabel } from "../../types/models";
@@ -20,10 +21,7 @@ export function ClassDetailPane({
   onSchemeNavigate,
 }: ClassDetailPaneProps) {
   const [historyExpanded, setHistoryExpanded] = useState(false);
-  const [sectionHeight, setSectionHeight] = useState(300);
-  const isResizing = useRef(false);
-  const startY = useRef(0);
-  const startHeight = useRef(0);
+  const { height: sectionHeight, onResizeStart } = useResizeHandle();
 
   const ontologyClass = ontologyClasses.value.find((c) => c.uri === classUri);
   const classProperties = properties.value.filter((p) => p.domain_class === classUri);
@@ -35,37 +33,6 @@ export function ClassDetailPane({
     creatingProperty.value = { projectId, domainClassUri: classUri };
     selectedPropertyId.value = null;
   }
-
-  function handleResizeStart(e: MouseEvent) {
-    e.preventDefault();
-    isResizing.current = true;
-    startY.current = e.clientY;
-    startHeight.current = sectionHeight;
-    document.body.style.userSelect = "none";
-  }
-
-  useEffect(() => {
-    function handleMouseMove(e: MouseEvent) {
-      if (!isResizing.current) return;
-      const delta = startY.current - e.clientY;
-      const newHeight = Math.min(500, Math.max(100, startHeight.current + delta));
-      setSectionHeight(newHeight);
-    }
-
-    function handleMouseUp() {
-      if (isResizing.current) {
-        isResizing.current = false;
-        document.body.style.userSelect = "";
-      }
-    }
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, []);
 
   return (
     <div class="class-detail-pane">
@@ -148,7 +115,7 @@ export function ClassDetailPane({
           <div class="class-detail-pane__section-content" style={{ height: sectionHeight }}>
             <div
               class="class-detail-pane__resize-handle"
-              onMouseDown={handleResizeStart}
+              onMouseDown={onResizeStart}
             />
             <div class="class-detail-pane__section-scroll">
               <HistoryPanel source={{ type: "project", id: projectId }} />
