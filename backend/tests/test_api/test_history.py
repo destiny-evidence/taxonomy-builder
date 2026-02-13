@@ -9,7 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept import ConceptCreate
+from taxonomy_builder.schemas.property import PropertyCreate
+from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
 from taxonomy_builder.services.concept_service import ConceptService
+from taxonomy_builder.services.project_service import ProjectService
+from taxonomy_builder.services.property_service import PropertyService
 
 
 @pytest.fixture
@@ -196,4 +200,137 @@ async def test_get_scheme_history_not_found(authenticated_client: AsyncClient) -
 async def test_get_concept_history_not_found(authenticated_client: AsyncClient) -> None:
     """Test 404 for non-existent concept."""
     response = await authenticated_client.get(f"/api/concepts/{uuid4()}/history")
+    assert response.status_code == 404
+
+
+# ============ Project history ============
+
+
+@pytest.mark.asyncio
+async def test_get_project_history(
+    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+) -> None:
+    """Test getting history for a project returns property change events."""
+    service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
+    prop = await service.create_property(
+        project_id=project.id,
+        property_in=PropertyCreate(
+            identifier="birthDate",
+            label="Birth Date",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:date",
+            cardinality="single",
+        ),
+    )
+    await service.update_property(
+        property_id=prop.id,
+        property_in=PropertyCreate(
+            identifier="birthDate",
+            label="Date of Birth",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:date",
+            cardinality="single",
+        ),
+    )
+
+    response = await authenticated_client.get(f"/api/projects/{project.id}/history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 2  # At least create and update events
+    # Most recent first
+    assert data[0]["action"] == "update"
+    assert data[0]["entity_type"] == "property"
+    assert data[1]["action"] == "create"
+    assert data[1]["entity_type"] == "property"
+
+
+@pytest.mark.asyncio
+async def test_get_project_history_not_found(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Test 404 for non-existent project."""
+    response = await authenticated_client.get(f"/api/projects/{uuid4()}/history")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_project_history_with_pagination(
+    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+) -> None:
+    """Test pagination for project history."""
+    service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
+    for i in range(5):
+        await service.create_property(
+            project_id=project.id,
+            property_in=PropertyCreate(
+                identifier=f"prop{i}",
+                label=f"Property {i}",
+                domain_class="https://evrepo.example.org/vocab/Finding",
+                range_datatype="xsd:string",
+                cardinality="single",
+            ),
+        )
+
+    response = await authenticated_client.get(
+        f"/api/projects/{project.id}/history?limit=2"
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+    response = await authenticated_client.get(
+        f"/api/projects/{project.id}/history?limit=2&offset=2"
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+# ============ Property history ============
+
+
+@pytest.mark.asyncio
+async def test_get_property_history(
+    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+) -> None:
+    """Test getting history for a specific property."""
+    service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
+    prop = await service.create_property(
+        project_id=project.id,
+        property_in=PropertyCreate(
+            identifier="birthDate",
+            label="Birth Date",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:date",
+            cardinality="single",
+        ),
+    )
+    await service.update_property(
+        property_id=prop.id,
+        property_in=PropertyCreate(
+            identifier="birthDate",
+            label="Date of Birth",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:date",
+            cardinality="single",
+        ),
+    )
+
+    response = await authenticated_client.get(f"/api/properties/{prop.id}/history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["action"] == "update"
+    assert data[0]["entity_id"] == str(prop.id)
+    assert data[1]["action"] == "create"
+    assert data[1]["entity_id"] == str(prop.id)
+
+
+@pytest.mark.asyncio
+async def test_get_property_history_not_found(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Test 404 for non-existent property."""
+    response = await authenticated_client.get(f"/api/properties/{uuid4()}/history")
     assert response.status_code == 404
