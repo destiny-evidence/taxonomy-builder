@@ -1,4 +1,7 @@
+import { useState } from "preact/hooks";
 import { Button } from "../common/Button";
+import { HistoryPanel } from "../history/HistoryPanel";
+import { useResizeHandle } from "../../hooks/useResizeHandle";
 import { ontologyClasses } from "../../state/ontology";
 import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
 import { datatypeLabel } from "../../types/models";
@@ -17,6 +20,9 @@ export function ClassDetailPane({
   onPropertySelect,
   onSchemeNavigate,
 }: ClassDetailPaneProps) {
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const { height: sectionHeight, onResizeStart } = useResizeHandle();
+
   const ontologyClass = ontologyClasses.value.find((c) => c.uri === classUri);
   const classProperties = properties.value.filter((p) => p.domain_class === classUri);
 
@@ -92,6 +98,30 @@ export function ClassDetailPane({
             </ul>
           )}
         </div>
+      </div>
+
+      <div class="class-detail-pane__footer">
+        <button
+          class={`class-detail-pane__history-toggle ${historyExpanded ? "class-detail-pane__history-toggle--expanded" : ""}`}
+          onClick={() => setHistoryExpanded((v) => !v)}
+          aria-expanded={historyExpanded}
+        >
+          <span class="class-detail-pane__section-arrow">
+            {historyExpanded ? "▾" : "▸"}
+          </span>
+          History
+        </button>
+        {historyExpanded && (
+          <div class="class-detail-pane__section-content" style={{ height: sectionHeight }}>
+            <div
+              class="class-detail-pane__resize-handle"
+              onMouseDown={onResizeStart}
+            />
+            <div class="class-detail-pane__section-scroll">
+              <HistoryPanel source={{ type: "project", id: projectId }} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     from taxonomy_builder.models.concept_scheme import ConceptScheme
 
 
+class PropertyNotFoundError(Exception):
+    """Raised when a property is not found."""
+
+    def __init__(self, property_id: UUID) -> None:
+        self.property_id = property_id
+        super().__init__(f"Property '{property_id}' not found")
+
+
 class DomainClassNotFoundError(Exception):
     """Raised when a domain class is not found in the core ontology."""
 

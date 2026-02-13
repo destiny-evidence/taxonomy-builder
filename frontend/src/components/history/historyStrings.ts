@@ -15,6 +15,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   concept_broader: "Broader relationship",
   concept_related: "Related relationship",
   published_version: "Version",
+  property: "Property",
+  project: "Project",
 };
 
 /**
