@@ -151,7 +151,7 @@ export function TreePane({
                 onMouseDown={handleResizeStart}
               />
               <div class="tree-pane__section-scroll">
-                <HistoryPanel schemeId={schemeId} />
+                <HistoryPanel source={{ type: "scheme", id: schemeId }} />
               </div>
             </div>
           )}
