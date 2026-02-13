@@ -5,7 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import AuthenticatedUser, CurrentUser, get_current_user, get_import_service
+from taxonomy_builder.api.dependencies import (
+    AuthenticatedUser,
+    CurrentUser,
+    get_current_user,
+    get_import_service,
+)
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
