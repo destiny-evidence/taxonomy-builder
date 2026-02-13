@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/preact";
+import { render, screen, waitFor, fireEvent } from "@testing-library/preact";
 import { HistoryPanel } from "../../../src/components/history/HistoryPanel";
 import * as historyApi from "../../../src/api/history";
 import type { ChangeEvent } from "../../../src/types/models";
@@ -270,6 +270,154 @@ describe("HistoryPanel", () => {
       await waitFor(() => {
         expect(screen.getByText("My Taxonomy")).toBeInTheDocument();
       });
+    });
+  });
+
+  describe("entity type filtering", () => {
+    const mixedHistory: ChangeEvent[] = [
+      {
+        id: "evt-concept",
+        timestamp: "2024-01-15T10:30:00Z",
+        entity_type: "concept",
+        entity_id: "c-1",
+        project_id: "p-1",
+        scheme_id: "s-1",
+        action: "create",
+        before_state: null,
+        after_state: { pref_label: "Dog" },
+        user_id: null,
+        user_display_name: null,
+      },
+      {
+        id: "evt-property",
+        timestamp: "2024-01-15T09:00:00Z",
+        entity_type: "property",
+        entity_id: "prop-1",
+        project_id: "p-1",
+        scheme_id: null,
+        action: "create",
+        before_state: null,
+        after_state: { label: "Severity" },
+        user_id: null,
+        user_display_name: null,
+      },
+      {
+        id: "evt-broader",
+        timestamp: "2024-01-15T08:00:00Z",
+        entity_type: "concept_broader",
+        entity_id: "c-1",
+        project_id: "p-1",
+        scheme_id: "s-1",
+        action: "create",
+        before_state: null,
+        after_state: { concept_label: "Dog", broader_label: "Animal" },
+        user_id: null,
+        user_display_name: null,
+      },
+    ];
+
+    it("filters by entity type and resets", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Dog")).toHaveLength(2);
+      });
+
+      // Open filter disclosure and select Properties — concept and broader events hidden
+      fireEvent.click(screen.getByText(/filter:/i));
+      fireEvent.click(screen.getByLabelText("Properties"));
+      expect(screen.getByText("Severity")).toBeInTheDocument();
+      expect(screen.queryByText("Dog")).not.toBeInTheDocument();
+      expect(screen.queryByText("Animal")).not.toBeInTheDocument();
+
+      // Reset — all events visible again
+      fireEvent.click(screen.getByText("Show all changes"));
+      expect(screen.getAllByText("Dog")).toHaveLength(2);
+      expect(screen.getByText("Severity")).toBeInTheDocument();
+      expect(screen.getByText("Animal")).toBeInTheDocument();
+    });
+
+    it("selecting multiple filters shows union", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Dog")).toHaveLength(2);
+      });
+
+      fireEvent.click(screen.getByText(/filter:/i));
+      fireEvent.click(screen.getByLabelText("Concepts"));
+      fireEvent.click(screen.getByLabelText("Relationships"));
+
+      // Concept and broader visible, property hidden
+      expect(screen.getAllByText("Dog")).toHaveLength(2);
+      expect(screen.getByText("Animal")).toBeInTheDocument();
+      expect(screen.queryByText("Severity")).not.toBeInTheDocument();
+    });
+
+    it("shows 'no changes match' when filter excludes all events", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      const { rerender } = render(
+        <HistoryPanel source={{ type: "scheme", id: "s-1" }} refreshKey={0} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Dog")).toHaveLength(2);
+      });
+
+      // Select "Properties" filter
+      fireEvent.click(screen.getByText(/filter:/i));
+      fireEvent.click(screen.getByLabelText("Properties"));
+      expect(screen.getByText("Severity")).toBeInTheDocument();
+
+      // Data refreshes with only concept events (no properties)
+      const conceptOnly: ChangeEvent[] = [mixedHistory[0]];
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(conceptOnly);
+      rerender(
+        <HistoryPanel source={{ type: "scheme", id: "s-1" }} refreshKey={1} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/no changes match/i)).toBeInTheDocument();
+      });
+    });
+
+    it("only shows filter groups that have matching events", async () => {
+      // History with concept + broader only — no property/scheme/project/version events
+      const limitedHistory: ChangeEvent[] = [mixedHistory[0], mixedHistory[2]];
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(limitedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Dog")).toHaveLength(2);
+      });
+
+      fireEvent.click(screen.getByText(/filter:/i));
+
+      expect(screen.getByLabelText("Concepts")).toBeInTheDocument();
+      expect(screen.getByLabelText("Relationships")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Properties")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Schemes")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Project settings")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Published versions")).not.toBeInTheDocument();
+    });
+
+    it("does not show filter when only one entity type category exists", async () => {
+      // Only concept events — filter would have just one option
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mockHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("New Label")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/filter:/i)).not.toBeInTheDocument();
     });
   });
 });

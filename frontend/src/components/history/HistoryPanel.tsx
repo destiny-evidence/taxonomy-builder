@@ -1,7 +1,8 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import { getSchemeHistory, getProjectHistory } from "../../api/history";
 import { getActionLabel, getEntityTypeLabel } from "./historyStrings";
+import { HISTORY_FILTERS, getAllowedEntityTypes } from "./historyFilters";
 import type { ChangeEvent } from "../../types/models";
 import "./HistoryPanel.css";
 
@@ -122,6 +123,7 @@ export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
   const [history, setHistory] = useState<ChangeEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchHistory() {
@@ -141,6 +143,29 @@ export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
     }
     fetchHistory();
   }, [source.type, source.id, refreshKey]);
+
+  const relevantFilters = useMemo(
+    () => HISTORY_FILTERS.filter((f) => history.some((e) => f.types.includes(e.entity_type))),
+    [history],
+  );
+
+  const filteredHistory = useMemo(() => {
+    const allowed = getAllowedEntityTypes(selectedFilters);
+    if (!allowed) return history;
+    return history.filter((e) => allowed.has(e.entity_type));
+  }, [history, selectedFilters]);
+
+  function toggleFilter(key: string) {
+    setSelectedFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
 
   if (loading) {
     return (
@@ -166,55 +191,97 @@ export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
     );
   }
 
+  const filterSummary =
+    selectedFilters.size === 0
+      ? "Filter: All changes"
+      : `Filter: ${[...selectedFilters].map((k) => relevantFilters.find((f) => f.key === k)?.label).filter(Boolean).join(", ")}`;
+
   return (
     <div class="history-panel">
-      <div class="history-panel__list">
-        {history.map((event) => {
-          const hasDetails = event.before_state || event.after_state;
-          return (
-            <div key={event.id} class="history-panel__item">
-              <div class="history-panel__item-header">
-                <span class={`history-panel__action history-panel__action--${event.action}`}>
-                  {getActionLabel(event.action)}
-                </span>
-                <span class="history-panel__entity-type">
-                  {getEntityTypeLabel(event.entity_type)}
-                </span>
+      {relevantFilters.length > 1 && (
+        <details class="history-panel__filters">
+          <summary class="history-panel__filters-summary">{filterSummary}</summary>
+          <div class="history-panel__filters-options">
+            {relevantFilters.map((f) => (
+              <label key={f.key} class="history-panel__filter-option">
+                <input
+                  type="checkbox"
+                  checked={selectedFilters.has(f.key)}
+                  onChange={() => toggleFilter(f.key)}
+                />
+                {f.label}
+              </label>
+            ))}
+            {selectedFilters.size > 0 && (
+              <button
+                class="history-panel__filters-reset"
+                onClick={() => setSelectedFilters(new Set())}
+              >
+                Show all changes
+              </button>
+            )}
+          </div>
+        </details>
+      )}
+      {filteredHistory.length === 0 ? (
+        <div class="history-panel__empty">
+          No changes match the current filters.{" "}
+          <button
+            class="history-panel__filters-reset"
+            onClick={() => setSelectedFilters(new Set())}
+          >
+            Show all changes
+          </button>
+        </div>
+      ) : (
+        <div class="history-panel__list">
+          {filteredHistory.map((event) => {
+            const hasDetails = event.before_state || event.after_state;
+            return (
+              <div key={event.id} class="history-panel__item">
+                <div class="history-panel__item-header">
+                  <span class={`history-panel__action history-panel__action--${event.action}`}>
+                    {getActionLabel(event.action)}
+                  </span>
+                  <span class="history-panel__entity-type">
+                    {getEntityTypeLabel(event.entity_type)}
+                  </span>
+                </div>
+                <div class="history-panel__description">
+                  <ChangeDescription event={event} />
+                </div>
+                <div class="history-panel__meta">
+                  <span class="history-panel__user">
+                    {event.user_display_name ?? "Unknown"}
+                  </span>
+                  <span class="history-panel__timestamp">
+                    {formatTimestamp(event.timestamp)}
+                  </span>
+                </div>
+                {hasDetails && (
+                  <details class="history-panel__details">
+                    <summary>View changes</summary>
+                    <div class="history-panel__diff">
+                      {event.before_state && (
+                        <div class="history-panel__before">
+                          <span class="history-panel__diff-label">Before:</span>
+                          <pre>{JSON.stringify(event.before_state, null, 2)}</pre>
+                        </div>
+                      )}
+                      {event.after_state && (
+                        <div class="history-panel__after">
+                          <span class="history-panel__diff-label">After:</span>
+                          <pre>{JSON.stringify(event.after_state, null, 2)}</pre>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                )}
               </div>
-              <div class="history-panel__description">
-                <ChangeDescription event={event} />
-              </div>
-              <div class="history-panel__meta">
-                <span class="history-panel__user">
-                  {event.user_display_name ?? "Unknown"}
-                </span>
-                <span class="history-panel__timestamp">
-                  {formatTimestamp(event.timestamp)}
-                </span>
-              </div>
-              {hasDetails && (
-                <details class="history-panel__details">
-                  <summary>View changes</summary>
-                  <div class="history-panel__diff">
-                    {event.before_state && (
-                      <div class="history-panel__before">
-                        <span class="history-panel__diff-label">Before:</span>
-                        <pre>{JSON.stringify(event.before_state, null, 2)}</pre>
-                      </div>
-                    )}
-                    {event.after_state && (
-                      <div class="history-panel__after">
-                        <span class="history-panel__diff-label">After:</span>
-                        <pre>{JSON.stringify(event.after_state, null, 2)}</pre>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
