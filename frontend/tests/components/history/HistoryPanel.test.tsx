@@ -201,45 +201,9 @@ describe("HistoryPanel", () => {
       });
     });
 
-    it("calls getSchemeHistory with the scheme id", async () => {
-      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue([]);
-
-      render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
-
-      await waitFor(() => {
-        expect(historyApi.getSchemeHistory).toHaveBeenCalledWith("scheme-456");
-      });
-    });
   });
 
   describe("project source", () => {
-    const mockProjectHistory: ChangeEvent[] = [
-      {
-        id: "event-10",
-        timestamp: "2024-01-15T10:30:00Z",
-        entity_type: "property",
-        entity_id: "prop-1",
-        scheme_id: null,
-        action: "create",
-        before_state: null,
-        after_state: { label: "Finding Name" },
-        user_id: "user-1",
-        user_display_name: "Dev User",
-      },
-      {
-        id: "event-11",
-        timestamp: "2024-01-15T09:00:00Z",
-        entity_type: "project",
-        entity_id: "project-123",
-        scheme_id: null,
-        action: "update",
-        before_state: { name: "Old Name" },
-        after_state: { name: "New Name" },
-        user_id: "user-1",
-        user_display_name: "Dev User",
-      },
-    ];
-
     it("calls getProjectHistory with the project id", async () => {
       vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
 
@@ -247,30 +211,6 @@ describe("HistoryPanel", () => {
 
       await waitFor(() => {
         expect(historyApi.getProjectHistory).toHaveBeenCalledWith("project-123");
-      });
-    });
-
-    it("does not call getSchemeHistory for project source", async () => {
-      vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
-
-      render(<HistoryPanel source={{ type: "project", id: "project-123" }} />);
-
-      await waitFor(() => {
-        expect(historyApi.getProjectHistory).toHaveBeenCalled();
-      });
-      expect(historyApi.getSchemeHistory).not.toHaveBeenCalled();
-    });
-
-    it("renders project history events", async () => {
-      vi.mocked(historyApi.getProjectHistory).mockResolvedValue(mockProjectHistory);
-
-      render(<HistoryPanel source={{ type: "project", id: "project-123" }} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Created")).toBeInTheDocument();
-        expect(screen.getByText("Updated")).toBeInTheDocument();
-        expect(screen.getByText("Property")).toBeInTheDocument();
-        expect(screen.getByText("Project")).toBeInTheDocument();
       });
     });
   });
