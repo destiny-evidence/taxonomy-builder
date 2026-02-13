@@ -59,8 +59,16 @@ describe("HistoryPanel", () => {
       render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
 
       await waitFor(() => {
+        // Action labels
         expect(screen.getByText("Updated")).toBeInTheDocument();
         expect(screen.getByText("Created")).toBeInTheDocument();
+        // Entity type labels
+        expect(screen.getAllByText("Concept")).toHaveLength(2);
+        // Change descriptions (concept pref_labels)
+        expect(screen.getByText("New Label")).toBeInTheDocument();
+        expect(screen.getByText("Test Concept")).toBeInTheDocument();
+        // Null user fallback
+        expect(screen.getAllByText("Unknown")).toHaveLength(2);
       });
     });
 
@@ -83,27 +91,6 @@ describe("HistoryPanel", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/error/i)).toBeInTheDocument();
-      });
-    });
-
-    it("renders human-readable entity type", async () => {
-      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mockHistory);
-
-      render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
-
-      await waitFor(() => {
-        expect(screen.getAllByText("Concept")).toHaveLength(2);
-      });
-    });
-
-    it("shows concept label in bold in change description", async () => {
-      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mockHistory);
-
-      render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("New Label")).toBeInTheDocument();
-        expect(screen.getByText("Test Concept")).toBeInTheDocument();
       });
     });
 
@@ -168,16 +155,6 @@ describe("HistoryPanel", () => {
 
       await waitFor(() => {
         expect(screen.getByText("Jane Smith")).toBeInTheDocument();
-      });
-    });
-
-    it("displays 'Unknown' when user_display_name is null", async () => {
-      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mockHistory);
-
-      render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
-
-      await waitFor(() => {
-        expect(screen.getAllByText("Unknown")).toHaveLength(2);
       });
     });
 

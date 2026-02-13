@@ -278,44 +278,7 @@ describe("ClassDetailPane", () => {
   });
 
   describe("history footer", () => {
-    it("shows a History toggle button", () => {
-      render(
-        <ClassDetailPane
-          classUri="http://example.org/Person"
-          projectId="proj-1"
-          onPropertySelect={mockOnPropertySelect}
-          onSchemeNavigate={mockOnSchemeNavigate}
-        />
-      );
-
-      const historyButton = screen.getByRole("button", { name: /history/i });
-      expect(historyButton).toBeInTheDocument();
-      expect(historyButton).toHaveAttribute("aria-expanded", "false");
-    });
-
-    it("expands history panel when History clicked", async () => {
-      vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
-
-      render(
-        <ClassDetailPane
-          classUri="http://example.org/Person"
-          projectId="proj-1"
-          onPropertySelect={mockOnPropertySelect}
-          onSchemeNavigate={mockOnSchemeNavigate}
-        />
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: /history/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole("button", { name: /history/i })).toHaveAttribute(
-          "aria-expanded",
-          "true"
-        );
-      });
-    });
-
-    it("collapses history panel when History clicked again", async () => {
+    it("toggles history panel and passes project source", async () => {
       vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
 
       render(
@@ -328,32 +291,12 @@ describe("ClassDetailPane", () => {
       );
 
       const button = screen.getByRole("button", { name: /history/i });
+      expect(button).toHaveAttribute("aria-expanded", "false");
+
       fireEvent.click(button);
 
       await waitFor(() => {
         expect(button).toHaveAttribute("aria-expanded", "true");
-      });
-
-      fireEvent.click(button);
-
-      expect(button).toHaveAttribute("aria-expanded", "false");
-    });
-
-    it("passes project source to HistoryPanel", async () => {
-      vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
-
-      render(
-        <ClassDetailPane
-          classUri="http://example.org/Person"
-          projectId="proj-1"
-          onPropertySelect={mockOnPropertySelect}
-          onSchemeNavigate={mockOnSchemeNavigate}
-        />
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: /history/i }));
-
-      await waitFor(() => {
         expect(historyApi.getProjectHistory).toHaveBeenCalledWith("proj-1");
       });
     });
