@@ -15,6 +15,21 @@ interface HistoryPanelProps {
   refreshKey?: number;
 }
 
+/** Entity types that display a single bold label from state. */
+const LABEL_FIELDS: Record<string, { field: string; prefix?: string }> = {
+  concept: { field: "pref_label" },
+  property: { field: "label" },
+  project: { field: "name" },
+  concept_scheme: { field: "title" },
+  published_version: { field: "version_label", prefix: "v" },
+};
+
+/** Relationship entity types that display "left {arrow} right". */
+const RELATIONSHIP_FIELDS: Record<string, { left: string; right: string; arrow: string }> = {
+  concept_broader: { left: "concept_label", right: "broader_label", arrow: " → " },
+  concept_related: { left: "concept_label", right: "related_label", arrow: " ↔ " },
+};
+
 /**
  * Render a human-readable description of what changed.
  */
@@ -22,72 +37,28 @@ function ChangeDescription({ event }: { event: ChangeEvent }): JSX.Element | nul
   const afterState = event.after_state as Record<string, unknown> | null;
   const beforeState = event.before_state as Record<string, unknown> | null;
 
-  // For concepts, show the pref_label in bold
-  if (event.entity_type === "concept") {
-    const label = afterState?.pref_label || beforeState?.pref_label;
-    if (label && typeof label === "string") {
-      return <strong>{label}</strong>;
-    }
-  }
-
-  // For broader relationships, show concept → broader
-  if (event.entity_type === "concept_broader") {
-    const conceptLabel = afterState?.concept_label || beforeState?.concept_label;
-    const broaderLabel = afterState?.broader_label || beforeState?.broader_label;
-    if (conceptLabel && broaderLabel) {
+  const rel = RELATIONSHIP_FIELDS[event.entity_type];
+  if (rel) {
+    const left = afterState?.[rel.left] || beforeState?.[rel.left];
+    const right = afterState?.[rel.right] || beforeState?.[rel.right];
+    if (left && right) {
       return (
         <>
-          <strong>{conceptLabel as string}</strong>
-          {" → "}
-          <strong>{broaderLabel as string}</strong>
+          <strong>{left as string}</strong>
+          {rel.arrow}
+          <strong>{right as string}</strong>
         </>
       );
     }
+    return null;
   }
 
-  // For related relationships, show concept ↔ related
-  if (event.entity_type === "concept_related") {
-    const conceptLabel = afterState?.concept_label || beforeState?.concept_label;
-    const relatedLabel = afterState?.related_label || beforeState?.related_label;
-    if (conceptLabel && relatedLabel) {
-      return (
-        <>
-          <strong>{conceptLabel as string}</strong>
-          {" ↔ "}
-          <strong>{relatedLabel as string}</strong>
-        </>
-      );
+  const desc = LABEL_FIELDS[event.entity_type];
+  if (desc) {
+    const value = afterState?.[desc.field] || beforeState?.[desc.field];
+    if (value && typeof value === "string") {
+      return <strong>{desc.prefix ?? ""}{value}</strong>;
     }
-  }
-
-  // For properties, show label
-  if (event.entity_type === "property") {
-    const label = afterState?.label || beforeState?.label;
-    if (label && typeof label === "string") {
-      return <strong>{label}</strong>;
-    }
-  }
-
-  // For projects, show name
-  if (event.entity_type === "project") {
-    const name = afterState?.name || beforeState?.name;
-    if (name && typeof name === "string") {
-      return <strong>{name}</strong>;
-    }
-  }
-
-  // For concept schemes, show title
-  if (event.entity_type === "concept_scheme") {
-    const title = afterState?.title || beforeState?.title;
-    if (title && typeof title === "string") {
-      return <strong>{title}</strong>;
-    }
-  }
-
-  // For published versions, show version label
-  const versionLabel = afterState?.version_label || beforeState?.version_label;
-  if (versionLabel && typeof versionLabel === "string") {
-    return <>v{versionLabel}</>;
   }
 
   return null;
