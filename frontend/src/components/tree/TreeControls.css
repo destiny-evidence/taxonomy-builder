@@ -6,9 +6,47 @@
   margin-bottom: var(--spacing-sm);
 }
 
+.tree-controls__row {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.tree-controls__toggle {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tree-controls__toggle-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  border: none;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.tree-controls__toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.tree-controls__toggle-btn--active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.tree-controls__toggle-btn:hover:not(.tree-controls__toggle-btn--active) {
+  background: var(--color-bg-secondary);
+}
+
 .tree-controls__search {
   display: flex;
   position: relative;
+  flex: 1;
 }
 
 .tree-controls__search-input {
