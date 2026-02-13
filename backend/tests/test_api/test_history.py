@@ -242,8 +242,10 @@ async def test_get_project_history(
     # Most recent first
     assert data[0]["action"] == "update"
     assert data[0]["entity_type"] == "property"
+    assert data[0]["project_id"] == str(project.id)
     assert data[1]["action"] == "create"
     assert data[1]["entity_type"] == "property"
+    assert data[1]["project_id"] == str(project.id)
 
 
 @pytest.mark.asyncio

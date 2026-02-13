@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from taxonomy_builder.api.dependencies import CurrentUser, get_history_service
 from taxonomy_builder.models.change_event import ChangeEvent
@@ -19,8 +19,8 @@ async def get_scheme_history(
     scheme_id: UUID,
     current_user: CurrentUser,
     service: HistoryService = Depends(get_history_service),
-    limit: int | None = None,
-    offset: int | None = None,
+    limit: int | None = Query(None, ge=1, le=500),
+    offset: int | None = Query(None, ge=0),
 ) -> list[ChangeEvent]:
     """Get history of changes for a scheme."""
     try:
@@ -47,8 +47,8 @@ async def get_project_history(
     project_id: UUID,
     current_user: CurrentUser,
     service: HistoryService = Depends(get_history_service),
-    limit: int | None = None,
-    offset: int | None = None,
+    limit: int | None = Query(None, ge=1, le=500),
+    offset: int | None = Query(None, ge=0),
 ) -> list[ChangeEvent]:
     """Get history of changes for a project."""
     try:
