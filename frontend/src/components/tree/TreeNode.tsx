@@ -16,6 +16,7 @@ interface TreeNodeProps {
   onToggle: (path: string) => void;
   onSelect: (conceptId: string) => void;
   onAddChild?: (parentId: string) => void;
+  readOnly?: boolean;
 }
 
 export function TreeNode({
@@ -25,13 +26,14 @@ export function TreeNode({
   onToggle,
   onSelect,
   onAddChild,
+  readOnly = false,
 }: TreeNodeProps) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedPaths.has(node.path);
   const isSelected = selectedId === node.id;
   const currentParentId = getParentIdFromPath(node.path);
 
-  // Draggable setup
+  // Draggable setup (disabled in readOnly mode)
   const {
     attributes,
     listeners,
@@ -44,11 +46,12 @@ export function TreeNode({
       currentParentId,
       path: node.path,
     },
+    disabled: readOnly,
   });
 
-  // Droppable setup
+  // Droppable setup (disabled in readOnly mode)
   const draggedId = draggedConceptId.value;
-  const canAcceptDrop = draggedId
+  const canAcceptDrop = !readOnly && draggedId
     ? isValidDropTarget(node.id, draggedId, currentParentId)
     : false;
 
@@ -58,7 +61,7 @@ export function TreeNode({
       conceptId: node.id,
       acceptsDrop: canAcceptDrop,
     },
-    disabled: !isDragging.value || !canAcceptDrop,
+    disabled: readOnly || !isDragging.value || !canAcceptDrop,
   });
 
   // Combine refs
@@ -95,9 +98,11 @@ export function TreeNode({
         style={{ paddingLeft: `${node.depth * 20 + 8}px` }}
         {...dndAttributes}
       >
-        <span class="tree-node__drag-handle" title="Drag to move" {...listeners}>
-          ⋮⋮
-        </span>
+        {!readOnly && (
+          <span class="tree-node__drag-handle" title="Drag to move" {...listeners}>
+            ⋮⋮
+          </span>
+        )}
 
         {hasChildren ? (
           <button
@@ -130,7 +135,7 @@ export function TreeNode({
           )}
         </button>
 
-        {onAddChild && (
+        {!readOnly && onAddChild && (
           <button
             class="tree-node__add-child"
             onClick={(e) => {
@@ -156,6 +161,7 @@ export function TreeNode({
               onToggle={onToggle}
               onSelect={onSelect}
               onAddChild={onAddChild}
+              readOnly={readOnly}
             />
           ))}
         </div>
