@@ -14,6 +14,7 @@ class ChangeEventRead(BaseModel):
     timestamp: datetime
     entity_type: str
     entity_id: UUID
+    project_id: UUID | None
     scheme_id: UUID | None
     action: str
     before_state: dict[str, Any] | None
