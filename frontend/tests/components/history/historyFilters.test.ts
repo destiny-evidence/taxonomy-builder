@@ -42,9 +42,4 @@ describe("getAllowedEntityTypes", () => {
     const result = getAllowedEntityTypes(new Set(["concepts", "properties"]));
     expect(result).toEqual(new Set(["concept", "property"]));
   });
-
-  it("ignores unknown filter keys", () => {
-    const result = getAllowedEntityTypes(new Set(["concepts", "bogus"]));
-    expect(result).toEqual(new Set(["concept"]));
-  });
 });

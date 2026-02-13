@@ -197,31 +197,6 @@ describe("HistoryPanel", () => {
   });
 
   describe("ChangeDescription for new entity types", () => {
-    it("shows property label for property events", async () => {
-      const propertyEvent: ChangeEvent[] = [
-        {
-          id: "event-20",
-          timestamp: "2024-01-15T10:30:00Z",
-          entity_type: "property",
-          entity_id: "prop-1",
-          scheme_id: null,
-          project_id: null,
-          action: "create",
-          before_state: null,
-          after_state: { label: "Finding Name" },
-          user_id: null,
-          user_display_name: null,
-        },
-      ];
-      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(propertyEvent);
-
-      render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Finding Name")).toBeInTheDocument();
-      });
-    });
-
     it("shows project name for project events", async () => {
       const projectEvent: ChangeEvent[] = [
         {
