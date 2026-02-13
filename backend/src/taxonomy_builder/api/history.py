@@ -7,7 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from taxonomy_builder.api.dependencies import CurrentUser, get_history_service
 from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.schemas.history import ChangeEventRead
-from taxonomy_builder.services import ConceptNotFoundError, ProjectNotFoundError, SchemeNotFoundError
+from taxonomy_builder.services import (
+    ConceptNotFoundError,
+    ProjectNotFoundError,
+    SchemeNotFoundError,
+)
 from taxonomy_builder.services.history_service import HistoryService
 from taxonomy_builder.services.property_service import PropertyNotFoundError
 
