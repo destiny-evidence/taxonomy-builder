@@ -166,10 +166,8 @@ describe("PropertyDetail", () => {
     it("calls onClose when close button clicked", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
-      // Find the close button (×) in the header
-      const header = screen.getByText("Birth Date").closest(".property-detail__header");
-      const closeButton = header?.querySelector("button");
-      fireEvent.click(closeButton!);
+      const closeButton = screen.getByRole("button", { name: "Close" });
+      fireEvent.click(closeButton);
 
       expect(mockOnClose).toHaveBeenCalled();
     });

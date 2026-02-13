@@ -18,6 +18,12 @@
   color: var(--color-text);
 }
 
+.property-detail__header-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 .property-detail__content {
   display: flex;
   flex-direction: column;

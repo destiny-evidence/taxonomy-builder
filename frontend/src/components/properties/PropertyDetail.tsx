@@ -8,6 +8,7 @@ import { ontologyClasses } from "../../state/ontology";
 import { schemes } from "../../state/schemes";
 import { DATATYPE_LABELS } from "../../types/models";
 import type { Property, PropertyCreate } from "../../types/models";
+import { toCamelCase, validateIdentifier } from "../../utils/strings";
 import "./PropertyDetail.css";
 
 interface ViewEditProps {
@@ -40,36 +41,6 @@ interface EditDraft {
   required: boolean;
 }
 
-
-const IDENTIFIER_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
-
-function toCamelCase(str: string): string {
-  if (/^[a-zA-Z][a-zA-Z0-9]*$/.test(str)) {
-    return str[0].toLowerCase() + str.slice(1);
-  }
-  let result = str
-    .toLowerCase()
-    .replace(/[^a-zA-Z0-9]+(.)/g, (_, char) => char.toUpperCase())
-    .replace(/^./, (char) => char.toLowerCase())
-    .replace(/[^a-zA-Z0-9]/g, "");
-  if (result && !result[0].match(/[a-zA-Z]/)) {
-    result = "prop-" + result;
-  }
-  return result;
-}
-
-function validateIdentifier(value: string): string | null {
-  if (!value.trim()) {
-    return "Identifier is required";
-  }
-  if (!value[0].match(/[a-zA-Z]/)) {
-    return "Identifier must start with a letter";
-  }
-  if (!IDENTIFIER_PATTERN.test(value)) {
-    return "Identifier must be URI-safe: letters, numbers, underscores, and hyphens only";
-  }
-  return null;
-}
 
 function extractLocalName(uri: string): string {
   const hashIndex = uri.lastIndexOf("#");
@@ -295,7 +266,24 @@ export function PropertyDetail(props: PropertyDetailProps) {
     <div class="property-detail">
       <div class="property-detail__header">
         <h3 class="property-detail__title">{title}</h3>
-        {!isCreateMode && (
+        {!isCreateMode && !isEditing && (
+          <div class="property-detail__header-actions">
+            <Button variant="ghost" size="sm" onClick={handleEditClick}>
+              Edit
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete
+            </Button>
+            <Button variant="ghost" size="sm" onClick={(props as ViewEditProps).onClose} aria-label="Close">
+              ×
+            </Button>
+          </div>
+        )}
+        {!isCreateMode && isEditing && (
           <Button variant="ghost" size="sm" onClick={(props as ViewEditProps).onClose} aria-label="Close">
             ×
           </Button>
@@ -511,38 +499,23 @@ export function PropertyDetail(props: PropertyDetailProps) {
         <div class="property-detail__hint" aria-live="polite">No changes to save</div>
       )}
 
-      <div class="property-detail__actions">
-        {isEditing ? (
-          <>
-            <Button variant="secondary" size="sm" onClick={handleCancel} disabled={saveLoading}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSave}
-              disabled={hasValidationErrors || !isFormValid || (!isCreateMode && !hasChanges) || saveLoading}
-            >
-              {isCreateMode
-                ? saveLoading ? "Creating..." : "Create Property"
-                : saveLoading ? "Saving..." : "Save"}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button variant="ghost" size="sm" onClick={handleEditClick}>
-              Edit
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Delete
-            </Button>
-          </>
-        )}
-      </div>
+      {isEditing && (
+        <div class="property-detail__actions">
+          <Button variant="secondary" size="sm" onClick={handleCancel} disabled={saveLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSave}
+            disabled={hasValidationErrors || !isFormValid || (!isCreateMode && !hasChanges) || saveLoading}
+          >
+            {isCreateMode
+              ? saveLoading ? "Creating..." : "Create Property"
+              : saveLoading ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      )}
 
       {!isCreateMode && property && (
         <ConfirmDialog
