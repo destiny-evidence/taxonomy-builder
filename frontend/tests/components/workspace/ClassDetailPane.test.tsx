@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/preact";
+import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { ClassDetailPane } from "../../../src/components/workspace/ClassDetailPane";
 import { properties, selectedPropertyId, creatingProperty } from "../../../src/state/properties";
 import type { Property } from "../../../src/types/models";
+import * as historyApi from "../../../src/api/history";
+
+vi.mock("../../../src/api/history");
 
 const mockProperties: Property[] = [
   {
@@ -271,6 +274,88 @@ describe("ClassDetailPane", () => {
 
       const propertyItem = screen.getByText("Birth Date").closest(".class-detail-pane__property");
       expect(propertyItem).toHaveClass("class-detail-pane__property--selected");
+    });
+  });
+
+  describe("history footer", () => {
+    it("shows a History toggle button", () => {
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+        />
+      );
+
+      const historyButton = screen.getByRole("button", { name: /history/i });
+      expect(historyButton).toBeInTheDocument();
+      expect(historyButton).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("expands history panel when History clicked", async () => {
+      vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /history/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /history/i })).toHaveAttribute(
+          "aria-expanded",
+          "true"
+        );
+      });
+    });
+
+    it("collapses history panel when History clicked again", async () => {
+      vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+        />
+      );
+
+      const button = screen.getByRole("button", { name: /history/i });
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(button).toHaveAttribute("aria-expanded", "true");
+      });
+
+      fireEvent.click(button);
+
+      expect(button).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("passes project source to HistoryPanel", async () => {
+      vi.mocked(historyApi.getProjectHistory).mockResolvedValue([]);
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /history/i }));
+
+      await waitFor(() => {
+        expect(historyApi.getProjectHistory).toHaveBeenCalledWith("proj-1");
+      });
     });
   });
 });
