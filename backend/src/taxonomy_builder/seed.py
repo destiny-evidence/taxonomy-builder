@@ -19,9 +19,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
     created = {"users": 0, "projects": 0, "schemes": 0, "concepts": 0}
 
     # Create a dev user
-    existing_user = await session.execute(
-        select(User).where(User.email == "dev@example.com")
-    )
+    existing_user = await session.execute(select(User).where(User.email == "dev@example.com"))
     if not existing_user.scalar_one_or_none():
         user = User(
             keycloak_user_id="dev-user-local-12345",
@@ -54,7 +52,6 @@ async def create_seed_data(session: AsyncSession) -> dict:
         title="Study Design Types",
         description="Classification of study design types used in evidence synthesis.",
         uri="http://example.org/taxonomy/study-designs",
-        publisher="Evidence Synthesis Institute",
     )
     session.add(study_designs)
     await session.flush()
