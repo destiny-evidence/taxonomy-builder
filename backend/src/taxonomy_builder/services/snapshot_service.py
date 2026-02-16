@@ -2,30 +2,28 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
-
-
-class ProjectNotFoundError(Exception):
-    """Raised when a project is not found."""
-
-    def __init__(self, project_id: UUID) -> None:
-        self.project_id = project_id
-        super().__init__(f"Project with id '{project_id}' not found")
+from taxonomy_builder.services.project_service import ProjectService
 
 
 class SnapshotService:
     """Service for building complete project snapshots."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        project_service: ProjectService,
+        concept_service: ConceptService,
+    ) -> None:
         self.db = db
+        self._project_service = project_service
+        self._concept_service = concept_service
 
     async def build_snapshot(self, project_id: UUID) -> dict:
         """Build an immutable snapshot of a project's vocabulary.
@@ -33,11 +31,13 @@ class SnapshotService:
         Returns a dict with concept_schemes (with nested concepts),
         properties, and ontology classes referenced by those properties.
         """
-        project = await self._get_project(project_id)
+        project = await self._project_service.get_project(project_id)
 
         scheme_dicts = []
         for scheme in project.schemes:
-            concepts = await self._get_concepts_for_scheme(scheme.id)
+            concepts = await self._concept_service.list_concepts_for_scheme(
+                scheme.id
+            )
             scheme_dicts.append(self._build_scheme_dict(scheme, concepts))
 
         property_dicts = [self._build_property_dict(p) for p in project.properties]
@@ -50,37 +50,6 @@ class SnapshotService:
             "properties": property_dicts,
             "classes": class_dicts,
         }
-
-    async def _get_project(self, project_id: UUID) -> Project:
-        """Load project with schemes and properties."""
-        result = await self.db.execute(
-            select(Project)
-            .where(Project.id == project_id)
-            .options(
-                selectinload(Project.schemes),
-                selectinload(Project.properties).selectinload(Property.project),
-            )
-            .execution_options(populate_existing=True)
-        )
-        project = result.scalar_one_or_none()
-        if project is None:
-            raise ProjectNotFoundError(project_id)
-        return project
-
-    async def _get_concepts_for_scheme(self, scheme_id: UUID) -> list[Concept]:
-        """Get all concepts for a scheme with relationships loaded."""
-        result = await self.db.execute(
-            select(Concept)
-            .where(Concept.scheme_id == scheme_id)
-            .options(
-                selectinload(Concept.broader),
-                selectinload(Concept.scheme),
-                selectinload(Concept._related_as_subject),
-                selectinload(Concept._related_as_object),
-            )
-            .execution_options(populate_existing=True)
-        )
-        return list(result.scalars().all())
 
     def _build_scheme_dict(
         self, scheme: ConceptScheme, concepts: list[Concept]

@@ -12,8 +12,10 @@ from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import CoreOntology, OntologyClass
-from taxonomy_builder.services.snapshot_service import ProjectNotFoundError, SnapshotService
+from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
+from taxonomy_builder.services.snapshot_service import SnapshotService
 
 
 @pytest.fixture
@@ -43,8 +45,17 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 
 def service(db_session: AsyncSession) -> SnapshotService:
-    """Create a SnapshotService instance."""
-    return SnapshotService(db_session)
+    """Create a SnapshotService instance.
+
+    Clears the identity map so the service loads fresh from DB,
+    simulating a production request with a clean session.
+    """
+    db_session.expunge_all()
+    return SnapshotService(
+        db_session,
+        project_service=ProjectService(db_session),
+        concept_service=ConceptService(db_session),
+    )
 
 
 @pytest.mark.asyncio
