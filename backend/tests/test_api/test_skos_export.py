@@ -31,7 +31,6 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         description="A test taxonomy",
         uri="http://example.org/taxonomy",
         publisher="Test Publisher",
-        version="1.0",
     )
     db_session.add(scheme)
     await db_session.flush()
