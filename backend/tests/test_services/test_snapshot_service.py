@@ -12,7 +12,7 @@ from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
-from taxonomy_builder.schemas.snapshot import ProjectSnapshot
+from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import CoreOntology, OntologyClass
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
@@ -60,10 +60,10 @@ def service(db_session: AsyncSession) -> SnapshotService:
 
 
 @pytest.mark.asyncio
-async def test_returns_project_snapshot(db_session: AsyncSession, project: Project) -> None:
-    """Test that build_snapshot returns a ProjectSnapshot model."""
+async def test_returns_vocabulary_snapshot(db_session: AsyncSession, project: Project) -> None:
+    """Test that build_snapshot returns a SnapshotVocabulary model."""
     snapshot = await service(db_session).build_snapshot(project.id)
-    assert isinstance(snapshot, ProjectSnapshot)
+    assert isinstance(snapshot, SnapshotVocabulary)
 
 
 @pytest.mark.asyncio
@@ -80,7 +80,7 @@ async def test_project_metadata(db_session: AsyncSession) -> None:
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert snapshot.project.id == str(project.id)
+    assert snapshot.project.id == project.id
     assert snapshot.project.name == "Vocab Project"
     assert snapshot.project.description == "A vocabulary for testing"
     assert snapshot.project.namespace == "http://example.org/vocab"
@@ -112,7 +112,7 @@ async def test_scheme_with_no_concepts(
 
     assert len(snapshot.concept_schemes) == 1
     s = snapshot.concept_schemes[0]
-    assert s.id == str(scheme.id)
+    assert s.id == scheme.id
     assert s.title == "Test Taxonomy"
     assert s.description == "A test taxonomy"
     assert s.uri == "http://example.org/taxonomy"
@@ -123,7 +123,7 @@ async def test_scheme_with_no_concepts(
 async def test_scheme_with_concepts(
     db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
-    """Test snapshot captures all concept fields correctly with UUIDs as strings."""
+    """Test snapshot captures all concept fields correctly."""
     concept = Concept(
         scheme_id=scheme.id,
         identifier="finding-1",
@@ -141,7 +141,7 @@ async def test_scheme_with_concepts(
     concepts = snapshot.concept_schemes[0].concepts
     assert len(concepts) == 1
     c = concepts[0]
-    assert c.id == str(concept.id)
+    assert c.id == concept.id
     assert c.identifier == "finding-1"
     assert c.pref_label == "Finding One"
     assert c.definition == "The first finding"
@@ -189,7 +189,7 @@ async def test_broader_relationships(
     snapshot = await service(db_session).build_snapshot(project.id)
 
     concepts = {c.pref_label: c for c in snapshot.concept_schemes[0].concepts}
-    assert concepts["Child"].broader_ids == [str(parent.id)]
+    assert concepts["Child"].broader_ids == [parent.id]
     assert concepts["Parent"].broader_ids == []
 
 
@@ -215,8 +215,8 @@ async def test_related_relationships(
 
     concepts = {c.pref_label: c for c in snapshot.concept_schemes[0].concepts}
     # Both directions should appear
-    assert str(concept_b.id) in concepts["Concept A"].related_ids
-    assert str(concept_a.id) in concepts["Concept B"].related_ids
+    assert concept_b.id in concepts["Concept A"].related_ids
+    assert concept_a.id in concepts["Concept B"].related_ids
 
 
 @pytest.mark.asyncio
@@ -247,13 +247,13 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
 
     assert len(snapshot.properties) == 1
     p = snapshot.properties[0]
-    assert p.id == str(prop.id)
+    assert p.id == prop.id
     assert p.identifier == "testProp"
     assert p.uri == "http://example.org/vocab/testProp"
     assert p.label == "Test Property"
     assert p.description == "A test property"
     assert p.domain_class == "http://example.org/vocab/Finding"
-    assert p.range_scheme_id == str(scheme.id)
+    assert p.range_scheme_id == scheme.id
     assert p.range_scheme_uri == "http://example.org/range"
     assert p.range_datatype is None
     assert p.cardinality == "single"
@@ -313,8 +313,8 @@ async def test_round_trip(db_session: AsyncSession, project: Project, scheme: Co
     await db_session.flush()
 
     snapshot = await service(db_session).build_snapshot(project.id)
-    raw = snapshot.model_dump()
-    restored = ProjectSnapshot.model_validate(raw)
+    raw = snapshot.model_dump(mode="json")
+    restored = SnapshotVocabulary.model_validate(raw)
     assert restored == snapshot
 
 
@@ -402,7 +402,7 @@ async def test_full_integration(
     s1 = schemes_by_title["Scheme One"]
     assert len(s1.concepts) == 2
     concepts_by_label = {c.pref_label: c for c in s1.concepts}
-    assert concepts_by_label["Child Concept"].broader_ids == [str(parent.id)]
+    assert concepts_by_label["Child Concept"].broader_ids == [parent.id]
 
     # Scheme2 has 1 concept
     s2 = schemes_by_title["Scheme Two"]
