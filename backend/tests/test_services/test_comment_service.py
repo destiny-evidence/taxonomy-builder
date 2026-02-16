@@ -96,7 +96,7 @@ async def test_list_comments_empty(
 ) -> None:
     """Test listing comments when none exist."""
     service = CommentService(db_session, user_id=user.id)
-    comments = await service.list_comments(concept.id)
+    comments = await service.get_comments(concept.id)
     assert comments == []
 
 
@@ -114,7 +114,7 @@ async def test_list_comments(
     await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
-    comments = await service.list_comments(concept.id)
+    comments = await service.get_comments(concept.id)
 
     assert len(comments) == 1
     assert comments[0].content == "Test comment"
@@ -141,7 +141,7 @@ async def test_list_comments_excludes_deleted(
     await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
-    comments = await service.list_comments(concept.id)
+    comments = await service.get_comments(concept.id)
 
     assert len(comments) == 1
     assert comments[0].content == "Active comment"
@@ -169,7 +169,7 @@ async def test_list_comments_ordered_by_created_at(
     await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
-    comments = await service.list_comments(concept.id)
+    comments = await service.get_comments(concept.id)
 
     assert len(comments) == 2
     assert comments[0].created_at <= comments[1].created_at
@@ -186,7 +186,7 @@ async def test_list_comments_concept_not_found(
     service = CommentService(db_session, user_id=user.id)
 
     with pytest.raises(ConceptNotFoundError) as exc_info:
-        await service.list_comments(fake_id)
+        await service.get_comments(fake_id)
 
     assert str(fake_id) in str(exc_info.value)
 
@@ -268,7 +268,7 @@ async def test_delete_comment_removes_from_list(
     service = CommentService(db_session, user_id=user.id)
     await service.delete_comment(comment.id)
 
-    comments = await service.list_comments(concept.id)
+    comments = await service.get_comments(concept.id)
     assert len(comments) == 0
 
 

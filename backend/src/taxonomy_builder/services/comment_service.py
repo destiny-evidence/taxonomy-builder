@@ -1,6 +1,8 @@
 """Comment service for business logic."""
 
+from collections import defaultdict
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -106,8 +108,8 @@ class CommentService:
 
         return parent
 
-    async def list_comments(self, concept_id: UUID) -> list[Comment]:
-        """List all non-deleted comments for a concept, ordered by created_at.
+    async def get_comments(self, concept_id: UUID) -> list[Comment]:
+        """Get all non-deleted comments for a concept, ordered by created_at.
 
         Args:
             concept_id: The ID of the concept to list comments for
@@ -126,6 +128,59 @@ class CommentService:
         all_comments = list(result.scalars().all())
 
         return all_comments
+
+    async def list_comment_threads(
+            self, concept_id: UUID, resolved: bool | None = None
+    ) -> tuple[list[Comment], dict[UUID, list[Comment]]]:
+        """List comment threads for a concept, ordered by created_at
+
+        Args:
+            concept_id: The ID of the concept to list comments for
+            resolved: If True, return only resolved comments.
+                      If False, return only unresolved comments.
+                      If None (default), return all comments.
+        """
+        all_comments = await self.get_comments(concept_id=concept_id)
+
+        def _should_include(comment: Comment):
+            """Helper function for comment filtering."""
+            if resolved is None:
+                return True
+
+            if resolved and comment.resolved_at:
+                return True
+
+            if not resolved and not comment.resolved_at:
+                return True
+
+            return False
+
+        # Separate top-level comments from replies
+        top_level = []
+        replies_by_parent = defaultdict(list)
+
+        for comment in all_comments:
+            if comment.parent_comment_id is None:
+                if _should_include(comment):
+                    top_level.append(comment)
+            else:
+                replies_by_parent[comment.parent_comment_id].append(comment)
+
+        if resolved is None:
+            return top_level, replies_by_parent
+
+        present_top_level_comments = set(comment.id for comment in top_level)
+        filtered_replies_by_parent = {parent_id: replies for parent_id, replies in replies_by_parent.items() if parent_id in present_top_level_comments}
+
+        return top_level, filtered_replies_by_parent
+
+
+
+
+
+
+
+
 
     async def create_comment(
         self, concept_id: UUID, comment_in: CommentCreate
