@@ -36,6 +36,16 @@ class NotCommentOwnerError(Exception):
         self.user_id = user_id
         super().__init__("Cannot delete another user's comment")
 
+class NotTopLevelCommentError(Exception):
+    """
+    Raised when user tries perform an action that is restricted
+    to top-level comments on a reply comment.
+    """
+
+    def __init__(self, comment_id: UUID, action: str) -> None:
+        self.comment_id = comment_id
+        super().__init__(f"'{action}' can only be performed on top-level comments")
+
 
 class InvalidParentCommentError(Exception):
     """Raised when parent comment is invalid for threading."""
@@ -139,4 +149,28 @@ class CommentService:
             raise NotCommentOwnerError(comment_id, self.user_id)
 
         comment.deleted_at = datetime.now()
+        await self.db.flush()
+
+    async def resolve_comment(self, comment_id: UUID) -> None:
+        """Resolve a comment (only if it is a top level comment)."""
+        comment = await self._get_comment(comment_id)
+
+        if comment.parent_comment_id:
+            raise NotTopLevelCommentError(comment_id=comment.id, action="resolve")
+
+        comment.resolved_at = datetime.now()
+        comment.resolved_by = self.user_id
+
+        await self.db.flush()
+
+    async def unresolve_comment(self, comment_id: UUID) -> None:
+        """Unresolve a comment (only if it is a top level comment)."""
+        comment = await self._get_comment(comment_id)
+
+        if comment.parent_comment_id:
+            raise NotTopLevelCommentError(comment_id=comment.id, action="unresolve")
+
+        comment.resolved_at = None
+        comment.resolved_by = None
+
         await self.db.flush()

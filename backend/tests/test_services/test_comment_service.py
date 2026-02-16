@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from uuid import UUID
+import uuid
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ from taxonomy_builder.services.comment_service import (
     CommentService,
     ConceptNotFoundError,
     NotCommentOwnerError,
+    NotTopLevelCommentError,
 )
 
 
@@ -320,6 +322,91 @@ async def test_delete_already_deleted_comment(
 
     with pytest.raises(CommentNotFoundError):
         await service.delete_comment(comment.id)
+
+# ======== Resolve/Unresolve Comment Tests ========
+
+@pytest.mark.asyncio
+async def test_resolve_comment_happy_path(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test we can successfully resolve a top level comment."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="A top level comment",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session, user_id=user.id)
+    await service.resolve_comment(comment_id=comment.id)
+
+    # Verify the comment has resolved_at and resolved_by have been set
+    await db_session.refresh(comment)
+    assert comment.resolved_at is not None
+    assert comment.resolved_by == user.id
+
+@pytest.mark.asyncio
+async def test_unresolve_comment_happy_path(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test we can successfully unresolve a top level comment"""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="A top level comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id
+    )
+
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session, user_id=user.id)
+    await service.unresolve_comment(comment_id=comment.id)
+
+    # Verify resolution fields have been unset
+    await db_session.refresh(comment)
+    assert comment.resolved_at is None
+    assert comment.resolved_by is None
+
+@pytest.mark.asyncio
+async def test_resolve_or_unresolve_comment_raises_error_if_not_top_level(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test an error is thrown if we attempt to resolve a comment that isn't top level."""
+    parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="A top level comment",
+    )
+
+    db_session.add(parent)
+    await db_session.flush()
+
+    service = CommentService(db_session, user.id)
+    reply_in = CommentCreate(content="Reply comment", parent_comment_id=parent.id)
+
+    reply_comment = await service.create_comment(concept.id, reply_in)
+
+    with pytest.raises(NotTopLevelCommentError):
+        await service.resolve_comment(reply_comment.id)
+
+    with pytest.raises(NotTopLevelCommentError):
+        await service.unresolve_comment(reply_comment.id)
+
+@pytest.mark.asyncio
+async def test_resolve_or_unresolve_nonexistent_comment_returns_not_found(
+    db_session: AsyncSession, user: User
+) -> None:
+    """Test resolve/unresolve a nonexistent comment returns not found"""
+    service = CommentService(db_session, user_id=user.id)
+
+    with pytest.raises(CommentNotFoundError):
+        await service.resolve_comment(uuid.uuid7())
+
+    with pytest.raises(CommentNotFoundError):
+        await service.unresolve_comment(uuid.uuid7())
 
 
 # ============ Comment Threading Tests ============

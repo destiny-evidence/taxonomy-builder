@@ -18,6 +18,7 @@ from taxonomy_builder.services.comment_service import (
     ConceptNotFoundError,
     InvalidParentCommentError,
     NotCommentOwnerError,
+    NotTopLevelCommentError,
 )
 
 # Router for concept-scoped comment operations
@@ -134,3 +135,32 @@ async def delete_comment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except NotCommentOwnerError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@comments_router.post("/{comment_id}/resolve", status_code=status.HTTP_200_OK)
+async def resolve_comment(
+    comment_id: UUID,
+    service: CommentService = Depends(get_comment_service)
+) -> None:
+    """Resolve a comment (only if it is a top level comment)."""
+    try:
+        await service.resolve_comment(comment_id)
+    except CommentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NotTopLevelCommentError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    # Handle already resolved
+
+@comments_router.post("/{comment_id}/unresolve", status_code=status.HTTP_200_OK)
+async def unresolve_comment(
+    comment_id: UUID,
+    service: CommentService = Depends(get_comment_service)
+) -> None:
+    """Unresolve a comment (only if it is a top level comment)."""
+    try:
+        await service.unresolve_comment(comment_id)
+    except CommentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NotTopLevelCommentError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    # Handle not resolved comment
