@@ -95,6 +95,7 @@ class SnapshotService:
             "description": prop.description,
             "domain_class": prop.domain_class,
             "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
+            "range_scheme_uri": prop.range_scheme.uri if prop.range_scheme else None,
             "range_datatype": prop.range_datatype,
             "cardinality": prop.cardinality,
             "required": prop.required,

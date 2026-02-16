@@ -248,6 +248,7 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
     assert p["description"] == "A test property"
     assert p["domain_class"] == "http://example.org/vocab/Finding"
     assert p["range_scheme_id"] == str(scheme.id)
+    assert p["range_scheme_uri"] == "http://example.org/range"
     assert p["range_datatype"] is None
     assert p["cardinality"] == "single"
     assert p["required"] is True
