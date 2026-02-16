@@ -6,7 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.schemas.snapshot import (
+    ProjectSnapshot,
+    SnapshotClass,
+    SnapshotConcept,
+    SnapshotProject,
+    SnapshotProperty,
+    SnapshotScheme,
+)
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
 from taxonomy_builder.services.project_service import ProjectService
@@ -25,94 +34,91 @@ class SnapshotService:
         self._project_service = project_service
         self._concept_service = concept_service
 
-    async def build_snapshot(self, project_id: UUID) -> dict:
+    async def build_snapshot(self, project_id: UUID) -> ProjectSnapshot:
         """Build an immutable snapshot of a project's vocabulary.
 
-        Returns a dict with concept_schemes (with nested concepts),
+        Returns a ProjectSnapshot with concept_schemes (with nested concepts),
         properties, and ontology classes referenced by those properties.
         """
         project = await self._project_service.get_project(project_id)
 
-        scheme_dicts = []
+        schemes = []
         for scheme in project.schemes:
-            concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
-            scheme_dicts.append(self._build_scheme_dict(scheme, concepts))
+            concepts = await self._concept_service.list_concepts_for_scheme(
+                scheme.id
+            )
+            schemes.append(self._build_scheme(scheme, concepts))
 
-        property_dicts = [self._build_property_dict(p) for p in project.properties]
+        properties = [self._build_property(p) for p in project.properties]
 
         domain_uris = {p.domain_class for p in project.properties}
-        class_dicts = self._build_class_dicts(domain_uris)
+        classes = self._build_classes(domain_uris)
 
-        project_metadata_dict = self._build_project_metadata_dict(project)
+        return ProjectSnapshot(
+            project=self._build_project(project),
+            concept_schemes=schemes,
+            properties=properties,
+            classes=classes,
+        )
 
-        return {
-            "project": project_metadata_dict,
-            "concept_schemes": scheme_dicts,
-            "properties": property_dicts,
-            "classes": class_dicts,
-        }
+    def _build_project(self, project: Project) -> SnapshotProject:
+        return SnapshotProject(
+            id=str(project.id),
+            name=project.name,
+            description=project.description,
+            namespace=project.namespace,
+        )
 
-    def _build_project_metadata_dict(self, project) -> dict:
-        """Build a dict of project metadata."""
-        return {
-            "id": str(project.id),
-            "name": project.name,
-            "description": project.description,
-            "namespace": project.namespace,
-        }
+    def _build_scheme(
+        self, scheme: ConceptScheme, concepts: list[Concept]
+    ) -> SnapshotScheme:
+        return SnapshotScheme(
+            id=str(scheme.id),
+            title=scheme.title,
+            description=scheme.description,
+            uri=scheme.uri,
+            concepts=[self._build_concept(c) for c in concepts],
+        )
 
-    def _build_scheme_dict(self, scheme: ConceptScheme, concepts: list[Concept]) -> dict:
-        """Build a scheme snapshot dict with nested concepts."""
-        return {
-            "id": str(scheme.id),
-            "title": scheme.title,
-            "description": scheme.description,
-            "uri": scheme.uri,
-            "concepts": [self._build_concept_dict(c) for c in concepts],
-        }
+    def _build_concept(self, concept: Concept) -> SnapshotConcept:
+        return SnapshotConcept(
+            id=str(concept.id),
+            identifier=concept.identifier,
+            uri=concept.uri,
+            pref_label=concept.pref_label,
+            definition=concept.definition,
+            scope_note=concept.scope_note,
+            alt_labels=list(concept.alt_labels),
+            broader_ids=[str(b.id) for b in concept.broader],
+            related_ids=[str(r.id) for r in concept.related],
+        )
 
-    def _build_concept_dict(self, concept: Concept) -> dict:
-        """Build a concept snapshot dict."""
-        return {
-            "id": str(concept.id),
-            "identifier": concept.identifier,
-            "uri": concept.uri,
-            "pref_label": concept.pref_label,
-            "definition": concept.definition,
-            "scope_note": concept.scope_note,
-            "alt_labels": list(concept.alt_labels),
-            "broader_ids": [str(b.id) for b in concept.broader],
-            "related_ids": [str(r.id) for r in concept.related],
-        }
+    def _build_property(self, prop: Property) -> SnapshotProperty:
+        return SnapshotProperty(
+            id=str(prop.id),
+            identifier=prop.identifier,
+            uri=prop.uri,
+            label=prop.label,
+            description=prop.description,
+            domain_class=prop.domain_class,
+            range_scheme_id=str(prop.range_scheme_id) if prop.range_scheme_id else None,
+            range_scheme_uri=prop.range_scheme.uri if prop.range_scheme else None,
+            range_datatype=prop.range_datatype,
+            cardinality=prop.cardinality,
+            required=prop.required,
+        )
 
-    def _build_property_dict(self, prop: Property) -> dict:
-        """Build a property snapshot dict."""
-        return {
-            "id": str(prop.id),
-            "identifier": prop.identifier,
-            "uri": prop.uri,
-            "label": prop.label,
-            "description": prop.description,
-            "domain_class": prop.domain_class,
-            "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
-            "range_scheme_uri": prop.range_scheme.uri if prop.range_scheme else None,
-            "range_datatype": prop.range_datatype,
-            "cardinality": prop.cardinality,
-            "required": prop.required,
-        }
-
-    def _build_class_dicts(self, domain_uris: set[str]) -> list[dict]:
-        """Build class dicts for ontology classes referenced by properties."""
+    def _build_classes(self, domain_uris: set[str]) -> list[SnapshotClass]:
         if not domain_uris:
             return []
 
         ontology = get_core_ontology()
         return [
-            {
-                "uri": cls.uri,
-                "label": cls.label,
-                "description": cls.comment,
-            }
+            SnapshotClass(
+                uri=cls.uri,
+                label=cls.label,
+                description=cls.comment,
+            )
             for cls in ontology.classes
             if cls.uri in domain_uris
         ]
