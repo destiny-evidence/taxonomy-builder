@@ -17,7 +17,6 @@ interface EditDraft {
   uri: string;
   description: string;
   publisher: string;
-  version: string;
 }
 
 function formatDate(dateString: string): string {
@@ -74,7 +73,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
     uri: scheme.uri ?? "",
     description: scheme.description ?? "",
     publisher: scheme.publisher ?? "",
-    version: scheme.version ?? "",
   };
 
   function handleEditClick() {
@@ -83,7 +81,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
       uri: scheme.uri ?? "",
       description: scheme.description ?? "",
       publisher: scheme.publisher ?? "",
-      version: scheme.version ?? "",
     });
     setValidationErrors({});
     setIsEditing(true);
@@ -107,7 +104,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
       uri: editDraft.uri || null,
       description: editDraft.description || null,
       publisher: editDraft.publisher || null,
-      version: editDraft.version || null,
     };
 
     try {
@@ -191,13 +187,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
               value={displayValues.publisher}
               onChange={(value) => updateDraft("publisher", value)}
               placeholder="Organization or person"
-            />
-            <Input
-              label="Version"
-              name="version"
-              value={displayValues.version}
-              onChange={(value) => updateDraft("version", value)}
-              placeholder="e.g., 1.0.0"
             />
             <div class="scheme-detail__actions">
               <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>

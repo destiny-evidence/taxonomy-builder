@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from taxonomy_builder.services.history_service import HistoryService
     from taxonomy_builder.services.property_service import PropertyService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
-    from taxonomy_builder.services.version_service import VersionService
 
 
 async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
@@ -126,16 +125,6 @@ def get_scheme_service(
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
 
     return ConceptSchemeService(db, user_id=current_user.user.id)
-
-
-def get_version_service(
-    db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
-) -> VersionService:
-    """Dependency that provides a VersionService with user context."""
-    from taxonomy_builder.services.version_service import VersionService
-
-    return VersionService(db, user_id=current_user.user.id)
 
 
 def get_import_service(

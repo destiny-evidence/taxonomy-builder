@@ -111,7 +111,6 @@ async def test_serialize_scheme_captures_all_fields(
         description="A taxonomy of animals",
         uri="http://example.org/animals",
         publisher="Example Org",
-        version="1.0",
     )
     db_session.add(scheme)
     await db_session.flush()
@@ -125,7 +124,6 @@ async def test_serialize_scheme_captures_all_fields(
     assert serialized["description"] == "A taxonomy of animals"
     assert serialized["uri"] == "http://example.org/animals"
     assert serialized["publisher"] == "Example Org"
-    assert serialized["version"] == "1.0"
 
 
 @pytest.mark.asyncio

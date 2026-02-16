@@ -8,7 +8,6 @@ from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
-from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.models.user import User
 
 __all__ = [
@@ -20,6 +19,5 @@ __all__ = [
     "ConceptScheme",
     "Project",
     "Property",
-    "PublishedVersion",
     "User",
 ]

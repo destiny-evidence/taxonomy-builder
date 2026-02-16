@@ -85,8 +85,6 @@ class SKOSExportService:
             g.add((scheme_uri, DCTERMS.description, Literal(scheme.description)))
         if scheme.publisher:
             g.add((scheme_uri, DCTERMS.publisher, Literal(scheme.publisher)))
-        if scheme.version:
-            g.add((scheme_uri, OWL.versionInfo, Literal(scheme.version)))
 
         # Track which concepts have broader relationships (are not top concepts)
         has_broader: set[UUID] = set()
