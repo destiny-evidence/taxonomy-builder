@@ -14,7 +14,6 @@ from taxonomy_builder.api.ontology import router as ontology_router
 from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.properties import project_properties_router, properties_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
-from taxonomy_builder.api.versions import router as versions_router
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
@@ -47,7 +46,6 @@ app.include_router(concepts_router)
 app.include_router(concept_comments_router)
 app.include_router(comments_router)
 app.include_router(history_router)
-app.include_router(versions_router)
 app.include_router(ontology_router)
 
 
