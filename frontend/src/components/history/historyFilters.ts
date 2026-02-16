@@ -10,12 +10,11 @@ export const HISTORY_FILTERS: HistoryFilter[] = [
   { key: "properties", label: "Properties", types: ["property"] },
   { key: "relationships", label: "Relationships", types: ["concept_broader", "concept_related"] },
   { key: "project", label: "Project settings", types: ["project"] },
-  { key: "versions", label: "Published versions", types: ["published_version"] },
 ];
 
 /** Filter keys relevant to each history source type. */
 export const SOURCE_FILTERS: Record<string, string[]> = {
-  scheme: ["concepts", "schemes", "relationships", "properties", "project", "versions"],
+  scheme: ["concepts", "schemes", "relationships", "properties", "project"],
   project: ["properties", "project"],
 };
 

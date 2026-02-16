@@ -5,7 +5,7 @@ import {
 } from "../../../src/components/history/historyFilters";
 
 describe("HISTORY_FILTERS", () => {
-  it("defines all six filter categories", () => {
+  it("defines all five filter categories", () => {
     const keys = HISTORY_FILTERS.map((f) => f.key);
     expect(keys).toEqual([
       "concepts",
@@ -13,7 +13,6 @@ describe("HISTORY_FILTERS", () => {
       "properties",
       "relationships",
       "project",
-      "versions",
     ]);
   });
 
