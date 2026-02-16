@@ -46,6 +46,7 @@ async def test_create_published_version(
         version="1.0",
         title="Initial Release",
         notes="First published version.",
+        publisher="Evidence Synthesis Institute",
         finalized=True,
         published_at=datetime.now(),
         snapshot=snapshot,
@@ -60,6 +61,7 @@ async def test_create_published_version(
     assert version.version == "1.0"
     assert version.title == "Initial Release"
     assert version.notes == "First published version."
+    assert version.publisher == "Evidence Synthesis Institute"
     assert version.finalized is True
     assert version.published_at is not None
     assert version.snapshot == snapshot
@@ -257,7 +259,6 @@ async def test_jsonb_round_trip(db_session: AsyncSession, project: Project) -> N
                 "uri": "http://example.org/schemes/test",
                 "title": "Test Scheme",
                 "description": "A test scheme",
-                "publisher": "Test Publisher",
                 "concepts": [
                     {
                         "id": "660e8400-e29b-41d4-a716-446655440000",
@@ -364,6 +365,22 @@ async def test_notes_optional(db_session: AsyncSession, project: Project) -> Non
     await db_session.refresh(version)
 
     assert version.notes is None
+
+
+@pytest.mark.asyncio
+async def test_publisher_optional(db_session: AsyncSession, project: Project) -> None:
+    """Test that publisher is optional."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="No Publisher",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.publisher is None
 
 
 @pytest.mark.asyncio

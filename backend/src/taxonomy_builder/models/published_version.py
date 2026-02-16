@@ -40,6 +40,7 @@ class PublishedVersion(Base):
     previous_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("published_versions.id", ondelete="SET NULL"), nullable=True
     )
+    publisher: Mapped[str | None] = mapped_column(String(255), nullable=True)
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     project: Mapped["Project"] = relationship(lazy="selectin")

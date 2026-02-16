@@ -1,8 +1,8 @@
 """add published_versions table
 
-Revision ID: a35031278310
+Revision ID: a99f304f1dd0
 Revises: a5b8b1a6caeb
-Create Date: 2026-02-16 16:59:28.646229
+Create Date: 2026-02-16 17:38:33.381210
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'a35031278310'
+revision: str = 'a99f304f1dd0'
 down_revision: Union[str, Sequence[str], None] = 'a5b8b1a6caeb'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,6 +30,7 @@ def upgrade() -> None:
     sa.Column('finalized', sa.Boolean(), nullable=False),
     sa.Column('published_at', sa.DateTime(), nullable=True),
     sa.Column('previous_version_id', sa.Uuid(), nullable=True),
+    sa.Column('publisher', sa.String(length=255), nullable=True),
     sa.Column('snapshot', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.ForeignKeyConstraint(['previous_version_id'], ['published_versions.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
