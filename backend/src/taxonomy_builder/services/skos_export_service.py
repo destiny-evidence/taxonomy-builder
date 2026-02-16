@@ -32,9 +32,7 @@ class SKOSExportService:
 
     async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
         """Get a scheme by ID or raise SchemeNotFoundError."""
-        result = await self.db.execute(
-            select(ConceptScheme).where(ConceptScheme.id == scheme_id)
-        )
+        result = await self.db.execute(select(ConceptScheme).where(ConceptScheme.id == scheme_id))
         scheme = result.scalar_one_or_none()
         if scheme is None:
             raise SchemeNotFoundError(scheme_id)
@@ -180,10 +178,6 @@ class SKOSExportService:
 
         if scheme_data.get("description"):
             g.add((scheme_uri, DCTERMS.description, Literal(scheme_data["description"])))
-        if scheme_data.get("publisher"):
-            g.add((scheme_uri, DCTERMS.publisher, Literal(scheme_data["publisher"])))
-        if scheme_data.get("version"):
-            g.add((scheme_uri, OWL.versionInfo, Literal(scheme_data["version"])))
 
         # Build concept ID to URI mapping
         concept_uris: dict[str, URIRef] = {}

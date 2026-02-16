@@ -67,9 +67,13 @@ describe("SchemeDetail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
-    expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^edit$/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /save changes/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows title input field in edit mode", () => {
@@ -110,16 +114,20 @@ describe("SchemeDetail", () => {
 
   it("exits edit mode when scheme changes", () => {
     const { rerender } = render(
-      <SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />
+      <SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
     const differentScheme = { ...mockScheme, id: "scheme-2", title: "Plants" };
-    rerender(<SchemeDetail scheme={differentScheme} onRefresh={mockOnRefresh} />);
+    rerender(
+      <SchemeDetail scheme={differentScheme} onRefresh={mockOnRefresh} />,
+    );
 
     expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /cancel/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /cancel/i }),
+    ).not.toBeInTheDocument();
   });
 
   describe("Saving changes", () => {
@@ -136,7 +144,9 @@ describe("SchemeDetail", () => {
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
       expect(screen.getByDisplayValue("Animals")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("http://example.org/animals")).toBeInTheDocument();
+      expect(
+        screen.getByDisplayValue("http://example.org/animals"),
+      ).toBeInTheDocument();
       expect(screen.getByDisplayValue("Animal taxonomy")).toBeInTheDocument();
       expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(3);
     });
@@ -156,7 +166,7 @@ describe("SchemeDetail", () => {
           title: "Updated Animals",
           uri: "http://example.org/animals",
           description: "Animal taxonomy",
-                        });
+        });
       });
     });
 
@@ -167,7 +177,9 @@ describe("SchemeDetail", () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: /edit/i }),
+        ).toBeInTheDocument();
       });
     });
 
@@ -191,7 +203,9 @@ describe("SchemeDetail", () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: /edit/i }),
+        ).toBeInTheDocument();
       });
 
       expect(schemes.value.length).toBe(initialSchemesCount);
@@ -199,7 +213,7 @@ describe("SchemeDetail", () => {
 
     it("shows loading state on Save button while saving", async () => {
       vi.mocked(schemesApi.update).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       );
 
       render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
@@ -245,7 +259,9 @@ describe("SchemeDetail", () => {
       const uriInput = screen.getByDisplayValue("http://example.org/animals");
       fireEvent.input(uriInput, { target: { value: "" } });
 
-      expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/must be a valid url/i),
+      ).not.toBeInTheDocument();
     });
 
     it("disables Save button when validation fails", () => {
@@ -280,11 +296,19 @@ describe("SchemeDetail", () => {
 
       const uriInput = screen.getByDisplayValue("http://example.org/animals");
 
-      fireEvent.input(uriInput, { target: { value: "https://example.org/test" } });
-      expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
+      fireEvent.input(uriInput, {
+        target: { value: "https://example.org/test" },
+      });
+      expect(
+        screen.queryByText(/must be a valid url/i),
+      ).not.toBeInTheDocument();
 
-      fireEvent.input(uriInput, { target: { value: "http://example.org/test" } });
-      expect(screen.queryByText(/must be a valid url/i)).not.toBeInTheDocument();
+      fireEvent.input(uriInput, {
+        target: { value: "http://example.org/test" },
+      });
+      expect(
+        screen.queryByText(/must be a valid url/i),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -302,7 +326,9 @@ describe("SchemeDetail", () => {
         expect(screen.getByText(errorMessage)).toBeInTheDocument();
       });
 
-      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /cancel/i }),
+      ).toBeInTheDocument();
     });
 
     it("clears error message on retry", async () => {
