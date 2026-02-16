@@ -13,10 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    and_,
-    case,
-    exists,
-    literal,
+    func,
     select,
     true,
 )
@@ -78,23 +75,13 @@ class PublishedVersion(Base):
 
     @classmethod
     def __declare_last__(cls) -> None:
-        pv = cls.__table__.alias("pv_latest")
+        pv = cls.__table__.alias("pv_max")
+        max_key = (
+            select(func.max(pv.c.version_sort_key))
+            .where(pv.c.project_id == cls.project_id, pv.c.finalized == true())
+            .correlate(cls)
+            .scalar_subquery()
+        )
         cls.latest = column_property(
-            case(
-                (
-                    and_(
-                        cls.finalized == true(),
-                        ~exists(
-                            select(literal(1)).where(
-                                pv.c.project_id == cls.project_id,
-                                pv.c.finalized == true(),
-                                pv.c.version_sort_key
-                                > cls.__table__.c.version_sort_key,
-                            )
-                        ),
-                    ),
-                    True,
-                ),
-                else_=False,
-            )
+            func.coalesce(cls.version_sort_key == max_key, False)
         )
