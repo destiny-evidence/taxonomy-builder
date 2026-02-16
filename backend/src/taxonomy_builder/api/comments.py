@@ -53,7 +53,7 @@ async def list_comments(
                   If None (default), show all comments.
     """
     try:
-        comments = await service.list_comments(concept_id, resolved=resolved)
+        comments = await service.list_comments(concept_id)
 
         # Helper function to format a comment
         def format_comment(comment):
@@ -75,6 +75,18 @@ async def list_comments(
                 "replies": [],
             }
 
+        def _should_include(comment):
+            if resolved is None:
+                return True
+
+            if resolved and comment.resolved_at:
+                return True
+
+            if not resolved and not comment.resolved_at:
+                return True
+
+            return False
+
         # Separate top-level comments from replies
         top_level = []
         replies_by_parent = defaultdict(list)
@@ -85,15 +97,16 @@ async def list_comments(
             else:
                 replies_by_parent[comment.parent_comment_id].append(comment)
 
-        # Build threaded structure
+        # Build threaded structure and apply filtering
         threads = []
         for parent in top_level:
-            parent_dict = format_comment(parent)
-            # Add replies to parent
-            parent_dict["replies"] = [
-                format_comment(reply) for reply in replies_by_parent[parent.id]
-            ]
-            threads.append(parent_dict)
+            if _should_include(parent):
+                parent_dict = format_comment(parent)
+                # Add replies to parent
+                parent_dict["replies"] = [
+                    format_comment(reply) for reply in replies_by_parent[parent.id]
+                ]
+                threads.append(parent_dict)
 
         return threads
     except ConceptNotFoundError as e:

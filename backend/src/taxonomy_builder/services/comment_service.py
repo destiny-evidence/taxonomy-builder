@@ -106,14 +106,11 @@ class CommentService:
 
         return parent
 
-    async def list_comments(self, concept_id: UUID, resolved: bool | None = None) -> list[Comment]:
+    async def list_comments(self, concept_id: UUID) -> list[Comment]:
         """List all non-deleted comments for a concept, ordered by created_at.
 
         Args:
             concept_id: The ID of the concept to list comments for
-            resolved: If True, only show resolved top-level comments and their replies.
-                      If False, only show unresolved top-level comments and their replies.
-                      If None (default), show all comments.
         """
         await self._get_concept(concept_id)
 
@@ -128,33 +125,7 @@ class CommentService:
         result = await self.db.execute(query)
         all_comments = list(result.scalars().all())
 
-        # If no filter specified, return all comments
-        if resolved is None:
-            return all_comments
-
-        # Apply resolution filter only to top-level comments
-        # but include all replies to matching parents
-        filtered_top_level_ids = set()
-        for comment in all_comments:
-            if comment.parent_comment_id is None:
-                # This is a top-level comment, check if it matches filter
-                is_resolved = comment.resolved_at is not None
-                if (resolved and is_resolved) or (not resolved and not is_resolved):
-                    filtered_top_level_ids.add(comment.id)
-
-        # Include top-level comments that match filter and their replies
-        filtered_comments = []
-        for comment in all_comments:
-            if comment.parent_comment_id is None:
-                # Top-level comment - include if in filtered set
-                if comment.id in filtered_top_level_ids:
-                    filtered_comments.append(comment)
-            else:
-                # Reply - include if parent is in filtered set
-                if comment.parent_comment_id in filtered_top_level_ids:
-                    filtered_comments.append(comment)
-
-        return filtered_comments
+        return all_comments
 
     async def create_comment(
         self, concept_id: UUID, comment_in: CommentCreate

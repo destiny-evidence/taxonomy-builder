@@ -157,6 +157,69 @@ async def test_list_comments(
     assert data[0]["user"]["display_name"] == "Test User"
     assert data[0]["can_delete"] is True  # User owns this comment
 
+@pytest.mark.asyncio
+async def test_list_comments_can_filter_by_resolved(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test listing comments can filter to show only unresolved comments."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="unresolved comment",
+    )
+
+    comment_resolved = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="resolved comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id
+    )
+
+    db_session.add_all([comment, comment_resolved])
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments?resolved=true")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "resolved comment"
+    assert data[0]["user"]["display_name"] == "Test User"
+
+@pytest.mark.asyncio
+async def test_list_comments_can_filter_by_unresolved(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test listing comments can filter to show only unresolved comments."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="unresolved comment",
+    )
+
+    comment_resolved = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="resolved comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id
+    )
+
+    db_session.add_all([comment, comment_resolved])
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments?resolved=false")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "unresolved comment"
+    assert data[0]["user"]["display_name"] == "Test User"
 
 @pytest.mark.asyncio
 async def test_list_comments_can_delete_false_for_others(
