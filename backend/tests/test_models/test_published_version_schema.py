@@ -84,6 +84,16 @@ class TestPublishRequest:
         req = PublishRequest(version="1.0", title="Release", notes="Some notes")
         assert req.notes == "Some notes"
 
+    def test_publisher_optional(self) -> None:
+        """Test that publisher is optional."""
+        req = PublishRequest(version="1.0", title="Release")
+        assert req.publisher is None
+
+    def test_publisher_provided(self) -> None:
+        """Test that publisher can be provided."""
+        req = PublishRequest(version="1.0", title="Release", publisher="ESI")
+        assert req.publisher == "ESI"
+
     def test_version_stripped(self) -> None:
         """Test that version whitespace is stripped."""
         req = PublishRequest(version="  1.0  ", title="Release")

@@ -13,6 +13,7 @@ class PublishRequest(BaseModel):
     version: str = Field(..., max_length=50)
     title: str = Field(..., max_length=255)
     notes: str | None = None
+    publisher: str | None = Field(default=None, max_length=255)
 
     @field_validator("version")
     @classmethod
