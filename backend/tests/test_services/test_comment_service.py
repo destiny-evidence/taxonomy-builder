@@ -433,6 +433,28 @@ async def test_resolve_or_unresolve_nonexistent_comment_returns_not_found(
     with pytest.raises(CommentNotFoundError):
         await service.unresolve_comment(uuid.uuid7())
 
+@pytest.mark.asyncio
+async def test_resolve_or_unresolve_deleted_comment_returns_not_found(
+    db_session: AsyncSession, concept: Concept, user: User
+) -> None:
+    """Test resolve/unresolve a deleted comment returns not found"""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Deleted comment",
+        deleted_at=datetime.now()
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    service = CommentService(db_session, user_id=user.id)
+
+    with pytest.raises(CommentNotFoundError):
+        await service.resolve_comment(comment.id)
+
+    with pytest.raises(CommentNotFoundError):
+        await service.unresolve_comment(comment.id)
+
 
 # ============ Comment Threading Tests ============
 
