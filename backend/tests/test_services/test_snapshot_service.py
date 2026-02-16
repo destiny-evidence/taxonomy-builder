@@ -12,6 +12,7 @@ from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.schemas.snapshot import ProjectSnapshot
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import CoreOntology, OntologyClass
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
@@ -59,6 +60,13 @@ def service(db_session: AsyncSession) -> SnapshotService:
 
 
 @pytest.mark.asyncio
+async def test_returns_project_snapshot(db_session: AsyncSession, project: Project) -> None:
+    """Test that build_snapshot returns a ProjectSnapshot model."""
+    snapshot = await service(db_session).build_snapshot(project.id)
+    assert isinstance(snapshot, ProjectSnapshot)
+
+
+@pytest.mark.asyncio
 async def test_project_metadata(db_session: AsyncSession) -> None:
     """Test snapshot includes project identity: id, name, description, namespace."""
     project = Project(
@@ -72,12 +80,10 @@ async def test_project_metadata(db_session: AsyncSession) -> None:
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert snapshot["project"] == {
-        "id": str(project.id),
-        "name": "Vocab Project",
-        "description": "A vocabulary for testing",
-        "namespace": "http://example.org/vocab",
-    }
+    assert snapshot.project.id == str(project.id)
+    assert snapshot.project.name == "Vocab Project"
+    assert snapshot.project.description == "A vocabulary for testing"
+    assert snapshot.project.namespace == "http://example.org/vocab"
 
 
 @pytest.mark.asyncio
@@ -85,9 +91,9 @@ async def test_empty_project(db_session: AsyncSession, project: Project) -> None
     """Test snapshot of a project with no schemes, properties, or classes."""
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert snapshot["concept_schemes"] == []
-    assert snapshot["properties"] == []
-    assert snapshot["classes"] == []
+    assert snapshot.concept_schemes == []
+    assert snapshot.properties == []
+    assert snapshot.classes == []
 
 
 @pytest.mark.asyncio
@@ -104,13 +110,13 @@ async def test_scheme_with_no_concepts(
     """Test snapshot includes scheme with empty concepts list."""
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert len(snapshot["concept_schemes"]) == 1
-    s = snapshot["concept_schemes"][0]
-    assert s["id"] == str(scheme.id)
-    assert s["title"] == "Test Taxonomy"
-    assert s["description"] == "A test taxonomy"
-    assert s["uri"] == "http://example.org/taxonomy"
-    assert s["concepts"] == []
+    assert len(snapshot.concept_schemes) == 1
+    s = snapshot.concept_schemes[0]
+    assert s.id == str(scheme.id)
+    assert s.title == "Test Taxonomy"
+    assert s.description == "A test taxonomy"
+    assert s.uri == "http://example.org/taxonomy"
+    assert s.concepts == []
 
 
 @pytest.mark.asyncio
@@ -132,17 +138,17 @@ async def test_scheme_with_concepts(
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    concepts = snapshot["concept_schemes"][0]["concepts"]
+    concepts = snapshot.concept_schemes[0].concepts
     assert len(concepts) == 1
     c = concepts[0]
-    assert c["id"] == str(concept.id)
-    assert c["identifier"] == "finding-1"
-    assert c["pref_label"] == "Finding One"
-    assert c["definition"] == "The first finding"
-    assert c["scope_note"] == "Use carefully"
-    assert c["alt_labels"] == ["Alt 1", "Alt 2"]
-    assert c["broader_ids"] == []
-    assert c["related_ids"] == []
+    assert c.id == str(concept.id)
+    assert c.identifier == "finding-1"
+    assert c.pref_label == "Finding One"
+    assert c.definition == "The first finding"
+    assert c.scope_note == "Use carefully"
+    assert c.alt_labels == ["Alt 1", "Alt 2"]
+    assert c.broader_ids == []
+    assert c.related_ids == []
 
 
 @pytest.mark.asyncio
@@ -159,9 +165,9 @@ async def test_concept_uris(
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    concepts = {c["pref_label"]: c for c in snapshot["concept_schemes"][0]["concepts"]}
-    assert concepts["With Identifier"]["uri"] == "http://example.org/taxonomy/concept-1"
-    assert concepts["Without Identifier"]["uri"] is None
+    concepts = {c.pref_label: c for c in snapshot.concept_schemes[0].concepts}
+    assert concepts["With Identifier"].uri == "http://example.org/taxonomy/concept-1"
+    assert concepts["Without Identifier"].uri is None
 
 
 @pytest.mark.asyncio
@@ -182,9 +188,9 @@ async def test_broader_relationships(
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    concepts = {c["pref_label"]: c for c in snapshot["concept_schemes"][0]["concepts"]}
-    assert concepts["Child"]["broader_ids"] == [str(parent.id)]
-    assert concepts["Parent"]["broader_ids"] == []
+    concepts = {c.pref_label: c for c in snapshot.concept_schemes[0].concepts}
+    assert concepts["Child"].broader_ids == [str(parent.id)]
+    assert concepts["Parent"].broader_ids == []
 
 
 @pytest.mark.asyncio
@@ -207,10 +213,10 @@ async def test_related_relationships(
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    concepts = {c["pref_label"]: c for c in snapshot["concept_schemes"][0]["concepts"]}
+    concepts = {c.pref_label: c for c in snapshot.concept_schemes[0].concepts}
     # Both directions should appear
-    assert str(concept_b.id) in concepts["Concept A"]["related_ids"]
-    assert str(concept_a.id) in concepts["Concept B"]["related_ids"]
+    assert str(concept_b.id) in concepts["Concept A"].related_ids
+    assert str(concept_a.id) in concepts["Concept B"].related_ids
 
 
 @pytest.mark.asyncio
@@ -239,19 +245,19 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert len(snapshot["properties"]) == 1
-    p = snapshot["properties"][0]
-    assert p["id"] == str(prop.id)
-    assert p["identifier"] == "testProp"
-    assert p["uri"] == "http://example.org/vocab/testProp"
-    assert p["label"] == "Test Property"
-    assert p["description"] == "A test property"
-    assert p["domain_class"] == "http://example.org/vocab/Finding"
-    assert p["range_scheme_id"] == str(scheme.id)
-    assert p["range_scheme_uri"] == "http://example.org/range"
-    assert p["range_datatype"] is None
-    assert p["cardinality"] == "single"
-    assert p["required"] is True
+    assert len(snapshot.properties) == 1
+    p = snapshot.properties[0]
+    assert p.id == str(prop.id)
+    assert p.identifier == "testProp"
+    assert p.uri == "http://example.org/vocab/testProp"
+    assert p.label == "Test Property"
+    assert p.description == "A test property"
+    assert p.domain_class == "http://example.org/vocab/Finding"
+    assert p.range_scheme_id == str(scheme.id)
+    assert p.range_scheme_uri == "http://example.org/range"
+    assert p.range_datatype is None
+    assert p.cardinality == "single"
+    assert p.required is True
 
 
 @pytest.mark.asyncio
@@ -292,11 +298,24 @@ async def test_classes_filtered_by_properties(
     ):
         snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert len(snapshot["classes"]) == 1
-    cls = snapshot["classes"][0]
-    assert cls["uri"] == "http://example.org/vocab/Finding"
-    assert cls["label"] == "Finding"
-    assert cls["description"] == "A finding"
+    assert len(snapshot.classes) == 1
+    cls = snapshot.classes[0]
+    assert cls.uri == "http://example.org/vocab/Finding"
+    assert cls.label == "Finding"
+    assert cls.description == "A finding"
+
+
+@pytest.mark.asyncio
+async def test_round_trip(db_session: AsyncSession, project: Project, scheme: ConceptScheme) -> None:
+    """Test that model_dump -> model_validate produces identical result."""
+    concept = Concept(scheme_id=scheme.id, identifier="c1", pref_label="C1")
+    db_session.add(concept)
+    await db_session.flush()
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+    raw = snapshot.model_dump()
+    restored = ProjectSnapshot.model_validate(raw)
+    assert restored == snapshot
 
 
 @pytest.mark.asyncio
@@ -372,28 +391,28 @@ async def test_full_integration(
         snapshot = await service(db_session).build_snapshot(project.id)
 
     # Project metadata is self-contained
-    assert snapshot["project"]["name"] == "Snapshot Test Project"
-    assert snapshot["project"]["namespace"] == "http://example.org/vocab"
+    assert snapshot.project.name == "Snapshot Test Project"
+    assert snapshot.project.namespace == "http://example.org/vocab"
 
     # Two schemes
-    assert len(snapshot["concept_schemes"]) == 2
-    schemes_by_title = {s["title"]: s for s in snapshot["concept_schemes"]}
+    assert len(snapshot.concept_schemes) == 2
+    schemes_by_title = {s.title: s for s in snapshot.concept_schemes}
 
     # Scheme1 has 2 concepts with hierarchy
     s1 = schemes_by_title["Scheme One"]
-    assert len(s1["concepts"]) == 2
-    concepts_by_label = {c["pref_label"]: c for c in s1["concepts"]}
-    assert concepts_by_label["Child Concept"]["broader_ids"] == [str(parent.id)]
+    assert len(s1.concepts) == 2
+    concepts_by_label = {c.pref_label: c for c in s1.concepts}
+    assert concepts_by_label["Child Concept"].broader_ids == [str(parent.id)]
 
     # Scheme2 has 1 concept
     s2 = schemes_by_title["Scheme Two"]
-    assert len(s2["concepts"]) == 1
-    assert s2["concepts"][0]["pref_label"] == "Standalone"
+    assert len(s2.concepts) == 1
+    assert s2.concepts[0].pref_label == "Standalone"
 
     # One property
-    assert len(snapshot["properties"]) == 1
-    assert snapshot["properties"][0]["identifier"] == "topic"
+    assert len(snapshot.properties) == 1
+    assert snapshot.properties[0].identifier == "topic"
 
     # One class
-    assert len(snapshot["classes"]) == 1
-    assert snapshot["classes"][0]["uri"] == "http://example.org/vocab/Finding"
+    assert len(snapshot.classes) == 1
+    assert snapshot.classes[0].uri == "http://example.org/vocab/Finding"
