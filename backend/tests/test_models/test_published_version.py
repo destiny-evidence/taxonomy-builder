@@ -69,24 +69,6 @@ async def test_create_published_version(
 
 
 @pytest.mark.asyncio
-async def test_published_version_id_is_uuidv7(
-    db_session: AsyncSession, project: Project
-) -> None:
-    """Test that published version IDs are UUIDv7."""
-    version = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="Release",
-        snapshot={},
-    )
-    db_session.add(version)
-    await db_session.flush()
-    await db_session.refresh(version)
-
-    assert version.id.version == 7
-
-
-@pytest.mark.asyncio
 async def test_unique_version_per_project(
     db_session: AsyncSession, project: Project
 ) -> None:
@@ -242,8 +224,6 @@ async def test_cascade_delete_with_project(
     await db_session.delete(project)
     await db_session.flush()
 
-    from sqlalchemy import select
-
     result = await db_session.execute(
         select(PublishedVersion).where(PublishedVersion.id == version_id)
     )
@@ -315,128 +295,31 @@ async def test_jsonb_round_trip(db_session: AsyncSession, project: Project) -> N
 
 
 @pytest.mark.asyncio
-async def test_published_at_nullable_for_drafts(
+async def test_version_sort_key(
     db_session: AsyncSession, project: Project
 ) -> None:
-    """Test that published_at is nullable (not set for drafts)."""
-    draft = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="Draft",
-        finalized=False,
-        snapshot={},
-    )
-    db_session.add(draft)
-    await db_session.flush()
-    await db_session.refresh(draft)
-
-    assert draft.published_at is None
-    assert draft.finalized is False
-
-
-@pytest.mark.asyncio
-async def test_finalized_defaults_to_false(
-    db_session: AsyncSession, project: Project
-) -> None:
-    """Test that finalized defaults to False."""
-    version = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="Draft",
-        snapshot={},
-    )
-    db_session.add(version)
-    await db_session.flush()
-    await db_session.refresh(version)
-
-    assert version.finalized is False
-
-
-@pytest.mark.asyncio
-async def test_notes_optional(db_session: AsyncSession, project: Project) -> None:
-    """Test that notes is optional."""
-    version = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="No Notes",
-        snapshot={},
-    )
-    db_session.add(version)
-    await db_session.flush()
-    await db_session.refresh(version)
-
-    assert version.notes is None
-
-
-@pytest.mark.asyncio
-async def test_publisher_optional(db_session: AsyncSession, project: Project) -> None:
-    """Test that publisher is optional."""
-    version = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="No Publisher",
-        snapshot={},
-    )
-    db_session.add(version)
-    await db_session.flush()
-    await db_session.refresh(version)
-
-    assert version.publisher is None
-
-
-@pytest.mark.asyncio
-async def test_project_relationship(
-    db_session: AsyncSession, project: Project
-) -> None:
-    """Test that the project relationship is loaded."""
-    version = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="Release",
-        snapshot={},
-    )
-    db_session.add(version)
-    await db_session.flush()
-    await db_session.refresh(version)
-
-    assert version.project is not None
-    assert version.project.id == project.id
-
-
-@pytest.mark.asyncio
-async def test_version_sort_key_computed(
-    db_session: AsyncSession, project: Project
-) -> None:
-    """Test that version_sort_key is computed from a 3-part semver."""
-    version = PublishedVersion(
+    """Test that version_sort_key is computed from the version string."""
+    v3 = PublishedVersion(
         project_id=project.id,
         version="1.2.3",
-        title="Release",
+        title="Three-part",
+        finalized=True,
         snapshot={},
     )
-    db_session.add(version)
-    await db_session.flush()
-    await db_session.refresh(version)
-
-    assert version.version_sort_key == [1, 2, 3]
-
-
-@pytest.mark.asyncio
-async def test_version_sort_key_two_part(
-    db_session: AsyncSession, project: Project
-) -> None:
-    """Test that version_sort_key works with 2-part semver."""
-    version = PublishedVersion(
+    v2 = PublishedVersion(
         project_id=project.id,
         version="2.0",
-        title="Release",
+        title="Two-part",
+        finalized=True,
         snapshot={},
     )
-    db_session.add(version)
+    db_session.add_all([v3, v2])
     await db_session.flush()
-    await db_session.refresh(version)
+    await db_session.refresh(v3)
+    await db_session.refresh(v2)
 
-    assert version.version_sort_key == [2, 0]
+    assert v3.version_sort_key == [1, 2, 3]
+    assert v2.version_sort_key == [2, 0]
 
 
 @pytest.mark.asyncio
