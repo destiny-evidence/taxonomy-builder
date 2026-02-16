@@ -30,7 +30,6 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         title="Test Taxonomy",
         description="A test taxonomy",
         uri="http://example.org/taxonomy",
-        publisher="Test Publisher",
     )
     db_session.add(scheme)
     await db_session.flush()
@@ -150,7 +149,6 @@ async def test_export_contains_scheme_metadata(
     content = response.text
     assert "Test Taxonomy" in content
     assert "A test taxonomy" in content
-    assert "Test Publisher" in content
 
 
 @pytest.mark.asyncio

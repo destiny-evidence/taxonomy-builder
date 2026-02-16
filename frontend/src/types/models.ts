@@ -27,7 +27,6 @@ export interface ConceptScheme {
   title: string;
   description: string | null;
   uri: string | null;
-  publisher: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,14 +35,12 @@ export interface ConceptSchemeCreate {
   title: string;
   description?: string | null;
   uri?: string | null;
-  publisher?: string | null;
 }
 
 export interface ConceptSchemeUpdate {
   title?: string;
   description?: string | null;
   uri?: string | null;
-  publisher?: string | null;
 }
 
 // ============ Concepts ============

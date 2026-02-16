@@ -17,7 +17,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
   const [title, setTitle] = useState(scheme?.title ?? "");
   const [description, setDescription] = useState(scheme?.description ?? "");
   const [uri, setUri] = useState(scheme?.uri ?? "");
-  const [publisher, setPublisher] = useState(scheme?.publisher ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +25,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
     setTitle(scheme?.title ?? "");
     setDescription(scheme?.description ?? "");
     setUri(scheme?.uri ?? "");
-    setPublisher(scheme?.publisher ?? "");
     setError(null);
   }, [scheme]);
 
@@ -39,7 +37,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
       title,
       description: description || null,
       uri: uri || null,
-      publisher: publisher || null,
     };
 
     try {
@@ -89,14 +86,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
         value={uri}
         placeholder="https://example.org/scheme"
         onChange={setUri}
-      />
-
-      <Input
-        label="Publisher"
-        name="publisher"
-        value={publisher}
-        placeholder="Organization name"
-        onChange={setPublisher}
       />
 
       <div class="scheme-form__actions">

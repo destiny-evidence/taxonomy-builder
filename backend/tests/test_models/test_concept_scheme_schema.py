@@ -22,12 +22,10 @@ class TestConceptSchemeCreate:
             title="Test Scheme",
             description="A test description",
             uri="http://example.org/schemes/test",
-            publisher="Test Publisher",
         )
         assert scheme.title == "Test Scheme"
         assert scheme.description == "A test description"
         assert scheme.uri == "http://example.org/schemes/test"
-        assert scheme.publisher == "Test Publisher"
 
     def test_concept_scheme_create_title_only(self) -> None:
         """Test creating a scheme with only title."""
@@ -35,7 +33,6 @@ class TestConceptSchemeCreate:
         assert scheme.title == "Minimal Scheme"
         assert scheme.description is None
         assert scheme.uri is None
-        assert scheme.publisher is None
 
     def test_concept_scheme_create_requires_title(self) -> None:
         """Test that title is required."""
@@ -64,7 +61,6 @@ class TestConceptSchemeUpdate:
         assert scheme.title is None
         assert scheme.description is None
         assert scheme.uri is None
-        assert scheme.publisher is None
 
     def test_concept_scheme_update_with_title(self) -> None:
         """Test updating with a new title."""
@@ -77,12 +73,10 @@ class TestConceptSchemeUpdate:
             title="Updated Title",
             description="Updated description",
             uri="http://example.org/updated",
-            publisher="Updated Publisher",
         )
         assert scheme.title == "Updated Title"
         assert scheme.description == "Updated description"
         assert scheme.uri == "http://example.org/updated"
-        assert scheme.publisher == "Updated Publisher"
 
     def test_concept_scheme_update_title_cannot_be_empty(self) -> None:
         """Test that title cannot be empty string if provided."""
@@ -110,7 +104,6 @@ class TestConceptSchemeRead:
             title="Test Scheme",
             description="A description",
             uri="http://example.org/schemes/test",
-            publisher="Test Publisher",
             created_at=now,
             updated_at=now,
         )
@@ -119,7 +112,6 @@ class TestConceptSchemeRead:
         assert scheme.title == "Test Scheme"
         assert scheme.description == "A description"
         assert scheme.uri == "http://example.org/schemes/test"
-        assert scheme.publisher == "Test Publisher"
         assert scheme.created_at == now
         assert scheme.updated_at == now
 
@@ -137,10 +129,8 @@ class TestConceptSchemeRead:
             title="Minimal",
             description=None,
             uri=None,
-            publisher=None,
             created_at=now,
             updated_at=now,
         )
         assert scheme.description is None
         assert scheme.uri is None
-        assert scheme.publisher is None
