@@ -137,7 +137,7 @@ async def delete_comment(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@comments_router.post("/{comment_id}/resolve", status_code=status.HTTP_200_OK)
+@comments_router.post("/{comment_id}/resolve", status_code=status.HTTP_204_NO_CONTENT)
 async def resolve_comment(
     comment_id: UUID,
     service: CommentService = Depends(get_comment_service)
@@ -151,7 +151,7 @@ async def resolve_comment(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     # Handle already resolved
 
-@comments_router.post("/{comment_id}/unresolve", status_code=status.HTTP_200_OK)
+@comments_router.post("/{comment_id}/unresolve", status_code=status.HTTP_204_NO_CONTENT)
 async def unresolve_comment(
     comment_id: UUID,
     service: CommentService = Depends(get_comment_service)

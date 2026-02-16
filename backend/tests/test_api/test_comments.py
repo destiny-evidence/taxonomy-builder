@@ -1,6 +1,7 @@
 """Tests for Comment API endpoints."""
 
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -335,6 +336,85 @@ async def test_delete_comment_requires_auth(
     await db_session.flush()
 
     response = await client.delete(f"/api/comments/{comment.id}")
+    assert response.status_code == 401
+
+# ============ Resolve/Unresolve Comment Tests ============
+
+@pytest.mark.asyncio
+async def test_resolve_comment(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+    other_user: User
+) -> None:
+    """Test deleting own comment."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=other_user.id,
+        content="To resolve",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    assert comment.resolved_at is None
+
+    response = await auth_client.post(f"/api/comments/{comment.id}/resolve")
+    assert response.status_code == 204
+
+    # Verify comment is resolved
+    db_session.refresh(comment)
+    assert comment.resolved_at is not None
+    assert comment.resolved_by == user.id
+
+
+@pytest.mark.asyncio
+async def test_unresolve_comment_succeeds_for_any_user(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+    other_user: User
+) -> None:
+    """Test unresolving a comment"""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=other_user.id,
+        content="Already resolved.",
+        resolved_at=datetime.now(),
+        resolved_by=other_user.id
+    )
+
+    db_session.add(comment)
+    await db_session.flush()
+
+    response = await auth_client.post(f"/api/comments/{comment.id}/unresolve")
+    assert response.status_code == 204
+
+    # Verify comment is resolved
+    db_session.refresh(comment)
+    assert comment.resolved_by is None
+
+@pytest.mark.asyncio
+async def test_resolve_and_unresolve_comment_requires_auth(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that deleting comment requires authentication."""
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Test",
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    response = await client.post(f"/api/comments/{comment.id}/resolve")
+    assert response.status_code == 401
+
+    response = await client.post(f"/api/comments/{comment.id}/unresolve")
     assert response.status_code == 401
 
 
