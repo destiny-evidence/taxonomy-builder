@@ -86,7 +86,6 @@ class ChangeTracker:
             "title": scheme.title,
             "description": scheme.description,
             "uri": scheme.uri,
-            "publisher": scheme.publisher,
         }
 
     def serialize_broader(

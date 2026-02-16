@@ -13,7 +13,6 @@ const mockScheme: ConceptScheme = {
   title: "Animals",
   description: "Animal taxonomy",
   uri: "http://example.org/animals",
-  publisher: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -44,8 +43,7 @@ describe("SchemeDetail", () => {
   it("hides null/empty optional fields in read-only view", () => {
     render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
 
-    // Publisher and version are null, so they shouldn't be displayed in read-only mode
-    expect(screen.queryByText(/publisher/i)).not.toBeInTheDocument();
+    // Version is removed, so it shouldn't be displayed in read-only mode
     expect(screen.queryByText(/version/i)).not.toBeInTheDocument();
   });
 
@@ -55,7 +53,7 @@ describe("SchemeDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
     // Should show labels for all fields in edit mode
-    expect(screen.getByText(/publisher/i)).toBeInTheDocument();
+    expect(screen.getByText(/description/i)).toBeInTheDocument();
   });
 
   it("displays Edit button in read-only mode", () => {
@@ -140,7 +138,7 @@ describe("SchemeDetail", () => {
       expect(screen.getByDisplayValue("Animals")).toBeInTheDocument();
       expect(screen.getByDisplayValue("http://example.org/animals")).toBeInTheDocument();
       expect(screen.getByDisplayValue("Animal taxonomy")).toBeInTheDocument();
-      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(4);
+      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(3);
     });
 
     it("calls API with updated data when Save is clicked", async () => {
@@ -158,8 +156,7 @@ describe("SchemeDetail", () => {
           title: "Updated Animals",
           uri: "http://example.org/animals",
           description: "Animal taxonomy",
-          publisher: null,
-                });
+                        });
       });
     });
 

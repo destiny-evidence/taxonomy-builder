@@ -16,7 +16,6 @@ interface EditDraft {
   title: string;
   uri: string;
   description: string;
-  publisher: string;
 }
 
 function formatDate(dateString: string): string {
@@ -72,7 +71,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
     title: scheme.title,
     uri: scheme.uri ?? "",
     description: scheme.description ?? "",
-    publisher: scheme.publisher ?? "",
   };
 
   function handleEditClick() {
@@ -80,7 +78,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
       title: scheme.title,
       uri: scheme.uri ?? "",
       description: scheme.description ?? "",
-      publisher: scheme.publisher ?? "",
     });
     setValidationErrors({});
     setIsEditing(true);
@@ -103,7 +100,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
       title: editDraft.title,
       uri: editDraft.uri || null,
       description: editDraft.description || null,
-      publisher: editDraft.publisher || null,
     };
 
     try {
@@ -181,13 +177,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
               placeholder="A description of this concept scheme"
               multiline
             />
-            <Input
-              label="Publisher"
-              name="publisher"
-              value={displayValues.publisher}
-              onChange={(value) => updateDraft("publisher", value)}
-              placeholder="Organization or person"
-            />
             <div class="scheme-detail__actions">
               <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
                 Cancel
@@ -210,13 +199,6 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
               <div class="scheme-detail__field">
                 <label class="scheme-detail__label">Description</label>
                 <div class="scheme-detail__value">{scheme.description}</div>
-              </div>
-            )}
-
-            {scheme.publisher && (
-              <div class="scheme-detail__field">
-                <label class="scheme-detail__label">Publisher</label>
-                <div class="scheme-detail__value">{scheme.publisher}</div>
               </div>
             )}
 
