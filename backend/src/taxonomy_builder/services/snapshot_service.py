@@ -9,12 +9,12 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.snapshot import (
-    ProjectSnapshot,
     SnapshotClass,
     SnapshotConcept,
-    SnapshotProject,
+    SnapshotProjectMetadata,
     SnapshotProperty,
     SnapshotScheme,
+    SnapshotVocabulary,
 )
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
@@ -34,10 +34,10 @@ class SnapshotService:
         self._project_service = project_service
         self._concept_service = concept_service
 
-    async def build_snapshot(self, project_id: UUID) -> ProjectSnapshot:
+    async def build_snapshot(self, project_id: UUID) -> SnapshotVocabulary:
         """Build an immutable snapshot of a project's vocabulary.
 
-        Returns a ProjectSnapshot with concept_schemes (with nested concepts),
+        Returns a SnapshotVocabulary with concept_schemes (with nested concepts),
         properties, and ontology classes referenced by those properties.
         """
         project = await self._project_service.get_project(project_id)
@@ -54,16 +54,16 @@ class SnapshotService:
         domain_uris = {p.domain_class for p in project.properties}
         classes = self._build_classes(domain_uris)
 
-        return ProjectSnapshot(
+        return SnapshotVocabulary(
             project=self._build_project(project),
             concept_schemes=schemes,
             properties=properties,
             classes=classes,
         )
 
-    def _build_project(self, project: Project) -> SnapshotProject:
-        return SnapshotProject(
-            id=str(project.id),
+    def _build_project(self, project: Project) -> SnapshotProjectMetadata:
+        return SnapshotProjectMetadata(
+            id=project.id,
             name=project.name,
             description=project.description,
             namespace=project.namespace,
@@ -73,7 +73,7 @@ class SnapshotService:
         self, scheme: ConceptScheme, concepts: list[Concept]
     ) -> SnapshotScheme:
         return SnapshotScheme(
-            id=str(scheme.id),
+            id=scheme.id,
             title=scheme.title,
             description=scheme.description,
             uri=scheme.uri,
@@ -82,26 +82,26 @@ class SnapshotService:
 
     def _build_concept(self, concept: Concept) -> SnapshotConcept:
         return SnapshotConcept(
-            id=str(concept.id),
+            id=concept.id,
             identifier=concept.identifier,
             uri=concept.uri,
             pref_label=concept.pref_label,
             definition=concept.definition,
             scope_note=concept.scope_note,
             alt_labels=list(concept.alt_labels),
-            broader_ids=[str(b.id) for b in concept.broader],
-            related_ids=[str(r.id) for r in concept.related],
+            broader_ids=[b.id for b in concept.broader],
+            related_ids=[r.id for r in concept.related],
         )
 
     def _build_property(self, prop: Property) -> SnapshotProperty:
         return SnapshotProperty(
-            id=str(prop.id),
+            id=prop.id,
             identifier=prop.identifier,
             uri=prop.uri,
             label=prop.label,
             description=prop.description,
             domain_class=prop.domain_class,
-            range_scheme_id=str(prop.range_scheme_id) if prop.range_scheme_id else None,
+            range_scheme_id=prop.range_scheme_id,
             range_scheme_uri=prop.range_scheme.uri if prop.range_scheme else None,
             range_datatype=prop.range_datatype,
             cardinality=prop.cardinality,
