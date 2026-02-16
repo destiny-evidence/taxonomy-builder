@@ -1,0 +1,385 @@
+"""Tests for the PublishedVersion model."""
+
+from datetime import datetime
+from uuid import UUID
+
+import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.published_version import PublishedVersion
+
+
+@pytest.fixture
+async def project(db_session: AsyncSession) -> Project:
+    """Create a project for testing."""
+    project = Project(name="Test Project")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.fixture
+async def other_project(db_session: AsyncSession) -> Project:
+    """Create a second project for testing."""
+    project = Project(name="Other Project")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.mark.asyncio
+async def test_create_published_version(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test creating a published version with all fields."""
+    snapshot = {
+        "concept_schemes": [{"id": "abc", "title": "Test Scheme"}],
+        "properties": [],
+        "classes": [],
+    }
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Initial Release",
+        notes="First published version.",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot=snapshot,
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.id is not None
+    assert isinstance(version.id, UUID)
+    assert version.project_id == project.id
+    assert version.version == "1.0"
+    assert version.title == "Initial Release"
+    assert version.notes == "First published version."
+    assert version.finalized is True
+    assert version.published_at is not None
+    assert version.snapshot == snapshot
+
+
+@pytest.mark.asyncio
+async def test_published_version_id_is_uuidv7(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that published version IDs are UUIDv7."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Release",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.id.version == 7
+
+
+@pytest.mark.asyncio
+async def test_unique_version_per_project(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that the same version string cannot be used twice for a project."""
+    v1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="First",
+        snapshot={},
+    )
+    db_session.add(v1)
+    await db_session.flush()
+
+    v2 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Duplicate",
+        snapshot={},
+    )
+    db_session.add(v2)
+
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_same_version_different_projects(
+    db_session: AsyncSession, project: Project, other_project: Project
+) -> None:
+    """Test that the same version string can be used across different projects."""
+    v1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Project 1 Release",
+        snapshot={},
+    )
+    v2 = PublishedVersion(
+        project_id=other_project.id,
+        version="1.0",
+        title="Project 2 Release",
+        snapshot={},
+    )
+    db_session.add_all([v1, v2])
+    await db_session.flush()
+
+    assert v1.id != v2.id
+    assert v1.version == v2.version
+
+
+@pytest.mark.asyncio
+async def test_only_one_draft_per_project(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that a project can only have one draft (non-finalized) version."""
+    draft1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Draft 1",
+        finalized=False,
+        snapshot={},
+    )
+    db_session.add(draft1)
+    await db_session.flush()
+
+    draft2 = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="Draft 2",
+        finalized=False,
+        snapshot={},
+    )
+    db_session.add(draft2)
+
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_draft_plus_finalized_succeeds(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that a project can have one draft and one finalized version."""
+    finalized = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Released",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    draft = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="In Progress",
+        finalized=False,
+        snapshot={},
+    )
+    db_session.add_all([finalized, draft])
+    await db_session.flush()
+
+    assert finalized.finalized is True
+    assert draft.finalized is False
+
+
+@pytest.mark.asyncio
+async def test_version_lineage(db_session: AsyncSession, project: Project) -> None:
+    """Test self-referential FK for version chain."""
+    v1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="V1",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    db_session.add(v1)
+    await db_session.flush()
+    await db_session.refresh(v1)
+
+    v2 = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="V2",
+        finalized=True,
+        published_at=datetime.now(),
+        previous_version_id=v1.id,
+        snapshot={},
+    )
+    db_session.add(v2)
+    await db_session.flush()
+    await db_session.refresh(v2)
+
+    assert v2.previous_version_id == v1.id
+    assert v2.previous_version is not None
+    assert v2.previous_version.id == v1.id
+
+
+@pytest.mark.asyncio
+async def test_cascade_delete_with_project(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that deleting a project cascades to published versions."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Release",
+        snapshot={"concept_schemes": []},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    version_id = version.id
+
+    await db_session.delete(project)
+    await db_session.flush()
+
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(PublishedVersion).where(PublishedVersion.id == version_id)
+    )
+    assert result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_jsonb_round_trip(db_session: AsyncSession, project: Project) -> None:
+    """Test that complex JSONB snapshot data round-trips correctly."""
+    snapshot = {
+        "concept_schemes": [
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "uri": "http://example.org/schemes/test",
+                "title": "Test Scheme",
+                "description": "A test scheme",
+                "publisher": "Test Publisher",
+                "concepts": [
+                    {
+                        "id": "660e8400-e29b-41d4-a716-446655440000",
+                        "identifier": "concept-1",
+                        "uri": "http://example.org/schemes/test/concept-1",
+                        "pref_label": "Concept One",
+                        "definition": "The first concept",
+                        "scope_note": None,
+                        "alt_labels": ["Alt 1", "Alt 2"],
+                        "broader_ids": [],
+                        "related_ids": ["770e8400-e29b-41d4-a716-446655440000"],
+                    }
+                ],
+            }
+        ],
+        "properties": [
+            {
+                "id": "880e8400-e29b-41d4-a716-446655440000",
+                "identifier": "testProp",
+                "uri": "http://example.org/vocab/testProp",
+                "label": "Test Property",
+                "description": None,
+                "domain_class": "http://example.org/vocab/Finding",
+                "range_scheme_id": None,
+                "range_datatype": "xsd:string",
+                "cardinality": "single",
+                "required": False,
+            }
+        ],
+        "classes": [
+            {
+                "uri": "http://example.org/vocab/Finding",
+                "label": "Finding",
+                "description": "A research finding",
+            }
+        ],
+    }
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Full Snapshot",
+        snapshot=snapshot,
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.snapshot == snapshot
+    assert version.snapshot["concept_schemes"][0]["title"] == "Test Scheme"
+    assert len(version.snapshot["concept_schemes"][0]["concepts"]) == 1
+    assert version.snapshot["properties"][0]["required"] is False
+    assert version.snapshot["classes"][0]["label"] == "Finding"
+
+
+@pytest.mark.asyncio
+async def test_published_at_nullable_for_drafts(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that published_at is nullable (not set for drafts)."""
+    draft = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Draft",
+        finalized=False,
+        snapshot={},
+    )
+    db_session.add(draft)
+    await db_session.flush()
+    await db_session.refresh(draft)
+
+    assert draft.published_at is None
+    assert draft.finalized is False
+
+
+@pytest.mark.asyncio
+async def test_finalized_defaults_to_false(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that finalized defaults to False."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Draft",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.finalized is False
+
+
+@pytest.mark.asyncio
+async def test_notes_optional(db_session: AsyncSession, project: Project) -> None:
+    """Test that notes is optional."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="No Notes",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.notes is None
+
+
+@pytest.mark.asyncio
+async def test_project_relationship(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that the project relationship is loaded."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Release",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.project is not None
+    assert version.project.id == project.id

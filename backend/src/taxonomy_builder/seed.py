@@ -55,7 +55,6 @@ async def create_seed_data(session: AsyncSession) -> dict:
         description="Classification of study design types used in evidence synthesis.",
         uri="http://example.org/taxonomy/study-designs",
         publisher="Evidence Synthesis Institute",
-        version="1.0.0",
     )
     session.add(study_designs)
     await session.flush()
@@ -174,7 +173,6 @@ async def create_seed_data(session: AsyncSession) -> dict:
         title="Risk of Bias Domains",
         description="Domains for assessing risk of bias in studies.",
         uri="http://example.org/taxonomy/risk-of-bias",
-        version="1.0.0",
     )
     session.add(risk_of_bias)
     await session.flush()
