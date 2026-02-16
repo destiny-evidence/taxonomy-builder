@@ -689,3 +689,158 @@ async def test_list_comments_multiple_threads(
     assert len(data[1]["replies"]) == 0
     assert data[2]["content"] == "Parent 3"
     assert len(data[2]["replies"]) == 1
+
+
+# ============ Resolution Filtering Tests ============
+
+
+@pytest.mark.asyncio
+async def test_list_comments_filter_resolved_only(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test filtering to show only resolved comments."""
+    # Create resolved comment
+    resolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Resolved comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id,
+    )
+    # Create unresolved comment
+    unresolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Unresolved comment",
+    )
+    db_session.add_all([resolved_comment, unresolved_comment])
+    await db_session.flush()
+
+    response = await auth_client.get(
+        f"/api/concepts/{concept.id}/comments?resolved=true"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["content"] == "Resolved comment"
+    assert data[0]["resolved_at"] is not None
+    assert data[0]["resolved_by"] == str(user.id)
+
+
+@pytest.mark.asyncio
+async def test_list_comments_filter_unresolved_only(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test filtering to show only unresolved comments."""
+    # Create resolved comment
+    resolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Resolved comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id,
+    )
+    # Create unresolved comment
+    unresolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Unresolved comment",
+    )
+    db_session.add_all([resolved_comment, unresolved_comment])
+    await db_session.flush()
+
+    response = await auth_client.get(
+        f"/api/concepts/{concept.id}/comments?resolved=false"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["content"] == "Unresolved comment"
+    assert data[0]["resolved_at"] is None
+    assert data[0]["resolved_by"] is None
+
+
+@pytest.mark.asyncio
+async def test_list_comments_no_filter_shows_all(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that without filter parameter, all comments are shown."""
+    # Create resolved comment
+    resolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Resolved comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id,
+    )
+    # Create unresolved comment
+    unresolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Unresolved comment",
+    )
+    db_session.add_all([resolved_comment, unresolved_comment])
+    await db_session.flush()
+
+    response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_comments_filter_includes_replies(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    concept: Concept,
+    user: User,
+) -> None:
+    """Test that filtering by resolution status includes replies to matching parents."""
+    # Create resolved parent with reply
+    resolved_parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Resolved parent",
+        resolved_at=datetime.now(),
+        resolved_by=user.id,
+    )
+    db_session.add(resolved_parent)
+    await db_session.flush()
+
+    reply_to_resolved = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Reply to resolved",
+        parent_comment_id=resolved_parent.id,
+    )
+    # Create unresolved parent
+    unresolved_parent = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Unresolved parent",
+    )
+    db_session.add_all([reply_to_resolved, unresolved_parent])
+    await db_session.flush()
+
+    response = await auth_client.get(
+        f"/api/concepts/{concept.id}/comments?resolved=true"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["content"] == "Resolved parent"
+    assert len(data[0]["replies"]) == 1
+    assert data[0]["replies"][0]["content"] == "Reply to resolved"

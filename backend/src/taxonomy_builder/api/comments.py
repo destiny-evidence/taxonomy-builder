@@ -42,10 +42,18 @@ def get_comment_service(
 async def list_comments(
     concept_id: UUID,
     service: CommentService = Depends(get_comment_service),
+    resolved: bool | None = None,
 ) -> list[dict]:
-    """List all comments for a concept, grouped by thread."""
+    """List all comments for a concept, grouped by thread.
+
+    Args:
+        concept_id: The ID of the concept to list comments for
+        resolved: If True, only show resolved comments.
+                  If False, only show unresolved comments.
+                  If None (default), show all comments.
+    """
     try:
-        comments = await service.list_comments(concept_id)
+        comments = await service.list_comments(concept_id, resolved=resolved)
 
         # Helper function to format a comment
         def format_comment(comment):
@@ -57,6 +65,8 @@ async def list_comments(
                 "content": comment.content,
                 "created_at": comment.created_at,
                 "updated_at": comment.updated_at,
+                "resolved_at": comment.resolved_at,
+                "resolved_by": comment.resolved_by,
                 "user": {
                     "id": comment.user.id,
                     "display_name": comment.user.display_name,

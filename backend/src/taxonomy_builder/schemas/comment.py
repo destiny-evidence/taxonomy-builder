@@ -43,6 +43,8 @@ class CommentRead(BaseModel):
     content: str
     created_at: datetime
     updated_at: datetime
+    resolved_at: datetime | None = None
+    resolved_by: UUID | None = None
     user: CommentAuthor
     can_delete: bool = False  # Computed at API layer
     replies: list["CommentRead"] = []  # Nested replies for threaded response
