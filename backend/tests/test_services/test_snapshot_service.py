@@ -37,7 +37,6 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         title="Test Taxonomy",
         description="A test taxonomy",
         uri="http://example.org/taxonomy",
-        publisher="Test Publisher",
     )
     db_session.add(scheme)
     await db_session.flush()
@@ -156,9 +155,7 @@ async def test_concept_uris(
     db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test that concept URIs are computed from scheme URI + identifier."""
-    with_id = Concept(
-        scheme_id=scheme.id, identifier="concept-1", pref_label="With Identifier"
-    )
+    with_id = Concept(scheme_id=scheme.id, identifier="concept-1", pref_label="With Identifier")
     without_id = Concept(scheme_id=scheme.id, pref_label="Without Identifier")
     db_session.add_all([with_id, without_id])
     await db_session.flush()
@@ -261,9 +258,7 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
 
 
 @pytest.mark.asyncio
-async def test_classes_filtered_by_properties(
-    db_session: AsyncSession, project: Project
-) -> None:
+async def test_classes_filtered_by_properties(db_session: AsyncSession, project: Project) -> None:
     """Test that only ontology classes referenced by properties are included."""
     prop = Property(
         project_id=project.id,
@@ -306,7 +301,9 @@ async def test_classes_filtered_by_properties(
 
 
 @pytest.mark.asyncio
-async def test_round_trip(db_session: AsyncSession, project: Project, scheme: ConceptScheme) -> None:
+async def test_round_trip(
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+) -> None:
     """Test that model_dump -> model_validate produces identical result."""
     concept = Concept(scheme_id=scheme.id, identifier="c1", pref_label="C1")
     db_session.add(concept)
@@ -319,9 +316,7 @@ async def test_round_trip(db_session: AsyncSession, project: Project, scheme: Co
 
 
 @pytest.mark.asyncio
-async def test_full_integration(
-    db_session: AsyncSession, project: Project
-) -> None:
+async def test_full_integration(db_session: AsyncSession, project: Project) -> None:
     """Test a complete snapshot with multiple schemes, concepts, relationships, and properties."""
     # Create two schemes
     scheme1 = ConceptScheme(
@@ -340,12 +335,8 @@ async def test_full_integration(
     await db_session.refresh(scheme2)
 
     # Create concepts with hierarchy in scheme1
-    parent = Concept(
-        scheme_id=scheme1.id, identifier="parent", pref_label="Parent Concept"
-    )
-    child = Concept(
-        scheme_id=scheme1.id, identifier="child", pref_label="Child Concept"
-    )
+    parent = Concept(scheme_id=scheme1.id, identifier="parent", pref_label="Parent Concept")
+    child = Concept(scheme_id=scheme1.id, identifier="child", pref_label="Child Concept")
     db_session.add_all([parent, child])
     await db_session.flush()
     await db_session.refresh(parent)
@@ -355,9 +346,7 @@ async def test_full_integration(
     db_session.add(broader_rel)
 
     # Create concept in scheme2
-    standalone = Concept(
-        scheme_id=scheme2.id, identifier="standalone", pref_label="Standalone"
-    )
+    standalone = Concept(scheme_id=scheme2.id, identifier="standalone", pref_label="Standalone")
     db_session.add(standalone)
     await db_session.flush()
 
