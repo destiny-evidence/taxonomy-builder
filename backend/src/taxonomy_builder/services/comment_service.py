@@ -2,10 +2,9 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -108,11 +107,16 @@ class CommentService:
 
         return parent
 
-    async def get_comments(self, concept_id: UUID) -> list[Comment]:
-        """Get all non-deleted comments for a concept, ordered by created_at.
+    async def get_comments(self, concept_id: UUID, resolved: bool | None = None) -> list[Comment]:
+        """Get non-deleted comments for a concept, ordered by created_at.
+
+        Allow filtering out of resolved or unresolved comments.
 
         Args:
             concept_id: The ID of the concept to list comments for
+            resolved: If True, return only resolved comments.
+                      If False, return only unresolved comments.
+                      If None (default), return all comments.
         """
         await self._get_concept(concept_id)
 
@@ -124,10 +128,22 @@ class CommentService:
             .order_by(Comment.created_at)
         )
 
-        result = await self.db.execute(query)
-        all_comments = list(result.scalars().all())
+        if resolved is not None:
+            # Get IDs of matching top-level comments
+            top_level_subq = (
+                select(Comment.id)
+                .where(Comment.concept_id == concept_id, Comment.parent_comment_id.is_(None))
+                .where(Comment.resolved_at.isnot(None) if resolved else Comment.resolved_at.is_(None))
+            )
+            # Get top-level + their replies in one query
+            query = query.where(
+                or_(Comment.id.in_(top_level_subq), Comment.parent_comment_id.in_(top_level_subq))
+            )
 
-        return all_comments
+        result = await self.db.execute(query)
+        comments = list(result.scalars().all())
+
+        return comments
 
     async def list_comment_threads(
             self, concept_id: UUID, resolved: bool | None = None
@@ -140,46 +156,19 @@ class CommentService:
                       If False, return only unresolved comments.
                       If None (default), return all comments.
         """
-        all_comments = await self.get_comments(concept_id=concept_id)
-
-        def _should_include(comment: Comment):
-            """Helper function for comment filtering."""
-            if resolved is None:
-                return True
-
-            if resolved and comment.resolved_at:
-                return True
-
-            if not resolved and not comment.resolved_at:
-                return True
-
-            return False
+        comments = await self.get_comments(concept_id=concept_id, resolved=resolved)
 
         # Separate top-level comments from replies
         top_level = []
         replies_by_parent = defaultdict(list)
 
-        for comment in all_comments:
+        for comment in comments:
             if comment.parent_comment_id is None:
-                if _should_include(comment):
                     top_level.append(comment)
             else:
                 replies_by_parent[comment.parent_comment_id].append(comment)
 
-        if resolved is None:
-            return top_level, replies_by_parent
-
-        present_top_level_comments = set(comment.id for comment in top_level)
-        filtered_replies_by_parent = {parent_id: replies for parent_id, replies in replies_by_parent.items() if parent_id in present_top_level_comments}
-
-        return top_level, filtered_replies_by_parent
-
-
-
-
-
-
-
+        return top_level, replies_by_parent
 
 
     async def create_comment(
