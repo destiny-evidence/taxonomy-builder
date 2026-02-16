@@ -39,7 +39,6 @@ const mockScheme: ConceptScheme = {
   title: "Animal Taxonomy",
   description: "A taxonomy of animals",
   uri: "http://example.org/animals",
-  publisher: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
