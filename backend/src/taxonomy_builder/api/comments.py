@@ -77,7 +77,7 @@ async def list_comments(
             concept_id=concept_id, resolved=resolved
         )
 
-        # Build threaded structure and apply filtering
+        # Build threaded structure
         threads = []
         for parent in top_level:
             parent_dict = format_comment(parent)
@@ -151,7 +151,6 @@ async def resolve_comment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except NotTopLevelCommentError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    # Handle already resolved
 
 @comments_router.post("/{comment_id}/unresolve", status_code=status.HTTP_204_NO_CONTENT)
 async def unresolve_comment(
@@ -165,4 +164,3 @@ async def unresolve_comment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except NotTopLevelCommentError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    # Handle not resolved comment
