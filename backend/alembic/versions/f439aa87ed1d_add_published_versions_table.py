@@ -1,7 +1,7 @@
 """add published_versions table
 
 Revision ID: f439aa87ed1d
-Revises: a5b8b1a6caeb
+Revises: 3b39b875c37c
 Create Date: 2026-02-16 18:05:00.328627
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'f439aa87ed1d'
-down_revision: Union[str, Sequence[str], None] = 'a5b8b1a6caeb'
+down_revision: Union[str, Sequence[str], None] = '3b39b875c37c'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
