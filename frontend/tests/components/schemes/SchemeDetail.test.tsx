@@ -14,7 +14,6 @@ const mockScheme: ConceptScheme = {
   description: "Animal taxonomy",
   uri: "http://example.org/animals",
   publisher: null,
-  version: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -57,7 +56,6 @@ describe("SchemeDetail", () => {
 
     // Should show labels for all fields in edit mode
     expect(screen.getByText(/publisher/i)).toBeInTheDocument();
-    expect(screen.getByText(/version/i)).toBeInTheDocument();
   });
 
   it("displays Edit button in read-only mode", () => {
@@ -142,7 +140,7 @@ describe("SchemeDetail", () => {
       expect(screen.getByDisplayValue("Animals")).toBeInTheDocument();
       expect(screen.getByDisplayValue("http://example.org/animals")).toBeInTheDocument();
       expect(screen.getByDisplayValue("Animal taxonomy")).toBeInTheDocument();
-      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(5);
+      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(4);
     });
 
     it("calls API with updated data when Save is clicked", async () => {
@@ -161,8 +159,7 @@ describe("SchemeDetail", () => {
           uri: "http://example.org/animals",
           description: "Animal taxonomy",
           publisher: null,
-          version: null,
-        });
+                });
       });
     });
 

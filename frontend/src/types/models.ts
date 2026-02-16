@@ -28,7 +28,6 @@ export interface ConceptScheme {
   description: string | null;
   uri: string | null;
   publisher: string | null;
-  version: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,7 +37,6 @@ export interface ConceptSchemeCreate {
   description?: string | null;
   uri?: string | null;
   publisher?: string | null;
-  version?: string | null;
 }
 
 export interface ConceptSchemeUpdate {
@@ -46,7 +44,6 @@ export interface ConceptSchemeUpdate {
   description?: string | null;
   uri?: string | null;
   publisher?: string | null;
-  version?: string | null;
 }
 
 // ============ Concepts ============
@@ -144,21 +141,6 @@ export interface ChangeEvent {
   after_state: Record<string, unknown> | null;
   user_id: string | null;
   user_display_name: string | null;
-}
-
-// ============ Published Versions ============
-export interface PublishedVersion {
-  id: string;
-  scheme_id: string;
-  version_label: string;
-  published_at: string;
-  snapshot: Record<string, unknown>;
-  notes: string | null;
-}
-
-export interface PublishedVersionCreate {
-  version_label: string;
-  notes?: string | null;
 }
 
 // ============ Comments ============
