@@ -59,15 +59,35 @@ def service(db_session: AsyncSession) -> SnapshotService:
 
 
 @pytest.mark.asyncio
+async def test_project_metadata(db_session: AsyncSession) -> None:
+    """Test snapshot includes project identity: id, name, description, namespace."""
+    project = Project(
+        name="Vocab Project",
+        description="A vocabulary for testing",
+        namespace="http://example.org/vocab",
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+
+    assert snapshot["project"] == {
+        "id": str(project.id),
+        "name": "Vocab Project",
+        "description": "A vocabulary for testing",
+        "namespace": "http://example.org/vocab",
+    }
+
+
+@pytest.mark.asyncio
 async def test_empty_project(db_session: AsyncSession, project: Project) -> None:
     """Test snapshot of a project with no schemes, properties, or classes."""
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert snapshot == {
-        "concept_schemes": [],
-        "properties": [],
-        "classes": [],
-    }
+    assert snapshot["concept_schemes"] == []
+    assert snapshot["properties"] == []
+    assert snapshot["classes"] == []
 
 
 @pytest.mark.asyncio
@@ -349,6 +369,10 @@ async def test_full_integration(
         return_value=mock_ontology,
     ):
         snapshot = await service(db_session).build_snapshot(project.id)
+
+    # Project metadata is self-contained
+    assert snapshot["project"]["name"] == "Snapshot Test Project"
+    assert snapshot["project"]["namespace"] == "http://example.org/vocab"
 
     # Two schemes
     assert len(snapshot["concept_schemes"]) == 2

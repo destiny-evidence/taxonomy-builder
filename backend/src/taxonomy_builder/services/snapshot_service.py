@@ -35,9 +35,7 @@ class SnapshotService:
 
         scheme_dicts = []
         for scheme in project.schemes:
-            concepts = await self._concept_service.list_concepts_for_scheme(
-                scheme.id
-            )
+            concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
             scheme_dicts.append(self._build_scheme_dict(scheme, concepts))
 
         property_dicts = [self._build_property_dict(p) for p in project.properties]
@@ -45,15 +43,25 @@ class SnapshotService:
         domain_uris = {p.domain_class for p in project.properties}
         class_dicts = self._build_class_dicts(domain_uris)
 
+        project_metadata_dict = self._build_project_metadata_dict(project)
+
         return {
+            "project": project_metadata_dict,
             "concept_schemes": scheme_dicts,
             "properties": property_dicts,
             "classes": class_dicts,
         }
 
-    def _build_scheme_dict(
-        self, scheme: ConceptScheme, concepts: list[Concept]
-    ) -> dict:
+    def _build_project_metadata_dict(self, project) -> dict:
+        """Build a dict of project metadata."""
+        return {
+            "id": str(project.id),
+            "name": project.name,
+            "description": project.description,
+            "namespace": project.namespace,
+        }
+
+    def _build_scheme_dict(self, scheme: ConceptScheme, concepts: list[Concept]) -> dict:
         """Build a scheme snapshot dict with nested concepts."""
         return {
             "id": str(scheme.id),
