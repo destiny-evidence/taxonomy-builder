@@ -4,6 +4,7 @@ import { HistoryPanel } from "../history/HistoryPanel";
 import { useResizeHandle } from "../../hooks/useResizeHandle";
 import { ontologyClasses } from "../../state/ontology";
 import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
+import { historyVersion } from "../../state/history";
 import { datatypeLabel } from "../../types/models";
 import "./ClassDetailPane.css";
 
@@ -118,7 +119,7 @@ export function ClassDetailPane({
               onMouseDown={onResizeStart}
             />
             <div class="class-detail-pane__section-scroll">
-              <HistoryPanel source={{ type: "project", id: projectId }} />
+              <HistoryPanel source={{ type: "project", id: projectId }} refreshKey={historyVersion.value} />
             </div>
           </div>
         )}

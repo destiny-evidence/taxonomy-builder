@@ -7,6 +7,7 @@ import { Button } from "../common/Button";
 import { useResizeHandle } from "../../hooks/useResizeHandle";
 import { currentScheme } from "../../state/schemes";
 import { treeLoading } from "../../state/concepts";
+import { historyVersion } from "../../state/history";
 import "./TreePane.css";
 
 type ExpandedSection = "history" | "schemeDetails" | null;
@@ -111,7 +112,7 @@ export function TreePane({
                 onMouseDown={onResizeStart}
               />
               <div class="tree-pane__section-scroll">
-                <HistoryPanel source={{ type: "scheme", id: schemeId }} />
+                <HistoryPanel source={{ type: "scheme", id: schemeId }} refreshKey={historyVersion.value} />
               </div>
             </div>
           )}
