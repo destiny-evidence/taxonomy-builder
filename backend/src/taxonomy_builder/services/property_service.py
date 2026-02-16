@@ -116,7 +116,11 @@ class PropertyService:
                 raise SchemeNotInProjectError(range_scheme_id, project_id)
 
     def _serialize_property(self, prop: Property) -> dict:
-        """Serialize a property for change tracking."""
+        """Serialize a property for change tracking.
+
+        Manual serialization because Property is a SQLAlchemy model (no model_dump).
+        Intentionally excludes timestamps and relationships — only domain fields.
+        """
         return {
             "id": str(prop.id),
             "identifier": prop.identifier,

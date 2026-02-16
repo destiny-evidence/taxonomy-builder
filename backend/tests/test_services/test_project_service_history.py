@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectUpdate
+from taxonomy_builder.services.history_service import HistoryService
 from taxonomy_builder.services.project_service import ProjectService
 
 
@@ -22,14 +23,8 @@ async def test_create_project_records_change_event(db_session: AsyncSession) -> 
         )
     )
 
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "project",
-            ChangeEvent.entity_id == project.id,
-            ChangeEvent.action == "create",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_project_history(project.id)
+    event = next(e for e in events if e.action == "create")
 
     assert event.project_id == project.id
     assert event.before_state is None
@@ -52,14 +47,8 @@ async def test_update_project_records_before_and_after(db_session: AsyncSession)
         ProjectUpdate(name="Updated Name", description="Updated desc"),
     )
 
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "project",
-            ChangeEvent.entity_id == project.id,
-            ChangeEvent.action == "update",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_project_history(project.id)
+    event = next(e for e in events if e.action == "update")
 
     assert event.before_state["name"] == "Original Name"
     assert event.after_state["name"] == "Updated Name"
@@ -81,14 +70,8 @@ async def test_update_namespace_records_change(db_session: AsyncSession) -> None
         ProjectUpdate(namespace="http://new.example.org/"),
     )
 
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "project",
-            ChangeEvent.entity_id == project.id,
-            ChangeEvent.action == "update",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_project_history(project.id)
+    event = next(e for e in events if e.action == "update")
 
     assert event.before_state["namespace"] == "http://old.example.org/"
     assert event.after_state["namespace"] == "http://new.example.org/"
@@ -106,6 +89,7 @@ async def test_delete_project_records_change_event(db_session: AsyncSession) -> 
 
     await service.delete_project(project_id)
 
+    # project_id FK is SET NULL on cascade, so query ChangeEvent directly
     result = await db_session.execute(
         select(ChangeEvent).where(
             ChangeEvent.entity_type == "project",

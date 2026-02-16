@@ -35,7 +35,11 @@ class ProjectService:
         self._tracker = ChangeTracker(db, user_id)
 
     def _serialize_project(self, project: Project) -> dict:
-        """Serialize a project for change tracking."""
+        """Serialize a project for change tracking.
+
+        Manual serialization because Project is a SQLAlchemy model (no model_dump).
+        Intentionally excludes timestamps and relationships — only domain fields.
+        """
         return {
             "id": str(project.id),
             "name": project.name,

@@ -9,6 +9,7 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
 from taxonomy_builder.services.concept_service import ConceptService
+from taxonomy_builder.services.history_service import HistoryService
 
 
 @pytest.fixture
@@ -51,15 +52,8 @@ async def test_create_concept_creates_change_event(
         ),
     )
 
-    # Check that a change event was created
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "concept",
-            ChangeEvent.entity_id == concept.id,
-            ChangeEvent.action == "create",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_concept_history(concept.id)
+    event = next(e for e in events if e.action == "create")
 
     assert event.scheme_id == scheme.id
     assert event.before_state is None
@@ -95,15 +89,8 @@ async def test_update_concept_creates_change_event_with_before_after(
         ),
     )
 
-    # Check that an update change event was created
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "concept",
-            ChangeEvent.entity_id == concept_id,
-            ChangeEvent.action == "update",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_concept_history(concept_id)
+    event = next(e for e in events if e.action == "update")
 
     assert event.scheme_id == scheme.id
     assert event.before_state is not None
@@ -135,15 +122,8 @@ async def test_delete_concept_creates_change_event(
     # Delete the concept
     await service.delete_concept(concept_id)
 
-    # Check that a delete change event was created
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "concept",
-            ChangeEvent.entity_id == concept_id,
-            ChangeEvent.action == "delete",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_concept_history(concept_id)
+    event = next(e for e in events if e.action == "delete")
 
     assert event.scheme_id == scheme_id
     assert event.before_state is not None

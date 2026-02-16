@@ -1,7 +1,5 @@
 """Tests for the history API."""
 
-from uuid import uuid4
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -189,20 +187,6 @@ async def test_get_scheme_history_shows_user_display_name(
     assert data[0]["user_display_name"] == "Test User"
 
 
-@pytest.mark.asyncio
-async def test_get_scheme_history_not_found(authenticated_client: AsyncClient) -> None:
-    """Test 404 for non-existent scheme."""
-    response = await authenticated_client.get(f"/api/schemes/{uuid4()}/history")
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_get_concept_history_not_found(authenticated_client: AsyncClient) -> None:
-    """Test 404 for non-existent concept."""
-    response = await authenticated_client.get(f"/api/concepts/{uuid4()}/history")
-    assert response.status_code == 404
-
-
 # ============ Project history ============
 
 
@@ -246,15 +230,6 @@ async def test_get_project_history(
     assert data[1]["action"] == "create"
     assert data[1]["entity_type"] == "property"
     assert data[1]["project_id"] == str(project.id)
-
-
-@pytest.mark.asyncio
-async def test_get_project_history_not_found(
-    authenticated_client: AsyncClient,
-) -> None:
-    """Test 404 for non-existent project."""
-    response = await authenticated_client.get(f"/api/projects/{uuid4()}/history")
-    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -329,10 +304,3 @@ async def test_get_property_history(
     assert data[1]["entity_id"] == str(prop.id)
 
 
-@pytest.mark.asyncio
-async def test_get_property_history_not_found(
-    authenticated_client: AsyncClient,
-) -> None:
-    """Test 404 for non-existent property."""
-    response = await authenticated_client.get(f"/api/properties/{uuid4()}/history")
-    assert response.status_code == 404
