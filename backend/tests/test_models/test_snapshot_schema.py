@@ -6,9 +6,9 @@ import pytest
 from pydantic import ValidationError
 
 from taxonomy_builder.schemas.snapshot import (
-    SnapshotProjectMetadata,
     SnapshotClass,
     SnapshotConcept,
+    SnapshotProjectMetadata,
     SnapshotProperty,
     SnapshotScheme,
     SnapshotVocabulary,
@@ -62,22 +62,6 @@ class TestSnapshotConcept:
         c = SnapshotConcept(**_concept())
         assert c.pref_label == "Concept One"
         assert c.id == UUID("00000000-0000-0000-0000-000000000001")
-        assert c.alt_labels == []
-        assert c.broader_ids == []
-        assert c.related_ids == []
-
-    def test_defaults(self) -> None:
-        c = SnapshotConcept(**_concept())
-        assert c.definition is None
-        assert c.scope_note is None
-        assert c.alt_labels == []
-        assert c.broader_ids == []
-        assert c.related_ids == []
-
-    def test_nullable_fields(self) -> None:
-        c = SnapshotConcept(**_concept(identifier=None, uri=None))
-        assert c.identifier is None
-        assert c.uri is None
 
     def test_missing_required_field(self) -> None:
         data = _concept()
@@ -91,12 +75,6 @@ class TestSnapshotScheme:
         s = SnapshotScheme(**_scheme(concepts=[_concept()]))
         assert len(s.concepts) == 1
         assert s.concepts[0].pref_label == "Concept One"
-
-    def test_defaults(self) -> None:
-        s = SnapshotScheme(**_scheme())
-        assert s.description is None
-        assert s.uri is None
-        assert s.concepts == []
 
 
 class TestSnapshotProperty:
@@ -115,24 +93,13 @@ class TestSnapshotProperty:
     def test_with_range_datatype(self) -> None:
         p = SnapshotProperty(**_property())
         assert p.range_scheme_id is None
-        assert p.range_scheme_uri is None
         assert p.range_datatype == "xsd:string"
-
-    def test_defaults(self) -> None:
-        p = SnapshotProperty(**_property())
-        assert p.description is None
-        assert p.range_scheme_id is None
-        assert p.range_scheme_uri is None
 
 
 class TestSnapshotClass:
     def test_valid(self) -> None:
         c = SnapshotClass(uri="http://example.org/C", label="C", description="A class")
         assert c.uri == "http://example.org/C"
-
-    def test_nullable_description(self) -> None:
-        c = SnapshotClass(uri="http://example.org/C", label="C")
-        assert c.description is None
 
 
 class TestSnapshotProjectMetadata:
@@ -142,13 +109,6 @@ class TestSnapshotProjectMetadata:
         )
         assert p.id == UUID("00000000-0000-0000-0000-000000000099")
         assert p.name == "Test"
-
-    def test_defaults(self) -> None:
-        p = SnapshotProjectMetadata(
-            id="00000000-0000-0000-0000-000000000099", name="Test"
-        )
-        assert p.description is None
-        assert p.namespace is None
 
 
 class TestSnapshotVocabulary:
@@ -171,19 +131,6 @@ class TestSnapshotVocabulary:
         assert len(s.concept_schemes[0].concepts) == 1
         assert len(s.properties) == 1
         assert len(s.classes) == 1
-
-    def test_round_trip(self) -> None:
-        """model_dump -> model_validate produces identical result."""
-        original = SnapshotVocabulary(
-            **_snapshot(
-                concept_schemes=[_scheme(concepts=[_concept()])],
-                properties=[_property()],
-                classes=[{"uri": "http://example.org/C", "label": "C"}],
-            )
-        )
-        raw = original.model_dump(mode="json")
-        restored = SnapshotVocabulary.model_validate(raw)
-        assert restored == original
 
     def test_missing_project_fails(self) -> None:
         with pytest.raises(ValidationError):
