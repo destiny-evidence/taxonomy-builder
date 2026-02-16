@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -400,3 +401,199 @@ async def test_project_relationship(
 
     assert version.project is not None
     assert version.project.id == project.id
+
+
+@pytest.mark.asyncio
+async def test_version_sort_key_computed(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that version_sort_key is computed from a 3-part semver."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="1.2.3",
+        title="Release",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.version_sort_key == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_version_sort_key_two_part(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that version_sort_key works with 2-part semver."""
+    version = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="Release",
+        snapshot={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    await db_session.refresh(version)
+
+    assert version.version_sort_key == [2, 0]
+
+
+@pytest.mark.asyncio
+async def test_latest_true_for_highest_finalized(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that latest is True only for the highest finalized version."""
+    v1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="V1",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    v2 = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="V2",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    db_session.add_all([v1, v2])
+    await db_session.flush()
+
+    # Re-query to get fresh column_property values
+    result = await db_session.execute(
+        select(PublishedVersion)
+        .where(PublishedVersion.project_id == project.id)
+        .execution_options(populate_existing=True)
+    )
+    versions = {v.version: v for v in result.scalars().all()}
+
+    assert versions["2.0"].latest is True
+    assert versions["1.0"].latest is False
+
+
+@pytest.mark.asyncio
+async def test_latest_excludes_drafts(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that a draft with higher version doesn't count as latest."""
+    finalized = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Released",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    draft = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="Draft",
+        finalized=False,
+        snapshot={},
+    )
+    db_session.add_all([finalized, draft])
+    await db_session.flush()
+
+    result = await db_session.execute(
+        select(PublishedVersion)
+        .where(PublishedVersion.project_id == project.id)
+        .execution_options(populate_existing=True)
+    )
+    versions = {v.version: v for v in result.scalars().all()}
+
+    assert versions["1.0"].latest is True
+    assert versions["2.0"].latest is False
+
+
+@pytest.mark.asyncio
+async def test_latest_false_when_not_finalized(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that a single draft version is not latest."""
+    draft = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Draft",
+        finalized=False,
+        snapshot={},
+    )
+    db_session.add(draft)
+    await db_session.flush()
+
+    result = await db_session.execute(
+        select(PublishedVersion)
+        .where(PublishedVersion.project_id == project.id)
+        .execution_options(populate_existing=True)
+    )
+    loaded = result.scalar_one()
+
+    assert loaded.latest is False
+
+
+@pytest.mark.asyncio
+async def test_latest_queryable(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that latest can be used as a filter in queries."""
+    v1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="V1",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    v2 = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="V2",
+        finalized=True,
+        published_at=datetime.now(),
+        snapshot={},
+    )
+    db_session.add_all([v1, v2])
+    await db_session.flush()
+
+    result = await db_session.execute(
+        select(PublishedVersion).where(
+            PublishedVersion.project_id == project.id,
+            PublishedVersion.latest == True,  # noqa: E712
+        )
+    )
+    latest = result.scalar_one()
+
+    assert latest.version == "2.0"
+
+
+@pytest.mark.asyncio
+async def test_latest_semver_ordering(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that latest uses numeric semver ordering, not string ordering."""
+    for v in ["1.0", "1.9", "1.10"]:
+        db_session.add(
+            PublishedVersion(
+                project_id=project.id,
+                version=v,
+                title=f"V{v}",
+                finalized=True,
+                published_at=datetime.now(),
+                snapshot={},
+            )
+        )
+    await db_session.flush()
+
+    result = await db_session.execute(
+        select(PublishedVersion).where(
+            PublishedVersion.project_id == project.id,
+            PublishedVersion.latest == True,  # noqa: E712
+        )
+    )
+    latest = result.scalar_one()
+
+    # String ordering would give "1.9" > "1.10", but semver gives "1.10"
+    assert latest.version == "1.10"
