@@ -371,6 +371,31 @@ async def test_unresolve_comment_happy_path(
     assert comment.resolved_by is None
 
 @pytest.mark.asyncio
+async def test_resolve_already_resolved_comment_does_not_update_fields(
+    db_session: AsyncSession, concept: Concept, user: User, other_user: User
+) -> None:
+    """Test that resolving an already-resolved comment doesn't update resolution fields."""
+    original_resolved_at = datetime(2024, 1, 1, 12, 0, 0)
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Already resolved comment",
+        resolved_at=original_resolved_at,
+        resolved_by=user.id
+    )
+    db_session.add(comment)
+    await db_session.flush()
+
+    # Try to resolve again with a different user
+    service = CommentService(db_session, user_id=other_user.id)
+    await service.resolve_comment(comment_id=comment.id)
+
+    # Verify resolution fields remain unchanged
+    await db_session.refresh(comment)
+    assert comment.resolved_at == original_resolved_at
+    assert comment.resolved_by == user.id  # Should still be the original user
+
+@pytest.mark.asyncio
 async def test_resolve_or_unresolve_comment_raises_error_if_not_top_level(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:

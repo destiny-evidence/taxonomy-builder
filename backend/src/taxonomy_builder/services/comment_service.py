@@ -160,14 +160,20 @@ class CommentService:
         await self.db.flush()
 
     async def resolve_comment(self, comment_id: UUID) -> None:
-        """Resolve a comment (only if it is a top level comment)."""
+        """
+        Resolve a comment (only if it is a top level comment).
+
+        If the comment is already resolved, do not update the resolution fields.
+        """
         comment = await self._get_comment(comment_id)
 
         if comment.parent_comment_id:
             raise NotTopLevelCommentError(comment_id=comment.id, action="resolve")
 
-        comment.resolved_at = datetime.now()
-        comment.resolved_by = self.user_id
+        # Only set resolution fields if not already resolved
+        if comment.resolved_at is None:
+            comment.resolved_at = datetime.now()
+            comment.resolved_by = self.user_id
 
         await self.db.flush()
 
