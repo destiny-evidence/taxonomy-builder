@@ -13,6 +13,12 @@ export const HISTORY_FILTERS: HistoryFilter[] = [
   { key: "versions", label: "Published versions", types: ["published_version"] },
 ];
 
+/** Filter keys relevant to each history source type. */
+export const SOURCE_FILTERS: Record<string, string[]> = {
+  scheme: ["concepts", "schemes", "relationships", "properties", "project", "versions"],
+  project: ["properties", "project"],
+};
+
 /**
  * Convert selected filter keys to a set of allowed entity types.
  * Returns null when no filters selected (meaning show all).

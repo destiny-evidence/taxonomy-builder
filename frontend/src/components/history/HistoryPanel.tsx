@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import { getSchemeHistory, getProjectHistory } from "../../api/history";
 import { getActionLabel, getEntityTypeLabel } from "./historyStrings";
-import { HISTORY_FILTERS, getAllowedEntityTypes } from "./historyFilters";
+import { HISTORY_FILTERS, SOURCE_FILTERS, getAllowedEntityTypes } from "./historyFilters";
 import type { ChangeEvent } from "../../types/models";
 import "./HistoryPanel.css";
 
@@ -94,7 +94,19 @@ export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
   const [history, setHistory] = useState<ChangeEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set());
+  const defaultFilters = useMemo(() => {
+    if (source.type === "project") {
+      return new Set(["properties"]);
+    }
+    // Scheme view: focus on concepts by default
+    return new Set(["concepts"]);
+  }, [source.type]);
+  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(defaultFilters);
+
+  // Reset filters when navigating to a different source
+  useEffect(() => {
+    setSelectedFilters(defaultFilters);
+  }, [source.type, source.id]);
 
   useEffect(() => {
     async function fetchHistory() {
@@ -115,10 +127,20 @@ export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
     fetchHistory();
   }, [source.type, source.id, refreshKey]);
 
+  const allowedKeys = SOURCE_FILTERS[source.type] ?? HISTORY_FILTERS.map((f) => f.key);
   const relevantFilters = useMemo(
-    () => HISTORY_FILTERS.filter((f) => history.some((e) => f.types.includes(e.entity_type))),
-    [history],
+    () => HISTORY_FILTERS.filter((f) => allowedKeys.includes(f.key) && history.some((e) => f.types.includes(e.entity_type))),
+    [history, allowedKeys],
   );
+
+  // If the default filter has no matches, activate all relevant filters
+  useEffect(() => {
+    if (history.length === 0) return;
+    const allowed = getAllowedEntityTypes(selectedFilters);
+    if (allowed && !history.some((e) => allowed.has(e.entity_type))) {
+      setSelectedFilters(new Set(relevantFilters.map((f) => f.key)));
+    }
+  }, [history, relevantFilters]);
 
   const filteredHistory = useMemo(() => {
     const allowed = getAllowedEntityTypes(selectedFilters);
@@ -162,47 +184,25 @@ export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
     );
   }
 
-  const filterSummary =
-    selectedFilters.size === 0
-      ? "Filter: All changes"
-      : `Filter: ${[...selectedFilters].map((k) => relevantFilters.find((f) => f.key === k)?.label).filter(Boolean).join(", ")}`;
-
   return (
     <div class="history-panel">
-      {relevantFilters.length > 1 && (
-        <details class="history-panel__filters">
-          <summary class="history-panel__filters-summary">{filterSummary}</summary>
-          <div class="history-panel__filters-options">
-            {relevantFilters.map((f) => (
-              <label key={f.key} class="history-panel__filter-option">
-                <input
-                  type="checkbox"
-                  checked={selectedFilters.has(f.key)}
-                  onChange={() => toggleFilter(f.key)}
-                />
-                {f.label}
-              </label>
-            ))}
-            {selectedFilters.size > 0 && (
-              <button
-                class="history-panel__filters-reset"
-                onClick={() => setSelectedFilters(new Set())}
-              >
-                Show all changes
-              </button>
-            )}
-          </div>
-        </details>
-      )}
+      <div class="history-panel__filters">
+        <span class="history-panel__filters-label">Show only</span>
+        <div class="history-panel__filters-pills">
+          {relevantFilters.map((f) => (
+            <button
+              key={f.key}
+              class={`history-panel__filter-pill${selectedFilters.has(f.key) ? " history-panel__filter-pill--active" : ""}`}
+              onClick={() => toggleFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
       {filteredHistory.length === 0 ? (
         <div class="history-panel__empty">
-          No changes match the current filters.{" "}
-          <button
-            class="history-panel__filters-reset"
-            onClick={() => setSelectedFilters(new Set())}
-          >
-            Show all changes
-          </button>
+          No changes match the current filters.
         </div>
       ) : (
         <div class="history-panel__list">
