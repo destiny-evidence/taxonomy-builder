@@ -155,6 +155,8 @@ export interface Comment {
   content: string;
   created_at: string;
   updated_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
   user: CommentAuthor;
   can_delete: boolean;
   replies?: Comment[];  // Nested replies for threaded display

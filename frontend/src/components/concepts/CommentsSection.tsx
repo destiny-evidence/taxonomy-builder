@@ -109,6 +109,22 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
+  async function handleUnresolve(commentId: string) {
+    setLoading(true);
+    try {
+      await commentsApi.unresolve(commentId);
+      await loadComments();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Failed to unresolve comment");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleReplySubmit(e: Event, parentId: string) {
     e.preventDefault();
     if (!replyContent.trim()) return;
@@ -270,10 +286,10 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleResolve(comment.id)}
+                        onClick={() => comment.resolved_at ? handleUnresolve(comment.id) : handleResolve(comment.id)}
                         disabled={loading}
                       >
-                        Resolve
+                        {comment.resolved_at ? "Unresolve" : "Resolve"}
                       </Button>
                     </div>
                   )}
