@@ -1,6 +1,9 @@
 """Tests for Property Pydantic schemas."""
 
+from uuid import uuid4
+
 import pytest
+from faker import Faker
 from pydantic import ValidationError
 
 from taxonomy_builder.schemas.property import (
@@ -9,40 +12,47 @@ from taxonomy_builder.schemas.property import (
     PropertyUpdate,
 )
 
+fake = Faker()
+
 
 class TestPropertyCreate:
     """Tests for PropertyCreate schema."""
 
     def test_valid_property_with_range_scheme(self) -> None:
         """Test creating a valid property with range_scheme_id."""
-        from uuid import uuid4
-
         scheme_id = uuid4()
+        identifier = fake.slug()
+        label = fake.sentence(nb_words=2)
+        description = fake.sentence()
+        domain_class = fake.uri()
         prop = PropertyCreate(
-            identifier="educationLevel",
-            label="Education Level",
-            description="The level of education",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            identifier=identifier,
+            label=label,
+            description=description,
+            domain_class=domain_class,
             range_scheme_id=scheme_id,
             cardinality="single",
             required=False,
         )
-        assert prop.identifier == "educationLevel"
+        assert prop.identifier == identifier
         assert prop.range_scheme_id == scheme_id
         assert prop.range_datatype is None
         assert prop.cardinality == "single"
 
     def test_valid_property_with_range_datatype(self) -> None:
         """Test creating a valid property with range_datatype."""
+        identifier = fake.slug()
+        label = fake.sentence(nb_words=2)
+        domain_class = fake.uri()
         prop = PropertyCreate(
-            identifier="sampleSize",
-            label="Sample Size",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            identifier=identifier,
+            label=label,
+            domain_class=domain_class,
             range_datatype="xsd:integer",
             cardinality="single",
             required=True,
         )
-        assert prop.identifier == "sampleSize"
+        assert prop.identifier == identifier
         assert prop.range_scheme_id is None
         assert prop.range_datatype == "xsd:integer"
 
@@ -50,8 +60,8 @@ class TestPropertyCreate:
         """Test that identifier has whitespace stripped."""
         prop = PropertyCreate(
             identifier="  educationLevel  ",
-            label="Education Level",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            label=fake.sentence(nb_words=2),
+            domain_class=fake.uri(),
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -59,12 +69,11 @@ class TestPropertyCreate:
 
     def test_identifier_must_be_uri_safe(self) -> None:
         """Test that identifier must be URI-safe."""
-        # Invalid: contains spaces
         with pytest.raises(ValidationError) as exc_info:
             PropertyCreate(
                 identifier="education level",
-                label="Education Level",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                label=fake.sentence(nb_words=2),
+                domain_class=fake.uri(),
                 range_datatype="xsd:string",
                 cardinality="single",
             )
@@ -75,8 +84,8 @@ class TestPropertyCreate:
         with pytest.raises(ValidationError) as exc_info:
             PropertyCreate(
                 identifier="123abc",
-                label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                label=fake.sentence(nb_words=2),
+                domain_class=fake.uri(),
                 range_datatype="xsd:string",
                 cardinality="single",
             )
@@ -86,8 +95,8 @@ class TestPropertyCreate:
         """Test that identifier can contain underscores and hyphens."""
         prop = PropertyCreate(
             identifier="education_level-type",
-            label="Education Level Type",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            label=fake.sentence(nb_words=2),
+            domain_class=fake.uri(),
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -97,9 +106,9 @@ class TestPropertyCreate:
         """Test that cardinality must be 'single' or 'multiple'."""
         with pytest.raises(ValidationError) as exc_info:
             PropertyCreate(
-                identifier="test",
-                label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                identifier=fake.slug(),
+                label=fake.sentence(nb_words=2),
+                domain_class=fake.uri(),
                 range_datatype="xsd:string",
                 cardinality="many",
             )
@@ -109,9 +118,9 @@ class TestPropertyCreate:
         """Test that all allowed datatypes are accepted."""
         for datatype in ALLOWED_DATATYPES:
             prop = PropertyCreate(
-                identifier="testProp",
-                label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                identifier=fake.slug(),
+                label=fake.sentence(nb_words=2),
+                domain_class=fake.uri(),
                 range_datatype=datatype,
                 cardinality="single",
             )
@@ -121,9 +130,9 @@ class TestPropertyCreate:
         """Test that invalid datatypes are rejected."""
         with pytest.raises(ValidationError) as exc_info:
             PropertyCreate(
-                identifier="testProp",
-                label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                identifier=fake.slug(),
+                label=fake.sentence(nb_words=2),
+                domain_class=fake.uri(),
                 range_datatype="xsd:float",
                 cardinality="single",
             )
@@ -135,8 +144,9 @@ class TestPropertyUpdate:
 
     def test_partial_update(self) -> None:
         """Test updating only some fields."""
-        prop = PropertyUpdate(label="New Label")
-        assert prop.label == "New Label"
+        label = fake.sentence(nb_words=2)
+        prop = PropertyUpdate(label=label)
+        assert prop.label == label
         assert prop.identifier is None
         assert prop.cardinality is None
 
