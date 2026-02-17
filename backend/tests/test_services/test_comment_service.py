@@ -87,24 +87,24 @@ async def other_user(db_session: AsyncSession) -> User:
     return user
 
 
-# ============ List Comments Tests ============
+# ============ Get Comments Tests ============
 
 
 @pytest.mark.asyncio
-async def test_list_comments_empty(
+async def test_get_comments_empty(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
-    """Test listing comments when none exist."""
+    """Test getting comments when none exist."""
     service = CommentService(db_session, user_id=user.id)
     comments = await service.get_comments(concept.id)
     assert comments == []
 
 
 @pytest.mark.asyncio
-async def test_list_comments(
+async def test_get_comments(
     db_session: AsyncSession, concept: Concept, user: User,
 ) -> None:
-    """Test listing comments for a concept."""
+    """Test getting comments for a concept."""
     comment = Comment(
         concept_id=concept.id,
         user_id=user.id,
@@ -121,10 +121,10 @@ async def test_list_comments(
     assert comments[0].user.display_name == "Test User"
 
 @pytest.mark.asyncio
-async def test_list_comments_resolution_filtering(
+async def test_get_comments_resolution_filtering(
     db_session: AsyncSession, concept: Concept, user: User, other_user: User
 ) -> None:
-    """Test listing comments for a concept."""
+    """Test geting comments for a concept."""
     unresolved_comment = Comment(
         concept_id=concept.id,
         user_id=user.id,
@@ -160,7 +160,7 @@ async def test_list_comments_resolution_filtering(
     assert resolved_comments[0].user.display_name == resolved_comment.user.display_name
 
 @pytest.mark.asyncio
-async def test_list_comments_excludes_deleted(
+async def test_get_comments_excludes_deleted(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test that soft-deleted comments are excluded."""
@@ -186,7 +186,7 @@ async def test_list_comments_excludes_deleted(
 
 
 @pytest.mark.asyncio
-async def test_list_comments_ordered_by_created_at(
+async def test_get_comments_ordered_by_created_at(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test comments are ordered by created_at ascending (oldest first)."""
@@ -216,10 +216,10 @@ async def test_list_comments_ordered_by_created_at(
 
 
 @pytest.mark.asyncio
-async def test_list_comments_concept_not_found(
+async def test_get_comments_concept_not_found(
     db_session: AsyncSession, user: User
 ) -> None:
-    """Test listing comments for non-existent concept."""
+    """Test geting comments for non-existent concept."""
     fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
     service = CommentService(db_session, user_id=user.id)
 
@@ -291,10 +291,10 @@ async def test_delete_comment(
 
 
 @pytest.mark.asyncio
-async def test_delete_comment_removes_from_list(
+async def test_delete_comment_removes_from_get(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
-    """Test that deleted comment doesn't appear in list."""
+    """Test that deleted comment doesn't appear in get."""
     comment = Comment(
         concept_id=concept.id,
         user_id=user.id,
