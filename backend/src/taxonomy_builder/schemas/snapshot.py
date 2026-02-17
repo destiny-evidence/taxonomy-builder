@@ -74,3 +74,53 @@ class SnapshotVocabulary(BaseModel):
     concept_schemes: list[SnapshotScheme] = Field(default_factory=list)
     properties: list[SnapshotProperty] = Field(default_factory=list)
     classes: list[SnapshotClass] = Field(default_factory=list)
+
+
+class ValidationError(BaseModel):
+    """A single validation error that blocks publishing."""
+
+    code: str
+    message: str
+    entity_type: str | None = None
+    entity_id: UUID | None = None
+    entity_label: str | None = None
+
+
+class ValidationResult(BaseModel):
+    """Result of pre-publish validation."""
+
+    valid: bool
+    errors: list[ValidationError] = Field(default_factory=list)
+
+
+class DiffItem(BaseModel):
+    """A single changed entity in a diff."""
+
+    id: UUID
+    label: str
+    entity_type: str
+
+
+class FieldChange(BaseModel):
+    """A single field change within a modified entity."""
+
+    field: str
+    old: str | None = None
+    new: str | None = None
+
+
+class ModifiedItem(BaseModel):
+    """An entity that was modified between versions."""
+
+    id: UUID
+    label: str
+    entity_type: str
+    changes: list[FieldChange] = Field(default_factory=list)
+
+
+class DiffResult(BaseModel):
+    """Diff between current project state and last published version."""
+
+    added: list[DiffItem] = Field(default_factory=list)
+    modified: list[ModifiedItem] = Field(default_factory=list)
+    removed: list[DiffItem] = Field(default_factory=list)
