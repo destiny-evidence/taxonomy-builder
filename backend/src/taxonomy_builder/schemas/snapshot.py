@@ -166,7 +166,8 @@ class ValidationResult(BaseModel):
 class DiffItem(BaseModel):
     """A single changed entity in a diff."""
 
-    id: UUID
+    id: UUID | None = None
+    uri: str | None = None
     label: str
     entity_type: str
 

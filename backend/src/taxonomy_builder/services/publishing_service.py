@@ -123,8 +123,12 @@ class PublishingService:
         """Diff two snapshots, returning added/modified/removed items."""
         prev_schemes = {s.id: s for s in previous.concept_schemes} if previous else {}
         curr_schemes = {s.id: s for s in current.concept_schemes}
+        prev_props = {p.id: p for p in previous.properties} if previous else {}
+        curr_props = {p.id: p for p in current.properties}
+        prev_classes = {c.uri: c for c in previous.classes} if previous else {}
+        curr_classes = {c.uri: c for c in current.classes}
 
-        # Categorise schemes
+        # Categorise changes
         added_schemes = [
             curr_schemes[scheme_id] for scheme_id in curr_schemes.keys() - prev_schemes.keys()
         ]
@@ -140,6 +144,13 @@ class PublishingService:
             )
             for scheme_id in prev_schemes.keys() & curr_schemes.keys()
         ]
+        added_properties = [curr_props[pid] for pid in curr_props.keys() - prev_props.keys()]
+        removed_properties = [prev_props[pid] for pid in prev_props.keys() - curr_props.keys()]
+        modified_properties = [
+            (prev_props[pid], curr_props[pid]) for pid in prev_props.keys() & curr_props.keys()
+        ]
+        added_classes = [curr_classes[uri] for uri in curr_classes.keys() - prev_classes.keys()]
+        removed_classes = [prev_classes[uri] for uri in prev_classes.keys() - curr_classes.keys()]
 
         added = (
             # New schemes
@@ -155,10 +166,19 @@ class PublishingService:
             ]
             # New concepts in existing schemes
             + [
-                DiffItem(id=cid, label=curr_c[cid].pref_label, entity_type="concept")
-                for _, _, prev_c, curr_c in modified_schemes
-                for cid in curr_c.keys() - prev_c.keys()
+                DiffItem(
+                    id=concept_id, label=curr_concepts[concept_id].pref_label, entity_type="concept"
+                )
+                for _, _, prev_concepts, curr_concepts in modified_schemes
+                for concept_id in curr_concepts.keys() - prev_concepts.keys()
             ]
+            # New properties
+            + [
+                DiffItem(id=property.id, label=property.label, entity_type="property")
+                for property in added_properties
+            ]
+            # New classes
+            + [DiffItem(uri=cls.uri, label=cls.label, entity_type="class") for cls in added_classes]
         )
 
         removed = (
@@ -175,9 +195,21 @@ class PublishingService:
             ]
             # Removed concepts in existing schemes
             + [
-                DiffItem(id=cid, label=prev_c[cid].pref_label, entity_type="concept")
-                for _, _, prev_c, curr_c in modified_schemes
-                for cid in prev_c.keys() - curr_c.keys()
+                DiffItem(
+                    id=concept_id, label=prev_concepts[concept_id].pref_label, entity_type="concept"
+                )
+                for _, _, prev_concepts, curr_concepts in modified_schemes
+                for concept_id in prev_concepts.keys() - curr_concepts.keys()
+            ]
+            # Removed properties
+            + [
+                DiffItem(id=property.id, label=property.label, entity_type="property")
+                for property in removed_properties
+            ]
+            # Removed classes
+            + [
+                DiffItem(uri=cls.uri, label=cls.label, entity_type="class")
+                for cls in removed_classes
             ]
         )
 
@@ -210,6 +242,21 @@ class PublishingService:
                 if (
                     changes := PublishingService._field_changes(
                         prev_concepts[concept_id], curr_concepts[concept_id], {"id"}
+                    )
+                )
+            ]
+            # Modified properties
+            + [
+                ModifiedItem(
+                    id=curr_property.id,
+                    label=curr_property.label,
+                    entity_type="property",
+                    changes=changes,
+                )
+                for prev_property, curr_property in modified_properties
+                if (
+                    changes := PublishingService._field_changes(
+                        prev_property, curr_property, {"id"}
                     )
                 )
             ]
