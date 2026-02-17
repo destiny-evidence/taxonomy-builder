@@ -3,6 +3,7 @@
 from uuid import UUID
 
 import pytest
+from faker import Faker
 from pydantic import ValidationError
 
 from taxonomy_builder.schemas.snapshot import (
@@ -14,35 +15,37 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotVocabulary,
 )
 
+fake = Faker()
+
 
 def _concept(**overrides) -> dict:
     defaults = {
-        "id": "00000000-0000-0000-0000-000000000001",
-        "identifier": "c1",
-        "uri": "http://example.org/c1",
-        "pref_label": "Concept One",
+        "id": str(fake.uuid4()),
+        "identifier": fake.slug(),
+        "uri": fake.uri(),
+        "pref_label": fake.sentence(nb_words=2),
     }
     return {**defaults, **overrides}
 
 
 def _scheme(**overrides) -> dict:
     defaults = {
-        "id": "00000000-0000-0000-0000-000000000010",
-        "title": "Test Scheme",
+        "id": str(fake.uuid4()),
+        "title": fake.sentence(nb_words=3),
     }
     return {**defaults, **overrides}
 
 
 def _property(**overrides) -> dict:
     defaults = {
-        "id": "00000000-0000-0000-0000-000000000020",
-        "identifier": "prop1",
-        "uri": "http://example.org/prop1",
-        "label": "Property One",
-        "domain_class": "http://example.org/Class",
+        "id": str(fake.uuid4()),
+        "identifier": fake.slug(),
+        "uri": fake.uri(),
+        "label": fake.sentence(nb_words=2),
+        "domain_class": fake.uri(),
         "range_datatype": "xsd:string",
-        "cardinality": "single",
-        "required": False,
+        "cardinality": fake.random_element(["single", "multiple"]),
+        "required": fake.boolean(),
     }
     return {**defaults, **overrides}
 
@@ -50,8 +53,8 @@ def _property(**overrides) -> dict:
 def _snapshot(**overrides) -> dict:
     defaults = {
         "project": {
-            "id": "00000000-0000-0000-0000-000000000099",
-            "name": "Test Project",
+            "id": str(fake.uuid4()),
+            "name": fake.company(),
         },
     }
     return {**defaults, **overrides}
@@ -59,9 +62,10 @@ def _snapshot(**overrides) -> dict:
 
 class TestSnapshotConcept:
     def test_valid(self) -> None:
-        c = SnapshotConcept(**_concept())
-        assert c.pref_label == "Concept One"
-        assert c.id == UUID("00000000-0000-0000-0000-000000000001")
+        data = _concept()
+        c = SnapshotConcept(**data)
+        assert c.pref_label == data["pref_label"]
+        assert c.id == UUID(data["id"])
 
     def test_missing_required_field(self) -> None:
         data = _concept()
@@ -72,22 +76,25 @@ class TestSnapshotConcept:
 
 class TestSnapshotScheme:
     def test_valid_with_concepts(self) -> None:
-        s = SnapshotScheme(**_scheme(concepts=[_concept()]))
+        concept_data = _concept()
+        s = SnapshotScheme(**_scheme(concepts=[concept_data]))
         assert len(s.concepts) == 1
-        assert s.concepts[0].pref_label == "Concept One"
+        assert s.concepts[0].pref_label == concept_data["pref_label"]
 
 
 class TestSnapshotProperty:
     def test_with_range_scheme(self) -> None:
+        scheme_id = str(fake.uuid4())
+        scheme_uri = fake.uri()
         p = SnapshotProperty(
             **_property(
-                range_scheme_id="00000000-0000-0000-0000-000000000010",
-                range_scheme_uri="http://example.org/scheme",
+                range_scheme_id=scheme_id,
+                range_scheme_uri=scheme_uri,
                 range_datatype=None,
             )
         )
-        assert p.range_scheme_id == UUID("00000000-0000-0000-0000-000000000010")
-        assert p.range_scheme_uri == "http://example.org/scheme"
+        assert p.range_scheme_id == UUID(scheme_id)
+        assert p.range_scheme_uri == scheme_uri
         assert p.range_datatype is None
 
     def test_with_range_datatype(self) -> None:
@@ -98,23 +105,25 @@ class TestSnapshotProperty:
 
 class TestSnapshotClass:
     def test_valid(self) -> None:
-        c = SnapshotClass(uri="http://example.org/C", label="C", description="A class")
-        assert c.uri == "http://example.org/C"
+        uri = fake.uri()
+        c = SnapshotClass(uri=uri, label="C", description="A class")
+        assert c.uri == uri
 
 
 class TestSnapshotProjectMetadata:
     def test_valid(self) -> None:
-        p = SnapshotProjectMetadata(
-            id="00000000-0000-0000-0000-000000000099", name="Test"
-        )
-        assert p.id == UUID("00000000-0000-0000-0000-000000000099")
-        assert p.name == "Test"
+        pid = str(fake.uuid4())
+        name = fake.company()
+        p = SnapshotProjectMetadata(id=pid, name=name)
+        assert p.id == UUID(pid)
+        assert p.name == name
 
 
 class TestSnapshotVocabulary:
     def test_empty_snapshot(self) -> None:
-        s = SnapshotVocabulary(**_snapshot())
-        assert s.project.name == "Test Project"
+        data = _snapshot()
+        s = SnapshotVocabulary(**data)
+        assert s.project.name == data["project"]["name"]
         assert s.concept_schemes == []
         assert s.properties == []
         assert s.classes == []
@@ -124,7 +133,7 @@ class TestSnapshotVocabulary:
             **_snapshot(
                 concept_schemes=[_scheme(concepts=[_concept()])],
                 properties=[_property()],
-                classes=[{"uri": "http://example.org/C", "label": "C"}],
+                classes=[{"uri": fake.uri(), "label": "C"}],
             )
         )
         assert len(s.concept_schemes) == 1
