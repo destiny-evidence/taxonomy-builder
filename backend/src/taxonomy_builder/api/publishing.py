@@ -73,7 +73,7 @@ async def publish_version(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValidationFailedError as e:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(e),
                 "errors": [err.model_dump() for err in e.validation_result.errors],
@@ -136,6 +136,16 @@ async def finalize_version(
         return PublishedVersionRead.model_validate(version)
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NotADraftError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ValidationFailedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "message": str(e),
+                "errors": [err.model_dump() for err in e.validation_result.errors],
+            },
+        )
 
 
 @router.patch(
@@ -159,7 +169,7 @@ async def update_draft(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except ValidationFailedError as e:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(e),
                 "errors": [err.model_dump() for err in e.validation_result.errors],

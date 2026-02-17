@@ -276,6 +276,9 @@ class PublishingService:
         if not validation.valid:
             raise ValidationFailedError(validation)
 
+        if request.finalized and await self._get_draft(project_id) is not None:
+            raise DraftExistsError()
+
         previous = await self._get_latest_finalized(project_id)
 
         version = PublishedVersion(
@@ -310,8 +313,17 @@ class PublishingService:
         project_id: UUID,
         version_id: UUID,
     ) -> PublishedVersion:
-        """Promote a draft version to finalized."""
+        """Promote a draft to finalized, capturing current project state."""
         version = await self.get_version(project_id, version_id)
+        if version.finalized:
+            raise NotADraftError(version_id)
+
+        snapshot = await self._snapshot_service.build_snapshot(project_id)
+        validation = self.validate_snapshot(snapshot)
+        if not validation.valid:
+            raise ValidationFailedError(validation)
+
+        version.snapshot = snapshot.model_dump(mode="json")
         version.finalized = True
         version.published_at = datetime.now()
         await self.db.flush()
@@ -320,6 +332,7 @@ class PublishingService:
 
     async def list_versions(self, project_id: UUID) -> list[PublishedVersion]:
         """List all published versions for a project, newest first."""
+        await self._project_service.get_project(project_id)
         result = await self.db.execute(
             select(PublishedVersion)
             .where(PublishedVersion.project_id == project_id)
@@ -417,6 +430,15 @@ class PublishingService:
         await self.db.delete(version)
         await self.db.flush()
 
+    async def _get_draft(self, project_id: UUID) -> PublishedVersion | None:
+        result = await self.db.execute(
+            select(PublishedVersion).where(
+                PublishedVersion.project_id == project_id,
+                PublishedVersion.finalized.is_(False),
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def _get_latest_finalized(self, project_id: UUID) -> PublishedVersion | None:
         result = await self.db.execute(
             select(PublishedVersion).where(
@@ -435,7 +457,7 @@ class PublishingService:
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             return "1.0"
         if diff and (diff.modified or diff.removed):
             return f"{major + 1}.0"

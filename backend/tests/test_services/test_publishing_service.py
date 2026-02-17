@@ -157,6 +157,23 @@ class TestPublish:
             )
 
     @pytest.mark.asyncio
+    async def test_publish_finalized_rejects_when_draft_exists(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+        with pytest.raises(DraftExistsError):
+            await svc.publish(
+                publishable_project.id,
+                PublishRequest(version="2.0", title="Final"),
+                publisher="user",
+            )
+
+    @pytest.mark.asyncio
     async def test_publish_not_found(self, db_session: AsyncSession) -> None:
         from uuid import uuid4
 
@@ -197,6 +214,62 @@ class TestFinalize:
         assert finalized.published_at is not None
 
     @pytest.mark.asyncio
+    async def test_finalize_rebuilds_snapshot(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        draft = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+        original_snapshot = draft.snapshot
+
+        # Add a concept so the project state changes
+        scheme_result = await db_session.execute(select(ConceptScheme))
+        scheme = scheme_result.scalar_one()
+        db_session.add(Concept(scheme_id=scheme.id, pref_label="Term B"))
+        await db_session.flush()
+        db_session.expunge_all()
+
+        finalized = await svc.finalize(publishable_project.id, draft.id)
+        assert finalized.snapshot != original_snapshot
+
+    @pytest.mark.asyncio
+    async def test_finalize_rejects_finalized(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        version = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Final"),
+            publisher="user",
+        )
+        with pytest.raises(NotADraftError):
+            await svc.finalize(publishable_project.id, version.id)
+
+    @pytest.mark.asyncio
+    async def test_finalize_rejects_invalid_project(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        draft = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+
+        # Delete all concepts so the project becomes invalid
+        result = await db_session.execute(select(Concept))
+        for concept in result.scalars().all():
+            await db_session.delete(concept)
+        await db_session.flush()
+        db_session.expunge_all()
+
+        with pytest.raises(ValidationFailedError):
+            await svc.finalize(publishable_project.id, draft.id)
+
+    @pytest.mark.asyncio
     async def test_finalize_not_found(
         self, db_session: AsyncSession, publishable_project: Project
     ) -> None:
@@ -231,6 +304,13 @@ class TestListVersions:
     ) -> None:
         versions = await service(db_session).list_versions(publishable_project.id)
         assert versions == []
+
+    @pytest.mark.asyncio
+    async def test_list_versions_not_found(self, db_session: AsyncSession) -> None:
+        from uuid import uuid4
+
+        with pytest.raises(ProjectNotFoundError):
+            await service(db_session).list_versions(uuid4())
 
 
 class TestGetVersion:

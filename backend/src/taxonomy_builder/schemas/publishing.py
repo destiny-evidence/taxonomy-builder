@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from taxonomy_builder.schemas.snapshot import DiffResult, ValidationResult
 
@@ -25,10 +25,13 @@ class PublishPreview(BaseModel):
     suggested_version: str | None = None
 
 
+VERSION_PATTERN = r"^\d+(\.\d+)*$"
+
+
 class PublishRequest(BaseModel):
     """Request body for publishing a version."""
 
-    version: str
+    version: str = Field(pattern=VERSION_PATTERN)
     title: str
     notes: str | None = None
     finalized: bool = True
@@ -37,7 +40,7 @@ class PublishRequest(BaseModel):
 class UpdateDraftRequest(BaseModel):
     """Request body for updating a draft version."""
 
-    version: str | None = None
+    version: str | None = Field(default=None, pattern=VERSION_PATTERN)
     title: str | None = None
     notes: str | None = None
 

@@ -149,6 +149,20 @@ class TestPublish:
         assert resp.status_code == 409
 
     @pytest.mark.asyncio
+    async def test_publish_finalized_rejects_when_draft_exists(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Draft", "finalized": False},
+        )
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "2.0", "title": "Final"},
+        )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
     async def test_publish_not_found(self, authenticated_client: AsyncClient) -> None:
         resp = await authenticated_client.post(
             f"/api/projects/{uuid4()}/publish",
@@ -177,6 +191,13 @@ class TestListVersions:
         )
         assert resp.status_code == 200
         assert resp.json() == []
+
+    @pytest.mark.asyncio
+    async def test_list_not_found(self, authenticated_client: AsyncClient) -> None:
+        resp = await authenticated_client.get(
+            f"/api/projects/{uuid4()}/versions"
+        )
+        assert resp.status_code == 404
 
     @pytest.mark.asyncio
     async def test_list_with_versions(
@@ -360,6 +381,21 @@ class TestFinalize:
         data = resp.json()
         assert data["finalized"] is True
         assert data["published_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_finalize_rejects_finalized(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Final"},
+        )
+        version_id = create_resp.json()["id"]
+
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}/finalize"
+        )
+        assert resp.status_code == 409
 
     @pytest.mark.asyncio
     async def test_finalize_not_found(
