@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.comment import Comment
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.user import User
 from taxonomy_builder.schemas.comment import CommentCreate
 from taxonomy_builder.services.comment_service import (
@@ -18,71 +17,60 @@ from taxonomy_builder.services.comment_service import (
     ConceptNotFoundError,
     NotCommentOwnerError,
 )
+from tests.factories import (
+    CommentFactory,
+    ConceptFactory,
+    ConceptSchemeFactory,
+    UserFactory,
+    flush,
+)
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+async def scheme(db_session: AsyncSession) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/concepts",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            title="Test Scheme",
+            uri="http://example.org/concepts",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.fixture
 async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
     """Create a concept for testing."""
-    concept = Concept(
-        scheme_id=scheme.id,
-        pref_label="Test Concept",
+    return await flush(
+        db_session,
+        ConceptFactory.create(scheme=scheme, pref_label="Test Concept"),
     )
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
-    return concept
 
 
 @pytest.fixture
 async def user(db_session: AsyncSession) -> User:
     """Create a user for testing."""
-    user = User(
-        keycloak_user_id="test-keycloak-id",
-        email="test@example.com",
-        display_name="Test User",
+    return await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="test-keycloak-id",
+            email="test@example.com",
+            display_name="Test User",
+        ),
     )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    return user
 
 
 @pytest.fixture
 async def other_user(db_session: AsyncSession) -> User:
     """Create another user for testing."""
-    user = User(
-        keycloak_user_id="other-keycloak-id",
-        email="other@example.com",
-        display_name="Other User",
+    return await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="other-keycloak-id",
+            email="other@example.com",
+            display_name="Other User",
+        ),
     )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    return user
 
 
 # ============ List Comments Tests ============
@@ -103,12 +91,11 @@ async def test_list_comments(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test listing comments for a concept."""
-    comment = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Test comment",
     )
-    db_session.add(comment)
     await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
@@ -124,18 +111,17 @@ async def test_list_comments_excludes_deleted(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test that soft-deleted comments are excluded."""
-    active_comment = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Active comment",
     )
-    deleted_comment = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Deleted comment",
         deleted_at=datetime.now(),
     )
-    db_session.add_all([active_comment, deleted_comment])
     await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
@@ -150,20 +136,18 @@ async def test_list_comments_ordered_by_created_at(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test comments are ordered by created_at ascending (oldest first)."""
-    comment1 = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="First comment",
     )
-    db_session.add(comment1)
     await db_session.flush()
 
-    comment2 = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Second comment",
     )
-    db_session.add(comment2)
     await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
@@ -233,13 +217,14 @@ async def test_delete_comment(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test soft-deleting a comment."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="To delete",
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="To delete",
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
     comment_id = comment.id
 
     service = CommentService(db_session, user_id=user.id)
@@ -255,13 +240,14 @@ async def test_delete_comment_removes_from_list(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test that deleted comment doesn't appear in list."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="To delete",
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="To delete",
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
     await service.delete_comment(comment.id)
@@ -275,13 +261,14 @@ async def test_delete_comment_not_owner(
     db_session: AsyncSession, concept: Concept, user: User, other_user: User
 ) -> None:
     """Test that users cannot delete others' comments."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="User's comment",
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="User's comment",
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
 
     # Service initialized with other_user trying to delete user's comment
     service = CommentService(db_session, user_id=other_user.id)
@@ -307,14 +294,15 @@ async def test_delete_already_deleted_comment(
     db_session: AsyncSession, concept: Concept, user: User
 ) -> None:
     """Test that already deleted comment returns not found."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Already deleted",
-        deleted_at=datetime.now(),
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Already deleted",
+            deleted_at=datetime.now(),
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
 
     service = CommentService(db_session, user_id=user.id)
 
@@ -345,13 +333,14 @@ async def test_create_reply_to_top_level_comment(
 ) -> None:
     """Test creating a reply to a top-level comment."""
     # Create parent comment
-    parent = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Parent comment",
+    parent = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Parent comment",
+        ),
     )
-    db_session.add(parent)
-    await db_session.flush()
 
     # Create reply
     service = CommentService(db_session, user_id=user.id)
@@ -370,23 +359,25 @@ async def test_reject_nested_reply(
 ) -> None:
     """Test that replies to replies are rejected (no nesting)."""
     # Create parent comment
-    parent = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Parent comment",
+    parent = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Parent comment",
+        ),
     )
-    db_session.add(parent)
-    await db_session.flush()
 
     # Create first reply
-    first_reply = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="First reply",
-        parent_comment_id=parent.id,
+    first_reply = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="First reply",
+            parent_comment_id=parent.id,
+        ),
     )
-    db_session.add(first_reply)
-    await db_session.flush()
 
     # Try to create nested reply (should fail)
     service = CommentService(db_session, user_id=user.id)
@@ -423,14 +414,15 @@ async def test_reject_deleted_parent_comment(
 ) -> None:
     """Test that replies to deleted comments are rejected."""
     # Create and delete parent comment
-    parent = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Deleted parent",
-        deleted_at=datetime.now(),
+    parent = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Deleted parent",
+            deleted_at=datetime.now(),
+        ),
     )
-    db_session.add(parent)
-    await db_session.flush()
 
     # Try to reply to deleted comment
     service = CommentService(db_session, user_id=user.id)

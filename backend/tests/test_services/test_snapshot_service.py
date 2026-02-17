@@ -9,39 +9,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
-from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
-from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import CoreOntology, OntologyClass
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 from taxonomy_builder.services.snapshot_service import SnapshotService
+from tests.factories import ConceptSchemeFactory, ProjectFactory, PropertyFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(name="Snapshot Test Project", namespace="http://example.org/vocab")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(
+        db_session,
+        ProjectFactory.create(name="Snapshot Test Project", namespace="http://example.org/vocab"),
+    )
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+async def scheme(db_session: AsyncSession, project):
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Taxonomy",
-        description="A test taxonomy",
-        uri="http://example.org/taxonomy",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Test Taxonomy",
+            description="A test taxonomy",
+            uri="http://example.org/taxonomy",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 def service(db_session: AsyncSession) -> SnapshotService:
@@ -59,7 +55,7 @@ def service(db_session: AsyncSession) -> SnapshotService:
 
 
 @pytest.mark.asyncio
-async def test_returns_vocabulary_snapshot(db_session: AsyncSession, project: Project) -> None:
+async def test_returns_vocabulary_snapshot(db_session: AsyncSession, project) -> None:
     """Test that build_snapshot returns a SnapshotVocabulary model."""
     snapshot = await service(db_session).build_snapshot(project.id)
     assert isinstance(snapshot, SnapshotVocabulary)
@@ -68,14 +64,14 @@ async def test_returns_vocabulary_snapshot(db_session: AsyncSession, project: Pr
 @pytest.mark.asyncio
 async def test_project_metadata(db_session: AsyncSession) -> None:
     """Test snapshot includes project identity: id, name, description, namespace."""
-    project = Project(
-        name="Vocab Project",
-        description="A vocabulary for testing",
-        namespace="http://example.org/vocab",
+    project = await flush(
+        db_session,
+        ProjectFactory.create(
+            name="Vocab Project",
+            description="A vocabulary for testing",
+            namespace="http://example.org/vocab",
+        ),
     )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
@@ -86,7 +82,7 @@ async def test_project_metadata(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_empty_project(db_session: AsyncSession, project: Project) -> None:
+async def test_empty_project(db_session: AsyncSession, project) -> None:
     """Test snapshot of a project with no schemes, properties, or classes."""
     snapshot = await service(db_session).build_snapshot(project.id)
 
@@ -104,7 +100,7 @@ async def test_project_not_found(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_scheme_with_no_concepts(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test snapshot includes scheme with empty concepts list."""
     snapshot = await service(db_session).build_snapshot(project.id)
@@ -120,7 +116,7 @@ async def test_scheme_with_no_concepts(
 
 @pytest.mark.asyncio
 async def test_scheme_with_concepts(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test snapshot captures all concept fields correctly."""
     concept = Concept(
@@ -152,7 +148,7 @@ async def test_scheme_with_concepts(
 
 @pytest.mark.asyncio
 async def test_concept_uris(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test that concept URIs are computed from scheme URI + identifier."""
     with_id = Concept(scheme_id=scheme.id, identifier="concept-1", pref_label="With Identifier")
@@ -169,7 +165,7 @@ async def test_concept_uris(
 
 @pytest.mark.asyncio
 async def test_broader_relationships(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test that broader_ids are populated correctly."""
     parent = Concept(scheme_id=scheme.id, pref_label="Parent")
@@ -192,7 +188,7 @@ async def test_broader_relationships(
 
 @pytest.mark.asyncio
 async def test_related_relationships(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test that related_ids are populated correctly in both directions."""
     concept_a = Concept(scheme_id=scheme.id, pref_label="Concept A")
@@ -217,28 +213,29 @@ async def test_related_relationships(
 
 
 @pytest.mark.asyncio
-async def test_properties(db_session: AsyncSession, project: Project) -> None:
+async def test_properties(db_session: AsyncSession, project) -> None:
     """Test that properties are captured with all fields and computed URI."""
-    scheme = ConceptScheme(
-        project_id=project.id, title="Range Scheme", uri="http://example.org/range"
+    scheme = await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project, title="Range Scheme", uri="http://example.org/range"
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
 
-    prop = Property(
-        project_id=project.id,
-        identifier="testProp",
-        label="Test Property",
-        description="A test property",
-        domain_class="http://example.org/vocab/Finding",
-        range_scheme_id=scheme.id,
-        cardinality="single",
-        required=True,
+    prop = await flush(
+        db_session,
+        PropertyFactory.create(
+            project=project,
+            identifier="testProp",
+            label="Test Property",
+            description="A test property",
+            domain_class="http://example.org/vocab/Finding",
+            range_scheme=scheme,
+            range_datatype=None,
+            cardinality="single",
+            required=True,
+        ),
     )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
@@ -258,19 +255,20 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
 
 
 @pytest.mark.asyncio
-async def test_classes_filtered_by_properties(db_session: AsyncSession, project: Project) -> None:
+async def test_classes_filtered_by_properties(db_session: AsyncSession, project) -> None:
     """Test that only ontology classes referenced by properties are included."""
-    prop = Property(
-        project_id=project.id,
-        identifier="prop1",
-        label="Prop 1",
-        domain_class="http://example.org/vocab/Finding",
-        range_datatype="xsd:string",
-        cardinality="single",
-        required=False,
+    await flush(
+        db_session,
+        PropertyFactory.create(
+            project=project,
+            identifier="prop1",
+            label="Prop 1",
+            domain_class="http://example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        ),
     )
-    db_session.add(prop)
-    await db_session.flush()
 
     mock_ontology = CoreOntology(
         classes=[
@@ -302,7 +300,7 @@ async def test_classes_filtered_by_properties(db_session: AsyncSession, project:
 
 @pytest.mark.asyncio
 async def test_round_trip(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test that model_dump -> model_validate produces identical result."""
     concept = Concept(scheme_id=scheme.id, identifier="c1", pref_label="C1")
@@ -316,23 +314,21 @@ async def test_round_trip(
 
 
 @pytest.mark.asyncio
-async def test_full_integration(db_session: AsyncSession, project: Project) -> None:
+async def test_full_integration(db_session: AsyncSession, project) -> None:
     """Test a complete snapshot with multiple schemes, concepts, relationships, and properties."""
     # Create two schemes
-    scheme1 = ConceptScheme(
-        project_id=project.id,
-        title="Scheme One",
-        uri="http://example.org/scheme1",
+    scheme1 = await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project, title="Scheme One", uri="http://example.org/scheme1"
+        ),
     )
-    scheme2 = ConceptScheme(
-        project_id=project.id,
-        title="Scheme Two",
-        uri="http://example.org/scheme2",
+    scheme2 = await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project, title="Scheme Two", uri="http://example.org/scheme2"
+        ),
     )
-    db_session.add_all([scheme1, scheme2])
-    await db_session.flush()
-    await db_session.refresh(scheme1)
-    await db_session.refresh(scheme2)
 
     # Create concepts with hierarchy in scheme1
     parent = Concept(scheme_id=scheme1.id, identifier="parent", pref_label="Parent Concept")
@@ -351,17 +347,19 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     await db_session.flush()
 
     # Create property
-    prop = Property(
-        project_id=project.id,
-        identifier="topic",
-        label="Topic",
-        domain_class="http://example.org/vocab/Finding",
-        range_scheme_id=scheme1.id,
-        cardinality="multiple",
-        required=False,
+    await flush(
+        db_session,
+        PropertyFactory.create(
+            project=project,
+            identifier="topic",
+            label="Topic",
+            domain_class="http://example.org/vocab/Finding",
+            range_scheme=scheme1,
+            range_datatype=None,
+            cardinality="multiple",
+            required=False,
+        ),
     )
-    db_session.add(prop)
-    await db_session.flush()
 
     mock_ontology = CoreOntology(
         classes=[

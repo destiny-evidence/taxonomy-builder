@@ -6,54 +6,28 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
+from tests.factories import ConceptFactory, ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+async def scheme(db_session: AsyncSession, project):
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Taxonomy",
-        description="A test taxonomy",
-        uri="http://example.org/taxonomy",
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
+    return await flush(db_session, ConceptSchemeFactory.create(project=project, title="Test Taxonomy", description="A test taxonomy", uri="http://example.org/taxonomy"))
 
 
 @pytest.fixture
-async def scheme_with_concepts(
-    db_session: AsyncSession, scheme: ConceptScheme
-) -> ConceptScheme:
+async def scheme_with_concepts(db_session: AsyncSession, scheme):
     """Create a scheme with concepts for testing."""
-    animals = Concept(
-        scheme_id=scheme.id,
-        pref_label="Animals",
-        identifier="animals",
-        definition="Living organisms",
-    )
-    mammals = Concept(
-        scheme_id=scheme.id,
-        pref_label="Mammals",
-        identifier="mammals",
-    )
-    db_session.add_all([animals, mammals])
+    animals = ConceptFactory.create(scheme=scheme, pref_label="Animals", identifier="animals", definition="Living organisms")
+    mammals = ConceptFactory.create(scheme=scheme, pref_label="Mammals", identifier="mammals")
     await db_session.flush()
 
     # Add hierarchy

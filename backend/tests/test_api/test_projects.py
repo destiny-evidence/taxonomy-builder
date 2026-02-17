@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
 
+from tests.factories import ProjectFactory, flush
+
 
 @pytest.mark.asyncio
 async def test_list_projects_empty(authenticated_client: AsyncClient) -> None:
@@ -18,10 +20,8 @@ async def test_list_projects_empty(authenticated_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_list_projects(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test listing projects."""
-    # Create some projects directly in the database
-    project1 = Project(name="Project 1", description="First project")
-    project2 = Project(name="Project 2", description="Second project")
-    db_session.add_all([project1, project2])
+    ProjectFactory.create(name="Project 1", description="First project")
+    ProjectFactory.create(name="Project 2", description="Second project")
     await db_session.flush()
 
     response = await authenticated_client.get("/api/projects")
@@ -83,10 +83,10 @@ async def test_create_project_empty_name(authenticated_client: AsyncClient) -> N
 @pytest.mark.asyncio
 async def test_get_project(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test getting a single project by ID."""
-    project = Project(name="Get Test", description="For getting")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="Get Test", description="For getting"),
+    )
 
     response = await authenticated_client.get(f"/api/projects/{project.id}")
     assert response.status_code == 200
@@ -114,10 +114,10 @@ async def test_get_project_invalid_uuid(authenticated_client: AsyncClient) -> No
 @pytest.mark.asyncio
 async def test_update_project(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test updating a project."""
-    project = Project(name="Original", description="Original description")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="Original", description="Original description"),
+    )
 
     response = await authenticated_client.put(
         f"/api/projects/{project.id}",
@@ -133,10 +133,10 @@ async def test_update_project(authenticated_client: AsyncClient, db_session: Asy
 @pytest.mark.asyncio
 async def test_update_project_partial(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test partially updating a project (only name)."""
-    project = Project(name="Original", description="Keep this")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="Original", description="Keep this"),
+    )
 
     response = await authenticated_client.put(f"/api/projects/{project.id}", json={"name": "New Name"})
     assert response.status_code == 200
@@ -158,10 +158,10 @@ async def test_update_project_not_found(authenticated_client: AsyncClient) -> No
 @pytest.mark.asyncio
 async def test_delete_project(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test deleting a project."""
-    project = Project(name="To Delete", description="Will be deleted")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="To Delete", description="Will be deleted"),
+    )
 
     response = await authenticated_client.delete(f"/api/projects/{project.id}")
     assert response.status_code == 204
@@ -260,11 +260,10 @@ async def test_create_project_with_http_namespace(authenticated_client: AsyncCli
 @pytest.mark.asyncio
 async def test_update_project_add_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test adding a namespace to an existing project."""
-    # Create project without namespace
-    project = Project(name="No Namespace", description="Project without namespace")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="No Namespace", description="Project without namespace"),
+    )
 
     # Add namespace via update
     response = await authenticated_client.put(
@@ -279,11 +278,10 @@ async def test_update_project_add_namespace(authenticated_client: AsyncClient, d
 @pytest.mark.asyncio
 async def test_update_project_change_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test changing a project's namespace."""
-    # Create project with namespace
-    project = Project(name="With Namespace", namespace="https://old.example.org/vocab")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="With Namespace", namespace="https://old.example.org/vocab"),
+    )
 
     # Change namespace via update
     response = await authenticated_client.put(
@@ -297,11 +295,10 @@ async def test_update_project_change_namespace(authenticated_client: AsyncClient
 @pytest.mark.asyncio
 async def test_update_project_invalid_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test that updating to an invalid namespace fails."""
-    # Create project
-    project = Project(name="Test Project", namespace="https://example.org/vocab")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="Test Project", namespace="https://example.org/vocab"),
+    )
 
     # Try to update with invalid namespace
     response = await authenticated_client.put(
@@ -314,11 +311,10 @@ async def test_update_project_invalid_namespace(authenticated_client: AsyncClien
 @pytest.mark.asyncio
 async def test_update_project_clear_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test removing a namespace from a project."""
-    # Create project with namespace
-    project = Project(name="Has Namespace", namespace="https://example.org/vocab")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
+    project = await flush(
+        db_session,
+        ProjectFactory.create(name="Has Namespace", namespace="https://example.org/vocab"),
+    )
 
     # Clear namespace by setting to null
     response = await authenticated_client.put(

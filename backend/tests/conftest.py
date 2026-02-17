@@ -13,6 +13,8 @@ from taxonomy_builder.main import app
 from taxonomy_builder.models.user import User
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
 
+from tests.factories import UserFactory, flush, set_session
+
 
 @pytest.fixture(scope="session", autouse=True)
 async def _init_db() -> AsyncGenerator[None, None]:
@@ -56,6 +58,12 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         await trans.rollback()
 
 
+@pytest.fixture(autouse=True)
+async def _set_factory_session(db_session: AsyncSession) -> None:
+    """Inject the current test's db_session into factory_boy factories."""
+    set_session(db_session)
+
+
 @pytest.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Provide an async HTTP client for testing API endpoints.
@@ -83,14 +91,14 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture
 async def test_user(db_session: AsyncSession) -> User:
     """Create a test user in the database."""
-    user = User(
-        keycloak_user_id="test-keycloak-id-12345",
-        email="test@example.com",
-        display_name="Test User",
+    user = await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="test-keycloak-id-12345",
+            email="test@example.com",
+            display_name="Test User",
+        ),
     )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
     # Detach from session to prevent expired state issues across requests
     db_session.expunge(user)
     return user

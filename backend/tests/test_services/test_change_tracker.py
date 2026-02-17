@@ -11,30 +11,26 @@ from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.change_tracker import ChangeTracker
+from tests.factories import ConceptFactory, ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 @pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/concepts",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Test Scheme",
+            uri="http://example.org/concepts",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.mark.asyncio
@@ -77,17 +73,17 @@ async def test_serialize_concept_captures_all_fields(
     db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that serialize_concept() captures all concept fields."""
-    concept = Concept(
-        scheme_id=scheme.id,
-        pref_label="Dogs",
-        identifier="dogs",
-        definition="A domestic animal",
-        scope_note="Use for domestic dogs",
-        alt_labels=["Canines", "Pups"],
+    concept = await flush(
+        db_session,
+        ConceptFactory.create(
+            scheme=scheme,
+            pref_label="Dogs",
+            identifier="dogs",
+            definition="A domestic animal",
+            scope_note="Use for domestic dogs",
+            alt_labels=["Canines", "Pups"],
+        ),
     )
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
 
     tracker = ChangeTracker(db_session)
     serialized = tracker.serialize_concept(concept)
@@ -105,15 +101,15 @@ async def test_serialize_scheme_captures_all_fields(
     db_session: AsyncSession, project: Project
 ) -> None:
     """Test that serialize_scheme() captures all scheme fields."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Animals",
-        description="A taxonomy of animals",
-        uri="http://example.org/animals",
+    scheme = await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Animals",
+            description="A taxonomy of animals",
+            uri="http://example.org/animals",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
 
     tracker = ChangeTracker(db_session)
     serialized = tracker.serialize_scheme(scheme)

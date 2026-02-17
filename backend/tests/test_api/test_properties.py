@@ -9,52 +9,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
+from tests.factories import ConceptSchemeFactory, ProjectFactory, PropertyFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(
-        name="Test Project",
-        namespace="https://example.org/vocab/",
-    )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project", namespace="https://example.org/vocab/"))
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+async def scheme(db_session: AsyncSession, project):
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Education Level",
-        uri="http://example.org/schemes/education-level",
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
+    return await flush(db_session, ConceptSchemeFactory.create(project=project, title="Education Level", uri="http://example.org/schemes/education-level"))
 
 
 @pytest.fixture
-async def property_obj(db_session: AsyncSession, project: Project) -> Property:
+async def property_obj(db_session: AsyncSession, project):
     """Create a property for testing."""
-    prop = Property(
-        project_id=project.id,
-        identifier="sampleSize",
-        label="Sample Size",
-        description="The sample size",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_datatype="xsd:integer",
-        cardinality="single",
-        required=True,
-    )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
-    return prop
+    return await flush(db_session, PropertyFactory.create(project=project, identifier="sampleSize", label="Sample Size", description="The sample size", domain_class="https://evrepo.example.org/vocab/Finding", range_datatype="xsd:integer", cardinality="single", required=True))
 
 
 class TestListProperties:
