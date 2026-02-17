@@ -411,7 +411,7 @@ async def test_resolve_comment(
     user: User,
     other_user: User
 ) -> None:
-    """Test deleting own comment."""
+    """Test resolving a comment."""
     comment = Comment(
         concept_id=concept.id,
         user_id=other_user.id,
@@ -465,7 +465,7 @@ async def test_resolve_and_unresolve_comment_requires_auth(
     concept: Concept,
     user: User,
 ) -> None:
-    """Test that deleting comment requires authentication."""
+    """Test that resolving/unresolving comments requires authentication."""
     comment = Comment(
         concept_id=concept.id,
         user_id=user.id,

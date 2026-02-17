@@ -155,6 +155,8 @@ class CommentService:
             resolved: If True, return only resolved comments.
                       If False, return only unresolved comments.
                       If None (default), return all comments.
+        Returns:
+            tuple[thread_parents, dict[thread_parent_id, list[replies]]]
         """
         comments = await self.get_comments(concept_id=concept_id, resolved=resolved)
 
