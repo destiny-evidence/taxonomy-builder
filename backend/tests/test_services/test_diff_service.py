@@ -168,6 +168,26 @@ class TestModifiedEntities:
         assert result.modified == []
 
 
+class TestConceptMovedBetweenSchemes:
+    def test_moved_concept_shows_as_removed_and_added(self) -> None:
+        """A concept moving between schemes appears as removed + added."""
+        sid_a, sid_b, cid = uuid4(), uuid4(), uuid4()
+        prev = _vocab(
+            _scheme("A", id=sid_a, concepts=[_concept("Mover", id=cid)]),
+            _scheme("B", id=sid_b),
+        )
+        curr = _vocab(
+            _scheme("A", id=sid_a),
+            _scheme("B", id=sid_b, concepts=[_concept("Mover", id=cid)]),
+        )
+        result = PublishingService.compute_diff(prev, curr)
+        assert len(result.removed) == 1
+        assert result.removed[0].id == cid
+        assert len(result.added) == 1
+        assert result.added[0].id == cid
+        assert result.modified == []
+
+
 class TestFirstPublish:
     """When previous is None (first publish), everything is added."""
 

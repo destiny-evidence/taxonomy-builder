@@ -20,8 +20,6 @@ from taxonomy_builder.schemas.snapshot import (
     DiffResult,
     FieldChange,
     ModifiedItem,
-    SnapshotConcept,
-    SnapshotScheme,
     SnapshotVocabulary,
     ValidationError,
     ValidationResult,
@@ -108,17 +106,13 @@ class PublishingService:
             return ValidationResult(valid=False, errors=errors)
 
     @staticmethod
-    def _diff_fields(
-        prev: SnapshotScheme | SnapshotConcept,
-        curr: SnapshotScheme | SnapshotConcept,
-        exclude: set[str],
-    ) -> list[FieldChange]:
+    def _field_changes(prev, curr, exclude: set[str]) -> list[FieldChange]:
         prev_data = prev.model_dump(exclude=exclude)
         curr_data = curr.model_dump(exclude=exclude)
         return [
-            FieldChange(field=field, old=str(prev_data[field]), new=str(curr_data[field]))
-            for field in prev_data
-            if prev_data[field] != curr_data[field]
+            FieldChange(field=f, old=str(prev_data[f]), new=str(curr_data[f]))
+            for f in prev_data
+            if prev_data[f] != curr_data[f]
         ]
 
     @staticmethod
@@ -131,73 +125,54 @@ class PublishingService:
         modified: list[ModifiedItem] = []
         removed: list[DiffItem] = []
 
-        if previous is None:
-            for scheme in current.concept_schemes:
-                added.append(DiffItem(id=scheme.id, label=scheme.title, entity_type="scheme"))
-                for concept in scheme.concepts:
-                    added.append(
-                        DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
-                    )
-            return DiffResult(added=added, modified=modified, removed=removed)
-
-        prev_schemes = {s.id: s for s in previous.concept_schemes}
+        prev_schemes = {s.id: s for s in previous.concept_schemes} if previous else {}
         curr_schemes = {s.id: s for s in current.concept_schemes}
 
-        for sid, scheme in curr_schemes.items():
-            if sid not in prev_schemes:
-                added.append(DiffItem(id=sid, label=scheme.title, entity_type="scheme"))
-                for concept in scheme.concepts:
-                    added.append(
-                        DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
+        for sid in curr_schemes.keys() - prev_schemes.keys():
+            added.append(DiffItem(id=sid, label=curr_schemes[sid].title, entity_type="scheme"))
+            for c in curr_schemes[sid].concepts:
+                added.append(DiffItem(id=c.id, label=c.pref_label, entity_type="concept"))
+
+        for sid in prev_schemes.keys() - curr_schemes.keys():
+            removed.append(DiffItem(id=sid, label=prev_schemes[sid].title, entity_type="scheme"))
+            for c in prev_schemes[sid].concepts:
+                removed.append(DiffItem(id=c.id, label=c.pref_label, entity_type="concept"))
+
+        for sid in prev_schemes.keys() & curr_schemes.keys():
+            changes = PublishingService._field_changes(
+                prev_schemes[sid], curr_schemes[sid], {"id", "concepts"}
+            )
+            if changes:
+                modified.append(
+                    ModifiedItem(
+                        id=sid, label=curr_schemes[sid].title,
+                        entity_type="scheme", changes=changes,
                     )
-            else:
-                scheme_changes = PublishingService._diff_fields(
-                    prev_schemes[sid], scheme, {"id", "concepts"}
                 )
-                if scheme_changes:
+
+            prev_concepts = {c.id: c for c in prev_schemes[sid].concepts}
+            curr_concepts = {c.id: c for c in curr_schemes[sid].concepts}
+
+            for cid in curr_concepts.keys() - prev_concepts.keys():
+                added.append(
+                    DiffItem(id=cid, label=curr_concepts[cid].pref_label, entity_type="concept")
+                )
+
+            for cid in prev_concepts.keys() - curr_concepts.keys():
+                removed.append(
+                    DiffItem(id=cid, label=prev_concepts[cid].pref_label, entity_type="concept")
+                )
+
+            for cid in prev_concepts.keys() & curr_concepts.keys():
+                changes = PublishingService._field_changes(
+                    prev_concepts[cid], curr_concepts[cid], {"id"}
+                )
+                if changes:
                     modified.append(
                         ModifiedItem(
-                            id=sid,
-                            label=scheme.title,
-                            entity_type="scheme",
-                            changes=scheme_changes,
+                            id=cid, label=curr_concepts[cid].pref_label,
+                            entity_type="concept", changes=changes,
                         )
-                    )
-
-                prev_concepts = {c.id: c for c in prev_schemes[sid].concepts}
-                curr_concepts = {c.id: c for c in scheme.concepts}
-
-                for cid, concept in curr_concepts.items():
-                    if cid not in prev_concepts:
-                        added.append(
-                            DiffItem(id=cid, label=concept.pref_label, entity_type="concept")
-                        )
-                    else:
-                        changes = PublishingService._diff_fields(
-                            prev_concepts[cid], concept, {"id"}
-                        )
-                        if changes:
-                            modified.append(
-                                ModifiedItem(
-                                    id=cid,
-                                    label=concept.pref_label,
-                                    entity_type="concept",
-                                    changes=changes,
-                                )
-                            )
-
-                for cid, concept in prev_concepts.items():
-                    if cid not in curr_concepts:
-                        removed.append(
-                            DiffItem(id=cid, label=concept.pref_label, entity_type="concept")
-                        )
-
-        for sid, scheme in prev_schemes.items():
-            if sid not in curr_schemes:
-                removed.append(DiffItem(id=sid, label=scheme.title, entity_type="scheme"))
-                for concept in scheme.concepts:
-                    removed.append(
-                        DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
                     )
 
         return DiffResult(added=added, modified=modified, removed=removed)
@@ -373,7 +348,7 @@ class PublishingService:
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             return "1.0"
         if diff and (diff.modified or diff.removed):
             return f"{major + 1}.0"
