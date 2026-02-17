@@ -170,31 +170,6 @@
   align-self: flex-end;
 }
 
-.comments-section__reply-btn {
-  margin-top: var(--spacing-sm);
-  margin-left: var(--spacing-sm);
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
-  align-self: flex-start;
-}
-
-.comments-section__reply-btn:hover {
-  color: var(--color-primary);
-  background-color: var(--color-bg-secondary);
-  border-color: var(--color-primary);
-}
-
-.comments-section__reply-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 .comments-section__reply-form {
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm);

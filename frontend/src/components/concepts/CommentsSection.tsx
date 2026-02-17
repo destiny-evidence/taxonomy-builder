@@ -93,6 +93,22 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
+  async function handleResolve(commentId: string) {
+    setLoading(true);
+    try {
+      await commentsApi.resolve(commentId);
+      await loadComments();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Failed to resolve comment");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleReplySubmit(e: Event, parentId: string) {
     e.preventDefault();
     if (!replyContent.trim()) return;
@@ -240,16 +256,26 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                     </form>
                   )}
 
-                  {/* Reply button - at bottom of thread */}
+                  {/* Reply and Resolve buttons - at bottom of thread */}
                   {!replyingTo && (
-                    <button
-                      class="comments-section__reply-btn"
-                      onClick={() => setReplyingTo(comment.id)}
-                      disabled={loading}
-                      type="button"
-                    >
-                      Reply
-                    </button>
+                    <div class="comments-section__thread-actions">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setReplyingTo(comment.id)}
+                        disabled={loading}
+                      >
+                        Reply
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleResolve(comment.id)}
+                        disabled={loading}
+                      >
+                        Resolve
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}

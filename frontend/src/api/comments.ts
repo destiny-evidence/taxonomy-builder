@@ -9,4 +9,6 @@ export const commentsApi = {
     api.post<Comment>(`/concepts/${conceptId}/comments`, data),
 
   delete: (commentId: string) => api.delete(`/comments/${commentId}`),
+
+  resolve: (commentId: string) => api.post(`/comments/${commentId}/resolve`, undefined)
 };
