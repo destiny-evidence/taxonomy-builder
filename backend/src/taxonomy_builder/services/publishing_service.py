@@ -121,59 +121,99 @@ class PublishingService:
         current: SnapshotVocabulary,
     ) -> DiffResult:
         """Diff two snapshots, returning added/modified/removed items."""
-        added: list[DiffItem] = []
-        modified: list[ModifiedItem] = []
-        removed: list[DiffItem] = []
-
         prev_schemes = {s.id: s for s in previous.concept_schemes} if previous else {}
         curr_schemes = {s.id: s for s in current.concept_schemes}
 
-        for sid in curr_schemes.keys() - prev_schemes.keys():
-            added.append(DiffItem(id=sid, label=curr_schemes[sid].title, entity_type="scheme"))
-            for c in curr_schemes[sid].concepts:
-                added.append(DiffItem(id=c.id, label=c.pref_label, entity_type="concept"))
-
-        for sid in prev_schemes.keys() - curr_schemes.keys():
-            removed.append(DiffItem(id=sid, label=prev_schemes[sid].title, entity_type="scheme"))
-            for c in prev_schemes[sid].concepts:
-                removed.append(DiffItem(id=c.id, label=c.pref_label, entity_type="concept"))
-
-        for sid in prev_schemes.keys() & curr_schemes.keys():
-            changes = PublishingService._field_changes(
-                prev_schemes[sid], curr_schemes[sid], {"id", "concepts"}
+        # Categorise schemes
+        added_schemes = [
+            curr_schemes[scheme_id] for scheme_id in curr_schemes.keys() - prev_schemes.keys()
+        ]
+        removed_schemes = [
+            prev_schemes[scheme_id] for scheme_id in prev_schemes.keys() - curr_schemes.keys()
+        ]
+        modified_schemes = [
+            (
+                prev_schemes[scheme_id],
+                curr_schemes[scheme_id],
+                {concept.id: concept for concept in prev_schemes[scheme_id].concepts},
+                {concept.id: concept for concept in curr_schemes[scheme_id].concepts},
             )
-            if changes:
-                modified.append(
-                    ModifiedItem(
-                        id=sid, label=curr_schemes[sid].title,
-                        entity_type="scheme", changes=changes,
+            for scheme_id in prev_schemes.keys() & curr_schemes.keys()
+        ]
+
+        added = (
+            # New schemes
+            [
+                DiffItem(id=scheme.id, label=scheme.title, entity_type="scheme")
+                for scheme in added_schemes
+            ]
+            # Concepts in new schemes
+            + [
+                DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
+                for scheme in added_schemes
+                for concept in scheme.concepts
+            ]
+            # New concepts in existing schemes
+            + [
+                DiffItem(id=cid, label=curr_c[cid].pref_label, entity_type="concept")
+                for _, _, prev_c, curr_c in modified_schemes
+                for cid in curr_c.keys() - prev_c.keys()
+            ]
+        )
+
+        removed = (
+            # Removed schemes
+            [
+                DiffItem(id=scheme.id, label=scheme.title, entity_type="scheme")
+                for scheme in removed_schemes
+            ]
+            # Concepts in removed schemes
+            + [
+                DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
+                for scheme in removed_schemes
+                for concept in scheme.concepts
+            ]
+            # Removed concepts in existing schemes
+            + [
+                DiffItem(id=cid, label=prev_c[cid].pref_label, entity_type="concept")
+                for _, _, prev_c, curr_c in modified_schemes
+                for cid in prev_c.keys() - curr_c.keys()
+            ]
+        )
+
+        modified = (
+            # Modified scheme metadata
+            [
+                ModifiedItem(
+                    id=curr_scheme.id,
+                    label=curr_scheme.title,
+                    entity_type="scheme",
+                    changes=changes,
+                )
+                for prev_scheme, curr_scheme, _, _ in modified_schemes
+                if (
+                    changes := PublishingService._field_changes(
+                        prev_scheme, curr_scheme, {"id", "concepts"}
                     )
                 )
-
-            prev_concepts = {c.id: c for c in prev_schemes[sid].concepts}
-            curr_concepts = {c.id: c for c in curr_schemes[sid].concepts}
-
-            for cid in curr_concepts.keys() - prev_concepts.keys():
-                added.append(
-                    DiffItem(id=cid, label=curr_concepts[cid].pref_label, entity_type="concept")
+            ]
+            # Modified concepts in existing schemes
+            + [
+                ModifiedItem(
+                    id=concept_id,
+                    label=curr_concepts[concept_id].pref_label,
+                    entity_type="concept",
+                    changes=changes,
                 )
-
-            for cid in prev_concepts.keys() - curr_concepts.keys():
-                removed.append(
-                    DiffItem(id=cid, label=prev_concepts[cid].pref_label, entity_type="concept")
-                )
-
-            for cid in prev_concepts.keys() & curr_concepts.keys():
-                changes = PublishingService._field_changes(
-                    prev_concepts[cid], curr_concepts[cid], {"id"}
-                )
-                if changes:
-                    modified.append(
-                        ModifiedItem(
-                            id=cid, label=curr_concepts[cid].pref_label,
-                            entity_type="concept", changes=changes,
-                        )
+                for _, _, prev_concepts, curr_concepts in modified_schemes
+                for concept_id in prev_concepts.keys() & curr_concepts.keys()
+                if (
+                    changes := PublishingService._field_changes(
+                        prev_concepts[concept_id], curr_concepts[concept_id], {"id"}
                     )
+                )
+            ]
+        )
 
         return DiffResult(added=added, modified=modified, removed=removed)
 
