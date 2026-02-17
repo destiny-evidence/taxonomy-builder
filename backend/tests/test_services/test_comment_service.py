@@ -494,6 +494,68 @@ async def test_resolve_or_unresolve_deleted_comment_returns_not_found(
         await service.unresolve_comment(comment.id)
 
 
+# ============ List Comment Threads Tests ============
+
+
+@pytest.mark.asyncio
+async def test_list_comment_threads_happy_path(
+    db_session: AsyncSession, concept: Concept, user: User, other_user: User
+) -> None:
+    """Test listing comment threads returns top-level comments and their replies."""
+    # Create two top-level comments
+    parent_1 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="First top-level comment",
+    )
+    db_session.add(parent_1)
+    await db_session.flush()
+
+    parent_2 = Comment(
+        concept_id=concept.id,
+        user_id=other_user.id,
+        content="Second top-level comment",
+    )
+    db_session.add(parent_2)
+    await db_session.flush()
+
+    # Create a reply to each top-level comment
+    reply_1 = Comment(
+        concept_id=concept.id,
+        user_id=other_user.id,
+        content="Reply to first comment",
+        parent_comment_id=parent_1.id,
+    )
+    db_session.add(reply_1)
+    await db_session.flush()
+
+    reply_2 = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Reply to second comment",
+        parent_comment_id=parent_2.id,
+    )
+    db_session.add(reply_2)
+    await db_session.flush()
+
+    service = CommentService(db_session, user_id=user.id)
+    top_level, replies_by_parent = await service.list_comment_threads(concept.id)
+
+    # Verify top-level comments
+    assert len(top_level) == 2
+    assert top_level[0].content == "First top-level comment"
+    assert top_level[1].content == "Second top-level comment"
+
+    # Verify replies are grouped by parent
+    assert len(replies_by_parent) == 2
+
+    assert len(replies_by_parent[parent_1.id]) == 1
+    assert replies_by_parent[parent_1.id][0].content == "Reply to first comment"
+
+    assert len(replies_by_parent[parent_2.id]) == 1
+    assert replies_by_parent[parent_2.id][0].content == "Reply to second comment"
+
+
 # ============ Comment Threading Tests ============
 
 
