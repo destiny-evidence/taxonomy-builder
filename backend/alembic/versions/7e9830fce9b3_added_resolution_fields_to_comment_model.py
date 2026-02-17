@@ -1,8 +1,8 @@
 """Added resolution fields to comment model
 
-Revision ID: 070a1040097e
-Revises: 3b39b875c37c
-Create Date: 2026-02-17 15:28:20.719039
+Revision ID: 7e9830fce9b3
+Revises: f439aa87ed1d
+Create Date: 2026-02-18 11:32:15.179758
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '070a1040097e'
-down_revision: Union[str, Sequence[str], None] = '3b39b875c37c'
+revision: str = '7e9830fce9b3'
+down_revision: Union[str, Sequence[str], None] = 'f439aa87ed1d'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
