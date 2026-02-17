@@ -9,30 +9,26 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
 from taxonomy_builder.services.concept_service import ConceptService
+from tests.factories import ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 @pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/concepts",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Test Scheme",
+            uri="http://example.org/concepts",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.mark.asyncio

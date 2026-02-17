@@ -7,39 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
-from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
+from tests.factories import ConceptFactory, ConceptSchemeFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a concept scheme for testing."""
-    scheme = ConceptScheme(project_id=project.id, title="Test Scheme")
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
-
-
-@pytest.fixture
-async def concepts(db_session: AsyncSession, scheme: ConceptScheme) -> list[Concept]:
+async def concepts(db_session: AsyncSession) -> list[Concept]:
     """Create multiple concepts for testing hierarchy."""
-    animals = Concept(scheme_id=scheme.id, pref_label="Animals")
-    mammals = Concept(scheme_id=scheme.id, pref_label="Mammals")
-    pets = Concept(scheme_id=scheme.id, pref_label="Pets")
-    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs")
-    cats = Concept(scheme_id=scheme.id, pref_label="Cats")
-    db_session.add_all([animals, mammals, pets, dogs, cats])
+    scheme = ConceptSchemeFactory.create()
+    animals = ConceptFactory.create(scheme=scheme, pref_label="Animals")
+    mammals = ConceptFactory.create(scheme=scheme, pref_label="Mammals")
+    pets = ConceptFactory.create(scheme=scheme, pref_label="Pets")
+    dogs = ConceptFactory.create(scheme=scheme, pref_label="Dogs")
+    cats = ConceptFactory.create(scheme=scheme, pref_label="Cats")
     await db_session.flush()
     for c in [animals, mammals, pets, dogs, cats]:
         await db_session.refresh(c)

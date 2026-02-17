@@ -5,56 +5,47 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
-from taxonomy_builder.models.property import Property
+from tests.factories import ConceptSchemeFactory, ProjectFactory, PropertyFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(
-        name="Test Project",
-        namespace="https://example.org/vocab/",
+async def project(db_session: AsyncSession):
+    return await flush(
+        db_session, ProjectFactory.create(name="Test Project", namespace="https://example.org/vocab/")
     )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Education Level",
-        uri="http://example.org/schemes/education-level",
+async def scheme(db_session: AsyncSession, project):
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Education Level",
+            uri="http://example.org/schemes/education-level",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.mark.asyncio
 async def test_create_property_with_range_scheme(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test creating a property with range_scheme_id."""
-    prop = Property(
-        project_id=project.id,
-        identifier="educationLevel",
-        label="Education Level",
-        description="The level of education",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_scheme_id=scheme.id,
-        cardinality="single",
-        required=False,
+    prop = await flush(
+        db_session,
+        PropertyFactory.create(
+            project=project,
+            identifier="educationLevel",
+            label="Education Level",
+            description="The level of education",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_scheme=scheme,
+            range_datatype=None,
+            cardinality="single",
+            required=False,
+        ),
     )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
 
     assert prop.id is not None
     assert isinstance(prop.id, UUID)
@@ -73,21 +64,21 @@ async def test_create_property_with_range_scheme(
 
 @pytest.mark.asyncio
 async def test_create_property_with_range_datatype(
-    db_session: AsyncSession, project: Project
+    db_session: AsyncSession, project
 ) -> None:
     """Test creating a property with range_datatype."""
-    prop = Property(
-        project_id=project.id,
-        identifier="sampleSize",
-        label="Sample Size",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_datatype="xsd:integer",
-        cardinality="single",
-        required=True,
+    prop = await flush(
+        db_session,
+        PropertyFactory.create(
+            project=project,
+            identifier="sampleSize",
+            label="Sample Size",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:integer",
+            cardinality="single",
+            required=True,
+        ),
     )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
 
     assert prop.id is not None
     assert prop.identifier == "sampleSize"
@@ -97,41 +88,30 @@ async def test_create_property_with_range_datatype(
 
 
 @pytest.mark.asyncio
-async def test_property_id_is_uuidv7(db_session: AsyncSession, project: Project) -> None:
+async def test_property_id_is_uuidv7(db_session: AsyncSession, project) -> None:
     """Test that property IDs are UUIDv7."""
-    prop = Property(
-        project_id=project.id,
-        identifier="testProp",
-        label="Test Property",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_datatype="xsd:string",
-        cardinality="single",
-        required=False,
-    )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
+    prop = await flush(db_session, PropertyFactory.create(project=project))
 
     assert prop.id.version == 7
 
 
 @pytest.mark.asyncio
 async def test_property_relationships(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project, scheme
 ) -> None:
     """Test that property relationships are loaded correctly."""
-    prop = Property(
-        project_id=project.id,
-        identifier="educationLevel",
-        label="Education Level",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_scheme_id=scheme.id,
-        cardinality="single",
-        required=False,
+    prop = await flush(
+        db_session,
+        PropertyFactory.create(
+            project=project,
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_scheme=scheme,
+            range_datatype=None,
+            cardinality="single",
+        ),
     )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
 
     # Check relationships
     assert prop.project is not None
@@ -142,52 +122,26 @@ async def test_property_relationships(
 
 @pytest.mark.asyncio
 async def test_property_uri_computed_from_namespace(
-    db_session: AsyncSession, project: Project
+    db_session: AsyncSession, project
 ) -> None:
     """Test that property URI is computed from project namespace and identifier."""
-    prop = Property(
-        project_id=project.id,
-        identifier="educationLevel",
-        label="Education Level",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_datatype="xsd:string",
-        cardinality="single",
-        required=False,
+    prop = await flush(
+        db_session,
+        PropertyFactory.create(project=project, identifier="educationLevel"),
     )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
 
     # Project namespace is "https://example.org/vocab/"
     assert prop.uri == "https://example.org/vocab/educationLevel"
 
 
-@pytest.fixture
-async def project_without_namespace(db_session: AsyncSession) -> Project:
-    """Create a project without a namespace for testing."""
-    project = Project(name="Project Without Namespace")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
 @pytest.mark.asyncio
-async def test_property_uri_none_when_no_namespace(
-    db_session: AsyncSession, project_without_namespace: Project
-) -> None:
+async def test_property_uri_none_when_no_namespace(db_session: AsyncSession) -> None:
     """Test that property URI is None when project has no namespace."""
-    prop = Property(
-        project_id=project_without_namespace.id,
-        identifier="educationLevel",
-        label="Education Level",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_datatype="xsd:string",
-        cardinality="single",
-        required=False,
+    project_no_ns = await flush(db_session, ProjectFactory.create(namespace=None))
+
+    prop = await flush(
+        db_session,
+        PropertyFactory.create(project=project_no_ns, identifier="educationLevel"),
     )
-    db_session.add(prop)
-    await db_session.flush()
-    await db_session.refresh(prop)
 
     assert prop.uri is None

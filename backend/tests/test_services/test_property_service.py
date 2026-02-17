@@ -19,60 +19,57 @@ from taxonomy_builder.services.property_service import (
     PropertyService,
     SchemeNotInProjectError,
 )
+from tests.factories import ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(
-        name="Test Project",
-        namespace="https://example.org/vocab/",
+    return await flush(
+        db_session,
+        ProjectFactory.create(
+            name="Test Project",
+            namespace="https://example.org/vocab/",
+        ),
     )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
 
 
 @pytest.fixture
 async def other_project(db_session: AsyncSession) -> Project:
     """Create another project for testing cross-project validation."""
-    project = Project(
-        name="Other Project",
-        namespace="https://other.org/vocab/",
+    return await flush(
+        db_session,
+        ProjectFactory.create(
+            name="Other Project",
+            namespace="https://other.org/vocab/",
+        ),
     )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
 
 
 @pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Education Level",
-        uri="http://example.org/schemes/education-level",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Education Level",
+            uri="http://example.org/schemes/education-level",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.fixture
 async def other_scheme(db_session: AsyncSession, other_project: Project) -> ConceptScheme:
     """Create a scheme in another project for testing cross-project validation."""
-    scheme = ConceptScheme(
-        project_id=other_project.id,
-        title="Other Scheme",
-        uri="http://other.org/schemes/other",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=other_project,
+            title="Other Scheme",
+            uri="http://other.org/schemes/other",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.fixture
@@ -457,14 +454,14 @@ class TestUpdateProperty:
         from taxonomy_builder.schemas.property import PropertyUpdate
 
         # Create a second scheme
-        scheme2 = ConceptScheme(
-            project_id=project.id,
-            title="Second Scheme",
-            uri="http://example.org/schemes/second",
+        scheme2 = await flush(
+            db_session,
+            ConceptSchemeFactory.create(
+                project=project,
+                title="Second Scheme",
+                uri="http://example.org/schemes/second",
+            ),
         )
-        db_session.add(scheme2)
-        await db_session.flush()
-        await db_session.refresh(scheme2)
 
         service = property_service
         prop_in = PropertyCreate(

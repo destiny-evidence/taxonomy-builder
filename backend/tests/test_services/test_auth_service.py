@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.user import User
 from taxonomy_builder.services.auth_service import AuthService, AuthenticationError
+from tests.factories import UserFactory, flush
 
 
 @pytest.mark.asyncio
@@ -33,14 +34,14 @@ async def test_get_or_create_user_creates_new_user(db_session: AsyncSession) -> 
 @pytest.mark.asyncio
 async def test_get_or_create_user_returns_existing_user(db_session: AsyncSession) -> None:
     """Test that an existing user is returned when found."""
-    # Create user first
-    existing_user = User(
-        keycloak_user_id="keycloak-existing-456",
-        email="existing@example.com",
-        display_name="Existing User",
+    existing_user = await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="keycloak-existing-456",
+            email="existing@example.com",
+            display_name="Existing User",
+        ),
     )
-    db_session.add(existing_user)
-    await db_session.flush()
     original_id = existing_user.id
 
     service = AuthService(db_session)
@@ -60,14 +61,14 @@ async def test_get_or_create_user_returns_existing_user(db_session: AsyncSession
 @pytest.mark.asyncio
 async def test_get_or_create_user_updates_last_login(db_session: AsyncSession) -> None:
     """Test that last_login_at is updated for existing users."""
-    # Create user with no last_login
-    existing_user = User(
-        keycloak_user_id="keycloak-login-789",
-        email="login@example.com",
-        display_name="Login User",
+    existing_user = await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="keycloak-login-789",
+            email="login@example.com",
+            display_name="Login User",
+        ),
     )
-    db_session.add(existing_user)
-    await db_session.flush()
 
     assert existing_user.last_login_at is None
 
@@ -119,13 +120,14 @@ async def test_get_or_create_user_unknown_fallback(db_session: AsyncSession) -> 
 @pytest.mark.asyncio
 async def test_get_user_by_id(db_session: AsyncSession) -> None:
     """Test getting a user by their internal ID."""
-    user = User(
-        keycloak_user_id="keycloak-getbyid",
-        email="getbyid@example.com",
-        display_name="Get By ID User",
+    user = await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="keycloak-getbyid",
+            email="getbyid@example.com",
+            display_name="Get By ID User",
+        ),
     )
-    db_session.add(user)
-    await db_session.flush()
 
     service = AuthService(db_session)
     found_user = await service.get_user_by_id(user.id)

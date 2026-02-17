@@ -13,59 +13,49 @@ from taxonomy_builder.services.concept_service import (
     RelatedSameSchemeError,
     RelatedSelfReferenceError,
 )
+from tests.factories import ConceptFactory, ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 @pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(project_id=project.id, title="Test Scheme")
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(project=project, title="Test Scheme"),
+    )
 
 
 @pytest.fixture
 async def scheme2(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a second scheme for cross-scheme tests."""
-    scheme = ConceptScheme(project_id=project.id, title="Other Scheme")
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(project=project, title="Other Scheme"),
+    )
 
 
 @pytest.fixture
 async def concepts(db_session: AsyncSession, scheme: ConceptScheme) -> list[Concept]:
     """Create multiple concepts for testing."""
-    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs")
-    cats = Concept(scheme_id=scheme.id, pref_label="Cats")
-    vet_medicine = Concept(scheme_id=scheme.id, pref_label="Veterinary Medicine")
-    db_session.add_all([dogs, cats, vet_medicine])
-    await db_session.flush()
-    for c in [dogs, cats, vet_medicine]:
-        await db_session.refresh(c)
+    dogs = await flush(db_session, ConceptFactory.create(scheme=scheme, pref_label="Dogs"))
+    cats = await flush(db_session, ConceptFactory.create(scheme=scheme, pref_label="Cats"))
+    vet_medicine = await flush(db_session, ConceptFactory.create(scheme=scheme, pref_label="Veterinary Medicine"))
     return [dogs, cats, vet_medicine]
 
 
 @pytest.fixture
 async def concept_other_scheme(db_session: AsyncSession, scheme2: ConceptScheme) -> Concept:
     """Create a concept in a different scheme."""
-    concept = Concept(scheme_id=scheme2.id, pref_label="Other Concept")
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
-    return concept
+    return await flush(
+        db_session,
+        ConceptFactory.create(scheme=scheme2, pref_label="Other Concept"),
+    )
 
 
 @pytest.fixture
