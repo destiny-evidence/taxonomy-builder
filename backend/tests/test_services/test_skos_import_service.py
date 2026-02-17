@@ -6,22 +6,18 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
     SchemeURIConflictError,
     SKOSImportService,
 )
+from tests.factories import ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 @pytest.fixture
@@ -197,7 +193,7 @@ Just random text.
 
 @pytest.mark.asyncio
 async def test_preview_simple_scheme(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test previewing a simple single-scheme file."""
     result = await import_service.preview(
@@ -216,7 +212,7 @@ async def test_preview_simple_scheme(
 
 @pytest.mark.asyncio
 async def test_preview_multiple_schemes(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test previewing a file with multiple schemes."""
     result = await import_service.preview(
@@ -237,7 +233,7 @@ async def test_preview_multiple_schemes(
 
 @pytest.mark.asyncio
 async def test_preview_subclassed_concepts(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that concepts typed as subclasses of skos:Concept are detected."""
     result = await import_service.preview(
@@ -252,7 +248,7 @@ async def test_preview_subclassed_concepts(
 
 @pytest.mark.asyncio
 async def test_preview_missing_preflabel_warning(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that missing prefLabel generates a warning."""
     result = await import_service.preview(
@@ -266,7 +262,7 @@ async def test_preview_missing_preflabel_warning(
 
 @pytest.mark.asyncio
 async def test_preview_scheme_title_priority(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that rdfs:label takes priority over skos:prefLabel for scheme title."""
     result = await import_service.preview(
@@ -279,7 +275,7 @@ async def test_preview_scheme_title_priority(
 
 @pytest.mark.asyncio
 async def test_preview_orphan_concept_single_scheme(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that orphan concepts are assigned to single scheme in file."""
     result = await import_service.preview(
@@ -292,7 +288,7 @@ async def test_preview_orphan_concept_single_scheme(
 
 @pytest.mark.asyncio
 async def test_preview_orphan_concept_multi_scheme_warning(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that orphan concepts generate warning when multiple schemes exist."""
     result = await import_service.preview(
@@ -310,7 +306,7 @@ async def test_preview_orphan_concept_multi_scheme_warning(
 
 @pytest.mark.asyncio
 async def test_preview_top_concept_of(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that skos:topConceptOf is used for scheme membership."""
     result = await import_service.preview(
@@ -326,7 +322,7 @@ async def test_preview_top_concept_of(
 
 @pytest.mark.asyncio
 async def test_preview_invalid_rdf(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that invalid RDF raises an error."""
     with pytest.raises(InvalidRDFError):
@@ -335,7 +331,7 @@ async def test_preview_invalid_rdf(
 
 @pytest.mark.asyncio
 async def test_preview_unsupported_format(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that unsupported file extension raises an error."""
     with pytest.raises(InvalidRDFError):
@@ -344,17 +340,18 @@ async def test_preview_unsupported_format(
 
 @pytest.mark.asyncio
 async def test_preview_scheme_uri_conflict(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test that existing scheme with same URI raises conflict error."""
     # Create existing scheme with same URI
-    existing = ConceptScheme(
-        project_id=project.id,
-        title="Existing Scheme",
-        uri="http://example.org/TestScheme",
+    await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Existing Scheme",
+            uri="http://example.org/TestScheme",
+        ),
     )
-    db_session.add(existing)
-    await db_session.flush()
 
     with pytest.raises(SchemeURIConflictError):
         await import_service.preview(project.id, SIMPLE_SCHEME_TTL, "test.ttl")
@@ -365,7 +362,7 @@ async def test_preview_scheme_uri_conflict(
 
 @pytest.mark.asyncio
 async def test_execute_simple_scheme(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test executing import of a simple scheme."""
     result = await import_service.execute(
@@ -400,7 +397,7 @@ async def test_execute_simple_scheme(
 
 @pytest.mark.asyncio
 async def test_execute_multiple_schemes(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test executing import of multiple schemes."""
     result = await import_service.execute(
@@ -423,7 +420,7 @@ async def test_execute_multiple_schemes(
 
 @pytest.mark.asyncio
 async def test_execute_scheme_title_conflict_auto_rename(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test that title conflict results in auto-rename."""
     # Create existing scheme with same title
@@ -446,7 +443,7 @@ async def test_execute_scheme_title_conflict_auto_rename(
 
 @pytest.mark.asyncio
 async def test_execute_creates_broader_relationships(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test that broader relationships are created."""
     result = await import_service.execute(
@@ -479,7 +476,7 @@ async def test_execute_creates_broader_relationships(
 
 @pytest.mark.asyncio
 async def test_execute_alt_labels(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test that alt labels are imported."""
     result = await import_service.execute(
@@ -504,7 +501,7 @@ async def test_execute_alt_labels(
 
 @pytest.mark.asyncio
 async def test_execute_extracts_identifier_from_uri(
-    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    db_session: AsyncSession, import_service: SKOSImportService, project
 ) -> None:
     """Test that concept identifiers are extracted from URIs."""
     result = await import_service.execute(
@@ -531,7 +528,7 @@ async def test_execute_extracts_identifier_from_uri(
 
 @pytest.mark.asyncio
 async def test_format_detection_turtle(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that .ttl extension is detected as Turtle."""
     result = await import_service.preview(
@@ -542,7 +539,7 @@ async def test_format_detection_turtle(
 
 @pytest.mark.asyncio
 async def test_format_detection_rdf_xml(
-    import_service: SKOSImportService, project: Project
+    import_service: SKOSImportService, project
 ) -> None:
     """Test that .rdf extension is detected as RDF/XML."""
     rdf_xml = b"""<?xml version="1.0"?>

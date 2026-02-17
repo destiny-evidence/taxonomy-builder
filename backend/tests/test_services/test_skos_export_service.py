@@ -11,33 +11,28 @@ from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
-from taxonomy_builder.services.skos_export_service import SKOSExportService, SchemeNotFoundError
+from taxonomy_builder.services.skos_export_service import SchemeNotFoundError, SKOSExportService
+from tests.factories import ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+async def scheme(db_session: AsyncSession, project):
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Taxonomy",
-        description="A test taxonomy",
-        uri="http://example.org/taxonomy",
+    return await flush(
+        db_session,
+        ConceptSchemeFactory.create(
+            project=project,
+            title="Test Taxonomy",
+            description="A test taxonomy",
+            uri="http://example.org/taxonomy",
+        ),
     )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
 
 
 @pytest.fixture
@@ -327,7 +322,7 @@ async def test_export_concept_without_identifier(
 
 @pytest.mark.asyncio
 async def test_export_scheme_without_uri(
-    db_session: AsyncSession, project: Project
+    db_session: AsyncSession, project
 ) -> None:
     """Test exporting a scheme without a URI generates a default."""
     scheme = ConceptScheme(

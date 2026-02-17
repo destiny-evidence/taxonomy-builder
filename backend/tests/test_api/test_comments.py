@@ -11,74 +11,53 @@ from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_use
 from taxonomy_builder.main import app
 from taxonomy_builder.models.comment import Comment
 from taxonomy_builder.models.concept import Concept
-from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.user import User
 
-
-@pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+from tests.factories import (
+    CommentFactory,
+    ConceptFactory,
+    ConceptSchemeFactory,
+    UserFactory,
+    flush,
+)
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/concepts",
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
-
-
-@pytest.fixture
-async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
+async def concept(db_session: AsyncSession) -> Concept:
     """Create a concept for testing."""
-    concept = Concept(
-        scheme_id=scheme.id,
-        pref_label="Test Concept",
+    return await flush(
+        db_session,
+        ConceptFactory.create(
+            scheme=ConceptSchemeFactory.create(uri="http://example.org/concepts"),
+            pref_label="Test Concept",
+        ),
     )
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
-    return concept
 
 
 @pytest.fixture
 async def user(db_session: AsyncSession) -> User:
     """Create a user for testing."""
-    user = User(
-        keycloak_user_id="test-keycloak-id",
-        email="test@example.com",
-        display_name="Test User",
+    return await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="test-keycloak-id",
+            email="test@example.com",
+            display_name="Test User",
+        ),
     )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    return user
 
 
 @pytest.fixture
 async def other_user(db_session: AsyncSession) -> User:
     """Create another user for testing ownership checks."""
-    user = User(
-        keycloak_user_id="other-keycloak-id",
-        email="other@example.com",
-        display_name="Other User",
+    return await flush(
+        db_session,
+        UserFactory.create(
+            keycloak_user_id="other-keycloak-id",
+            email="other@example.com",
+            display_name="Other User",
+        ),
     )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    return user
 
 
 @pytest.fixture
@@ -140,12 +119,11 @@ async def test_list_comments(
     user: User,
 ) -> None:
     """Test listing comments returns comments with author info."""
-    comment = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Test comment",
     )
-    db_session.add(comment)
     await db_session.flush()
 
     response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
@@ -166,12 +144,11 @@ async def test_list_comments_can_delete_false_for_others(
     other_auth_client: AsyncClient,
 ) -> None:
     """Test that can_delete is false for comments owned by others."""
-    comment = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,  # Owned by 'user'
+        user=user,  # Owned by 'user'
         content="User's comment",
     )
-    db_session.add(comment)
     await db_session.flush()
 
     # other_auth_client is authenticated as other_user
@@ -274,13 +251,14 @@ async def test_delete_comment(
     user: User,
 ) -> None:
     """Test deleting own comment."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="To delete",
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="To delete",
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
 
     response = await auth_client.delete(f"/api/comments/{comment.id}")
     assert response.status_code == 204
@@ -298,13 +276,14 @@ async def test_delete_comment_not_owner(
     other_auth_client: AsyncClient,
 ) -> None:
     """Test that users cannot delete others' comments."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,  # Owned by 'user'
-        content="User's comment",
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,  # Owned by 'user'
+            content="User's comment",
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
 
     # other_auth_client is authenticated as other_user
     response = await other_auth_client.delete(f"/api/comments/{comment.id}")
@@ -326,13 +305,14 @@ async def test_delete_comment_requires_auth(
     user: User,
 ) -> None:
     """Test that deleting comment requires authentication."""
-    comment = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Test",
+    comment = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Test",
+        ),
     )
-    db_session.add(comment)
-    await db_session.flush()
 
     response = await client.delete(f"/api/comments/{comment.id}")
     assert response.status_code == 401
@@ -350,13 +330,14 @@ async def test_create_reply_to_comment(
 ) -> None:
     """Test creating a reply to a top-level comment via API."""
     # Create parent comment
-    parent = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Parent comment",
+    parent = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Parent comment",
+        ),
     )
-    db_session.add(parent)
-    await db_session.flush()
 
     # Create reply via API
     response = await auth_client.post(
@@ -379,23 +360,25 @@ async def test_reject_nested_reply_via_api(
 ) -> None:
     """Test that API rejects replies to replies (no nesting)."""
     # Create parent comment
-    parent = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Parent comment",
+    parent = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Parent comment",
+        ),
     )
-    db_session.add(parent)
-    await db_session.flush()
 
     # Create first reply
-    first_reply = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="First reply",
-        parent_comment_id=parent.id,
+    first_reply = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="First reply",
+            parent_comment_id=parent.id,
+        ),
     )
-    db_session.add(first_reply)
-    await db_session.flush()
 
     # Try to create nested reply via API (should be rejected)
     response = await auth_client.post(
@@ -437,28 +420,28 @@ async def test_list_comments_returns_threaded_structure(
 ) -> None:
     """Test that list endpoint returns comments grouped by thread."""
     # Create parent comment
-    parent = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Parent comment",
+    parent = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Parent comment",
+        ),
     )
-    db_session.add(parent)
-    await db_session.flush()
 
     # Create two replies
-    reply1 = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="First reply",
         parent_comment_id=parent.id,
     )
-    reply2 = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Second reply",
         parent_comment_id=parent.id,
     )
-    db_session.add_all([reply1, reply2])
     await db_session.flush()
 
     response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
@@ -488,13 +471,11 @@ async def test_list_comments_empty_thread(
     user: User,
 ) -> None:
     """Test that top-level comments without replies still return correctly."""
-    # Create top-level comment with no replies
-    comment = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Solo comment",
     )
-    db_session.add(comment)
     await db_session.flush()
 
     response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
@@ -516,40 +497,40 @@ async def test_list_comments_thread_ordering(
 ) -> None:
     """Test that threads and replies are ordered by created_at."""
     # Create first parent
-    parent1 = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="First parent",
+    parent1 = await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="First parent",
+        ),
     )
-    db_session.add(parent1)
-    await db_session.flush()
 
     # Create second parent
-    parent2 = Comment(
-        concept_id=concept.id,
-        user_id=user.id,
-        content="Second parent",
+    await flush(
+        db_session,
+        CommentFactory.create(
+            concept_id=concept.id,
+            user=user,
+            content="Second parent",
+        ),
     )
-    db_session.add(parent2)
-    await db_session.flush()
 
     # Add replies to first parent (in specific order)
-    reply1a = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="First parent - reply A",
         parent_comment_id=parent1.id,
     )
-    db_session.add(reply1a)
     await db_session.flush()
 
-    reply1b = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="First parent - reply B",
         parent_comment_id=parent1.id,
     )
-    db_session.add(reply1b)
     await db_session.flush()
 
     response = await auth_client.get(f"/api/concepts/{concept.id}/comments")
@@ -576,26 +557,26 @@ async def test_list_comments_multiple_threads(
 ) -> None:
     """Test listing multiple threads with mixed replies."""
     # Create three parent comments
-    parent1 = Comment(concept_id=concept.id, user_id=user.id, content="Parent 1")
-    parent2 = Comment(concept_id=concept.id, user_id=user.id, content="Parent 2")
-    parent3 = Comment(concept_id=concept.id, user_id=user.id, content="Parent 3")
-    db_session.add_all([parent1, parent2, parent3])
+    parent1 = CommentFactory.create(concept_id=concept.id, user=user, content="Parent 1")
+    parent2 = CommentFactory.create(concept_id=concept.id, user=user, content="Parent 2")
+    parent3 = CommentFactory.create(concept_id=concept.id, user=user, content="Parent 3")
     await db_session.flush()
+    for p in [parent1, parent2, parent3]:
+        await db_session.refresh(p)
 
     # Add replies only to parent1 and parent3
-    reply1 = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Reply to parent 1",
         parent_comment_id=parent1.id,
     )
-    reply3 = Comment(
+    CommentFactory.create(
         concept_id=concept.id,
-        user_id=user.id,
+        user=user,
         content="Reply to parent 3",
         parent_comment_id=parent3.id,
     )
-    db_session.add_all([reply1, reply3])
     await db_session.flush()
 
     response = await auth_client.get(f"/api/concepts/{concept.id}/comments")

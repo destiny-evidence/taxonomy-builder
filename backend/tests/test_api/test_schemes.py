@@ -9,31 +9,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.main import app
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
+from tests.factories import ConceptSchemeFactory, ProjectFactory, PropertyFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(name="Test Project", description="For testing schemes")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project", description="For testing schemes"))
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+async def scheme(db_session: AsyncSession, project):
     """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        description="A test scheme",
-        uri="http://example.org/schemes/test",
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
+    return await flush(db_session, ConceptSchemeFactory.create(project=project, title="Test Scheme", description="A test scheme", uri="http://example.org/schemes/test"))
 
 
 # List schemes tests
@@ -213,8 +201,7 @@ async def test_update_scheme_duplicate_title(
 ) -> None:
     """Test updating scheme to duplicate title fails."""
     # Create another scheme
-    scheme2 = ConceptScheme(project_id=project.id, title="Another Scheme")
-    db_session.add(scheme2)
+    scheme2 = ConceptSchemeFactory.create(project=project, title="Another Scheme")
     await db_session.flush()
 
     # Try to rename it to the same title as the first scheme
@@ -251,19 +238,8 @@ async def test_delete_scheme_referenced_by_property(
     authenticated_client: AsyncClient, db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test deleting a scheme that is referenced by a property fails."""
-    from taxonomy_builder.models.property import Property
-
     # Create a property that references this scheme
-    prop = Property(
-        project_id=project.id,
-        identifier="testProp",
-        label="Test Property",
-        domain_class="https://evrepo.example.org/vocab/Finding",
-        range_scheme_id=scheme.id,
-        cardinality="single",
-        required=False,
-    )
-    db_session.add(prop)
+    PropertyFactory.create(project=project, identifier="testProp", label="Test Property", domain_class="https://evrepo.example.org/vocab/Finding", range_scheme=scheme, cardinality="single", required=False)
     await db_session.flush()
 
     # Try to delete the scheme

@@ -6,18 +6,14 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
+from tests.factories import ConceptSchemeFactory, ProjectFactory, flush
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
+async def project(db_session: AsyncSession):
     """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
+    return await flush(db_session, ProjectFactory.create(name="Test Project"))
 
 
 # Sample SKOS files for testing
@@ -226,12 +222,7 @@ async def test_import_uri_conflict(
 ) -> None:
     """Test import returns 409 when scheme URI already exists."""
     # Create existing scheme with same URI
-    existing = ConceptScheme(
-        project_id=project.id,
-        title="Existing Scheme",
-        uri="http://example.org/TestScheme",
-    )
-    db_session.add(existing)
+    ConceptSchemeFactory.create(project=project, title="Existing Scheme", uri="http://example.org/TestScheme")
     await db_session.flush()
 
     response = await authenticated_client.post(
@@ -249,12 +240,7 @@ async def test_import_title_conflict_auto_rename(
 ) -> None:
     """Test that title conflict results in auto-rename on execute."""
     # Create existing scheme with same title but different URI
-    existing = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/different-uri",
-    )
-    db_session.add(existing)
+    ConceptSchemeFactory.create(project=project, title="Test Scheme", uri="http://example.org/different-uri")
     await db_session.flush()
 
     response = await authenticated_client.post(
