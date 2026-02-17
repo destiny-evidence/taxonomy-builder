@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -51,7 +52,9 @@ class TestPreview:
         data = resp.json()
         assert data["validation"]["valid"] is True
         assert data["content_summary"]["schemes"] >= 1
+        assert data["content_summary"]["concepts"] >= 1
         assert data["suggested_version"] == "1.0"
+        assert data["diff"] is None
 
     @pytest.mark.asyncio
     async def test_preview_invalid(
@@ -63,6 +66,48 @@ class TestPreview:
         assert resp.status_code == 200
         data = resp.json()
         assert data["validation"]["valid"] is False
+
+    @pytest.mark.asyncio
+    async def test_preview_includes_diff_after_publish(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        data = resp.json()
+        assert data["diff"] is not None
+        assert data["suggested_version"] == "1.1"
+
+    @pytest.mark.asyncio
+    async def test_preview_suggests_major_bump_for_removals(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        # Delete the concept and add a replacement so validation still passes
+        result = await db_session.execute(select(Concept))
+        for concept in result.scalars().all():
+            await db_session.delete(concept)
+        scheme_result = await db_session.execute(select(ConceptScheme))
+        scheme = scheme_result.scalar_one()
+        db_session.add(Concept(scheme_id=scheme.id, pref_label="Replacement"))
+        await db_session.flush()
+        db_session.expunge_all()
+
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        data = resp.json()
+        assert data["suggested_version"] == "2.0"
 
     @pytest.mark.asyncio
     async def test_preview_not_found(self, authenticated_client: AsyncClient) -> None:
@@ -112,6 +157,22 @@ class TestPublish:
         assert data["published_at"] is None
 
     @pytest.mark.asyncio
+    async def test_publish_links_previous_version(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        v1_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        v1_id = v1_resp.json()["id"]
+
+        v2_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "2.0", "title": "V2"},
+        )
+        assert v2_resp.json()["previous_version_id"] == v1_id
+
+    @pytest.mark.asyncio
     async def test_publish_validation_failure(
         self, authenticated_client: AsyncClient, project: Project
     ) -> None:
@@ -127,7 +188,6 @@ class TestPublish:
     async def test_publish_rejects_invalid_draft(
         self, authenticated_client: AsyncClient, project: Project
     ) -> None:
-        """An invalid project cannot be saved even as a draft."""
         resp = await authenticated_client.post(
             f"/api/projects/{project.id}/publish",
             json={"version": "1.0", "title": "WIP", "finalized": False},
@@ -217,7 +277,6 @@ class TestListVersions:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 2
-        # Newest first
         assert data[0]["version"] == "2.0"
 
 
@@ -238,7 +297,8 @@ class TestGetVersion:
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == version_id
-        assert "snapshot" in data
+        assert "concept_schemes" in data["snapshot"]
+        assert "project" in data["snapshot"]
 
     @pytest.mark.asyncio
     async def test_get_version_not_found(
@@ -269,6 +329,26 @@ class TestUpdateDraft:
         data = resp.json()
         assert data["title"] == "Updated Draft"
         assert data["notes"] == "Some notes"
+
+    @pytest.mark.asyncio
+    async def test_update_draft_version_conflict(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Final"},
+        )
+        draft_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "2.0", "title": "Draft", "finalized": False},
+        )
+        version_id = draft_resp.json()["id"]
+
+        resp = await authenticated_client.patch(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}",
+            json={"version": "1.0"},
+        )
+        assert resp.status_code == 409
 
     @pytest.mark.asyncio
     async def test_update_finalized_rejected(
@@ -323,7 +403,6 @@ class TestDeleteDraft:
         )
         assert resp.status_code == 204
 
-        # Verify it's gone
         list_resp = await authenticated_client.get(
             f"/api/projects/{publishable_project.id}/versions"
         )
@@ -381,6 +460,66 @@ class TestFinalize:
         data = resp.json()
         assert data["finalized"] is True
         assert data["published_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_finalize_rebuilds_snapshot(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        publishable_project: Project,
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Draft", "finalized": False},
+        )
+        version_id = create_resp.json()["id"]
+
+        # Get the draft's snapshot
+        draft_resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}"
+        )
+        original_concepts = draft_resp.json()["snapshot"]["concept_schemes"][0]["concepts"]
+
+        # Add a concept so the project state changes
+        scheme_result = await db_session.execute(select(ConceptScheme))
+        scheme = scheme_result.scalar_one()
+        db_session.add(Concept(scheme_id=scheme.id, pref_label="Term B"))
+        await db_session.flush()
+        db_session.expunge_all()
+
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}/finalize"
+        )
+        final_resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}"
+        )
+        finalized_concepts = final_resp.json()["snapshot"]["concept_schemes"][0]["concepts"]
+        assert len(finalized_concepts) > len(original_concepts)
+
+    @pytest.mark.asyncio
+    async def test_finalize_rejects_invalid_project(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        publishable_project: Project,
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Draft", "finalized": False},
+        )
+        version_id = create_resp.json()["id"]
+
+        # Delete all concepts so the project becomes invalid
+        result = await db_session.execute(select(Concept))
+        for concept in result.scalars().all():
+            await db_session.delete(concept)
+        await db_session.flush()
+        db_session.expunge_all()
+
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}/finalize"
+        )
+        assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_finalize_rejects_finalized(

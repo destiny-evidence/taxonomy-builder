@@ -76,7 +76,7 @@ async def publish_version(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(e),
-                "errors": [err.model_dump() for err in e.validation_result.errors],
+                "errors": [err.model_dump(mode="json") for err in e.validation_result.errors],
             },
         )
     except VersionConflictError as e:
@@ -143,7 +143,7 @@ async def finalize_version(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(e),
-                "errors": [err.model_dump() for err in e.validation_result.errors],
+                "errors": [err.model_dump(mode="json") for err in e.validation_result.errors],
             },
         )
 
@@ -172,7 +172,7 @@ async def update_draft(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(e),
-                "errors": [err.model_dump() for err in e.validation_result.errors],
+                "errors": [err.model_dump(mode="json") for err in e.validation_result.errors],
             },
         )
     except VersionConflictError as e:
