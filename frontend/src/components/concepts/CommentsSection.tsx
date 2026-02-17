@@ -37,8 +37,7 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
   async function loadComments() {
     try {
       setError(null);
-      const resolved = filter === "all" ? undefined : filter === "resolved";
-      const data = await commentsApi.listForConcept(conceptId, resolved);
+      const data = await commentsApi.listForConcept(conceptId);
       setComments(data);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -49,17 +48,19 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
-  // Reset UI state when concept changes
+  const filteredComments = comments.filter((comment) => {
+    if (filter === "all") return true;
+    if (filter === "resolved") return comment.resolved_at;
+    return !comment.resolved_at;
+  });
+
+  // Reset UI state and load comments when concept changes
   useEffect(() => {
     setIsExpanded(false);
     setNewComment("");
     setError(null);
-  }, [conceptId]);
-
-  // Load comments when concept or filter changes
-  useEffect(() => {
     loadComments();
-  }, [conceptId, filter]);
+  }, [conceptId]);
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -194,9 +195,9 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
             ))}
           </div>
 
-          {comments.length > 0 ? (
+          {filteredComments.length > 0 ? (
             <div class="comments-section__list">
-              {comments.map((comment) => (
+              {filteredComments.map((comment) => (
                 <div key={comment.id} class="comments-section__thread">
                   {/* Top-level comment */}
                   <div class="comments-section__comment">
