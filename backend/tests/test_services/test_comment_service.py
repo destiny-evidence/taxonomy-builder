@@ -102,7 +102,7 @@ async def test_list_comments_empty(
 
 @pytest.mark.asyncio
 async def test_list_comments(
-    db_session: AsyncSession, concept: Concept, user: User
+    db_session: AsyncSession, concept: Concept, user: User,
 ) -> None:
     """Test listing comments for a concept."""
     comment = Comment(
@@ -120,6 +120,44 @@ async def test_list_comments(
     assert comments[0].content == "Test comment"
     assert comments[0].user.display_name == "Test User"
 
+@pytest.mark.asyncio
+async def test_list_comments_resolution_filtering(
+    db_session: AsyncSession, concept: Concept, user: User, other_user: User
+) -> None:
+    """Test listing comments for a concept."""
+    unresolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Unresolved comment",
+    )
+
+    resolved_comment = Comment(
+        concept_id=concept.id,
+        user_id=other_user.id,
+        content="Resolved comment",
+        resolved_at=datetime.now(),
+        resolved_by=user.id
+    )
+
+    db_session.add(unresolved_comment)
+    db_session.add(resolved_comment)
+    await db_session.flush()
+
+    service = CommentService(db_session, user_id=user.id)
+    comments = await service.get_comments(concept.id)
+
+    assert len(comments) == 2
+
+    unresolved_comments = await service.get_comments(concept.id, resolved=False)
+    assert len(unresolved_comments) == 1
+
+    assert unresolved_comments[0].content == unresolved_comment.content
+    assert unresolved_comments[0].user.display_name == unresolved_comment.user.display_name
+
+    resolved_comments = await service.get_comments(concept.id, resolved=True)
+    assert len(resolved_comments) == 1
+    assert resolved_comments[0].content == resolved_comment.content
+    assert resolved_comments[0].user.display_name == resolved_comment.user.display_name
 
 @pytest.mark.asyncio
 async def test_list_comments_excludes_deleted(

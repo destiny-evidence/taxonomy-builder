@@ -115,8 +115,8 @@ class CommentService:
         Args:
             concept_id: The ID of the concept to list comments for
             resolved: If True, return only resolved comments.
-                      If False, return only unresolved comments.
-                      If None (default), return all comments.
+                If False, return only unresolved comments.
+                If None (default), return all comments.
         """
         await self._get_concept(concept_id)
 
@@ -125,6 +125,7 @@ class CommentService:
             .where(Comment.concept_id == concept_id)
             .where(Comment.deleted_at.is_(None))
             .options(selectinload(Comment.user))
+            .options(selectinload(Comment.resolver))
             .order_by(Comment.created_at)
         )
 
@@ -153,8 +154,8 @@ class CommentService:
         Args:
             concept_id: The ID of the concept to list comments for
             resolved: If True, return only resolved comments.
-                      If False, return only unresolved comments.
-                      If None (default), return all comments.
+                If False, return only unresolved comments.
+                If None (default), return all comments.
         Returns:
             tuple[thread_parents, dict[thread_parent_id, list[replies]]]
         """
@@ -166,7 +167,7 @@ class CommentService:
 
         for comment in comments:
             if comment.parent_comment_id is None:
-                    top_level.append(comment)
+                top_level.append(comment)
             else:
                 replies_by_parent[comment.parent_comment_id].append(comment)
 

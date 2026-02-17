@@ -46,6 +46,10 @@ class Comment(Base):
         foreign_keys=[user_id], lazy="selectin"
     )
 
+    resolver: Mapped["User"] = relationship(
+        foreign_keys=[resolved_by], lazy="selectin"
+    )
+
     __table_args__ = (
         Index("ix_comments_concept_deleted", concept_id, deleted_at),
         Index("ix_comments_parent_comment_id", parent_comment_id, unique=False)

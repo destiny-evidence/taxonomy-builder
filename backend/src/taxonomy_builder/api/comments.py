@@ -1,6 +1,5 @@
 """Comment API endpoints."""
 
-from collections import defaultdict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -69,6 +68,10 @@ async def list_comments(
                     "id": comment.user.id,
                     "display_name": comment.user.display_name,
                 },
+                "resolver": {
+                    "id": comment.resolver.id,
+                    "display_name": comment.resolver.display_name,
+                } if comment.resolver else None,
                 "can_delete": comment.user_id == service.user_id,
                 "replies": [],
             }

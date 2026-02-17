@@ -139,12 +139,15 @@ async def test_list_comments(
     db_session: AsyncSession,
     concept: Concept,
     user: User,
+    other_user: User
 ) -> None:
-    """Test listing comments returns comments with author info."""
+    """Test listing comments returns comments with author and resolver info."""
     comment = Comment(
         concept_id=concept.id,
         user_id=user.id,
         content="Test comment",
+        resolved_at=datetime.now(),
+        resolved_by=other_user.id
     )
     db_session.add(comment)
     await db_session.flush()
@@ -154,8 +157,9 @@ async def test_list_comments(
     data = response.json()
     assert len(data) == 1
     assert data[0]["content"] == "Test comment"
-    assert data[0]["user"]["display_name"] == "Test User"
+    assert data[0]["user"]["display_name"] == user.display_name
     assert data[0]["can_delete"] is True  # User owns this comment
+    assert data[0]["resolver"]["display_name"] == other_user.display_name
 
 @pytest.mark.asyncio
 async def test_list_comments_can_filter_by_resolved(
