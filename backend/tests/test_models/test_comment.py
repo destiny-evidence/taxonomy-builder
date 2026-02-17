@@ -8,13 +8,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.comment import Comment
+from taxonomy_builder.models.concept import Concept
 from tests.factories import CommentFactory, ConceptFactory, UserFactory, flush
 
 
+@pytest.fixture
+async def concept(db_session: AsyncSession) -> Concept:
+    """Create a concept for testing."""
+    return await flush(db_session, ConceptFactory.create())
+
+
 @pytest.mark.asyncio
-async def test_create_comment(db_session: AsyncSession) -> None:
+async def test_create_comment(db_session: AsyncSession, concept: Concept) -> None:
     """Test creating a comment."""
-    concept = await flush(db_session, ConceptFactory.create())
     comment = await flush(
         db_session,
         CommentFactory.create(concept_id=concept.id, content="This is a test comment"),
@@ -31,9 +37,8 @@ async def test_create_comment(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_comment_id_is_uuidv7(db_session: AsyncSession) -> None:
+async def test_comment_id_is_uuidv7(db_session: AsyncSession, concept: Concept) -> None:
     """Test that comment IDs are UUIDv7."""
-    concept = await flush(db_session, ConceptFactory.create())
     comment = await flush(
         db_session, CommentFactory.create(concept_id=concept.id)
     )
@@ -42,9 +47,8 @@ async def test_comment_id_is_uuidv7(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_comment_soft_delete(db_session: AsyncSession) -> None:
+async def test_comment_soft_delete(db_session: AsyncSession, concept: Concept) -> None:
     """Test soft deleting a comment by setting deleted_at."""
-    concept = await flush(db_session, ConceptFactory.create())
     comment = await flush(
         db_session, CommentFactory.create(concept_id=concept.id, content="To be deleted")
     )
@@ -58,9 +62,8 @@ async def test_comment_soft_delete(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_comment_user_relationship(db_session: AsyncSession) -> None:
+async def test_comment_user_relationship(db_session: AsyncSession, concept: Concept) -> None:
     """Test that comment has user relationship loaded."""
-    concept = await flush(db_session, ConceptFactory.create())
     user = UserFactory.create(display_name="Test User")
     comment = await flush(
         db_session, CommentFactory.create(concept_id=concept.id, user=user)
@@ -72,11 +75,10 @@ async def test_comment_user_relationship(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_comment_content_required(db_session: AsyncSession) -> None:
+async def test_comment_content_required(db_session: AsyncSession, concept: Concept) -> None:
     """Test that content is required."""
     from sqlalchemy.exc import IntegrityError
 
-    concept = await flush(db_session, ConceptFactory.create())
     user = await flush(db_session, UserFactory.create())
 
     comment = Comment(
@@ -91,9 +93,8 @@ async def test_comment_content_required(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cascade_delete_with_concept(db_session: AsyncSession) -> None:
+async def test_cascade_delete_with_concept(db_session: AsyncSession, concept: Concept) -> None:
     """Test that comments are deleted when concept is deleted."""
-    concept = await flush(db_session, ConceptFactory.create())
     comment = await flush(
         db_session, CommentFactory.create(concept_id=concept.id)
     )
@@ -107,9 +108,8 @@ async def test_cascade_delete_with_concept(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cascade_delete_with_user(db_session: AsyncSession) -> None:
+async def test_cascade_delete_with_user(db_session: AsyncSession, concept: Concept) -> None:
     """Test that comments are deleted when user is deleted."""
-    concept = await flush(db_session, ConceptFactory.create())
     user = UserFactory.create()
     comment = await flush(
         db_session, CommentFactory.create(concept_id=concept.id, user=user)

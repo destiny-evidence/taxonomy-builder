@@ -5,6 +5,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.concept_scheme import ConceptScheme
 from tests.factories import (
     ChangeEventFactory,
     ConceptSchemeFactory,
@@ -13,10 +14,15 @@ from tests.factories import (
 )
 
 
+@pytest.fixture
+async def scheme(db_session: AsyncSession) -> ConceptScheme:
+    """Create a concept scheme for testing."""
+    return await flush(db_session, ConceptSchemeFactory.create())
+
+
 @pytest.mark.asyncio
-async def test_create_change_event(db_session: AsyncSession) -> None:
+async def test_create_change_event(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test creating a change event with required fields."""
-    scheme = await flush(db_session, ConceptSchemeFactory.create())
 
     event = await flush(
         db_session,
@@ -39,10 +45,8 @@ async def test_create_change_event(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_change_event_id_is_uuidv7(db_session: AsyncSession) -> None:
+async def test_change_event_id_is_uuidv7(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test that change event IDs are UUIDv7."""
-    scheme = await flush(db_session, ConceptSchemeFactory.create())
-
     event = await flush(
         db_session,
         ChangeEventFactory.create(
@@ -55,10 +59,8 @@ async def test_change_event_id_is_uuidv7(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_change_event_update_with_before_after(db_session: AsyncSession) -> None:
+async def test_change_event_update_with_before_after(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test creating an update event with before and after states."""
-    scheme = await flush(db_session, ConceptSchemeFactory.create())
-
     event = await flush(
         db_session,
         ChangeEventFactory.create(
@@ -75,10 +77,8 @@ async def test_change_event_update_with_before_after(db_session: AsyncSession) -
 
 
 @pytest.mark.asyncio
-async def test_change_event_delete_with_before_only(db_session: AsyncSession) -> None:
+async def test_change_event_delete_with_before_only(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test creating a delete event with only before state."""
-    scheme = await flush(db_session, ConceptSchemeFactory.create())
-
     event = await flush(
         db_session,
         ChangeEventFactory.create(
@@ -119,9 +119,8 @@ async def test_change_event_with_project_id_and_no_scheme(db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_change_event_with_both_project_and_scheme(db_session: AsyncSession) -> None:
+async def test_change_event_with_both_project_and_scheme(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test creating a change event with both project_id and scheme_id."""
-    scheme = await flush(db_session, ConceptSchemeFactory.create())
     project = scheme.project
 
     event = await flush(
