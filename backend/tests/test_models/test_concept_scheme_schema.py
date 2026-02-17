@@ -4,7 +4,6 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from faker import Faker
 from pydantic import ValidationError
 
 from taxonomy_builder.schemas.concept_scheme import (
@@ -13,31 +12,25 @@ from taxonomy_builder.schemas.concept_scheme import (
     ConceptSchemeUpdate,
 )
 
-fake = Faker()
-
 
 class TestConceptSchemeCreate:
     """Tests for ConceptSchemeCreate schema."""
 
     def test_valid_concept_scheme_create(self) -> None:
         """Test creating a valid concept scheme."""
-        title = fake.sentence(nb_words=3)
-        description = fake.sentence()
-        uri = fake.uri()
         scheme = ConceptSchemeCreate(
-            title=title,
-            description=description,
-            uri=uri,
+            title="Test Scheme",
+            description="A test description",
+            uri="http://example.org/schemes/test",
         )
-        assert scheme.title == title
-        assert scheme.description == description
-        assert scheme.uri == uri
+        assert scheme.title == "Test Scheme"
+        assert scheme.description == "A test description"
+        assert scheme.uri == "http://example.org/schemes/test"
 
     def test_concept_scheme_create_title_only(self) -> None:
         """Test creating a scheme with only title."""
-        title = fake.sentence(nb_words=3)
-        scheme = ConceptSchemeCreate(title=title)
-        assert scheme.title == title
+        scheme = ConceptSchemeCreate(title="Minimal Scheme")
+        assert scheme.title == "Minimal Scheme"
         assert scheme.description is None
         assert scheme.uri is None
 
@@ -71,23 +64,19 @@ class TestConceptSchemeUpdate:
 
     def test_concept_scheme_update_with_title(self) -> None:
         """Test updating with a new title."""
-        title = fake.sentence(nb_words=3)
-        scheme = ConceptSchemeUpdate(title=title)
-        assert scheme.title == title
+        scheme = ConceptSchemeUpdate(title="New Title")
+        assert scheme.title == "New Title"
 
     def test_concept_scheme_update_with_all_fields(self) -> None:
         """Test updating all fields."""
-        title = fake.sentence(nb_words=3)
-        description = fake.sentence()
-        uri = fake.uri()
         scheme = ConceptSchemeUpdate(
-            title=title,
-            description=description,
-            uri=uri,
+            title="Updated Title",
+            description="Updated description",
+            uri="http://example.org/updated",
         )
-        assert scheme.title == title
-        assert scheme.description == description
-        assert scheme.uri == uri
+        assert scheme.title == "Updated Title"
+        assert scheme.description == "Updated description"
+        assert scheme.uri == "http://example.org/updated"
 
     def test_concept_scheme_update_title_cannot_be_empty(self) -> None:
         """Test that title cannot be empty string if provided."""
@@ -109,23 +98,20 @@ class TestConceptSchemeRead:
         now = datetime.now()
         scheme_id = uuid4()
         project_id = uuid4()
-        title = fake.sentence(nb_words=3)
-        description = fake.sentence()
-        uri = fake.uri()
         scheme = ConceptSchemeRead(
             id=scheme_id,
             project_id=project_id,
-            title=title,
-            description=description,
-            uri=uri,
+            title="Test Scheme",
+            description="A description",
+            uri="http://example.org/schemes/test",
             created_at=now,
             updated_at=now,
         )
         assert scheme.id == scheme_id
         assert scheme.project_id == project_id
-        assert scheme.title == title
-        assert scheme.description == description
-        assert scheme.uri == uri
+        assert scheme.title == "Test Scheme"
+        assert scheme.description == "A description"
+        assert scheme.uri == "http://example.org/schemes/test"
         assert scheme.created_at == now
         assert scheme.updated_at == now
 
@@ -138,9 +124,9 @@ class TestConceptSchemeRead:
         """Test that optional fields can be None."""
         now = datetime.now()
         scheme = ConceptSchemeRead(
-            id=fake.uuid4(),
-            project_id=fake.uuid4(),
-            title=fake.sentence(nb_words=3),
+            id=uuid4(),
+            project_id=uuid4(),
+            title="Minimal",
             description=None,
             uri=None,
             created_at=now,

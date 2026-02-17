@@ -1,15 +1,12 @@
 """Tests for the Project Pydantic schemas."""
 
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
-from faker import Faker
 from pydantic import ValidationError
 
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
-
-fake = Faker()
 
 
 class TestProjectCreate:
@@ -17,17 +14,14 @@ class TestProjectCreate:
 
     def test_valid_project_create(self) -> None:
         """Test creating a valid ProjectCreate schema."""
-        name = fake.company()
-        description = fake.sentence()
-        project = ProjectCreate(name=name, description=description)
-        assert project.name == name
-        assert project.description == description
+        project = ProjectCreate(name="Test Project", description="A test project")
+        assert project.name == "Test Project"
+        assert project.description == "A test project"
 
     def test_project_create_without_description(self) -> None:
         """Test creating a ProjectCreate without description."""
-        name = fake.company()
-        project = ProjectCreate(name=name)
-        assert project.name == name
+        project = ProjectCreate(name="No Description")
+        assert project.name == "No Description"
         assert project.description is None
 
     def test_project_create_requires_name(self) -> None:
@@ -58,17 +52,15 @@ class TestProjectUpdate:
 
     def test_project_update_with_name(self) -> None:
         """Test ProjectUpdate with only name."""
-        name = fake.company()
-        project = ProjectUpdate(name=name)
-        assert project.name == name
+        project = ProjectUpdate(name="New Name")
+        assert project.name == "New Name"
         assert project.description is None
 
     def test_project_update_with_description(self) -> None:
         """Test ProjectUpdate with only description."""
-        description = fake.sentence()
-        project = ProjectUpdate(description=description)
+        project = ProjectUpdate(description="New Description")
         assert project.name is None
-        assert project.description == description
+        assert project.description == "New Description"
 
 
 class TestProjectRead:
@@ -77,20 +69,17 @@ class TestProjectRead:
     def test_valid_project_read(self) -> None:
         """Test creating a valid ProjectRead schema."""
         now = datetime.now()
-        project_id = uuid4()
-        name = fake.company()
-        description = fake.sentence()
         project = ProjectRead(
-            id=project_id,
-            name=name,
-            description=description,
+            id=UUID("01234567-89ab-7def-8123-456789abcdef"),
+            name="Test Project",
+            description="A test project",
             created_at=now,
             updated_at=now,
             namespace=None,
         )
-        assert project.id == project_id
-        assert project.name == name
-        assert project.description == description
+        assert project.id == UUID("01234567-89ab-7def-8123-456789abcdef")
+        assert project.name == "Test Project"
+        assert project.description == "A test project"
         assert project.created_at == now
         assert project.updated_at == now
 
