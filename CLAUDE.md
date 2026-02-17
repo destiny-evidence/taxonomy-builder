@@ -104,6 +104,7 @@ backend/src/taxonomy_builder/
 - `DatabaseSessionManager` handles session lifecycle with auto-commit on success, rollback on error
 - Services receive `AsyncSession` as dependency, use `session.flush()` for persistence within request
 - Tests use transaction rollback for isolation (see `conftest.py`)
+- Data fixtures in tests use factories (see `factories.py`)
 - Concept `uri` is a computed property from `scheme.uri + identifier`
 
 ### Frontend Structure
@@ -125,16 +126,16 @@ frontend/src/
 
 ### API Routes
 
-| Endpoint | Description |
-|----------|-------------|
-| `/api/projects` | Project CRUD |
-| `/api/projects/{id}/schemes` | List/create schemes for project |
-| `/api/schemes/{id}` | Scheme CRUD |
-| `/api/schemes/{id}/concepts` | List/create concepts for scheme |
-| `/api/schemes/{id}/tree` | Get hierarchical tree (DAG) |
-| `/api/concepts/{id}` | Concept CRUD |
-| `/api/concepts/{id}/broader` | Add broader relationship |
-| `/api/concepts/{id}/broader/{bid}` | Remove broader relationship |
+| Endpoint                           | Description                     |
+| ---------------------------------- | ------------------------------- |
+| `/api/projects`                    | Project CRUD                    |
+| `/api/projects/{id}/schemes`       | List/create schemes for project |
+| `/api/schemes/{id}`                | Scheme CRUD                     |
+| `/api/schemes/{id}/concepts`       | List/create concepts for scheme |
+| `/api/schemes/{id}/tree`           | Get hierarchical tree (DAG)     |
+| `/api/concepts/{id}`               | Concept CRUD                    |
+| `/api/concepts/{id}/broader`       | Add broader relationship        |
+| `/api/concepts/{id}/broader/{bid}` | Remove broader relationship     |
 
 ## Testing
 
