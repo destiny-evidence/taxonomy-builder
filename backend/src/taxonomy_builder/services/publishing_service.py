@@ -3,6 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from taxonomy_builder.schemas.publishing import (
     ContentSummary,
     PublishPreview,
     PublishRequest,
+    UpdateDraftRequest,
 )
 from taxonomy_builder.schemas.snapshot import (
     DiffItem,
@@ -59,7 +61,12 @@ class VersionNotFoundError(Exception):
         super().__init__(f"Published version '{version_id}' not found.")
 
 
-# --- Service ---
+class NotADraftError(Exception):
+    """Raised when trying to update/delete a finalized version."""
+
+    def __init__(self, version_id: UUID) -> None:
+        self.version_id = version_id
+        super().__init__(f"Version '{version_id}' is finalized and cannot be modified.")
 
 
 class PublishingService:
@@ -75,59 +82,30 @@ class PublishingService:
         self._project_service = project_service
         self._snapshot_service = snapshot_service
 
-    async def validate(self, project_id: UUID) -> ValidationResult:
-        """Validate a project is ready to publish.
+    @staticmethod
+    def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:
+        """Validate a snapshot is ready to publish.
 
-        Raises ProjectNotFoundError if the project does not exist.
+        Runs Pydantic validators on the snapshot data, collecting all errors.
         """
-        project = await self._project_service.get_project(project_id)
-        errors: list[ValidationError] = []
-
-        schemes = project.schemes
-        if not schemes:
-            errors.append(
-                ValidationError(
-                    code="no_schemes",
-                    message="Project has no concept schemes.",
-                )
-            )
-            return ValidationResult(valid=False, errors=errors)
-
-        total_concepts = 0
-        for scheme in schemes:
-            if not scheme.uri:
+        try:
+            SnapshotVocabulary.model_validate(snapshot.model_dump(mode="json"))
+            return ValidationResult(valid=True, errors=[])
+        except PydanticValidationError as e:
+            errors = []
+            for err in e.errors():
+                ctx = err.get("ctx", {})
+                entity_id_str = ctx.get("entity_id")
                 errors.append(
                     ValidationError(
-                        code="scheme_missing_uri",
-                        message=f"Scheme '{scheme.title}' has no URI.",
-                        entity_type="scheme",
-                        entity_id=scheme.id,
-                        entity_label=scheme.title,
+                        code=err["type"],
+                        message=err["msg"],
+                        entity_type=ctx.get("entity_type"),
+                        entity_id=UUID(entity_id_str) if entity_id_str else None,
+                        entity_label=ctx.get("entity_label"),
                     )
                 )
-
-            for concept in scheme.concepts:
-                total_concepts += 1
-                if not concept.pref_label or not concept.pref_label.strip():
-                    errors.append(
-                        ValidationError(
-                            code="concept_missing_pref_label",
-                            message=f"A concept in scheme '{scheme.title}' has no preferred label.",
-                            entity_type="concept",
-                            entity_id=concept.id,
-                            entity_label=concept.pref_label,
-                        )
-                    )
-
-        if total_concepts == 0:
-            errors.append(
-                ValidationError(
-                    code="no_concepts",
-                    message="No scheme has any concepts.",
-                )
-            )
-
-        return ValidationResult(valid=len(errors) == 0, errors=errors)
+            return ValidationResult(valid=False, errors=errors)
 
     @staticmethod
     def _diff_fields(
@@ -230,16 +208,12 @@ class PublishingService:
         request: PublishRequest,
         publisher: str | None = None,
     ) -> PublishedVersion:
-        """Publish a new version (or create a draft) of a project.
-
-        Drafts skip validation. Finalized versions must pass validation.
-        """
-        if request.finalized:
-            validation = await self.validate(project_id)
-            if not validation.valid:
-                raise ValidationFailedError(validation)
-
+        """Publish a new version (or create a draft) of a project."""
         snapshot = await self._snapshot_service.build_snapshot(project_id)
+        validation = self.validate_snapshot(snapshot)
+        if not validation.valid:
+            raise ValidationFailedError(validation)
+
         previous = await self._get_latest_finalized(project_id)
 
         version = PublishedVersion(
@@ -309,8 +283,8 @@ class PublishingService:
 
     async def preview(self, project_id: UUID) -> PublishPreview:
         """Build a publish preview: validation, content summary, and diff."""
-        validation = await self.validate(project_id)
         snapshot = await self._snapshot_service.build_snapshot(project_id)
+        validation = self.validate_snapshot(snapshot)
 
         content_summary = ContentSummary(
             schemes=len(snapshot.concept_schemes),
@@ -333,6 +307,54 @@ class PublishingService:
             suggested_version=suggested,
         )
 
+    async def update_draft(
+        self,
+        project_id: UUID,
+        version_id: UUID,
+        request: UpdateDraftRequest,
+    ) -> PublishedVersion:
+        """Update a draft version with a fresh snapshot and optional metadata."""
+        version = await self.get_version(project_id, version_id)
+        if version.finalized:
+            raise NotADraftError(version_id)
+
+        snapshot = await self._snapshot_service.build_snapshot(project_id)
+        validation = self.validate_snapshot(snapshot)
+        if not validation.valid:
+            raise ValidationFailedError(validation)
+
+        version.snapshot = snapshot.model_dump(mode="json")
+        if request.version is not None:
+            version.version = request.version
+        if request.title is not None:
+            version.title = request.title
+        if request.notes is not None:
+            version.notes = request.notes
+
+        try:
+            await self.db.flush()
+        except IntegrityError as e:
+            await self.db.rollback()
+            error_msg = str(e.orig) if e.orig else str(e)
+            if "uq_published_version_per_project" in error_msg:
+                raise VersionConflictError(request.version or version.version)
+            raise
+
+        await self.db.refresh(version)
+        return version
+
+    async def delete_draft(
+        self,
+        project_id: UUID,
+        version_id: UUID,
+    ) -> None:
+        """Delete a draft version."""
+        version = await self.get_version(project_id, version_id)
+        if version.finalized:
+            raise NotADraftError(version_id)
+        await self.db.delete(version)
+        await self.db.flush()
+
     async def _get_latest_finalized(self, project_id: UUID) -> PublishedVersion | None:
         result = await self.db.execute(
             select(PublishedVersion).where(
@@ -351,7 +373,7 @@ class PublishingService:
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             return "1.0"
         if diff and (diff.modified or diff.removed):
             return f"{major + 1}.0"

@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
-from taxonomy_builder.schemas.publishing import PublishRequest
+from taxonomy_builder.schemas.publishing import PublishRequest, UpdateDraftRequest
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 from taxonomy_builder.services.publishing_service import (
     DraftExistsError,
+    NotADraftError,
     PublishingService,
     ValidationFailedError,
     VersionConflictError,
@@ -113,13 +114,13 @@ class TestPublish:
         assert exc_info.value.validation_result.valid is False
 
     @pytest.mark.asyncio
-    async def test_publish_draft_skips_validation(
+    async def test_publish_rejects_invalid_draft(
         self, db_session: AsyncSession, project: Project
     ) -> None:
-        """An invalid project can still be saved as a draft."""
+        """An invalid project cannot be saved even as a draft."""
         request = PublishRequest(version="1.0", title="WIP Draft", finalized=False)
-        version = await service(db_session).publish(project.id, request, publisher="user")
-        assert version.finalized is False
+        with pytest.raises(ValidationFailedError):
+            await service(db_session).publish(project.id, request, publisher="user")
 
     @pytest.mark.asyncio
     async def test_publish_rejects_duplicate_version(
@@ -254,6 +255,137 @@ class TestGetVersion:
 
         with pytest.raises(VersionNotFoundError):
             await service(db_session).get_version(publishable_project.id, uuid4())
+
+
+class TestUpdateDraft:
+    @pytest.mark.asyncio
+    async def test_update_draft_refreshes_snapshot(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        draft = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+        original_snapshot = draft.snapshot
+
+        # Add a concept so the snapshot changes
+        scheme_result = await db_session.execute(select(ConceptScheme))
+        scheme = scheme_result.scalar_one()
+        db_session.add(Concept(scheme_id=scheme.id, pref_label="Term B"))
+        await db_session.flush()
+        db_session.expunge_all()
+
+        updated = await svc.update_draft(
+            publishable_project.id, draft.id, UpdateDraftRequest()
+        )
+        assert updated.snapshot != original_snapshot
+
+    @pytest.mark.asyncio
+    async def test_update_draft_metadata(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        draft = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+        updated = await svc.update_draft(
+            publishable_project.id,
+            draft.id,
+            UpdateDraftRequest(version="1.1", title="Updated", notes="Some notes"),
+        )
+        assert updated.version == "1.1"
+        assert updated.title == "Updated"
+        assert updated.notes == "Some notes"
+
+    @pytest.mark.asyncio
+    async def test_update_finalized_raises(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        version = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Final"),
+            publisher="user",
+        )
+        with pytest.raises(NotADraftError):
+            await svc.update_draft(
+                publishable_project.id, version.id, UpdateDraftRequest()
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_draft_version_conflict(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Final"),
+            publisher="user",
+        )
+        draft = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="2.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+        with pytest.raises(VersionConflictError):
+            await svc.update_draft(
+                publishable_project.id,
+                draft.id,
+                UpdateDraftRequest(version="1.0"),
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_draft_not_found(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        from uuid import uuid4
+
+        with pytest.raises(VersionNotFoundError):
+            await service(db_session).update_draft(
+                publishable_project.id, uuid4(), UpdateDraftRequest()
+            )
+
+
+class TestDeleteDraft:
+    @pytest.mark.asyncio
+    async def test_delete_draft(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        draft = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Draft", finalized=False),
+            publisher="user",
+        )
+        await svc.delete_draft(publishable_project.id, draft.id)
+        versions = await svc.list_versions(publishable_project.id)
+        assert versions == []
+
+    @pytest.mark.asyncio
+    async def test_delete_finalized_raises(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        svc = service(db_session)
+        version = await svc.publish(
+            publishable_project.id,
+            PublishRequest(version="1.0", title="Final"),
+            publisher="user",
+        )
+        with pytest.raises(NotADraftError):
+            await svc.delete_draft(publishable_project.id, version.id)
+
+    @pytest.mark.asyncio
+    async def test_delete_draft_not_found(
+        self, db_session: AsyncSession, publishable_project: Project
+    ) -> None:
+        from uuid import uuid4
+
+        with pytest.raises(VersionNotFoundError):
+            await service(db_session).delete_draft(publishable_project.id, uuid4())
 
 
 class TestPreview:

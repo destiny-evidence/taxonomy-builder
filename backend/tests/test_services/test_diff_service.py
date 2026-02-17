@@ -13,19 +13,27 @@ from taxonomy_builder.services.publishing_service import PublishingService
 
 
 def _project_meta() -> SnapshotProjectMetadata:
-    return SnapshotProjectMetadata(id=uuid4(), name="Test")
+    return SnapshotProjectMetadata.model_construct(id=uuid4(), name="Test")
 
 
 def _vocab(*schemes: SnapshotScheme) -> SnapshotVocabulary:
-    return SnapshotVocabulary(project=_project_meta(), concept_schemes=list(schemes))
+    return SnapshotVocabulary.model_construct(
+        project=_project_meta(), concept_schemes=list(schemes)
+    )
 
 
 def _scheme(title: str = "S", **kwargs) -> SnapshotScheme:
-    return SnapshotScheme(id=kwargs.pop("id", uuid4()), title=title, **kwargs)
+    defaults = {"uri": "http://example.org/scheme", "concepts": []}
+    defaults.update(kwargs)
+    return SnapshotScheme.model_construct(
+        id=defaults.pop("id", uuid4()), title=title, **defaults
+    )
 
 
 def _concept(label: str, **kwargs) -> SnapshotConcept:
-    return SnapshotConcept(id=kwargs.pop("id", uuid4()), pref_label=label, **kwargs)
+    return SnapshotConcept.model_construct(
+        id=kwargs.pop("id", uuid4()), pref_label=label, **kwargs
+    )
 
 
 class TestNoDiff:

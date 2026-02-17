@@ -124,16 +124,15 @@ class TestPublish:
         assert "errors" in data["detail"]
 
     @pytest.mark.asyncio
-    async def test_publish_draft_skips_validation(
+    async def test_publish_rejects_invalid_draft(
         self, authenticated_client: AsyncClient, project: Project
     ) -> None:
-        """An invalid project can still be saved as a draft."""
+        """An invalid project cannot be saved even as a draft."""
         resp = await authenticated_client.post(
             f"/api/projects/{project.id}/publish",
             json={"version": "1.0", "title": "WIP", "finalized": False},
         )
-        assert resp.status_code == 201
-        assert resp.json()["finalized"] is False
+        assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_publish_duplicate_version(
@@ -228,6 +227,119 @@ class TestGetVersion:
             f"/api/projects/{publishable_project.id}/versions/{uuid4()}"
         )
         assert resp.status_code == 404
+
+
+class TestUpdateDraft:
+    @pytest.mark.asyncio
+    async def test_update_draft_metadata(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Draft", "finalized": False},
+        )
+        version_id = create_resp.json()["id"]
+
+        resp = await authenticated_client.patch(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}",
+            json={"title": "Updated Draft", "notes": "Some notes"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["title"] == "Updated Draft"
+        assert data["notes"] == "Some notes"
+
+    @pytest.mark.asyncio
+    async def test_update_finalized_rejected(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Final"},
+        )
+        version_id = create_resp.json()["id"]
+
+        resp = await authenticated_client.patch(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}",
+            json={"title": "Nope"},
+        )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_update_draft_not_found(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        resp = await authenticated_client.patch(
+            f"/api/projects/{publishable_project.id}/versions/{uuid4()}",
+            json={"title": "X"},
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_draft_unauthenticated(
+        self, client: AsyncClient, publishable_project: Project
+    ) -> None:
+        resp = await client.patch(
+            f"/api/projects/{publishable_project.id}/versions/{uuid4()}",
+            json={"title": "X"},
+        )
+        assert resp.status_code == 401
+
+
+class TestDeleteDraft:
+    @pytest.mark.asyncio
+    async def test_delete_draft(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Draft", "finalized": False},
+        )
+        version_id = create_resp.json()["id"]
+
+        resp = await authenticated_client.delete(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}"
+        )
+        assert resp.status_code == 204
+
+        # Verify it's gone
+        list_resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions"
+        )
+        assert list_resp.json() == []
+
+    @pytest.mark.asyncio
+    async def test_delete_finalized_rejected(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        create_resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "Final"},
+        )
+        version_id = create_resp.json()["id"]
+
+        resp = await authenticated_client.delete(
+            f"/api/projects/{publishable_project.id}/versions/{version_id}"
+        )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_delete_draft_not_found(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        resp = await authenticated_client.delete(
+            f"/api/projects/{publishable_project.id}/versions/{uuid4()}"
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_draft_unauthenticated(
+        self, client: AsyncClient, publishable_project: Project
+    ) -> None:
+        resp = await client.delete(
+            f"/api/projects/{publishable_project.id}/versions/{uuid4()}"
+        )
+        assert resp.status_code == 401
 
 
 class TestFinalize:

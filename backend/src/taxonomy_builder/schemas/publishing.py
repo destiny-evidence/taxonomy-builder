@@ -34,6 +34,14 @@ class PublishRequest(BaseModel):
     finalized: bool = True
 
 
+class UpdateDraftRequest(BaseModel):
+    """Request body for updating a draft version."""
+
+    version: str | None = None
+    title: str | None = None
+    notes: str | None = None
+
+
 class PublishedVersionRead(BaseModel):
     """Read model for a published version."""
 

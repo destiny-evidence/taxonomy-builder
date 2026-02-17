@@ -54,7 +54,7 @@ class SnapshotService:
         domain_uris = {p.domain_class for p in project.properties}
         classes = self._build_classes(domain_uris)
 
-        return SnapshotVocabulary(
+        return SnapshotVocabulary.model_construct(
             project=self._build_project(project),
             concept_schemes=schemes,
             properties=properties,
@@ -62,7 +62,7 @@ class SnapshotService:
         )
 
     def _build_project(self, project: Project) -> SnapshotProjectMetadata:
-        return SnapshotProjectMetadata(
+        return SnapshotProjectMetadata.model_construct(
             id=project.id,
             name=project.name,
             description=project.description,
@@ -72,7 +72,7 @@ class SnapshotService:
     def _build_scheme(
         self, scheme: ConceptScheme, concepts: list[Concept]
     ) -> SnapshotScheme:
-        return SnapshotScheme(
+        return SnapshotScheme.model_construct(
             id=scheme.id,
             title=scheme.title,
             description=scheme.description,
@@ -81,7 +81,7 @@ class SnapshotService:
         )
 
     def _build_concept(self, concept: Concept) -> SnapshotConcept:
-        return SnapshotConcept(
+        return SnapshotConcept.model_construct(
             id=concept.id,
             identifier=concept.identifier,
             uri=concept.uri,
@@ -94,7 +94,7 @@ class SnapshotService:
         )
 
     def _build_property(self, prop: Property) -> SnapshotProperty:
-        return SnapshotProperty(
+        return SnapshotProperty.model_construct(
             id=prop.id,
             identifier=prop.identifier,
             uri=prop.uri,
@@ -114,7 +114,7 @@ class SnapshotService:
 
         ontology = get_core_ontology()
         return [
-            SnapshotClass(
+            SnapshotClass.model_construct(
                 uri=cls.uri,
                 label=cls.label,
                 description=cls.comment,
