@@ -32,11 +32,13 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unresolved" | "resolved">("unresolved");
 
   async function loadComments() {
     try {
       setError(null);
-      const data = await commentsApi.listForConcept(conceptId);
+      const resolved = filter === "all" ? undefined : filter === "resolved";
+      const data = await commentsApi.listForConcept(conceptId, resolved);
       setComments(data);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -47,13 +49,17 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
-  // Load comments on mount and when concept changes
+  // Reset UI state when concept changes
   useEffect(() => {
-    loadComments();
     setIsExpanded(false);
     setNewComment("");
     setError(null);
   }, [conceptId]);
+
+  // Load comments when concept or filter changes
+  useEffect(() => {
+    loadComments();
+  }, [conceptId, filter]);
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -174,6 +180,19 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
       {isExpanded && (
         <div class="comments-section__content">
           {error && <div class="comments-section__error">{error}</div>}
+
+          <div class="comments-section__filter">
+            {(["all", "unresolved", "resolved"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                class={`comments-section__filter-option ${filter === option ? "comments-section__filter-option--active" : ""}`}
+                onClick={() => setFilter(option)}
+              >
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+              </button>
+            ))}
+          </div>
 
           {comments.length > 0 ? (
             <div class="comments-section__list">
