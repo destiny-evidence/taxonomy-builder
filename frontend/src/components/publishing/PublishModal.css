@@ -244,9 +244,22 @@
 }
 
 /* Version input */
+.publish-modal__version-group {
+  display: flex;
+  align-items: center;
+}
+
 .publish-modal__version-input {
   max-width: 160px;
   font-variant-numeric: tabular-nums;
+}
+
+.publish-modal__version-suffix {
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  padding: 0 var(--spacing-xs);
+  user-select: none;
 }
 
 .publish-modal__version-hint {

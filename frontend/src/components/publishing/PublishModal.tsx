@@ -32,6 +32,7 @@ export function PublishModal({
 
   // Form fields
   const [version, setVersion] = useState("");
+  const [preSuffix, setPreSuffix] = useState("");
   const [preRelease, setPreRelease] = useState(false);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -73,6 +74,7 @@ export function PublishModal({
     setVersions([]);
     setError(null);
     setVersion("");
+    setPreSuffix("");
     setPreRelease(false);
     setTitle("");
     setNotes("");
@@ -86,9 +88,11 @@ export function PublishModal({
     setSubmitting(true);
     setError(null);
 
+    const fullVersion = preRelease ? version + preSuffix : version;
+
     try {
       const result = await publishingApi.publish(projectId, {
-        version,
+        version: fullVersion,
         title,
         notes: notes || null,
         pre_release: preRelease,
@@ -151,11 +155,21 @@ export function PublishModal({
                             const checked = (e.target as HTMLInputElement)
                               .checked;
                             setPreRelease(checked);
-                            setVersion(
-                              checked
-                                ? (preview?.suggested_pre_release_version ?? "")
-                                : (preview?.suggested_version ?? ""),
-                            );
+                            if (checked) {
+                              const suggested =
+                                preview?.suggested_pre_release_version ?? "";
+                              const dashPre = suggested.indexOf("-pre");
+                              if (dashPre !== -1) {
+                                setVersion(suggested.slice(0, dashPre));
+                                setPreSuffix(suggested.slice(dashPre));
+                              } else {
+                                setVersion(suggested);
+                                setPreSuffix("");
+                              }
+                            } else {
+                              setVersion(preview?.suggested_version ?? "");
+                              setPreSuffix("");
+                            }
                           }}
                         />
                         Pre-release
@@ -177,15 +191,22 @@ export function PublishModal({
                       <label class="publish-modal__label" for="publish-version">
                         Version
                       </label>
-                      <input
-                        id="publish-version"
-                        type="text"
-                        class="publish-modal__input publish-modal__version-input"
-                        value={version}
-                        onInput={(e) =>
-                          setVersion((e.target as HTMLInputElement).value)
-                        }
-                      />
+                      <div class="publish-modal__version-group">
+                        <input
+                          id="publish-version"
+                          type="text"
+                          class="publish-modal__input publish-modal__version-input"
+                          value={version}
+                          onInput={(e) =>
+                            setVersion((e.target as HTMLInputElement).value)
+                          }
+                        />
+                        {preRelease && preSuffix && (
+                          <span class="publish-modal__version-suffix">
+                            {preSuffix}
+                          </span>
+                        )}
+                      </div>
                       {(preview.latest_version ||
                         preview.latest_pre_release_version) && (
                         <span class="publish-modal__version-hint">
@@ -252,7 +273,7 @@ export function PublishModal({
                 <p>
                   You are about to publish{" "}
                   {preRelease ? "pre-release " : ""}version{" "}
-                  <strong>{version}</strong> — {title}.
+                  <strong>{preRelease ? version + preSuffix : version}</strong> — {title}.
                 </p>
                 <p class="publish-modal__confirm-warning">
                   Published versions are immutable and cannot be changed.
