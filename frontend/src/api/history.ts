@@ -13,8 +13,26 @@ export async function getSchemeHistory(
   return api.get(`/schemes/${schemeId}/history${query ? `?${query}` : ""}`);
 }
 
+export async function getProjectHistory(
+  projectId: string,
+  limit?: number,
+  offset?: number
+): Promise<ChangeEvent[]> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.set("limit", String(limit));
+  if (offset !== undefined) params.set("offset", String(offset));
+  const query = params.toString();
+  return api.get(`/projects/${projectId}/history${query ? `?${query}` : ""}`);
+}
+
 export async function getConceptHistory(
   conceptId: string
 ): Promise<ChangeEvent[]> {
   return api.get(`/concepts/${conceptId}/history`);
+}
+
+export async function getPropertyHistory(
+  propertyId: string
+): Promise<ChangeEvent[]> {
+  return api.get(`/properties/${propertyId}/history`);
 }

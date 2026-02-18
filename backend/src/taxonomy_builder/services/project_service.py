@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectUpdate
+from taxonomy_builder.services.change_tracker import ChangeTracker
 
 
 class ProjectNotFoundError(Exception):
@@ -29,8 +30,22 @@ class ProjectNameExistsError(Exception):
 class ProjectService:
     """Service for managing projects."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
+        self._tracker = ChangeTracker(db, user_id)
+
+    def _serialize_project(self, project: Project) -> dict:
+        """Serialize a project for change tracking.
+
+        Manual serialization because Project is a SQLAlchemy model (no model_dump).
+        Intentionally excludes timestamps and relationships — only domain fields.
+        """
+        return {
+            "id": str(project.id),
+            "name": project.name,
+            "description": project.description,
+            "namespace": project.namespace,
+        }
 
     async def list_projects(self) -> list[Project]:
         """List all projects ordered by name."""
@@ -51,6 +66,15 @@ class ProjectService:
         except IntegrityError:
             await self.db.rollback()
             raise ProjectNameExistsError(project_in.name)
+
+        await self._tracker.record(
+            project_id=project.id,
+            entity_type="project",
+            entity_id=project.id,
+            action="create",
+            before=None,
+            after=self._serialize_project(project),
+        )
         return project
 
     async def get_project(self, project_id: UUID) -> Project:
@@ -64,6 +88,7 @@ class ProjectService:
     async def update_project(self, project_id: UUID, project_in: ProjectUpdate) -> Project:
         """Update an existing project."""
         project = await self.get_project(project_id)
+        before = self._serialize_project(project)
 
         if project_in.name is not None:
             project.name = project_in.name
@@ -78,10 +103,30 @@ class ProjectService:
         except IntegrityError:
             await self.db.rollback()
             raise ProjectNameExistsError(project_in.name or "")
+
+        await self._tracker.record(
+            project_id=project.id,
+            entity_type="project",
+            entity_id=project.id,
+            action="update",
+            before=before,
+            after=self._serialize_project(project),
+        )
         return project
 
     async def delete_project(self, project_id: UUID) -> None:
         """Delete a project."""
         project = await self.get_project(project_id)
+        before = self._serialize_project(project)
+
+        await self._tracker.record(
+            project_id=project.id,
+            entity_type="project",
+            entity_id=project.id,
+            action="delete",
+            before=before,
+            after=None,
+        )
+
         await self.db.delete(project)
         await self.db.flush()
