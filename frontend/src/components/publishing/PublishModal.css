@@ -312,6 +312,17 @@
   border-top-color: var(--color-text);
 }
 
+/* Confirmation */
+.publish-modal__confirm {
+  padding: var(--spacing-md) 0;
+}
+
+.publish-modal__confirm-warning {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-xs);
+}
+
 /* Success */
 .publish-modal__success {
   text-align: center;

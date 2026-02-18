@@ -16,7 +16,7 @@ interface PublishModalProps {
 }
 
 type Tab = "publish" | "versions";
-type Step = "loading" | "preview" | "publishing" | "success";
+type Step = "loading" | "preview" | "confirm" | "publishing" | "success";
 
 export function PublishModal({
   isOpen,
@@ -240,8 +240,30 @@ export function PublishModal({
                   <Button variant="secondary" onClick={handleClose}>
                     Cancel
                   </Button>
-                  <Button onClick={handlePublish} disabled={!canPublish}>
-                    {submitting ? "Publishing..." : "Publish"}
+                  <Button onClick={() => setStep("confirm")} disabled={!canPublish}>
+                    Publish
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === "confirm" && (
+              <div class="publish-modal__confirm">
+                <p>
+                  You are about to publish{" "}
+                  {preRelease ? "pre-release " : ""}version{" "}
+                  <strong>{version}</strong> — {title}.
+                </p>
+                <p class="publish-modal__confirm-warning">
+                  Published versions are immutable and cannot be changed.
+                </p>
+                {error && <p class="publish-modal__error">{error}</p>}
+                <div class="publish-modal__actions">
+                  <Button variant="secondary" onClick={() => setStep("preview")}>
+                    Back
+                  </Button>
+                  <Button onClick={handlePublish} disabled={submitting}>
+                    {submitting ? "Publishing..." : "Confirm & Publish"}
                   </Button>
                 </div>
               </div>

@@ -308,6 +308,9 @@ describe("PublishModal", () => {
       )!;
       fireEvent.click(publishBtn);
 
+      // Confirm step
+      fireEvent.click(screen.getByText("Confirm & Publish"));
+
       await waitFor(() => {
         expect(publishingApi.publishingApi.publish).toHaveBeenCalledWith(
           "project-123",
@@ -428,6 +431,67 @@ describe("PublishModal", () => {
     });
   });
 
+  describe("confirmation step", () => {
+    it("shows confirmation step when Publish is clicked", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
+      });
+
+      fireEvent.input(screen.getByLabelText(/Title/), {
+        target: { value: "New release" },
+      });
+
+      const publishBtn = screen.getAllByText("Publish").find(
+        (el) => el.classList.contains("btn")
+      )!;
+      fireEvent.click(publishBtn);
+
+      expect(screen.getByText(/cannot be changed/i)).toBeInTheDocument();
+      expect(screen.getByText("1.1")).toBeInTheDocument();
+      expect(screen.getByText(/New release/)).toBeInTheDocument();
+      expect(publishingApi.publishingApi.publish).not.toHaveBeenCalled();
+    });
+
+    it("returns to preview when Back is clicked on confirmation", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
+      });
+
+      fireEvent.input(screen.getByLabelText(/Title/), {
+        target: { value: "New release" },
+      });
+
+      const publishBtn = screen.getAllByText("Publish").find(
+        (el) => el.classList.contains("btn")
+      )!;
+      fireEvent.click(publishBtn);
+
+      expect(screen.getByText(/cannot be changed/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText("Back"));
+
+      expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
+    });
+  });
+
   describe("publishing", () => {
     it("calls publish with correct data for a release", async () => {
       vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
@@ -463,6 +527,9 @@ describe("PublishModal", () => {
         (el) => el.classList.contains("btn")
       )!;
       fireEvent.click(publishBtn);
+
+      // Confirm step
+      fireEvent.click(screen.getByText("Confirm & Publish"));
 
       await waitFor(() => {
         expect(publishingApi.publishingApi.publish).toHaveBeenCalledWith(
@@ -512,6 +579,9 @@ describe("PublishModal", () => {
       )!;
       fireEvent.click(publishBtn);
 
+      // Confirm step
+      fireEvent.click(screen.getByText("Confirm & Publish"));
+
       await waitFor(() => {
         expect(publishingApi.publishingApi.publish).toHaveBeenCalledWith(
           "project-123",
@@ -558,6 +628,9 @@ describe("PublishModal", () => {
       )!;
       fireEvent.click(publishBtn);
 
+      // Confirm step
+      fireEvent.click(screen.getByText("Confirm & Publish"));
+
       await waitFor(() => {
         expect(screen.getByText(/1\.1/)).toBeInTheDocument();
         expect(screen.getByText(/published successfully/)).toBeInTheDocument();
@@ -599,6 +672,9 @@ describe("PublishModal", () => {
       )!;
       fireEvent.click(publishBtn);
 
+      // Confirm step
+      fireEvent.click(screen.getByText("Confirm & Publish"));
+
       await waitFor(() => {
         expect(screen.getByText(/published as pre-release/)).toBeInTheDocument();
       });
@@ -628,6 +704,9 @@ describe("PublishModal", () => {
         (el) => el.classList.contains("btn")
       )!;
       fireEvent.click(publishBtn);
+
+      // Confirm step
+      fireEvent.click(screen.getByText("Confirm & Publish"));
 
       await waitFor(() => {
         expect(
