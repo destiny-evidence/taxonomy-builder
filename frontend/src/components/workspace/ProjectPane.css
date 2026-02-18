@@ -68,15 +68,15 @@
 
 .project-pane__publish-btn--draft {
   border-color: var(--color-warning, #d97706);
-  color: var(--color-warning, #d97706);
-  background: rgba(217, 119, 6, 0.15);
+  color: #92400e;
+  background: rgba(217, 119, 6, 0.1);
   font-weight: 600;
 }
 
 .project-pane__publish-btn--draft:hover {
-  background: rgba(217, 119, 6, 0.22);
+  background: rgba(217, 119, 6, 0.16);
   border-color: var(--color-warning, #d97706);
-  color: var(--color-warning, #d97706);
+  color: #78350f;
 }
 
 .project-pane__content {
