@@ -32,9 +32,16 @@
 }
 
 .project-pane__project-title {
-  margin: var(--spacing-xs) 0 0;
+  margin: 0;
   font-size: var(--font-size-md);
   font-weight: 600;
+}
+
+.project-pane__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--spacing-xs);
 }
 
 .project-pane__publish-btn {
@@ -62,12 +69,12 @@
 .project-pane__publish-btn--draft {
   border-color: var(--color-warning, #d97706);
   color: var(--color-warning, #d97706);
-  background: rgba(217, 119, 6, 0.08);
+  background: rgba(217, 119, 6, 0.15);
   font-weight: 600;
 }
 
 .project-pane__publish-btn--draft:hover {
-  background: rgba(217, 119, 6, 0.15);
+  background: rgba(217, 119, 6, 0.22);
   border-color: var(--color-warning, #d97706);
   color: var(--color-warning, #d97706);
 }
