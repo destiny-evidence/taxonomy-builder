@@ -68,100 +68,51 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     loadComments();
   }, [conceptId]);
 
+  async function withLoading(action: () => Promise<void>, errorMsg: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      await action();
+      await loadComments();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!newComment.trim()) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
+    await withLoading(async () => {
       await commentsApi.create(conceptId, { content: newComment.trim() });
       setNewComment("");
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to add comment");
-      }
-    } finally {
-      setLoading(false);
-    }
+    }, "Failed to add comment");
   }
 
   async function handleDelete(commentId: string) {
-    setLoading(true);
-    try {
-      await commentsApi.delete(commentId);
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to delete comment");
-      }
-    } finally {
-      setLoading(false);
-    }
+    await withLoading(() => commentsApi.delete(commentId), "Failed to delete comment");
   }
 
   async function handleResolve(commentId: string) {
-    setLoading(true);
-    try {
-      await commentsApi.resolve(commentId);
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to resolve comment");
-      }
-    } finally {
-      setLoading(false);
-    }
+    await withLoading(() => commentsApi.resolve(commentId), "Failed to resolve comment");
   }
 
   async function handleUnresolve(commentId: string) {
-    setLoading(true);
-    try {
-      await commentsApi.unresolve(commentId);
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to unresolve comment");
-      }
-    } finally {
-      setLoading(false);
-    }
+    await withLoading(() => commentsApi.unresolve(commentId), "Failed to unresolve comment");
   }
 
   async function handleReplySubmit(e: Event, parentId: string) {
     e.preventDefault();
     if (!replyContent.trim()) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
+    await withLoading(async () => {
       await commentsApi.create(conceptId, {
         content: replyContent.trim(),
         parent_comment_id: parentId,
       });
       setReplyContent("");
       setReplyingTo(null);
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to post reply");
-      }
-    } finally {
-      setLoading(false);
-    }
+    }, "Failed to post reply");
   }
 
   function handleCancelReply() {

@@ -12,7 +12,7 @@ export const commentsApi = {
 
   delete: (commentId: string) => api.delete(`/comments/${commentId}`),
 
-  resolve: (commentId: string) => api.post(`/comments/${commentId}/resolve`, undefined),
+  resolve: (commentId: string) => api.post<void>(`/comments/${commentId}/resolve`, undefined),
 
-  unresolve: (commentId: string) => api.post(`/comments/${commentId}/unresolve`, undefined)
+  unresolve: (commentId: string) => api.post<void>(`/comments/${commentId}/unresolve`, undefined)
 };
