@@ -48,6 +48,7 @@ export function SchemeWorkspacePage({
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [publishInitialTab, setPublishInitialTab] = useState<"publish" | "versions">("publish");
   const [isSchemeFormOpen, setIsSchemeFormOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
@@ -282,7 +283,8 @@ export function SchemeWorkspacePage({
         onClassSelect={handleClassSelect}
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
-        onPublish={() => setIsPublishOpen(true)}
+        onPublish={() => { setPublishInitialTab("publish"); setIsPublishOpen(true); }}
+        onVersions={() => { setPublishInitialTab("versions"); setIsPublishOpen(true); }}
         draft={draft}
       />
 
@@ -366,6 +368,7 @@ export function SchemeWorkspacePage({
       <PublishModal
         isOpen={isPublishOpen}
         projectId={projectId}
+        initialTab={publishInitialTab}
         onClose={() => {
           setIsPublishOpen(false);
           loadDraftStatus(projectId);

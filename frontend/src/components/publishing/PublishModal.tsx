@@ -12,6 +12,7 @@ interface PublishModalProps {
   isOpen: boolean;
   projectId: string;
   onClose: () => void;
+  initialTab?: Tab;
 }
 
 type Tab = "publish" | "versions";
@@ -21,8 +22,9 @@ export function PublishModal({
   isOpen,
   projectId,
   onClose,
+  initialTab = "publish",
 }: PublishModalProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("publish");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [step, setStep] = useState<Step>("loading");
   const [preview, setPreview] = useState<PublishPreview | null>(null);
   const [versions, setVersions] = useState<PublishedVersionRead[]>([]);
@@ -39,6 +41,7 @@ export function PublishModal({
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab(initialTab);
       loadData();
     }
   }, [isOpen]);
@@ -67,7 +70,7 @@ export function PublishModal({
   }
 
   function handleClose() {
-    setActiveTab("publish");
+    setActiveTab(initialTab);
     setStep("loading");
     setPreview(null);
     setVersions([]);

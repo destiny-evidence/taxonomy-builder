@@ -561,6 +561,24 @@ describe("PublishModal", () => {
     });
   });
 
+  describe("initialTab", () => {
+    it("opens to versions tab when initialTab is versions", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} initialTab="versions" />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Initial release")).toBeInTheDocument();
+        expect(screen.getByText("1.0")).toBeInTheDocument();
+      });
+    });
+  });
+
   describe("error handling", () => {
     it("shows error when preview fetch fails", async () => {
       vi.mocked(publishingApi.publishingApi.getPreview).mockRejectedValue(

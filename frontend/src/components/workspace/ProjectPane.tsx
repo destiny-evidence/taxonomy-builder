@@ -13,6 +13,7 @@ interface ProjectPaneProps {
   onNewScheme: () => void;
   onImport: () => void;
   onPublish: () => void;
+  onVersions: () => void;
   draft?: { version: string; title: string } | null;
 }
 
@@ -24,6 +25,7 @@ export function ProjectPane({
   onNewScheme,
   onImport,
   onPublish,
+  onVersions,
   draft = null,
 }: ProjectPaneProps) {
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
@@ -48,12 +50,21 @@ export function ProjectPane({
             Import
           </Button>
         </div>
-        <button
-          class={`project-pane__publish-btn ${draft ? "project-pane__publish-btn--draft" : ""}`}
-          onClick={onPublish}
-        >
-          {draft ? `Draft v${draft.version}` : "Publish"}
-        </button>
+        <div class={`project-pane__publish-group ${draft ? "project-pane__publish-group--draft" : ""}`}>
+          <button
+            class="project-pane__publish-btn"
+            onClick={onPublish}
+          >
+            {draft ? `Drafting v${draft.version}\u2026` : "Publish"}
+          </button>
+          <button
+            class="project-pane__versions-btn"
+            onClick={onVersions}
+            aria-label="Version history"
+          >
+            {"\u2261"}
+          </button>
+        </div>
       </div>
 
       <div class="project-pane__content">
