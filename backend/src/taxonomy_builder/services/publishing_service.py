@@ -76,7 +76,7 @@ class PublishingService:
             title=request.title,
             notes=request.notes,
             finalized=finalized,
-            published_at=datetime.now(tz=UTC),
+            published_at=datetime.now(tz=UTC).replace(tzinfo=None),
             publisher=publisher,
             previous_version_id=previous.id if previous else None,
             snapshot=snapshot.model_dump(mode="json"),
