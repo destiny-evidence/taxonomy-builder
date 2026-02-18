@@ -279,7 +279,11 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
               ))}
             </div>
           ) : (
-            <p class="comments-section__empty">No comments yet</p>
+            <p class="comments-section__empty">
+              {comments.length === 0
+                ? "No comments yet"
+                : `No ${filter} comments`}
+            </p>
           )}
 
           {/* Hide main comment form when replying */}
