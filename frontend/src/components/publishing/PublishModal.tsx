@@ -107,12 +107,7 @@ export function PublishModal({
     isValid && version.trim() !== "" && title.trim() !== "" && !submitting;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      title="Publishing"
-      onClose={handleClose}
-      size="wide"
-    >
+    <Modal isOpen={isOpen} title="Publishing" onClose={handleClose} size="wide">
       <div class="publish-modal">
         <div class="publish-modal__tabs" role="tablist">
           <button
@@ -147,11 +142,39 @@ export function PublishModal({
 
                 {isValid && (
                   <div class="publish-modal__form">
-                    <div class="publish-modal__field">
-                      <label
-                        class="publish-modal__label"
-                        for="publish-version"
+                    <div class="publish-modal__checkbox-row">
+                      <label class="publish-modal__checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={preRelease}
+                          onChange={(e) => {
+                            const checked = (e.target as HTMLInputElement)
+                              .checked;
+                            setPreRelease(checked);
+                            setVersion(
+                              checked
+                                ? (preview?.suggested_pre_release_version ?? "")
+                                : (preview?.suggested_version ?? ""),
+                            );
+                          }}
+                        />
+                        Pre-release
+                      </label>
+                      <span
+                        class="publish-modal__info-icon"
+                        aria-label="More information about pre-releases"
                       >
+                        &#9432;
+                        <span class="publish-modal__tooltip">
+                          Pre-release versions can be exported and shared for
+                          feedback, but are not formal releases of vocabularies
+                          and cannot be mapped to other vocabularies.
+                        </span>
+                      </span>
+                    </div>
+
+                    <div class="publish-modal__field">
+                      <label class="publish-modal__label" for="publish-version">
                         Version
                       </label>
                       <input
@@ -163,35 +186,22 @@ export function PublishModal({
                           setVersion((e.target as HTMLInputElement).value)
                         }
                       />
-                      {(preview.latest_version || preview.latest_pre_release_version) && (
+                      {(preview.latest_version ||
+                        preview.latest_pre_release_version) && (
                         <span class="publish-modal__version-hint">
-                          Recent: {[preview.latest_pre_release_version, preview.latest_version].filter(Boolean).join(", ")}
+                          Recent:{" "}
+                          {[
+                            preview.latest_pre_release_version,
+                            preview.latest_version,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
                         </span>
                       )}
                     </div>
 
-                    <label class="publish-modal__checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={preRelease}
-                        onChange={(e) => {
-                          const checked = (e.target as HTMLInputElement).checked;
-                          setPreRelease(checked);
-                          setVersion(
-                            checked
-                              ? preview?.suggested_pre_release_version ?? ""
-                              : preview?.suggested_version ?? ""
-                          );
-                        }}
-                      />
-                      Pre-release
-                    </label>
-
                     <div class="publish-modal__field">
-                      <label
-                        class="publish-modal__label"
-                        for="publish-title"
-                      >
+                      <label class="publish-modal__label" for="publish-title">
                         Title <span class="publish-modal__required">*</span>
                       </label>
                       <input
@@ -316,12 +326,8 @@ export function PublishModal({
     const { content_summary: cs } = preview;
     return (
       <div class="publish-modal__summary">
-        <span class="publish-modal__summary-item">
-          {cs.schemes} schemes
-        </span>
-        <span class="publish-modal__summary-item">
-          {cs.concepts} concepts
-        </span>
+        <span class="publish-modal__summary-item">{cs.schemes} schemes</span>
+        <span class="publish-modal__summary-item">{cs.concepts} concepts</span>
         <span class="publish-modal__summary-item">
           {cs.properties} properties
         </span>
@@ -374,7 +380,9 @@ export function PublishModal({
 
     if (!hasChanges) {
       return (
-        <div class="publish-modal__diff-empty">No changes since last version.</div>
+        <div class="publish-modal__diff-empty">
+          No changes since last version.
+        </div>
       );
     }
 
@@ -383,45 +391,84 @@ export function PublishModal({
         <p class="publish-modal__diff-heading">Changes since last version</p>
 
         {diff.added.length > 0 && (
-          <div class="publish-modal__diff-section">
-            <h4 class="publish-modal__diff-section-title publish-modal__diff-section-title--added">
-              Added ({diff.added.length})
-            </h4>
-            {diff.added.map((item, i) => (
-              <div key={i} class="publish-modal__diff-item">
-                <span class="publish-modal__diff-type">{item.entity_type}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
+          <details class="publish-modal__diff-section">
+            <summary class="publish-modal__diff-section-title publish-modal__diff-section-title--added">
+              Added ({diff.added.length}): {formatGroupedCount(diff.added)}
+            </summary>
+            <div class="publish-modal__diff-items">
+              {diff.added.map((item, i) => (
+                <div key={i} class="publish-modal__diff-item">
+                  <span class="publish-modal__diff-type">
+                    {item.entity_type}
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </details>
         )}
 
         {diff.modified.length > 0 && (
-          <div class="publish-modal__diff-section">
-            <h4 class="publish-modal__diff-section-title publish-modal__diff-section-title--modified">
-              Modified ({diff.modified.length})
-            </h4>
-            {diff.modified.map((item, i) => (
-              <div key={i} class="publish-modal__diff-item">
-                <span class="publish-modal__diff-type">{item.entity_type}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
+          <details class="publish-modal__diff-section">
+            <summary class="publish-modal__diff-section-title publish-modal__diff-section-title--modified">
+              Modified ({diff.modified.length}):{" "}
+              {formatGroupedCount(diff.modified)}
+            </summary>
+            <div class="publish-modal__diff-items">
+              {diff.modified.map((item, i) => (
+                <div
+                  key={i}
+                  class="publish-modal__diff-item publish-modal__diff-item--modified"
+                >
+                  <div class="publish-modal__diff-item-header">
+                    <span class="publish-modal__diff-type">
+                      {item.entity_type}
+                    </span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.changes.length > 0 && (
+                    <div class="publish-modal__field-changes">
+                      {item.changes.map((change, j) => (
+                        <div key={j} class="publish-modal__field-change">
+                          <span class="publish-modal__field-name">
+                            {change.field}
+                          </span>
+                          <span class="publish-modal__field-old">
+                            {change.old ?? "(empty)"}
+                          </span>
+                          <span class="publish-modal__field-arrow">
+                            {"\u2192"}
+                          </span>
+                          <span class="publish-modal__field-new">
+                            {change.new ?? "(empty)"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
         )}
 
         {diff.removed.length > 0 && (
-          <div class="publish-modal__diff-section">
-            <h4 class="publish-modal__diff-section-title publish-modal__diff-section-title--removed">
-              Removed ({diff.removed.length})
-            </h4>
-            {diff.removed.map((item, i) => (
-              <div key={i} class="publish-modal__diff-item">
-                <span class="publish-modal__diff-type">{item.entity_type}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
+          <details class="publish-modal__diff-section">
+            <summary class="publish-modal__diff-section-title publish-modal__diff-section-title--removed">
+              Removed ({diff.removed.length}):{" "}
+              {formatGroupedCount(diff.removed)}
+            </summary>
+            <div class="publish-modal__diff-items">
+              {diff.removed.map((item, i) => (
+                <div key={i} class="publish-modal__diff-item">
+                  <span class="publish-modal__diff-type">
+                    {item.entity_type}
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </details>
         )}
       </div>
     );
@@ -434,4 +481,17 @@ function formatDate(iso: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+function formatGroupedCount(items: Array<{ entity_type: string }>): string {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item.entity_type, (counts.get(item.entity_type) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([type, count]) => {
+      const plural = type.endsWith("s") ? type + "es" : type + "s";
+      return `${count} ${count === 1 ? type : plural}`;
+    })
+    .join(", ");
 }

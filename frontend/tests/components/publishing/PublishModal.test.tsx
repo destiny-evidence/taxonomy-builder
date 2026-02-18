@@ -148,6 +148,59 @@ describe("PublishModal", () => {
       });
     });
 
+    it("renders diff sections as collapsible details with grouped counts", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} />);
+
+      await waitFor(() => {
+        const details = document.querySelectorAll("details.publish-modal__diff-section");
+        expect(details.length).toBe(3);
+      });
+
+      expect(screen.getByText(/Added \(1\).*1 concept/)).toBeInTheDocument();
+      expect(screen.getByText(/Modified \(1\).*1 concept/)).toBeInTheDocument();
+      expect(screen.getByText(/Removed \(1\).*1 concept/)).toBeInTheDocument();
+    });
+
+    it("shows field-level changes for modified items", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("definition")).toBeInTheDocument();
+        expect(screen.getByText("old def")).toBeInTheDocument();
+        expect(screen.getByText("new def")).toBeInTheDocument();
+      });
+    });
+
+    it("shows info icon next to pre-release checkbox", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} />);
+
+      await waitFor(() => {
+        const infoIcon = document.querySelector(".publish-modal__info-icon");
+        expect(infoIcon).toBeInTheDocument();
+      });
+    });
+
     it("shows first version message when diff is null", async () => {
       vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
         mockPreviewFirstPublish
