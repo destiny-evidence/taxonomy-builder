@@ -1,0 +1,116 @@
+.ontology-graph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg);
+}
+
+.ontology-graph--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.ontology-graph__message {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.ontology-graph__svg {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+/* --- Nodes --- */
+
+.ontology-graph__node rect {
+  stroke-width: 1;
+}
+
+.ontology-graph__node text {
+  font-size: 13px;
+  fill: var(--color-text);
+  pointer-events: none;
+}
+
+/* Class nodes */
+.ontology-graph__node--class rect {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-primary);
+}
+
+/* Scheme nodes */
+.ontology-graph__node--scheme rect {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-success);
+}
+
+/* Datatype nodes — lighter, smaller feel */
+.ontology-graph__node--datatype rect {
+  fill: var(--color-bg-tertiary);
+  stroke: var(--color-border);
+}
+
+.ontology-graph__node--datatype text {
+  font-size: 11px;
+  fill: var(--color-text-secondary);
+}
+
+/* Dimmed / orphan */
+.ontology-graph__node--dimmed {
+  opacity: 0.35;
+}
+
+/* --- Edges --- */
+
+.ontology-graph__edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+
+.ontology-graph__edge-path {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.ontology-graph__edge-label {
+  font-size: 11px;
+  fill: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+/* --- Legend --- */
+
+.ontology-graph__legend-text {
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+
+.ontology-graph__legend-swatch {
+  stroke-width: 1;
+}
+
+.ontology-graph__legend-swatch--class {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-primary);
+}
+
+.ontology-graph__legend-swatch--scheme {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-success);
+}
+
+.ontology-graph__legend-swatch--datatype {
+  fill: var(--color-bg-tertiary);
+  stroke: var(--color-border);
+}
+
+.ontology-graph__legend-swatch--dimmed {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-border);
+  opacity: 0.35;
+}
