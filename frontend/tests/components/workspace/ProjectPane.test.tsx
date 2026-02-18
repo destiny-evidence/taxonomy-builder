@@ -61,7 +61,6 @@ function renderPane(overrides: Partial<Parameters<typeof ProjectPane>[0]> = {}) 
     onImport: vi.fn(),
     onPublish: vi.fn(),
     onVersions: vi.fn(),
-    draft: null as { version: string; title: string } | null,
   };
   const props = { ...defaults, ...overrides };
   return { ...render(<ProjectPane {...props} />), props };
@@ -90,29 +89,12 @@ describe("ProjectPane", () => {
   });
 
   describe("publish button", () => {
-    it("shows Publish when no draft exists", () => {
+    it("shows Publish button", () => {
       const { props } = renderPane();
       const btn = screen.getByRole("button", { name: "Publish" });
       expect(btn).toBeInTheDocument();
 
       fireEvent.click(btn);
-      expect(props.onPublish).toHaveBeenCalled();
-    });
-
-    it("shows drafting state when draft exists", () => {
-      renderPane({ draft: { version: "1.2", title: "Beta release" } });
-      expect(screen.getByText(/Drafting v1\.2/)).toBeInTheDocument();
-    });
-
-    it("applies draft styling when draft exists", () => {
-      renderPane({ draft: { version: "1.0", title: "Initial" } });
-      const btn = screen.getByRole("button", { name: /drafting/i });
-      expect(btn.closest(".project-pane__publish-group")).toHaveClass("project-pane__publish-group--draft");
-    });
-
-    it("calls onPublish when draft button clicked", () => {
-      const { props } = renderPane({ draft: { version: "2.0", title: "Next" } });
-      fireEvent.click(screen.getByRole("button", { name: /drafting/i }));
       expect(props.onPublish).toHaveBeenCalled();
     });
 

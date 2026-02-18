@@ -14,7 +14,6 @@ interface ProjectPaneProps {
   onImport: () => void;
   onPublish: () => void;
   onVersions: () => void;
-  draft?: { version: string; title: string } | null;
 }
 
 export function ProjectPane({
@@ -26,9 +25,10 @@ export function ProjectPane({
   onImport,
   onPublish,
   onVersions,
-  draft = null,
 }: ProjectPaneProps) {
-  const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
+  const projectSchemes = schemes.value.filter(
+    (s) => s.project_id === projectId,
+  );
   const project = currentProject.value;
   const classes = ontologyClasses.value;
 
@@ -50,12 +50,9 @@ export function ProjectPane({
             Import
           </Button>
         </div>
-        <div class={`project-pane__publish-group ${draft ? "project-pane__publish-group--draft" : ""}`}>
-          <button
-            class="project-pane__publish-btn"
-            onClick={onPublish}
-          >
-            {draft ? `Drafting v${draft.version}\u2026` : "Publish"}
+        <div class="project-pane__publish-group">
+          <button class="project-pane__publish-btn" onClick={onPublish}>
+            Publish
           </button>
           <button
             class="project-pane__versions-btn"

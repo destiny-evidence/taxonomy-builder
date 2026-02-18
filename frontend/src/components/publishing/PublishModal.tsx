@@ -16,7 +16,7 @@ interface PublishModalProps {
 }
 
 type Tab = "publish" | "versions";
-type Step = "loading" | "preview" | "form" | "publishing" | "success";
+type Step = "loading" | "preview" | "publishing" | "success";
 
 export function PublishModal({
   isOpen,
@@ -28,11 +28,11 @@ export function PublishModal({
   const [step, setStep] = useState<Step>("loading");
   const [preview, setPreview] = useState<PublishPreview | null>(null);
   const [versions, setVersions] = useState<PublishedVersionRead[]>([]);
-  const [draft, setDraft] = useState<PublishedVersionRead | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Form fields
   const [version, setVersion] = useState("");
+  const [preRelease, setPreRelease] = useState(false);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -58,11 +58,8 @@ export function PublishModal({
 
       setPreview(previewData);
       setVersions(versionsData);
-
-      const existingDraft = versionsData.find((v) => !v.finalized) ?? null;
-      setDraft(existingDraft);
-
-      setStep(existingDraft ? "draft" as Step : "preview");
+      setVersion(previewData.suggested_version ?? "");
+      setStep("preview");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
       setStep("preview");
@@ -74,9 +71,9 @@ export function PublishModal({
     setStep("loading");
     setPreview(null);
     setVersions([]);
-    setDraft(null);
     setError(null);
     setVersion("");
+    setPreRelease(false);
     setTitle("");
     setNotes("");
     setSubmitting(false);
@@ -84,14 +81,8 @@ export function PublishModal({
     onClose();
   }
 
-  function handleContinue() {
-    if (preview?.suggested_version) {
-      setVersion(preview.suggested_version);
-    }
-    setStep("form");
-  }
-
-  async function handlePublish(finalized: boolean) {
+  async function handlePublish() {
+    if (!version.trim()) return;
     setSubmitting(true);
     setError(null);
 
@@ -100,7 +91,7 @@ export function PublishModal({
         version,
         title,
         notes: notes || null,
-        finalized,
+        pre_release: preRelease,
       });
       setPublishedVersion(result);
       setStep("success");
@@ -111,45 +102,9 @@ export function PublishModal({
     }
   }
 
-  async function handleFinalize() {
-    if (!draft) return;
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const result = await publishingApi.finalizeVersion(projectId, draft.id);
-      setPublishedVersion(result);
-      setStep("success");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Finalization failed");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDiscard() {
-    if (!draft) return;
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      await publishingApi.deleteDraft(projectId, draft.id);
-      setDraft(null);
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to discard draft");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   const isValid = preview?.validation.valid ?? false;
-  const versionPattern = /^\d+(\.\d+)*$/;
   const canPublish =
-    version.trim() !== "" &&
-    versionPattern.test(version) &&
-    title.trim() !== "" &&
-    !submitting;
+    isValid && version.trim() !== "" && title.trim() !== "" && !submitting;
 
   return (
     <Modal
@@ -190,121 +145,93 @@ export function PublishModal({
                 {renderValidation()}
                 {renderDiff()}
 
+                {isValid && (
+                  <div class="publish-modal__form">
+                    <div class="publish-modal__field">
+                      <label
+                        class="publish-modal__label"
+                        for="publish-version"
+                      >
+                        Version
+                      </label>
+                      <input
+                        id="publish-version"
+                        type="text"
+                        class="publish-modal__input publish-modal__version-input"
+                        value={version}
+                        onInput={(e) =>
+                          setVersion((e.target as HTMLInputElement).value)
+                        }
+                      />
+                      {(preview.latest_version || preview.latest_pre_release_version) && (
+                        <span class="publish-modal__version-hint">
+                          Recent: {[preview.latest_pre_release_version, preview.latest_version].filter(Boolean).join(", ")}
+                        </span>
+                      )}
+                    </div>
+
+                    <label class="publish-modal__checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={preRelease}
+                        onChange={(e) => {
+                          const checked = (e.target as HTMLInputElement).checked;
+                          setPreRelease(checked);
+                          setVersion(
+                            checked
+                              ? preview?.suggested_pre_release_version ?? ""
+                              : preview?.suggested_version ?? ""
+                          );
+                        }}
+                      />
+                      Pre-release
+                    </label>
+
+                    <div class="publish-modal__field">
+                      <label
+                        class="publish-modal__label"
+                        for="publish-title"
+                      >
+                        Title <span class="publish-modal__required">*</span>
+                      </label>
+                      <input
+                        id="publish-title"
+                        type="text"
+                        class="publish-modal__input"
+                        value={title}
+                        onInput={(e) =>
+                          setTitle((e.target as HTMLInputElement).value)
+                        }
+                        placeholder="e.g. Initial release"
+                      />
+                    </div>
+
+                    <div class="publish-modal__field">
+                      <label class="publish-modal__label" for="publish-notes">
+                        Release notes
+                      </label>
+                      <textarea
+                        id="publish-notes"
+                        class="publish-modal__input publish-modal__textarea"
+                        value={notes}
+                        onInput={(e) =>
+                          setNotes((e.target as HTMLTextAreaElement).value)
+                        }
+                        rows={3}
+                        placeholder="Optional notes about this version"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {error && <p class="publish-modal__error">{error}</p>}
 
                 <div class="publish-modal__actions">
                   <Button variant="secondary" onClick={handleClose}>
                     Cancel
                   </Button>
-                  <Button onClick={handleContinue} disabled={!isValid}>
-                    Continue
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === "form" && (
-              <div class="publish-modal__form">
-                <div class="publish-modal__field">
-                  <label
-                    class="publish-modal__label"
-                    for="publish-version"
-                  >
-                    Version <span class="publish-modal__required">*</span>
-                  </label>
-                  <input
-                    id="publish-version"
-                    type="text"
-                    class="publish-modal__input"
-                    value={version}
-                    onInput={(e) =>
-                      setVersion((e.target as HTMLInputElement).value)
-                    }
-                    placeholder="e.g. 1.0"
-                  />
-                </div>
-
-                <div class="publish-modal__field">
-                  <label class="publish-modal__label" for="publish-title">
-                    Title <span class="publish-modal__required">*</span>
-                  </label>
-                  <input
-                    id="publish-title"
-                    type="text"
-                    class="publish-modal__input"
-                    value={title}
-                    onInput={(e) =>
-                      setTitle((e.target as HTMLInputElement).value)
-                    }
-                    placeholder="e.g. Initial release"
-                  />
-                </div>
-
-                <div class="publish-modal__field">
-                  <label class="publish-modal__label" for="publish-notes">
-                    Release notes
-                  </label>
-                  <textarea
-                    id="publish-notes"
-                    class="publish-modal__input publish-modal__textarea"
-                    value={notes}
-                    onInput={(e) =>
-                      setNotes((e.target as HTMLTextAreaElement).value)
-                    }
-                    rows={3}
-                    placeholder="Optional notes about this version"
-                  />
-                </div>
-
-                {error && <p class="publish-modal__error">{error}</p>}
-
-                <div class="publish-modal__actions">
-                  <Button
-                    variant="secondary"
-                    onClick={() => handlePublish(false)}
-                    disabled={!canPublish}
-                  >
-                    Save as Draft
-                  </Button>
-                  <Button
-                    onClick={() => handlePublish(true)}
-                    disabled={!canPublish}
-                  >
+                  <Button onClick={handlePublish} disabled={!canPublish}>
                     {submitting ? "Publishing..." : "Publish"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {(step as string) === "draft" && draft && preview && (
-              <div class="publish-modal__draft">
-                <div class="publish-modal__draft-info">
-                  <h3 class="publish-modal__draft-heading">
-                    Draft: v{draft.version}
-                  </h3>
-                  <p class="publish-modal__draft-title">{draft.title}</p>
-                  {draft.notes && (
-                    <p class="publish-modal__draft-notes">{draft.notes}</p>
-                  )}
-                </div>
-
-                {renderValidation()}
-
-                {error && <p class="publish-modal__error">{error}</p>}
-
-                <div class="publish-modal__actions">
-                  <Button
-                    variant="danger"
-                    onClick={handleDiscard}
-                    disabled={submitting}
-                  >
-                    Discard
-                  </Button>
-                  <Button
-                    onClick={handleFinalize}
-                    disabled={!isValid || submitting}
-                  >
-                    {submitting ? "Finalizing..." : "Finalize"}
                   </Button>
                 </div>
               </div>
@@ -317,7 +244,7 @@ export function PublishModal({
                   {publishedVersion.title} —{" "}
                   {publishedVersion.finalized
                     ? "published successfully."
-                    : "saved as draft."}
+                    : "published as pre-release."}
                 </p>
                 <div class="publish-modal__actions">
                   <Button onClick={handleClose}>Done</Button>
@@ -349,13 +276,13 @@ export function PublishModal({
                     <span
                       class={`publish-modal__version-badge ${
                         !v.finalized
-                          ? "publish-modal__version-badge--draft"
+                          ? "publish-modal__version-badge--pre-release"
                           : v.latest
                             ? "publish-modal__version-badge--latest"
                             : ""
                       }`}
                     >
-                      {v.finalized ? v.version : "Draft"}
+                      {v.version}
                     </span>
                     <div class="publish-modal__version-info">
                       <span class="publish-modal__version-title">
@@ -368,6 +295,11 @@ export function PublishModal({
                     </div>
                     {v.latest && (
                       <span class="publish-modal__latest-badge">latest</span>
+                    )}
+                    {!v.finalized && (
+                      <span class="publish-modal__pre-release-badge">
+                        pre-release
+                      </span>
                     )}
                   </div>
                 ))}

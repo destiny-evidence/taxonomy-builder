@@ -12,7 +12,6 @@ from taxonomy_builder.schemas.publishing import (
     ContentSummary,
     PublishPreview,
     PublishRequest,
-    UpdateDraftRequest,
 )
 from taxonomy_builder.schemas.snapshot import (
     DiffResult,
@@ -43,27 +42,12 @@ class VersionConflictError(Exception):
         super().__init__(f"Version '{version}' already exists for this project.")
 
 
-class DraftExistsError(Exception):
-    """Raised when trying to create a second draft for a project."""
-
-    def __init__(self) -> None:
-        super().__init__("A draft version already exists for this project.")
-
-
 class VersionNotFoundError(Exception):
     """Raised when a published version is not found."""
 
     def __init__(self, version_id: UUID) -> None:
         self.version_id = version_id
         super().__init__(f"Published version '{version_id}' not found.")
-
-
-class NotADraftError(Exception):
-    """Raised when trying to update/delete a finalized version."""
-
-    def __init__(self, version_id: UUID) -> None:
-        self.version_id = version_id
-        super().__init__(f"Version '{version_id}' is finalized and cannot be modified.")
 
 
 class PublishingService:
@@ -85,24 +69,22 @@ class PublishingService:
         request: PublishRequest,
         publisher: str | None = None,
     ) -> PublishedVersion:
-        """Publish a new version (or create a draft) of a project."""
+        """Publish a new version (release or pre-release) of a project."""
         snapshot = await self._snapshot_service.build_snapshot(project_id)
         validation = validate_snapshot(snapshot)
         if not validation.valid:
             raise ValidationFailedError(validation)
 
-        if request.finalized and await self._get_draft(project_id) is not None:
-            raise DraftExistsError()
-
         previous = await self._get_latest_finalized(project_id)
+        finalized = not request.pre_release
 
         version = PublishedVersion(
             project_id=project_id,
             version=request.version,
             title=request.title,
             notes=request.notes,
-            finalized=request.finalized,
-            published_at=datetime.now() if request.finalized else None,
+            finalized=finalized,
+            published_at=datetime.now(),
             publisher=publisher,
             previous_version_id=previous.id if previous else None,
             snapshot=snapshot.model_dump(mode="json"),
@@ -116,32 +98,8 @@ class PublishingService:
             error_msg = str(e.orig) if e.orig else str(e)
             if "uq_published_version_per_project" in error_msg:
                 raise VersionConflictError(request.version)
-            if "ix_one_draft_per_project" in error_msg:
-                raise DraftExistsError()
             raise
 
-        await self.db.refresh(version)
-        return version
-
-    async def finalize(
-        self,
-        project_id: UUID,
-        version_id: UUID,
-    ) -> PublishedVersion:
-        """Promote a draft to finalized, capturing current project state."""
-        version = await self.get_version(project_id, version_id)
-        if version.finalized:
-            raise NotADraftError(version_id)
-
-        snapshot = await self._snapshot_service.build_snapshot(project_id)
-        validation = validate_snapshot(snapshot)
-        if not validation.valid:
-            raise ValidationFailedError(validation)
-
-        version.snapshot = snapshot.model_dump(mode="json")
-        version.finalized = True
-        version.published_at = datetime.now()
-        await self.db.flush()
         await self.db.refresh(version)
         return version
 
@@ -189,68 +147,36 @@ class PublishingService:
             diff = compute_diff(prev_snapshot, snapshot)
 
         suggested = self._suggest_version(latest.version if latest else None, diff)
+        pre_release_base = self._major_bump(latest.version if latest else None)
+        pre_num = await self._next_pre_release_number(project_id, pre_release_base)
+        suggested_pre = f"{pre_release_base}-pre{pre_num}"
+
+        latest_pre = await self._get_latest_pre_release(project_id)
+        # Only show pre-release if it's newer than the latest finalized
+        latest_pre_version: str | None = None
+        if latest_pre:
+            if not latest or latest_pre.version_sort_key > latest.version_sort_key:
+                latest_pre_version = latest_pre.version
 
         return PublishPreview(
             validation=validation,
             diff=diff,
             content_summary=content_summary,
             suggested_version=suggested,
+            suggested_pre_release_version=suggested_pre,
+            latest_version=latest.version if latest else None,
+            latest_pre_release_version=latest_pre_version,
         )
 
-    async def update_draft(
-        self,
-        project_id: UUID,
-        version_id: UUID,
-        request: UpdateDraftRequest,
-    ) -> PublishedVersion:
-        """Update a draft version with a fresh snapshot and optional metadata."""
-        version = await self.get_version(project_id, version_id)
-        if version.finalized:
-            raise NotADraftError(version_id)
-
-        snapshot = await self._snapshot_service.build_snapshot(project_id)
-        validation = validate_snapshot(snapshot)
-        if not validation.valid:
-            raise ValidationFailedError(validation)
-
-        version.snapshot = snapshot.model_dump(mode="json")
-        if request.version is not None:
-            version.version = request.version
-        if request.title is not None:
-            version.title = request.title
-        if request.notes is not None:
-            version.notes = request.notes
-
-        try:
-            await self.db.flush()
-        except IntegrityError as e:
-            await self.db.rollback()
-            error_msg = str(e.orig) if e.orig else str(e)
-            if "uq_published_version_per_project" in error_msg:
-                raise VersionConflictError(request.version or version.version)
-            raise
-
-        await self.db.refresh(version)
-        return version
-
-    async def delete_draft(
-        self,
-        project_id: UUID,
-        version_id: UUID,
-    ) -> None:
-        """Delete a draft version."""
-        version = await self.get_version(project_id, version_id)
-        if version.finalized:
-            raise NotADraftError(version_id)
-        await self.db.delete(version)
-        await self.db.flush()
-
-    async def _get_draft(self, project_id: UUID) -> PublishedVersion | None:
+    async def _get_latest_pre_release(self, project_id: UUID) -> PublishedVersion | None:
         result = await self.db.execute(
-            select(PublishedVersion).where(
+            select(PublishedVersion)
+            .where(
                 PublishedVersion.project_id == project_id,
                 PublishedVersion.finalized.is_(False),
             )
+            .order_by(PublishedVersion.version_sort_key.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
 
@@ -262,6 +188,44 @@ class PublishingService:
             )
         )
         return result.scalar_one_or_none()
+
+    async def _next_pre_release_number(self, project_id: UUID, base_version: str) -> int:
+        """Find the next pre-release number for a given base version.
+
+        Queries for versions matching '{base_version}-pre*' and returns max(n)+1,
+        or 1 if no pre-releases exist for this base version.
+        """
+        result = await self.db.execute(
+            select(PublishedVersion.version).where(
+                PublishedVersion.project_id == project_id,
+                PublishedVersion.version.like(f"{base_version}-pre%"),
+            )
+        )
+        existing = result.scalars().all()
+        if not existing:
+            return 1
+
+        max_n = 0
+        for v in existing:
+            suffix = v.split("-pre")[-1]
+            try:
+                n = int(suffix)
+                max_n = max(max_n, n)
+            except ValueError:
+                continue
+        return max_n + 1
+
+    @staticmethod
+    def _major_bump(latest_version: str | None) -> str:
+        """Always bump major version. Used for pre-release suggestions."""
+        if latest_version is None:
+            return "1.0"
+        parts = latest_version.split(".")
+        try:
+            major = int(parts[0])
+        except (ValueError, IndexError):
+            return "1.0"
+        return f"{major + 1}.0"
 
     @staticmethod
     def _suggest_version(latest_version: str | None, diff: DiffResult | None) -> str:

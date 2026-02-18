@@ -23,9 +23,12 @@ class PublishPreview(BaseModel):
     diff: DiffResult | None = None
     content_summary: ContentSummary
     suggested_version: str | None = None
+    suggested_pre_release_version: str | None = None
+    latest_version: str | None = None
+    latest_pre_release_version: str | None = None
 
 
-VERSION_PATTERN = r"^\d+(\.\d+)*$"
+VERSION_PATTERN = r"^\d+(\.\d+)+(-pre\d+)?$"
 
 
 class PublishRequest(BaseModel):
@@ -34,15 +37,7 @@ class PublishRequest(BaseModel):
     version: str = Field(pattern=VERSION_PATTERN)
     title: str
     notes: str | None = None
-    finalized: bool = True
-
-
-class UpdateDraftRequest(BaseModel):
-    """Request body for updating a draft version."""
-
-    version: str | None = Field(default=None, pattern=VERSION_PATTERN)
-    title: str | None = None
-    notes: str | None = None
+    pre_release: bool = False
 
 
 class PublishedVersionRead(BaseModel):

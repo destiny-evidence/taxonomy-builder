@@ -12,13 +12,10 @@ from taxonomy_builder.schemas.publishing import (
     PublishedVersionRead,
     PublishPreview,
     PublishRequest,
-    UpdateDraftRequest,
 )
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 from taxonomy_builder.services.publishing_service import (
-    DraftExistsError,
-    NotADraftError,
     PublishingService,
     ValidationFailedError,
     VersionConflictError,
@@ -63,7 +60,7 @@ async def publish_version(
     current_user: CurrentUser,
     service: PublishingService = Depends(_get_publishing_service),
 ) -> PublishedVersionRead:
-    """Publish a new version (or create a draft) of a project."""
+    """Publish a new version (release or pre-release) of a project."""
     try:
         version = await service.publish(
             project_id, request, publisher=current_user.user.display_name
@@ -80,8 +77,6 @@ async def publish_version(
             },
         )
     except VersionConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except DraftExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
@@ -118,81 +113,3 @@ async def get_version(
         return PublishedVersionDetail.model_validate(version)
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
-
-@router.post(
-    "/{project_id}/versions/{version_id}/finalize",
-    response_model=PublishedVersionRead,
-)
-async def finalize_version(
-    project_id: UUID,
-    version_id: UUID,
-    current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
-) -> PublishedVersionRead:
-    """Promote a draft version to finalized."""
-    try:
-        version = await service.finalize(project_id, version_id)
-        return PublishedVersionRead.model_validate(version)
-    except VersionNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except NotADraftError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except ValidationFailedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "message": str(e),
-                "errors": [err.model_dump(mode="json") for err in e.validation_result.errors],
-            },
-        )
-
-
-@router.patch(
-    "/{project_id}/versions/{version_id}",
-    response_model=PublishedVersionRead,
-)
-async def update_draft(
-    project_id: UUID,
-    version_id: UUID,
-    request: UpdateDraftRequest,
-    current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
-) -> PublishedVersionRead:
-    """Update a draft version with a fresh snapshot and optional metadata."""
-    try:
-        version = await service.update_draft(project_id, version_id, request)
-        return PublishedVersionRead.model_validate(version)
-    except VersionNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except NotADraftError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except ValidationFailedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "message": str(e),
-                "errors": [err.model_dump(mode="json") for err in e.validation_result.errors],
-            },
-        )
-    except VersionConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-
-
-@router.delete(
-    "/{project_id}/versions/{version_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-async def delete_draft(
-    project_id: UUID,
-    version_id: UUID,
-    current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
-) -> None:
-    """Delete a draft version."""
-    try:
-        await service.delete_draft(project_id, version_id)
-    except VersionNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except NotADraftError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

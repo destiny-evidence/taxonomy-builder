@@ -184,29 +184,25 @@
   min-height: 60px;
 }
 
-/* Draft */
-.publish-modal__draft-info {
-  padding: var(--spacing-md);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-md);
+/* Version input */
+.publish-modal__version-input {
+  max-width: 160px;
+  font-variant-numeric: tabular-nums;
 }
 
-.publish-modal__draft-heading {
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  margin: 0 0 var(--spacing-xs);
+.publish-modal__version-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.publish-modal__draft-title {
-  margin: 0 0 var(--spacing-xs);
+/* Pre-release checkbox */
+.publish-modal__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
   font-size: var(--font-size-sm);
-}
-
-.publish-modal__draft-notes {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  cursor: pointer;
 }
 
 /* Success */
@@ -267,7 +263,7 @@
   white-space: nowrap;
 }
 
-.publish-modal__version-badge--draft {
+.publish-modal__version-badge--pre-release {
   background: var(--color-warning, #d97706);
 }
 
@@ -295,5 +291,11 @@
 .publish-modal__latest-badge {
   font-size: var(--font-size-xs);
   color: var(--color-success, #16a34a);
+  font-weight: 500;
+}
+
+.publish-modal__pre-release-badge {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning, #d97706);
   font-weight: 500;
 }

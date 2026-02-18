@@ -52,13 +52,16 @@ export interface PublishPreview {
   diff: DiffResult | null;
   content_summary: ContentSummary;
   suggested_version: string | null;
+  suggested_pre_release_version: string | null;
+  latest_version: string | null;
+  latest_pre_release_version: string | null;
 }
 
 export interface PublishRequest {
   version: string;
   title: string;
   notes?: string | null;
-  finalized?: boolean;
+  pre_release?: boolean;
 }
 
 export interface PublishedVersionRead {
@@ -85,13 +88,4 @@ export const publishingApi = {
 
   listVersions: (projectId: string) =>
     api.get<PublishedVersionRead[]>(`/projects/${projectId}/versions`),
-
-  finalizeVersion: (projectId: string, versionId: string) =>
-    api.post<PublishedVersionRead>(
-      `/projects/${projectId}/versions/${versionId}/finalize`,
-      {}
-    ),
-
-  deleteDraft: (projectId: string, versionId: string) =>
-    api.delete(`/projects/${projectId}/versions/${versionId}`),
 };
