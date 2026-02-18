@@ -92,7 +92,8 @@
   gap: var(--spacing-sm);
 }
 
-.comments-section__thread--resolved {
+.comments-section__thread--resolved > .comments-section__comment,
+.comments-section__thread--resolved > .comments-section__replies {
   opacity: 0.5;
 }
 
