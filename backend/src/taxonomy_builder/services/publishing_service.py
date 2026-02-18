@@ -122,11 +122,11 @@ class PublishingService:
             prev_snapshot = SnapshotVocabulary.model_validate(latest.snapshot)
             diff = compute_diff(prev_snapshot, snapshot)
 
-        suggested, pre_release_base = self._suggest_versions(
-            latest.version if latest else None, diff
+        latest_version = latest.version if latest else None
+        suggested = await self._suggest_version(latest_version, diff)
+        suggested_pre = await self._suggest_version(
+            latest_version, diff, pre_release=True, project_id=project_id
         )
-        pre_num = await self._next_pre_release_number(project_id, pre_release_base)
-        suggested_pre = f"{pre_release_base}-pre{pre_num}"
 
         latest_pre = await self._get_latest_pre_release(project_id)
         # Only show pre-release if it's newer than the latest finalized
@@ -192,24 +192,35 @@ class PublishingService:
                 continue
         return max_n + 1
 
-    @staticmethod
-    def _suggest_versions(
-        latest_version: str | None, diff: DiffResult | None
-    ) -> tuple[str, str]:
-        """Suggest next release and pre-release base versions.
+    async def _suggest_version(
+        self,
+        latest_version: str | None,
+        diff: DiffResult | None,
+        *,
+        pre_release: bool = False,
+        project_id: UUID | None = None,
+    ) -> str:
+        """Suggest next version string.
 
-        Returns (release_suggestion, pre_release_base) where pre-release base
-        is always a major bump.
+        For releases: major bump if modifications/removals, minor bump otherwise.
+        For pre-releases: always major bump with -preN suffix.
         """
         if latest_version is None:
-            return "1.0", "1.0"
-        parts = latest_version.split(".")
-        try:
-            major = int(parts[0])
-            minor = int(parts[1]) if len(parts) > 1 else 0
-        except (ValueError, IndexError):
-            return "1.0", "1.0"
-        major_bump = f"{major + 1}.0"
-        if diff and (diff.modified or diff.removed):
-            return major_bump, major_bump
-        return f"{major}.{minor + 1}", major_bump
+            base = "1.0"
+        else:
+            parts = latest_version.split(".")
+            try:
+                major = int(parts[0])
+                minor = int(parts[1]) if len(parts) > 1 else 0
+            except (ValueError, IndexError):
+                base = "1.0"
+            else:
+                if pre_release or (diff and (diff.modified or diff.removed)):
+                    base = f"{major + 1}.0"
+                else:
+                    base = f"{major}.{minor + 1}"
+
+        if pre_release and project_id is not None:
+            pre_num = await self._next_pre_release_number(project_id, base)
+            return f"{base}-pre{pre_num}"
+        return base
