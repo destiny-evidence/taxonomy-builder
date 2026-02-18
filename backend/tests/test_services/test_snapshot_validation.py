@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from taxonomy_builder.schemas.snapshot import (
     SnapshotConcept,
     SnapshotProjectMetadata,
+    SnapshotProperty,
     SnapshotScheme,
     SnapshotVocabulary,
 )
@@ -15,9 +16,14 @@ def _project_meta() -> SnapshotProjectMetadata:
     return SnapshotProjectMetadata(id=uuid4(), name="Test")
 
 
-def _vocab(*schemes: SnapshotScheme) -> SnapshotVocabulary:
+def _vocab(
+    *schemes: SnapshotScheme,
+    properties: list[SnapshotProperty] | None = None,
+) -> SnapshotVocabulary:
     return SnapshotVocabulary.model_construct(
-        project=_project_meta(), concept_schemes=list(schemes)
+        project=_project_meta(),
+        concept_schemes=list(schemes),
+        properties=properties or [],
     )
 
 
@@ -40,10 +46,14 @@ def _concept(
     pref_label: str = "Term",
     *,
     id: UUID | None = None,
+    broader_ids: list[UUID] | None = None,
+    related_ids: list[UUID] | None = None,
 ) -> SnapshotConcept:
     return SnapshotConcept.model_construct(
         id=id or uuid4(),
         pref_label=pref_label,
+        broader_ids=broader_ids or [],
+        related_ids=related_ids or [],
     )
 
 
@@ -112,3 +122,83 @@ class TestMixedValidity:
         uri_errors = [e for e in result.errors if e.code == "scheme_missing_uri"]
         assert len(uri_errors) == 1
         assert uri_errors[0].entity_id == bad_id
+
+
+class TestBrokenBroaderRef:
+    def test_broader_referencing_nonexistent_concept(self) -> None:
+        orphan_id = uuid4()
+        concept_a = _concept("A", broader_ids=[orphan_id])
+        scheme = _scheme(concepts=[concept_a])
+        result = validate_snapshot(_vocab(scheme))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "broken_broader_ref"]
+        assert len(errors) == 1
+        assert errors[0].entity_id == concept_a.id
+
+    def test_valid_broader_ref_passes(self) -> None:
+        parent = _concept("Parent")
+        child = _concept("Child", broader_ids=[parent.id])
+        scheme = _scheme(concepts=[parent, child])
+        result = validate_snapshot(_vocab(scheme))
+        assert result.valid is True
+
+
+class TestBrokenRelatedRef:
+    def test_related_referencing_nonexistent_concept(self) -> None:
+        orphan_id = uuid4()
+        concept_a = _concept("A", related_ids=[orphan_id])
+        scheme = _scheme(concepts=[concept_a])
+        result = validate_snapshot(_vocab(scheme))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "broken_related_ref"]
+        assert len(errors) == 1
+        assert errors[0].entity_id == concept_a.id
+
+
+class TestBrokenRangeSchemeRef:
+    def test_property_referencing_nonexistent_scheme(self) -> None:
+        orphan_scheme_id = uuid4()
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            label="Test Property",
+            domain_class="http://example.org/Class",
+            range_scheme_id=orphan_scheme_id,
+            cardinality="one",
+            required=False,
+        )
+        concept = _concept("Term")
+        scheme = _scheme(concepts=[concept])
+        result = validate_snapshot(_vocab(scheme, properties=[prop]))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "broken_range_scheme_ref"]
+        assert len(errors) == 1
+        assert errors[0].entity_id == prop.id
+
+    def test_valid_range_scheme_ref_passes(self) -> None:
+        scheme = _scheme(concepts=[_concept("Term")])
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            label="Test Property",
+            domain_class="http://example.org/Class",
+            range_scheme_id=scheme.id,
+            cardinality="one",
+            required=False,
+        )
+        result = validate_snapshot(_vocab(scheme, properties=[prop]))
+        assert result.valid is True
+
+    def test_null_range_scheme_passes(self) -> None:
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            label="Test Property",
+            domain_class="http://example.org/Class",
+            range_scheme_id=None,
+            cardinality="one",
+            required=False,
+        )
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, properties=[prop]))
+        assert result.valid is True

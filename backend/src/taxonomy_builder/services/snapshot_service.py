@@ -134,13 +134,14 @@ class SnapshotService:
 def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:
     """Validate a snapshot is ready to publish.
 
-    Runs Pydantic validators on the snapshot data, collecting all errors.
+    Runs Pydantic validators on the snapshot data, then checks
+    referential integrity (broader/related/range_scheme links).
     """
+    errors: list[ValidationError] = []
+
     try:
         SnapshotVocabulary.model_validate(snapshot.model_dump(mode="json"))
-        return ValidationResult(valid=True, errors=[])
     except PydanticValidationError as e:
-        errors = []
         for err in e.errors():
             ctx = err.get("ctx", {})
             entity_id_str = ctx.get("entity_id")
@@ -153,7 +154,54 @@ def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:
                     entity_label=ctx.get("entity_label"),
                 )
             )
-        return ValidationResult(valid=False, errors=errors)
+
+    errors.extend(_validate_references(snapshot))
+    return ValidationResult(valid=len(errors) == 0, errors=errors)
+
+
+def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
+    """Check that all broader/related/range_scheme references resolve."""
+    errors: list[ValidationError] = []
+
+    all_concept_ids = {
+        concept.id
+        for scheme in snapshot.concept_schemes
+        for concept in (scheme.concepts or [])
+    }
+    scheme_ids = {scheme.id for scheme in snapshot.concept_schemes}
+
+    for scheme in snapshot.concept_schemes:
+        for concept in scheme.concepts or []:
+            for bid in concept.broader_ids or []:
+                if bid not in all_concept_ids:
+                    errors.append(ValidationError(
+                        code="broken_broader_ref",
+                        message=f"Concept '{concept.pref_label}' has a broader reference to a non-existent concept.",
+                        entity_type="concept",
+                        entity_id=concept.id,
+                        entity_label=concept.pref_label,
+                    ))
+            for rid in concept.related_ids or []:
+                if rid not in all_concept_ids:
+                    errors.append(ValidationError(
+                        code="broken_related_ref",
+                        message=f"Concept '{concept.pref_label}' has a related reference to a non-existent concept.",
+                        entity_type="concept",
+                        entity_id=concept.id,
+                        entity_label=concept.pref_label,
+                    ))
+
+    for prop in snapshot.properties or []:
+        if prop.range_scheme_id and prop.range_scheme_id not in scheme_ids:
+            errors.append(ValidationError(
+                code="broken_range_scheme_ref",
+                message=f"Property '{prop.label}' references a non-existent scheme.",
+                entity_type="property",
+                entity_id=prop.id,
+                entity_label=prop.label,
+            ))
+
+    return errors
 
 
 def _field_changes(prev, curr, exclude: set[str]) -> list[FieldChange]:
