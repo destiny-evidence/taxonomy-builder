@@ -107,8 +107,10 @@ export function PublishModal({
   }
 
   const isValid = preview?.validation.valid ?? false;
+  const VERSION_PATTERN = /^\d+(\.\d+)+$/;
+  const versionFormatValid = version.trim() === "" || VERSION_PATTERN.test(version.trim());
   const canPublish =
-    isValid && version.trim() !== "" && title.trim() !== "" && !submitting;
+    isValid && version.trim() !== "" && versionFormatValid && title.trim() !== "" && !submitting;
 
   return (
     <Modal isOpen={isOpen} title="Publishing" onClose={handleClose} size="wide">
@@ -207,6 +209,11 @@ export function PublishModal({
                           </span>
                         )}
                       </div>
+                      {!versionFormatValid && (
+                        <span class="publish-modal__version-error">
+                          Version must be like 1.0 or 2.1.3
+                        </span>
+                      )}
                       {(preview.latest_version ||
                         preview.latest_pre_release_version) && (
                         <span class="publish-modal__version-hint">

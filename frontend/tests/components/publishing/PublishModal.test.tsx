@@ -417,6 +417,35 @@ describe("PublishModal", () => {
       });
     });
 
+    it("shows format hint and disables Publish for invalid version format", async () => {
+      vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
+        mockPreview
+      );
+      vi.mocked(publishingApi.publishingApi.listVersions).mockResolvedValue(
+        mockVersions
+      );
+
+      render(<PublishModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Version")).toBeInTheDocument();
+      });
+
+      fireEvent.input(screen.getByLabelText("Version"), {
+        target: { value: "banana" },
+      });
+      fireEvent.input(screen.getByLabelText(/Title/), {
+        target: { value: "A title" },
+      });
+
+      expect(screen.getByText(/Version must be/)).toBeInTheDocument();
+
+      const publishBtn = screen.getAllByText("Publish").find(
+        (el) => el.classList.contains("btn")
+      )!;
+      expect(publishBtn).toBeDisabled();
+    });
+
     it("disables Publish button when validation fails", async () => {
       vi.mocked(publishingApi.publishingApi.getPreview).mockResolvedValue(
         mockPreviewInvalid

@@ -262,6 +262,11 @@
   user-select: none;
 }
 
+.publish-modal__version-error {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+}
+
 .publish-modal__version-hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
