@@ -223,6 +223,17 @@
   margin-bottom: var(--spacing-xs);
 }
 
+.comments-section__thread-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.comments-section__resolved-info {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
 .comments-section__reply-actions {
   display: flex;
   gap: var(--spacing-xs);

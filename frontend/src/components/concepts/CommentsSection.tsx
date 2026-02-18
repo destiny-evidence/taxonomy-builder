@@ -317,6 +317,11 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                       >
                         {comment.resolved_at ? "Unresolve" : "Resolve"}
                       </Button>
+                      {comment.resolver && (
+                        <span class="comments-section__resolved-info">
+                          Resolved by {comment.resolver.display_name} {formatRelativeTime(comment.resolved_at!)}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
