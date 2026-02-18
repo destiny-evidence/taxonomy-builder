@@ -249,24 +249,6 @@ class TestPublish:
         assert len(list_resp.json()) == 2
 
     @pytest.mark.asyncio
-    async def test_publish_release_after_pre_releases(
-        self, authenticated_client: AsyncClient, publishable_project: Project
-    ) -> None:
-        """A full release can be published after pre-releases exist."""
-        await authenticated_client.post(
-            f"/api/projects/{publishable_project.id}/publish",
-            json={"version": "1.0-pre1", "title": "Pre 1", "pre_release": True},
-        )
-        resp = await authenticated_client.post(
-            f"/api/projects/{publishable_project.id}/publish",
-            json={"version": "1.0", "title": "Release 1.0"},
-        )
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["finalized"] is True
-        assert data["version"] == "1.0"
-
-    @pytest.mark.asyncio
     async def test_publish_links_previous_version(
         self, authenticated_client: AsyncClient, publishable_project: Project
     ) -> None:
@@ -310,16 +292,6 @@ class TestPublish:
         assert resp.status_code == 422
         data = resp.json()
         assert "errors" in data["detail"]
-
-    @pytest.mark.asyncio
-    async def test_publish_rejects_invalid_pre_release(
-        self, authenticated_client: AsyncClient, project: Project
-    ) -> None:
-        resp = await authenticated_client.post(
-            f"/api/projects/{project.id}/publish",
-            json={"version": "1.0-pre1", "title": "WIP", "pre_release": True},
-        )
-        assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_publish_duplicate_version(

@@ -122,8 +122,9 @@ class PublishingService:
             prev_snapshot = SnapshotVocabulary.model_validate(latest.snapshot)
             diff = compute_diff(prev_snapshot, snapshot)
 
-        suggested = self._suggest_version(latest.version if latest else None, diff)
-        pre_release_base = self._major_bump(latest.version if latest else None)
+        suggested, pre_release_base = self._suggest_versions(
+            latest.version if latest else None, diff
+        )
         pre_num = await self._next_pre_release_number(project_id, pre_release_base)
         suggested_pre = f"{pre_release_base}-pre{pre_num}"
 
@@ -192,28 +193,23 @@ class PublishingService:
         return max_n + 1
 
     @staticmethod
-    def _major_bump(latest_version: str | None) -> str:
-        """Always bump major version. Used for pre-release suggestions."""
-        if latest_version is None:
-            return "1.0"
-        parts = latest_version.split(".")
-        try:
-            major = int(parts[0])
-        except (ValueError, IndexError):
-            return "1.0"
-        return f"{major + 1}.0"
+    def _suggest_versions(
+        latest_version: str | None, diff: DiffResult | None
+    ) -> tuple[str, str]:
+        """Suggest next release and pre-release base versions.
 
-    @staticmethod
-    def _suggest_version(latest_version: str | None, diff: DiffResult | None) -> str:
-        """Suggest next version: major bump for edits/removals, minor otherwise."""
+        Returns (release_suggestion, pre_release_base) where pre-release base
+        is always a major bump.
+        """
         if latest_version is None:
-            return "1.0"
+            return "1.0", "1.0"
         parts = latest_version.split(".")
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
         except (ValueError, IndexError):
-            return "1.0"
+            return "1.0", "1.0"
+        major_bump = f"{major + 1}.0"
         if diff and (diff.modified or diff.removed):
-            return f"{major + 1}.0"
-        return f"{major}.{minor + 1}"
+            return major_bump, major_bump
+        return f"{major}.{minor + 1}", major_bump
