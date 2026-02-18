@@ -93,4 +93,15 @@ describe("CommentsSection", () => {
       expect(screen.getByText("Resolved comment")).toBeInTheDocument();
     });
   });
+
+  describe("delete button", () => {
+    it("should show delete button only for comments with can_delete", async () => {
+      await renderExpanded();
+
+      fireEvent.click(screen.getByText("All"));
+
+      const deleteButtons = screen.getAllByTitle("Delete comment");
+      expect(deleteButtons).toHaveLength(2);
+    });
+  });
 });
