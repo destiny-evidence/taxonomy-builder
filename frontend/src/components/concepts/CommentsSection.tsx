@@ -198,7 +198,7 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
           {filteredComments.length > 0 ? (
             <div class="comments-section__list">
               {filteredComments.map((comment) => (
-                <div key={comment.id} class="comments-section__thread">
+                <div key={comment.id} class={`comments-section__thread ${comment.resolved_at ? "comments-section__thread--resolved" : ""}`}>
                   {/* Top-level comment */}
                   <div class="comments-section__comment">
                     <div class="comments-section__comment-header">

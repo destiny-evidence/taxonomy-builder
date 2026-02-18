@@ -92,6 +92,10 @@
   gap: var(--spacing-sm);
 }
 
+.comments-section__thread--resolved {
+  opacity: 0.5;
+}
+
 .comments-section__comment {
   padding: var(--spacing-sm);
   background: var(--color-bg-secondary);
