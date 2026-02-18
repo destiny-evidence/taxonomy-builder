@@ -12,6 +12,7 @@ interface ProjectPaneProps {
   onClassSelect: (classUri: string) => void;
   onNewScheme: () => void;
   onImport: () => void;
+  onPublish: () => void;
 }
 
 export function ProjectPane({
@@ -21,6 +22,7 @@ export function ProjectPane({
   onClassSelect,
   onNewScheme,
   onImport,
+  onPublish,
 }: ProjectPaneProps) {
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
   const project = currentProject.value;
@@ -40,9 +42,14 @@ export function ProjectPane({
         </a>
         <div class="project-pane__header-row">
           <h2 class="project-pane__project-title">{project?.name}</h2>
-          <Button variant="ghost" size="sm" onClick={onImport}>
-            Import
-          </Button>
+          <div class="project-pane__header-actions">
+            <Button variant="ghost" size="sm" onClick={onImport}>
+              Import
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onPublish}>
+              Publish
+            </Button>
+          </div>
         </div>
       </div>
 

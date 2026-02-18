@@ -9,6 +9,7 @@ import { ConceptForm } from "../components/concepts/ConceptForm";
 import { SchemeForm } from "../components/schemes/SchemeForm";
 import { ExportModal } from "../components/schemes/ExportModal";
 import { ImportModal } from "../components/schemes/ImportModal";
+import { PublishModal } from "../components/publishing/PublishModal";
 import { Modal } from "../components/common/Modal";
 import { projects } from "../state/projects";
 import { schemes, currentScheme } from "../state/schemes";
@@ -45,6 +46,7 @@ export function SchemeWorkspacePage({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isSchemeFormOpen, setIsSchemeFormOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
@@ -267,6 +269,7 @@ export function SchemeWorkspacePage({
         onClassSelect={handleClassSelect}
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
+        onPublish={() => setIsPublishOpen(true)}
       />
 
       {/* Pane 2: Context-dependent detail */}
@@ -344,6 +347,12 @@ export function SchemeWorkspacePage({
         projectId={projectId}
         onClose={() => setIsImportOpen(false)}
         onSuccess={handleImportSuccess}
+      />
+
+      <PublishModal
+        isOpen={isPublishOpen}
+        projectId={projectId}
+        onClose={() => setIsPublishOpen(false)}
       />
 
       <Modal

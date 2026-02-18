@@ -56,6 +56,7 @@ describe("ProjectPane", () => {
   const mockOnClassSelect = vi.fn();
   const mockOnNewScheme = vi.fn();
   const mockOnImport = vi.fn();
+  const mockOnPublish = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -75,6 +76,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -90,6 +92,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -108,6 +111,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -124,6 +128,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -144,6 +149,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -162,6 +168,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -178,6 +185,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -197,6 +205,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -215,6 +224,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
@@ -230,12 +240,31 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
       fireEvent.click(screen.getByText("+ New Scheme"));
 
       expect(mockOnNewScheme).toHaveBeenCalled();
+    });
+
+    it("calls onPublish when Publish button clicked", () => {
+      render(
+        <ProjectPane
+          projectId="proj-1"
+          currentSchemeId={null}
+          onSchemeSelect={mockOnSchemeSelect}
+          onClassSelect={mockOnClassSelect}
+          onNewScheme={mockOnNewScheme}
+          onImport={mockOnImport}
+          onPublish={mockOnPublish}
+        />
+      );
+
+      fireEvent.click(screen.getByText("Publish"));
+
+      expect(mockOnPublish).toHaveBeenCalled();
     });
 
     it("calls onImport when Import button clicked", () => {
@@ -247,6 +276,7 @@ describe("ProjectPane", () => {
           onClassSelect={mockOnClassSelect}
           onNewScheme={mockOnNewScheme}
           onImport={mockOnImport}
+          onPublish={mockOnPublish}
         />
       );
 
