@@ -7,10 +7,12 @@ import { datatypeLabel } from "../types/models";
 // Layout constants
 const LEFT_COLUMN_X = 40;
 const RIGHT_COLUMN_X = 520;
-const NODE_START_Y = 40;
+const NODE_START_Y = 44;
 const NODE_SPACING_Y = 56;
-const NODE_WIDTH = 180;
+const NODE_WIDTH = 188;
 const NODE_HEIGHT = 36;
+const DATATYPE_NODE_WIDTH = 148;
+const DATATYPE_NODE_HEIGHT = 30;
 const PARALLEL_EDGE_GAP = 14;
 
 export interface OntologyGraphNode {
@@ -59,11 +61,10 @@ export const ontologyGraphData = computed<OntologyGraphData | null>(() => {
     if (prop.range_datatype) connectedIds.add(prop.range_datatype);
   }
 
-  // Left column: class nodes sorted alphabetically
+  // Left column: class nodes in backend order (matches ProjectPane)
   const knownClassUris = new Set(classes.map((c) => c.uri));
-  const sortedClasses = [...classes].sort((a, b) => a.label.localeCompare(b.label));
 
-  const classNodes: OntologyGraphNode[] = sortedClasses.map((c, i) => ({
+  const classNodes: OntologyGraphNode[] = classes.map((c, i) => ({
     id: c.uri,
     label: c.label,
     type: "class",
@@ -119,11 +120,26 @@ export const ontologyGraphData = computed<OntologyGraphData | null>(() => {
     label: datatypeLabel(dt),
     type: "datatype",
     connected: true,
-    x: RIGHT_COLUMN_X,
+    x: RIGHT_COLUMN_X + (NODE_WIDTH - DATATYPE_NODE_WIDTH),
     y: 0,
-    width: NODE_WIDTH,
-    height: NODE_HEIGHT,
+    width: DATATYPE_NODE_WIDTH,
+    height: DATATYPE_NODE_HEIGHT,
   }));
+
+  // Spread class rows to use the available graph height when the right column is denser.
+  const targetRowCount = Math.max(
+    allClassNodes.length,
+    schemeNodes.length + datatypeNodes.length
+  );
+  const leftSpacingY = allClassNodes.length > 1
+    ? Math.max(
+      NODE_SPACING_Y,
+      ((targetRowCount - 1) * NODE_SPACING_Y) / (allClassNodes.length - 1)
+    )
+    : NODE_SPACING_Y;
+  for (let i = 0; i < allClassNodes.length; i++) {
+    allClassNodes[i].y = NODE_START_Y + i * leftSpacingY;
+  }
 
   // Order right column by average Y of connected left-side nodes, alphabetical tiebreak
   const leftNodeYMap = new Map<string, number>();
@@ -150,8 +166,17 @@ export const ontologyGraphData = computed<OntologyGraphData | null>(() => {
     return a.label.localeCompare(b.label);
   });
 
+  // Match right-column height to the stretched left-column height, with a minimum spacing.
+  const leftColumnHeight = allClassNodes.length > 1
+    ? (allClassNodes.length - 1) * leftSpacingY + NODE_HEIGHT
+    : NODE_HEIGHT;
+  const leftColumnSpan = Math.max(NODE_HEIGHT, leftColumnHeight - NODE_HEIGHT);
+  const rightSpacingY = rightNodes.length > 1
+    ? Math.max(NODE_HEIGHT + 4, leftColumnSpan / (rightNodes.length - 1))
+    : NODE_SPACING_Y;
+
   for (let i = 0; i < rightNodes.length; i++) {
-    rightNodes[i].y = NODE_START_Y + i * NODE_SPACING_Y;
+    rightNodes[i].y = NODE_START_Y + i * rightSpacingY;
   }
 
   // Edges with parallel offset detection

@@ -5,6 +5,8 @@ import { TreePane } from "../components/workspace/TreePane";
 import { ConceptPane } from "../components/workspace/ConceptPane";
 import { ClassDetailPane } from "../components/workspace/ClassDetailPane";
 import { PropertyPane } from "../components/workspace/PropertyPane";
+import { OntologyGraph } from "../components/graph/OntologyGraph";
+import { Button } from "../components/common/Button";
 import { ConceptForm } from "../components/concepts/ConceptForm";
 import { SchemeForm } from "../components/schemes/SchemeForm";
 import { ExportModal } from "../components/schemes/ExportModal";
@@ -49,6 +51,7 @@ export function SchemeWorkspacePage({
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [showGraph, setShowGraph] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -65,6 +68,7 @@ export function SchemeWorkspacePage({
       selectionMode.value = "scheme";
       selectedClassUri.value = null;
       selectedPropertyId.value = null;
+      setShowGraph(false);
       loadScheme(schemeId);
       loadTree(schemeId);
       loadConcepts(schemeId);
@@ -272,12 +276,29 @@ export function SchemeWorkspacePage({
       {/* Pane 2: Context-dependent detail */}
       <div class="scheme-workspace__main">
         {isClassMode.value && selectedClass.value ? (
-          <ClassDetailPane
-            classUri={selectedClassUri.value!}
-            projectId={projectId}
-            onPropertySelect={handlePropertySelect}
-            onSchemeNavigate={handleSchemeNavigate}
-          />
+          <>
+            <div class="scheme-workspace__toolbar">
+              {showGraph ? (
+                <Button variant="ghost" size="sm" aria-label="Back to list" onClick={() => setShowGraph(false)}>
+                  Back to list
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" aria-label="Show graph" onClick={() => setShowGraph(true)}>
+                  Graph
+                </Button>
+              )}
+            </div>
+            {showGraph ? (
+              <OntologyGraph />
+            ) : (
+              <ClassDetailPane
+                classUri={selectedClassUri.value!}
+                projectId={projectId}
+                onPropertySelect={handlePropertySelect}
+                onSchemeNavigate={handleSchemeNavigate}
+              />
+            )}
+          </>
         ) : isSchemeMode.value && schemeId ? (
           <TreePane
             schemeId={schemeId}

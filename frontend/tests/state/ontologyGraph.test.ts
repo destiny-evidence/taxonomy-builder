@@ -237,13 +237,14 @@ describe("ontologyGraphData", () => {
     expect([...classXs][0]).toBeLessThan([...schemeXs][0]);
   });
 
-  it("sorts left column nodes alphabetically by label", () => {
+  it("preserves backend order for left column class nodes", () => {
     ontology.value = mockOntology;
 
     const data = ontologyGraphData.value!;
     const classNodes = data.nodes.filter((n) => n.type === "class");
     const labels = classNodes.map((n) => n.label);
-    expect(labels).toEqual(["Finding", "Intervention", "Investigation"]);
+    // Backend order from mockOntology.classes, matching ProjectPane
+    expect(labels).toEqual(["Investigation", "Finding", "Intervention"]);
   });
 
   it("includes property metadata on edges", () => {

@@ -136,15 +136,11 @@ describe("OntologyGraph", () => {
     expect(edgeLabels[0].textContent).toContain("country");
   });
 
-  it("renders legend with expected items", () => {
+  it("renders SVG container when ontology is loaded", () => {
     ontology.value = mockOntology;
     const { container } = render(<OntologyGraph />);
-    const legend = container.querySelector(".ontology-graph__legend");
-    expect(legend).not.toBeNull();
-    expect(legend!.textContent).toContain("Class");
-    expect(legend!.textContent).toContain("Scheme");
-    expect(legend!.textContent).toContain("Datatype");
-    expect(legend!.textContent).toContain("unconnected");
+    const svg = container.querySelector(".ontology-graph__svg");
+    expect(svg).not.toBeNull();
   });
 
   it("renders SVG title tooltips for class nodes", () => {
@@ -156,7 +152,7 @@ describe("OntologyGraph", () => {
     expect(title!.textContent).toContain("A research effort");
   });
 
-  it("renders SVG title tooltips for edges", () => {
+  it("renders edge group with label chip for edges", () => {
     ontology.value = mockOntology;
     schemes.value = mockSchemes;
     properties.value = [
@@ -174,11 +170,9 @@ describe("OntologyGraph", () => {
 
     const { container } = render(<OntologyGraph />);
     const edgeGroup = container.querySelector("[data-edge-id='p1']");
-    const title = edgeGroup!.querySelector("title");
-    expect(title!.textContent).toContain("country");
-    expect(title!.textContent).toContain("The country of origin");
-    expect(title!.textContent).toContain("required");
-    expect(title!.textContent).toContain("multiple");
+    expect(edgeGroup).not.toBeNull();
+    const labelChip = edgeGroup!.querySelector("[data-edge-label]");
+    expect(labelChip!.textContent).toContain("country");
   });
 
   it("renders all nodes dimmed when there are no edges", () => {

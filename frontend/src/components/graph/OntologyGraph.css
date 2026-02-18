@@ -1,6 +1,7 @@
 .ontology-graph {
   display: flex;
   flex-direction: column;
+  position: relative;
   height: 100%;
   background: var(--color-bg);
 }
@@ -25,12 +26,14 @@
 
 .ontology-graph__node rect {
   stroke-width: 1;
+  transition: opacity 120ms ease, stroke-width 120ms ease, fill 120ms ease;
 }
 
 .ontology-graph__node text {
   font-size: 13px;
   fill: var(--color-text);
   pointer-events: none;
+  font-weight: 500;
 }
 
 /* Class nodes */
@@ -47,18 +50,31 @@
 
 /* Datatype nodes — lighter, smaller feel */
 .ontology-graph__node--datatype rect {
-  fill: var(--color-bg-tertiary);
-  stroke: var(--color-border);
+  fill: color-mix(in oklab, var(--color-bg-tertiary) 78%, white);
+  stroke: color-mix(in oklab, var(--color-border) 82%, var(--color-text-muted));
 }
 
 .ontology-graph__node--datatype text {
   font-size: 11px;
-  fill: var(--color-text-secondary);
+  fill: var(--color-text-muted);
+  font-weight: 600;
 }
 
 /* Dimmed / orphan */
 .ontology-graph__node--dimmed {
-  opacity: 0.35;
+  opacity: 0.72;
+}
+
+.ontology-graph__node--dimmed text {
+  fill: color-mix(in oklab, var(--color-text-muted) 58%, var(--color-text));
+}
+
+.ontology-graph__node:hover rect {
+  stroke-width: 1.8;
+}
+
+.ontology-graph__node:hover text {
+  fill: var(--color-text);
 }
 
 /* --- Edges --- */
@@ -68,49 +84,136 @@
   stroke: transparent;
   stroke-width: 12;
   pointer-events: stroke;
+  cursor: pointer;
 }
 
 .ontology-graph__edge-path {
   fill: none;
   stroke: var(--color-border);
-  stroke-width: 1;
+  stroke-width: 1.2;
+  opacity: 0.72;
   pointer-events: none;
+  transition: opacity 120ms ease, stroke 120ms ease, stroke-width 120ms ease;
 }
 
 .ontology-graph__edge-label {
   font-size: 11px;
-  fill: var(--color-text-secondary);
+  fill: color-mix(in oklab, var(--color-text-secondary) 72%, var(--color-text));
+  font-weight: 430;
   pointer-events: none;
 }
 
-/* --- Legend --- */
-
-.ontology-graph__legend-text {
-  font-size: 10px;
-  fill: var(--color-text-muted);
+.ontology-graph__edge-label-chip {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
-.ontology-graph__legend-swatch {
+.ontology-graph__edge-label-chip rect {
+  fill: color-mix(in oklab, var(--color-bg) 97%, white);
+  stroke: color-mix(in oklab, var(--color-border) 48%, transparent);
   stroke-width: 1;
 }
 
-.ontology-graph__legend-swatch--class {
-  fill: var(--color-bg-secondary);
-  stroke: var(--color-primary);
+.ontology-graph__edge:hover .ontology-graph__edge-path {
+  opacity: 0.98;
 }
 
-.ontology-graph__legend-swatch--scheme {
-  fill: var(--color-bg-secondary);
-  stroke: var(--color-success);
+.ontology-graph__edge:hover .ontology-graph__edge-path {
+  stroke: color-mix(in oklab, var(--color-primary) 68%, var(--color-border));
+  stroke-width: 2.15;
 }
 
-.ontology-graph__legend-swatch--datatype {
-  fill: var(--color-bg-tertiary);
-  stroke: var(--color-border);
+.ontology-graph__edge:hover .ontology-graph__edge-label-chip rect {
+  stroke: color-mix(in oklab, var(--color-primary) 52%, var(--color-border));
 }
 
-.ontology-graph__legend-swatch--dimmed {
-  fill: var(--color-bg-secondary);
-  stroke: var(--color-border);
-  opacity: 0.35;
+.ontology-graph__edge:hover .ontology-graph__edge-label {
+  fill: var(--color-primary);
+}
+
+.ontology-graph__edge--dimmed .ontology-graph__edge-path {
+  opacity: 0.24;
+}
+
+.ontology-graph__edge--dimmed .ontology-graph__edge-label-chip {
+  opacity: 0.42;
+}
+
+.ontology-graph__edge--active .ontology-graph__edge-path {
+  opacity: 1;
+  stroke: color-mix(in oklab, var(--color-primary) 70%, var(--color-border));
+  stroke-width: 2.25;
+}
+
+.ontology-graph__edge--active .ontology-graph__edge-label-chip rect {
+  stroke: color-mix(in oklab, var(--color-primary) 65%, var(--color-border));
+  stroke-width: 1.35;
+}
+
+.ontology-graph__edge--active .ontology-graph__edge-label {
+  fill: var(--color-primary);
+  font-weight: 560;
+}
+
+.ontology-graph__node:hover {
+  opacity: 1;
+}
+
+.ontology-graph__tooltip {
+  position: absolute;
+  z-index: 3;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in oklab, #e9eef4 86%, white);
+  color: color-mix(in oklab, var(--color-text) 88%, #243247);
+  border: 1px solid color-mix(in oklab, #b7c2d2 72%, #d7deea);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.22;
+  box-shadow: 0 8px 20px rgb(41 60 90 / 16%);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  transform: translate(14px, 12px);
+}
+
+.ontology-graph__tooltip-title {
+  font-size: 13px;
+  font-weight: 620;
+  margin-bottom: 3px;
+}
+
+.ontology-graph__tooltip-description {
+  color: color-mix(in oklab, var(--color-text-secondary) 86%, #55657a);
+}
+
+.ontology-graph__tooltip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ontology-graph__tooltip-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, #d6dce6);
+  background: color-mix(in oklab, var(--color-bg) 82%, #eef3f9);
+  color: color-mix(in oklab, var(--color-text-secondary) 88%, #5d6d80);
+  font-size: 10px;
+  font-weight: 560;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+}
+
+.ontology-graph__tooltip--left {
+  transform: translate(calc(-100% - 14px), 12px);
+}
+
+.ontology-graph__tooltip--above {
+  transform: translate(14px, calc(-100% - 12px));
+}
+
+.ontology-graph__tooltip--left.ontology-graph__tooltip--above {
+  transform: translate(calc(-100% - 14px), calc(-100% - 12px));
 }
