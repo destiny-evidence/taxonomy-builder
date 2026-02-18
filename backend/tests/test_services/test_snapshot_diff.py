@@ -11,7 +11,7 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotScheme,
     SnapshotVocabulary,
 )
-from taxonomy_builder.services.publishing_service import PublishingService
+from taxonomy_builder.services.snapshot_service import compute_diff
 
 
 def _project_meta() -> SnapshotProjectMetadata:
@@ -68,7 +68,7 @@ class TestNoDiff:
     def test_empty_snapshots(self) -> None:
         prev = _vocab()
         curr = _vocab()
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert isinstance(result, DiffResult)
         assert result.added == []
         assert result.modified == []
@@ -79,7 +79,7 @@ class TestNoDiff:
         concept_id = uuid4()
         concept = _concept("Term A", id=concept_id, definition="Def")
         scheme = _scheme("Scheme", id=scheme_id, concepts=[concept])
-        result = PublishingService.compute_diff(_vocab(scheme), _vocab(scheme))
+        result = compute_diff(_vocab(scheme), _vocab(scheme))
         assert result.added == []
         assert result.modified == []
         assert result.removed == []
@@ -90,7 +90,7 @@ class TestAddedEntities:
         prev = _vocab()
         new_scheme = _scheme("New Scheme")
         curr = _vocab(new_scheme)
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.added) == 1
         assert result.added[0].label == "New Scheme"
         assert result.added[0].entity_type == "scheme"
@@ -101,7 +101,7 @@ class TestAddedEntities:
         added = _concept("New", id=uuid4())
         prev = _vocab(_scheme("S", id=scheme_id, concepts=[existing]))
         curr = _vocab(_scheme("S", id=scheme_id, concepts=[existing, added]))
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.added) == 1
         assert result.added[0].label == "New"
         assert result.added[0].entity_type == "concept"
@@ -110,7 +110,7 @@ class TestAddedEntities:
         """A concept in a newly added scheme counts as added."""
         concept = _concept("Fresh")
         new_scheme = _scheme("Brand New", concepts=[concept])
-        result = PublishingService.compute_diff(_vocab(), _vocab(new_scheme))
+        result = compute_diff(_vocab(), _vocab(new_scheme))
         labels = {item.label for item in result.added}
         assert "Brand New" in labels
         assert "Fresh" in labels
@@ -119,7 +119,7 @@ class TestAddedEntities:
 class TestRemovedEntities:
     def test_removed_scheme(self) -> None:
         old_scheme = _scheme("Gone")
-        result = PublishingService.compute_diff(_vocab(old_scheme), _vocab())
+        result = compute_diff(_vocab(old_scheme), _vocab())
         assert len(result.removed) == 1
         assert result.removed[0].label == "Gone"
         assert result.removed[0].entity_type == "scheme"
@@ -130,7 +130,7 @@ class TestRemovedEntities:
         gone = _concept("Gone", id=uuid4())
         prev = _vocab(_scheme("S", id=scheme_id, concepts=[kept, gone]))
         curr = _vocab(_scheme("S", id=scheme_id, concepts=[kept]))
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.removed) == 1
         assert result.removed[0].label == "Gone"
 
@@ -138,7 +138,7 @@ class TestRemovedEntities:
         """Concepts in a removed scheme count as removed."""
         concept = _concept("Orphan")
         old_scheme = _scheme("Deleted", concepts=[concept])
-        result = PublishingService.compute_diff(_vocab(old_scheme), _vocab())
+        result = compute_diff(_vocab(old_scheme), _vocab())
         labels = {item.label for item in result.removed}
         assert "Deleted" in labels
         assert "Orphan" in labels
@@ -150,7 +150,7 @@ class TestModifiedEntities:
         cid = uuid4()
         prev = _vocab(_scheme("S", id=scheme_id, concepts=[_concept("Old Label", id=cid)]))
         curr = _vocab(_scheme("S", id=scheme_id, concepts=[_concept("New Label", id=cid)]))
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.modified) == 1
         assert result.modified[0].id == cid
         changes = {c.field: c for c in result.modified[0].changes}
@@ -167,7 +167,7 @@ class TestModifiedEntities:
         curr = _vocab(
             _scheme("S", id=scheme_id, concepts=[_concept("T", id=cid, definition="new")])
         )
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.modified) == 1
         changes = {c.field: c for c in result.modified[0].changes}
         assert "definition" in changes
@@ -178,7 +178,7 @@ class TestModifiedEntities:
         concept = _concept("C", id=cid)
         prev = _vocab(_scheme("Old Title", id=sid, concepts=[concept]))
         curr = _vocab(_scheme("New Title", id=sid, concepts=[concept]))
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.modified) == 1
         assert result.modified[0].entity_type == "scheme"
         changes = {c.field: c for c in result.modified[0].changes}
@@ -190,7 +190,7 @@ class TestModifiedEntities:
         concept = _concept("Same", id=cid, definition="same")
         prev = _vocab(_scheme("S", id=scheme_id, concepts=[concept]))
         curr = _vocab(_scheme("S", id=scheme_id, concepts=[concept]))
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert result.modified == []
 
 
@@ -206,7 +206,7 @@ class TestConceptMovedBetweenSchemes:
             _scheme("A", id=sid_a),
             _scheme("B", id=sid_b, concepts=[_concept("Mover", id=cid)]),
         )
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.removed) == 1
         assert result.removed[0].id == cid
         assert len(result.added) == 1
@@ -220,26 +220,26 @@ class TestFirstPublish:
     def test_first_publish_all_added(self) -> None:
         concept = _concept("First")
         scheme = _scheme("Initial", concepts=[concept])
-        result = PublishingService.compute_diff(None, _vocab(scheme))
+        result = compute_diff(None, _vocab(scheme))
         assert len(result.added) == 2  # scheme + concept
         assert result.modified == []
         assert result.removed == []
 
     def test_first_publish_empty_project(self) -> None:
-        result = PublishingService.compute_diff(None, _vocab())
+        result = compute_diff(None, _vocab())
         assert result.added == []
         assert result.modified == []
         assert result.removed == []
 
     def test_first_publish_includes_properties(self) -> None:
         prop = _property("Color")
-        result = PublishingService.compute_diff(None, _vocab(properties=[prop]))
+        result = compute_diff(None, _vocab(properties=[prop]))
         labels = {item.label for item in result.added}
         assert "Color" in labels
 
     def test_first_publish_includes_classes(self) -> None:
         cls = _class("Document", "http://example.org/Document")
-        result = PublishingService.compute_diff(None, _vocab(classes=[cls]))
+        result = compute_diff(None, _vocab(classes=[cls]))
         labels = {item.label for item in result.added}
         assert "Document" in labels
 
@@ -249,7 +249,7 @@ class TestPropertyDiff:
         prop = _property("Color", id=uuid4())
         prev = _vocab()
         curr = _vocab(properties=[prop])
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.added) == 1
         assert result.added[0].label == "Color"
         assert result.added[0].entity_type == "property"
@@ -258,7 +258,7 @@ class TestPropertyDiff:
         prop = _property("Color", id=uuid4())
         prev = _vocab(properties=[prop])
         curr = _vocab()
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.removed) == 1
         assert result.removed[0].label == "Color"
         assert result.removed[0].entity_type == "property"
@@ -267,7 +267,7 @@ class TestPropertyDiff:
         pid = uuid4()
         prev = _vocab(properties=[_property("Color", id=pid, description="old")])
         curr = _vocab(properties=[_property("Color", id=pid, description="new")])
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.modified) == 1
         assert result.modified[0].entity_type == "property"
         changes = {c.field: c for c in result.modified[0].changes}
@@ -276,7 +276,7 @@ class TestPropertyDiff:
     def test_unchanged_property(self) -> None:
         pid = uuid4()
         prop = _property("Color", id=pid, description="same")
-        result = PublishingService.compute_diff(
+        result = compute_diff(
             _vocab(properties=[prop]), _vocab(properties=[prop])
         )
         assert result.modified == []
@@ -287,7 +287,7 @@ class TestClassDiff:
         cls = _class("Document", "http://example.org/Document")
         prev = _vocab()
         curr = _vocab(classes=[cls])
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.added) == 1
         assert result.added[0].label == "Document"
         assert result.added[0].entity_type == "class"
@@ -297,7 +297,7 @@ class TestClassDiff:
         cls = _class("Document", "http://example.org/Document")
         prev = _vocab(classes=[cls])
         curr = _vocab()
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert len(result.removed) == 1
         assert result.removed[0].label == "Document"
         assert result.removed[0].entity_type == "class"
@@ -306,5 +306,5 @@ class TestClassDiff:
         """Classes with same URI are never in modified, even if label changes."""
         prev = _vocab(classes=[_class("Old Name", "http://example.org/Doc")])
         curr = _vocab(classes=[_class("New Name", "http://example.org/Doc")])
-        result = PublishingService.compute_diff(prev, curr)
+        result = compute_diff(prev, curr)
         assert result.modified == []
