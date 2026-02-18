@@ -32,10 +32,40 @@
 }
 
 .project-pane__project-title {
-  margin: 0;
+  margin: var(--spacing-xs) 0 0;
   font-size: var(--font-size-md);
   font-weight: 600;
-  flex: 1;
+}
+
+.project-pane__publish-btn {
+  display: block;
+  width: 100%;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.project-pane__publish-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.project-pane__publish-btn--draft {
+  border-color: var(--color-warning, #d97706);
+  color: var(--color-warning, #d97706);
+  background: rgba(217, 119, 6, 0.08);
+}
+
+.project-pane__publish-btn--draft:hover {
+  background: rgba(217, 119, 6, 0.15);
 }
 
 .project-pane__content {
@@ -133,9 +163,6 @@
   color: var(--color-text);
 }
 
-.project-pane__header-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-xs);
+.project-pane__section-actions .project-pane__add-button {
+  margin-top: 0;
 }

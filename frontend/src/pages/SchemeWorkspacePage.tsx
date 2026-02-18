@@ -30,6 +30,7 @@ import { schemesApi } from "../api/schemes";
 import { conceptsApi } from "../api/concepts";
 import { ontologyApi } from "../api/ontology";
 import { propertiesApi } from "../api/properties";
+import { publishingApi } from "../api/publishing";
 import type { Concept } from "../types/models";
 import "./SchemeWorkspacePage.css";
 
@@ -51,6 +52,7 @@ export function SchemeWorkspacePage({
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
   const [initialBroaderId, setInitialBroaderId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [draft, setDraft] = useState<{ version: string; title: string } | null>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -58,6 +60,7 @@ export function SchemeWorkspacePage({
       loadSchemes(projectId);
       loadOntology();
       loadProperties(projectId);
+      loadDraftStatus(projectId);
     }
   }, [projectId]);
 
@@ -113,6 +116,16 @@ export function SchemeWorkspacePage({
       properties.value = await propertiesApi.listForProject(projectId);
     } catch (err) {
       console.error("Failed to load properties:", err);
+    }
+  }
+
+  async function loadDraftStatus(projectId: string) {
+    try {
+      const versions = await publishingApi.listVersions(projectId);
+      const existing = versions.find((v) => !v.finalized);
+      setDraft(existing ? { version: existing.version, title: existing.title } : null);
+    } catch {
+      // Non-critical — leave draft as null
     }
   }
 
@@ -270,6 +283,7 @@ export function SchemeWorkspacePage({
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
         onPublish={() => setIsPublishOpen(true)}
+        draft={draft}
       />
 
       {/* Pane 2: Context-dependent detail */}
@@ -352,7 +366,10 @@ export function SchemeWorkspacePage({
       <PublishModal
         isOpen={isPublishOpen}
         projectId={projectId}
-        onClose={() => setIsPublishOpen(false)}
+        onClose={() => {
+          setIsPublishOpen(false);
+          loadDraftStatus(projectId);
+        }}
       />
 
       <Modal

@@ -1,4 +1,3 @@
-import { Button } from "../common/Button";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import { ontologyClasses, selectedClassUri } from "../../state/ontology";
@@ -13,6 +12,7 @@ interface ProjectPaneProps {
   onNewScheme: () => void;
   onImport: () => void;
   onPublish: () => void;
+  draft?: { version: string; title: string } | null;
 }
 
 export function ProjectPane({
@@ -23,6 +23,7 @@ export function ProjectPane({
   onNewScheme,
   onImport,
   onPublish,
+  draft = null,
 }: ProjectPaneProps) {
   const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
   const project = currentProject.value;
@@ -40,15 +41,13 @@ export function ProjectPane({
         <a href="/projects" class="project-pane__back-link">
           Projects
         </a>
-        <div class="project-pane__header-row">
-          <h2 class="project-pane__project-title">{project?.name}</h2>
-          <Button variant="ghost" size="sm" onClick={onImport}>
-            Import
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onPublish}>
-            Publish
-          </Button>
-        </div>
+        <h2 class="project-pane__project-title">{project?.name}</h2>
+        <button
+          class={`project-pane__publish-btn ${draft ? "project-pane__publish-btn--draft" : ""}`}
+          onClick={onPublish}
+        >
+          {draft ? `Draft v${draft.version}` : "Publish"}
+        </button>
       </div>
 
       <div class="project-pane__content">
@@ -87,9 +86,14 @@ export function ProjectPane({
               ))}
             </div>
           )}
-          <button class="project-pane__add-button" onClick={onNewScheme}>
-            + New Scheme
-          </button>
+          <div class="project-pane__section-actions">
+            <button class="project-pane__add-button" onClick={onNewScheme}>
+              + New Scheme
+            </button>
+            <button class="project-pane__add-button" onClick={onImport}>
+              Import
+            </button>
+          </div>
         </div>
       </div>
     </div>

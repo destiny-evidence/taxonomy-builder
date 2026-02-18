@@ -51,13 +51,22 @@ vi.mock("../../../src/state/ontology", async () => {
   };
 });
 
-describe("ProjectPane", () => {
-  const mockOnSchemeSelect = vi.fn();
-  const mockOnClassSelect = vi.fn();
-  const mockOnNewScheme = vi.fn();
-  const mockOnImport = vi.fn();
-  const mockOnPublish = vi.fn();
+function renderPane(overrides: Partial<Parameters<typeof ProjectPane>[0]> = {}) {
+  const defaults = {
+    projectId: "proj-1",
+    currentSchemeId: null as string | null,
+    onSchemeSelect: vi.fn(),
+    onClassSelect: vi.fn(),
+    onNewScheme: vi.fn(),
+    onImport: vi.fn(),
+    onPublish: vi.fn(),
+    draft: null as { version: string; title: string } | null,
+  };
+  const props = { ...defaults, ...overrides };
+  return { ...render(<ProjectPane {...props} />), props };
+}
 
+describe("ProjectPane", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     currentProject.value = mockProject;
@@ -68,91 +77,63 @@ describe("ProjectPane", () => {
 
   describe("header", () => {
     it("renders project name", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane();
       expect(screen.getByText("Test Project")).toBeInTheDocument();
     });
 
     it("renders back link to projects", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane();
       const backLink = screen.getByRole("link", { name: /projects/i });
       expect(backLink).toHaveAttribute("href", "/projects");
     });
   });
 
+  describe("publish button", () => {
+    it("shows Publish when no draft exists", () => {
+      const { props } = renderPane();
+      const btn = screen.getByRole("button", { name: "Publish" });
+      expect(btn).toBeInTheDocument();
+
+      fireEvent.click(btn);
+      expect(props.onPublish).toHaveBeenCalled();
+    });
+
+    it("shows draft version when draft exists", () => {
+      renderPane({ draft: { version: "1.2", title: "Beta release" } });
+      expect(screen.getByText(/Draft v1\.2/)).toBeInTheDocument();
+    });
+
+    it("applies draft styling when draft exists", () => {
+      renderPane({ draft: { version: "1.0", title: "Initial" } });
+      const btn = screen.getByRole("button", { name: /draft/i });
+      expect(btn).toHaveClass("project-pane__publish-btn--draft");
+    });
+
+    it("calls onPublish when draft button clicked", () => {
+      const { props } = renderPane({ draft: { version: "2.0", title: "Next" } });
+      fireEvent.click(screen.getByRole("button", { name: /draft/i }));
+      expect(props.onPublish).toHaveBeenCalled();
+    });
+  });
+
   describe("classes section", () => {
     it("lists ontology classes", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane();
       expect(screen.getByText("Investigation")).toBeInTheDocument();
       expect(screen.getByText("Finding")).toBeInTheDocument();
     });
 
     it("calls onClassSelect when class is clicked", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      const { props } = renderPane();
       fireEvent.click(screen.getByText("Investigation"));
-
-      expect(mockOnClassSelect).toHaveBeenCalledWith("http://example.org/Investigation");
+      expect(props.onClassSelect).toHaveBeenCalledWith("http://example.org/Investigation");
     });
 
     it("highlights selected class", () => {
       selectedClassUri.value = "http://example.org/Investigation";
       selectionMode.value = "class";
 
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane();
       const classButton = screen.getByRole("button", { name: "Investigation" });
       expect(classButton).toHaveClass("project-pane__item--selected");
     });
@@ -160,129 +141,40 @@ describe("ProjectPane", () => {
 
   describe("schemes section", () => {
     it("lists schemes for the project", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane();
       expect(screen.getByText("Countries")).toBeInTheDocument();
       expect(screen.getByText("Languages")).toBeInTheDocument();
     });
 
     it("calls onSchemeSelect when scheme is clicked", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      const { props } = renderPane();
       fireEvent.click(screen.getByText("Countries"));
-
-      expect(mockOnSchemeSelect).toHaveBeenCalledWith("scheme-1");
+      expect(props.onSchemeSelect).toHaveBeenCalledWith("scheme-1");
     });
 
     it("highlights current scheme", () => {
       selectionMode.value = "scheme";
-
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId="scheme-1"
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane({ currentSchemeId: "scheme-1" });
       const schemeButton = screen.getByRole("button", { name: "Countries" });
       expect(schemeButton).toHaveClass("project-pane__item--selected");
     });
 
     it("shows empty state when no schemes", () => {
       schemes.value = [];
-
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      renderPane();
       expect(screen.getByText(/no schemes/i)).toBeInTheDocument();
     });
 
     it("calls onNewScheme when New Scheme button clicked", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      const { props } = renderPane();
       fireEvent.click(screen.getByText("+ New Scheme"));
-
-      expect(mockOnNewScheme).toHaveBeenCalled();
-    });
-
-    it("calls onPublish when Publish button clicked", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
-      fireEvent.click(screen.getByText("Publish"));
-
-      expect(mockOnPublish).toHaveBeenCalled();
+      expect(props.onNewScheme).toHaveBeenCalled();
     });
 
     it("calls onImport when Import button clicked", () => {
-      render(
-        <ProjectPane
-          projectId="proj-1"
-          currentSchemeId={null}
-          onSchemeSelect={mockOnSchemeSelect}
-          onClassSelect={mockOnClassSelect}
-          onNewScheme={mockOnNewScheme}
-          onImport={mockOnImport}
-          onPublish={mockOnPublish}
-        />
-      );
-
+      const { props } = renderPane();
       fireEvent.click(screen.getByText("Import"));
-
-      expect(mockOnImport).toHaveBeenCalled();
+      expect(props.onImport).toHaveBeenCalled();
     });
   });
 });
