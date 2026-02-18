@@ -48,11 +48,17 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     }
   }
 
-  const filteredComments = comments.filter((comment) => {
-    if (filter === "all") return true;
-    if (filter === "resolved") return comment.resolved_at;
-    return !comment.resolved_at;
-  });
+  const filteredComments = comments
+    .filter((comment) => {
+      if (filter === "all") return true;
+      if (filter === "resolved") return comment.resolved_at;
+      return !comment.resolved_at;
+    })
+    .sort((a, b) => {
+      if (a.resolved_at && !b.resolved_at) return 1;
+      if (!a.resolved_at && b.resolved_at) return -1;
+      return 0;
+    });
 
   // Reset UI state and load comments when concept changes
   useEffect(() => {
