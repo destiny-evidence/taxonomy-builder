@@ -1,3 +1,4 @@
+import { Button } from "../common/Button";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import { ontologyClasses, selectedClassUri } from "../../state/ontology";
@@ -86,14 +87,12 @@ export function ProjectPane({
               ))}
             </div>
           )}
-          <div class="project-pane__section-actions">
-            <button class="project-pane__add-button" onClick={onNewScheme}>
-              + New Scheme
-            </button>
-            <button class="project-pane__add-button" onClick={onImport}>
-              Import
-            </button>
-          </div>
+          <button class="project-pane__add-button" onClick={onNewScheme}>
+            + New Scheme
+          </button>
+          <Button variant="ghost" size="sm" onClick={onImport}>
+            Import
+          </Button>
         </div>
       </div>
     </div>
