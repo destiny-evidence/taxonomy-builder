@@ -1,6 +1,6 @@
 """Service for the publishing workflow orchestration."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -76,7 +76,7 @@ class PublishingService:
             title=request.title,
             notes=request.notes,
             finalized=finalized,
-            published_at=datetime.now(),
+            published_at=datetime.now(tz=UTC),
             publisher=publisher,
             previous_version_id=previous.id if previous else None,
             snapshot=snapshot.model_dump(mode="json"),
