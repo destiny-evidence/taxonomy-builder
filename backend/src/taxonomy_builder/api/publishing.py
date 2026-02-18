@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.database import get_db
 from taxonomy_builder.schemas.publishing import (
-    PublishedVersionDetail,
     PublishedVersionRead,
     PublishPreview,
     PublishRequest,
@@ -19,7 +18,6 @@ from taxonomy_builder.services.publishing_service import (
     PublishingService,
     ValidationFailedError,
     VersionConflictError,
-    VersionNotFoundError,
 )
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
@@ -97,19 +95,3 @@ async def list_versions(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get(
-    "/{project_id}/versions/{version_id}",
-    response_model=PublishedVersionDetail,
-)
-async def get_version(
-    project_id: UUID,
-    version_id: UUID,
-    current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
-) -> PublishedVersionDetail:
-    """Get a single published version with its snapshot."""
-    try:
-        version = await service.get_version(project_id, version_id)
-        return PublishedVersionDetail.model_validate(version)
-    except VersionNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

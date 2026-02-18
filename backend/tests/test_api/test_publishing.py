@@ -413,33 +413,3 @@ class TestListVersions:
         assert data[0]["finalized"] is False
         assert data[1]["version"] == "1.0"
         assert data[1]["finalized"] is True
-
-
-class TestGetVersion:
-    @pytest.mark.asyncio
-    async def test_get_version(
-        self, authenticated_client: AsyncClient, publishable_project: Project
-    ) -> None:
-        create_resp = await authenticated_client.post(
-            f"/api/projects/{publishable_project.id}/publish",
-            json={"version": "1.0", "title": "V1"},
-        )
-        version_id = create_resp.json()["id"]
-
-        resp = await authenticated_client.get(
-            f"/api/projects/{publishable_project.id}/versions/{version_id}"
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == version_id
-        assert "concept_schemes" in data["snapshot"]
-        assert "project" in data["snapshot"]
-
-    @pytest.mark.asyncio
-    async def test_get_version_not_found(
-        self, authenticated_client: AsyncClient, publishable_project: Project
-    ) -> None:
-        resp = await authenticated_client.get(
-            f"/api/projects/{publishable_project.id}/versions/{uuid4()}"
-        )
-        assert resp.status_code == 404

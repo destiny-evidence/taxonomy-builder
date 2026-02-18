@@ -56,9 +56,3 @@ class PublishedVersionRead(BaseModel):
     latest: bool = False
 
     previous_version_id: UUID | None = None
-
-
-class PublishedVersionDetail(PublishedVersionRead):
-    """Published version with full snapshot data."""
-
-    snapshot: dict

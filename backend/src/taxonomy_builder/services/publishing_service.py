@@ -42,14 +42,6 @@ class VersionConflictError(Exception):
         super().__init__(f"Version '{version}' already exists for this project.")
 
 
-class VersionNotFoundError(Exception):
-    """Raised when a published version is not found."""
-
-    def __init__(self, version_id: UUID) -> None:
-        self.version_id = version_id
-        super().__init__(f"Published version '{version_id}' not found.")
-
-
 class PublishingService:
     """Orchestrates validation, snapshot, diff, and version creation."""
 
@@ -112,22 +104,6 @@ class PublishingService:
             .order_by(PublishedVersion.version_sort_key.desc())
         )
         return list(result.scalars().all())
-
-    async def get_version(self, project_id: UUID, version_id: UUID) -> PublishedVersion:
-        """Get a single published version.
-
-        Raises VersionNotFoundError if not found.
-        """
-        result = await self.db.execute(
-            select(PublishedVersion).where(
-                PublishedVersion.id == version_id,
-                PublishedVersion.project_id == project_id,
-            )
-        )
-        version = result.scalar_one_or_none()
-        if version is None:
-            raise VersionNotFoundError(version_id)
-        return version
 
     async def preview(self, project_id: UUID) -> PublishPreview:
         """Build a publish preview: validation, content summary, and diff."""

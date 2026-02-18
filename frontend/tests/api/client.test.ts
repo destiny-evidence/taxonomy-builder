@@ -62,26 +62,6 @@ describe("api client", () => {
     });
   });
 
-  describe("api.patch", () => {
-    it("sends PATCH request with JSON body", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ id: "123", version: "1.1" }),
-      });
-
-      await api.patch("/projects/123/versions/456", { title: "Updated" });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/projects/123/versions/456",
-        expect.objectContaining({
-          method: "PATCH",
-          body: JSON.stringify({ title: "Updated" }),
-        })
-      );
-    });
-  });
-
   describe("api.delete", () => {
     it("handles 204 no content response", async () => {
       mockFetch.mockResolvedValue({
