@@ -29,6 +29,23 @@ class SnapshotConcept(BaseModel):
     broader_ids: list[UUID] = Field(default_factory=list)
     related_ids: list[UUID] = Field(default_factory=list)
 
+    @field_validator("uri", mode="before")
+    @classmethod
+    def require_uri(cls, v: str | None, info: ValidationInfo) -> str:
+        if v is None:
+            label = info.data.get("pref_label", "?")
+            raise PydanticCustomError(
+                "concept_missing_uri",
+                "Concept '{label}' has no URI.",
+                {
+                    "label": label,
+                    "entity_type": "concept",
+                    "entity_id": str(info.data.get("id", "")),
+                    "entity_label": label,
+                },
+            )
+        return v
+
     @field_validator("pref_label", mode="after")
     @classmethod
     def non_empty_label(cls, v: str, info: ValidationInfo) -> str:

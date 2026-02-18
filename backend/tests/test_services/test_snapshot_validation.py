@@ -46,12 +46,14 @@ def _concept(
     pref_label: str = "Term",
     *,
     id: UUID | None = None,
+    uri: str | None = "http://example.org/concept/term",
     broader_ids: list[UUID] | None = None,
     related_ids: list[UUID] | None = None,
 ) -> SnapshotConcept:
     return SnapshotConcept.model_construct(
         id=id or uuid4(),
         pref_label=pref_label,
+        uri=uri,
         broader_ids=broader_ids or [],
         related_ids=related_ids or [],
     )
@@ -91,6 +93,18 @@ class TestSchemeMissingUri:
         assert len(uri_errors) == 1
         assert uri_errors[0].entity_id == scheme_id
         assert uri_errors[0].entity_label == "No URI"
+
+
+class TestConceptMissingUri:
+    def test_concept_with_no_uri(self) -> None:
+        concept_id = uuid4()
+        concept = _concept("No URI", id=concept_id, uri=None)
+        scheme = _scheme(concepts=[concept])
+        result = validate_snapshot(_vocab(scheme))
+        assert result.valid is False
+        uri_errors = [e for e in result.errors if e.code == "concept_missing_uri"]
+        assert len(uri_errors) == 1
+        assert uri_errors[0].entity_id == concept_id
 
 
 class TestConceptMissingPrefLabel:

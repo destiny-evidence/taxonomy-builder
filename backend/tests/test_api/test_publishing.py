@@ -32,7 +32,7 @@ async def publishable_project(db_session: AsyncSession, project: Project) -> Pro
     await db_session.flush()
     await db_session.refresh(scheme)
 
-    db_session.add(Concept(scheme_id=scheme.id, pref_label="Term A"))
+    db_session.add(Concept(scheme_id=scheme.id, pref_label="Term A", identifier="term-a"))
     await db_session.flush()
 
     # Expunge so the API handler loads a fresh project with relationships
@@ -105,7 +105,7 @@ class TestPreview:
             await db_session.delete(concept)
         scheme_result = await db_session.execute(select(ConceptScheme))
         scheme = scheme_result.scalar_one()
-        db_session.add(Concept(scheme_id=scheme.id, pref_label="Replacement"))
+        db_session.add(Concept(scheme_id=scheme.id, pref_label="Replacement", identifier="replacement"))
         await db_session.flush()
         db_session.expunge_all()
 
