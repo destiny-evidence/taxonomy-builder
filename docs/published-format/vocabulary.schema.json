@@ -44,6 +44,11 @@
       "type": "boolean",
       "description": "True for pre-releases, false for finalized releases."
     },
+    "previous_version_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "UUID of the version this was published against, or null for the first version."
+    },
     "project": {
       "type": "object",
       "description": "Project metadata as captured at publish time.",

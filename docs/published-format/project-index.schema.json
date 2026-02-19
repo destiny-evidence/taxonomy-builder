@@ -73,6 +73,11 @@
             "type": "boolean",
             "description": "True for pre-releases (e.g. 2.0-pre1), false for finalized releases."
           },
+          "previous_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "UUID of the version this was published against, or null for the first version."
+          },
           "notes": {
             "type": ["string", "null"],
             "description": "Release notes."
