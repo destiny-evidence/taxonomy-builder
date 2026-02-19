@@ -53,6 +53,7 @@ class TestPreview:
         assert data["validation"]["valid"] is True
         assert data["content_summary"]["schemes"] >= 1
         assert data["content_summary"]["concepts"] >= 1
+        assert data["content_summary"]["classes"] >= 0
         assert data["suggested_version"] == "1.0"
         assert data["suggested_pre_release_version"] == "1.0-pre1"
         assert data["latest_version"] is None

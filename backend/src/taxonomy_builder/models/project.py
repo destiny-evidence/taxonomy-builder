@@ -11,6 +11,7 @@ from taxonomy_builder.database import Base, UrlString
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.concept_scheme import ConceptScheme
+    from taxonomy_builder.models.ontology_class import OntologyClass
     from taxonomy_builder.models.property import Property
 
 
@@ -30,5 +31,8 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     properties: Mapped[list["Property"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+    )
+    ontology_classes: Mapped[list["OntologyClass"]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )

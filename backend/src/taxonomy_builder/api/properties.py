@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from taxonomy_builder.api.dependencies import get_property_service
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
+from taxonomy_builder.services.project_service import ProjectNotFoundError
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
-    ProjectNotFoundError,
     PropertyIdentifierExistsError,
     PropertyService,
     SchemeNotInProjectError,

@@ -114,6 +114,7 @@ class PublishingService:
             schemes=len(snapshot.concept_schemes),
             concepts=sum(len(s.concepts) for s in snapshot.concept_schemes),
             properties=len(snapshot.properties),
+            classes=len(snapshot.classes),
         )
 
         latest = await self._get_latest_finalized(project_id)
@@ -212,7 +213,7 @@ class PublishingService:
             try:
                 major = int(parts[0])
                 minor = int(parts[1]) if len(parts) > 1 else 0
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 base = "1.0"
             else:
                 if pre_release or (diff and (diff.modified or diff.removed)):

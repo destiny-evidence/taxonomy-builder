@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import select
@@ -17,10 +16,7 @@ from taxonomy_builder.services.concept_scheme_service import (
     SchemeNotFoundError,
 )
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
-from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
-
-if TYPE_CHECKING:
-    from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.services.project_service import ProjectService
 
 
 class PropertyNotFoundError(Exception):
