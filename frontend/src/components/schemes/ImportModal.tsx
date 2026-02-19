@@ -83,7 +83,7 @@ export function ImportModal({
   }
 
   return (
-    <Modal isOpen={isOpen} title="Import SKOS" onClose={handleClose}>
+    <Modal isOpen={isOpen} title="Import" onClose={handleClose}>
       <div class="import-modal">
         {step === "select" && (
           <div class="import-modal__select">
@@ -146,8 +146,17 @@ export function ImportModal({
 
             <div class="import-modal__totals">
               <span>
-                Total: {preview.total_concepts_count} concepts,{" "}
-                {preview.total_relationships_count} relationships
+                Total:{" "}
+                {[
+                  preview.classes_count > 0 &&
+                    `${preview.classes_count} classes`,
+                  preview.properties_count > 0 &&
+                    `${preview.properties_count} properties`,
+                  `${preview.total_concepts_count} concepts`,
+                  `${preview.total_relationships_count} relationships`,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
               </span>
             </div>
 
@@ -164,16 +173,25 @@ export function ImportModal({
 
         {step === "importing" && (
           <div class="import-modal__importing">
-            <p>Importing schemes...</p>
+            <p>Importing...</p>
           </div>
         )}
 
         {step === "success" && result && (
           <div class="import-modal__success">
             <p>
-              Successfully imported {result.schemes_created.length} schemes with{" "}
-              {result.total_concepts_created} concepts and{" "}
-              {result.total_relationships_created} relationships.
+              Successfully imported
+              {result.classes_created.length > 0 &&
+                ` ${result.classes_created.length} classes,`}
+              {result.properties_created.length > 0 &&
+                ` ${result.properties_created.length} properties,`}
+              {result.schemes_created.length > 0 &&
+                ` ${result.schemes_created.length} schemes with ${result.total_concepts_created} concepts and ${result.total_relationships_created} relationships`}
+              {result.schemes_created.length === 0 &&
+                result.classes_created.length === 0 &&
+                result.properties_created.length === 0 &&
+                " no entities found in file"}
+              .
             </p>
             <div class="import-modal__actions">
               <Button onClick={handleClose}>Done</Button>
