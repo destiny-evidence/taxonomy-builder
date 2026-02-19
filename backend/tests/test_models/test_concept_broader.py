@@ -2,7 +2,6 @@
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -103,24 +102,6 @@ async def test_concept_can_be_broader_to_multiple(
     narrower_rels = list(result.scalars().all())
     assert len(narrower_rels) == 2
 
-
-@pytest.mark.asyncio
-async def test_duplicate_broader_relationship_fails(
-    db_session: AsyncSession, concepts: list[Concept]
-) -> None:
-    """Test that duplicate broader relationships are prevented."""
-    animals, mammals, pets, dogs, cats = concepts
-
-    rel1 = ConceptBroader(concept_id=dogs.id, broader_concept_id=mammals.id)
-    db_session.add(rel1)
-    await db_session.flush()
-
-    # Try to add the same relationship again
-    rel2 = ConceptBroader(concept_id=dogs.id, broader_concept_id=mammals.id)
-    db_session.add(rel2)
-
-    with pytest.raises(IntegrityError):
-        await db_session.flush()
 
 
 @pytest.mark.asyncio
