@@ -55,7 +55,9 @@ async function renderExpanded() {
   await waitFor(() => {
     expect(commentsApi.listForConcept).toHaveBeenCalled();
   });
-  fireEvent.click(screen.getByText(/Comments/));
+  if (!screen.queryByPlaceholderText("Add a comment...")) {
+    fireEvent.click(screen.getByText(/Comments/));
+  }
 }
 
 describe("CommentsSection", () => {

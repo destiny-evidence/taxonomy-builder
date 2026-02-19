@@ -39,12 +39,14 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
       setError(null);
       const data = await commentsApi.listForConcept(conceptId);
       setComments(data);
+      return data;
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError("Failed to load comments");
       }
+      return [];
     }
   }
 
@@ -62,11 +64,12 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
 
   // Reset UI state and load comments when concept changes
   useEffect(() => {
-    setIsExpanded(false);
     setNewComment("");
     setError(null);
     setFilter("unresolved");
-    loadComments();
+    loadComments().then((data) => {
+      setIsExpanded(data.some((c) => !c.resolved_at));
+    });
   }, [conceptId]);
 
   async function withLoading(action: () => Promise<void>, errorMsg: string) {
