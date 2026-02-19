@@ -20,9 +20,9 @@ class SnapshotConcept(BaseModel):
     """A concept within a snapshot scheme."""
 
     id: UUID
+    pref_label: str
     identifier: str | None = None
     uri: str | None = None
-    pref_label: str
     definition: str | None = None
     scope_note: str | None = None
     alt_labels: list[str] = Field(default_factory=list)

@@ -211,7 +211,7 @@ describe("PublishModal", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/first version/i)
+          screen.getByText(/first released version/i)
         ).toBeInTheDocument();
       });
     });
@@ -778,7 +778,7 @@ describe("PublishModal", () => {
       render(<PublishModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/first version/i)).toBeInTheDocument();
+        expect(screen.getByText(/first released version/i)).toBeInTheDocument();
       });
 
       const versionsTab = screen.getAllByText("Versions")[0];

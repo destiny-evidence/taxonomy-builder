@@ -95,6 +95,8 @@ export function PublishModal({
       });
       setPublishedVersion(result);
       setStep("success");
+      // Refresh version list so the Versions tab is up to date
+      publishingApi.listVersions(projectId).then(setVersions).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Publishing failed");
     } finally {
@@ -106,9 +108,14 @@ export function PublishModal({
   const RELEASE_PATTERN = /^\d+(\.\d+)+$/;
   const PRE_RELEASE_PATTERN = /^\d+(\.\d+)+-pre\d+$/;
   const versionPattern = preRelease ? PRE_RELEASE_PATTERN : RELEASE_PATTERN;
-  const versionFormatValid = version.trim() === "" || versionPattern.test(version.trim());
+  const versionFormatValid =
+    version.trim() === "" || versionPattern.test(version.trim());
   const canPublish =
-    isValid && version.trim() !== "" && versionFormatValid && title.trim() !== "" && !submitting;
+    isValid &&
+    version.trim() !== "" &&
+    versionFormatValid &&
+    title.trim() !== "" &&
+    !submitting;
 
   return (
     <Modal isOpen={isOpen} title="Publishing" onClose={handleClose} size="wide">
@@ -251,7 +258,10 @@ export function PublishModal({
                   <Button variant="secondary" onClick={handleClose}>
                     Cancel
                   </Button>
-                  <Button onClick={() => setStep("confirm")} disabled={!canPublish}>
+                  <Button
+                    onClick={() => setStep("confirm")}
+                    disabled={!canPublish}
+                  >
                     Publish
                   </Button>
                 </div>
@@ -261,16 +271,18 @@ export function PublishModal({
             {step === "confirm" && (
               <div class="publish-modal__confirm">
                 <p>
-                  You are about to publish{" "}
-                  {preRelease ? "pre-release " : ""}version{" "}
-                  <strong>{version}</strong> — {title}.
+                  You are about to publish {preRelease ? "pre-release " : ""}
+                  version <strong>{version}</strong> — {title}.
                 </p>
                 <p class="publish-modal__confirm-warning">
                   Published versions are immutable and cannot be changed.
                 </p>
                 {error && <p class="publish-modal__error">{error}</p>}
                 <div class="publish-modal__actions">
-                  <Button variant="secondary" onClick={() => setStep("preview")}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setStep("preview")}
+                  >
                     Back
                   </Button>
                   <Button onClick={handlePublish} disabled={submitting}>
@@ -331,6 +343,11 @@ export function PublishModal({
                       <span class="publish-modal__version-title">
                         {v.title}
                       </span>
+                      {v.notes && (
+                        <span class="publish-modal__version-notes">
+                          {v.notes}
+                        </span>
+                      )}
                       <span class="publish-modal__version-meta">
                         {v.published_at && formatDate(v.published_at)}
                         {v.publisher && ` by ${v.publisher}`}
@@ -401,7 +418,7 @@ export function PublishModal({
     if (!diff) {
       return (
         <div class="publish-modal__diff-empty">
-          This will be the first version of this project.
+          This will be the first released version of this project.
         </div>
       );
     }
@@ -414,14 +431,16 @@ export function PublishModal({
     if (!hasChanges) {
       return (
         <div class="publish-modal__diff-empty">
-          No changes since last version.
+          No changes since last released version.
         </div>
       );
     }
 
     return (
       <div class="publish-modal__diff">
-        <p class="publish-modal__diff-heading">Changes since last version</p>
+        <p class="publish-modal__diff-heading">
+          Changes since last released version
+        </p>
 
         {diff.added.length > 0 && (
           <details class="publish-modal__diff-section">
