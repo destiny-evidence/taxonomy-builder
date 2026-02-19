@@ -14,6 +14,7 @@ class ContentSummary(BaseModel):
     schemes: int = 0
     concepts: int = 0
     properties: int = 0
+    classes: int = 0
 
 
 class PublishPreview(BaseModel):

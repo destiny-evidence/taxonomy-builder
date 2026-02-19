@@ -3,6 +3,7 @@
 from uuid import UUID, uuid4
 
 from taxonomy_builder.schemas.snapshot import (
+    SnapshotClass,
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotProperty,
@@ -19,11 +20,13 @@ def _project_meta() -> SnapshotProjectMetadata:
 def _vocab(
     *schemes: SnapshotScheme,
     properties: list[SnapshotProperty] | None = None,
+    classes: list[SnapshotClass] | None = None,
 ) -> SnapshotVocabulary:
     return SnapshotVocabulary.model_construct(
         project=_project_meta(),
         concept_schemes=list(schemes),
         properties=properties or [],
+        classes=classes or [],
     )
 
 
@@ -169,50 +172,157 @@ class TestBrokenRelatedRef:
         assert errors[0].entity_id == concept_a.id
 
 
-class TestBrokenRangeSchemeRef:
-    def test_property_referencing_nonexistent_scheme(self) -> None:
-        orphan_scheme_id = uuid4()
+def _class(
+    label: str = "MyClass",
+    *,
+    id: UUID | None = None,
+    identifier: str = "myclass",
+    uri: str | None = "http://example.org/class/myclass",
+) -> SnapshotClass:
+    return SnapshotClass.model_construct(
+        id=id or uuid4(),
+        identifier=identifier,
+        uri=uri,
+        label=label,
+    )
+
+
+class TestPropertyMissingRangeSchemeUri:
+    def test_range_scheme_id_without_uri(self) -> None:
+        cls = _class("Class", uri="http://example.org/Class")
         prop = SnapshotProperty.model_construct(
             id=uuid4(),
             identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class="http://example.org/Class",
+            range_scheme_id=uuid4(),
+            range_scheme_uri=None,
+            cardinality="one",
+            required=False,
+        )
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "property_missing_range_scheme_uri"]
+        assert len(errors) == 1
+        assert errors[0].entity_id == prop.id
+
+
+class TestBrokenRangeSchemeRef:
+    def test_property_referencing_nonexistent_scheme(self) -> None:
+        orphan_scheme_id = uuid4()
+        cls = _class("Class", uri="http://example.org/Class")
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
             label="Test Property",
             domain_class="http://example.org/Class",
             range_scheme_id=orphan_scheme_id,
+            range_scheme_uri="http://example.org/orphan",
             cardinality="one",
             required=False,
         )
         concept = _concept("Term")
         scheme = _scheme(concepts=[concept])
-        result = validate_snapshot(_vocab(scheme, properties=[prop]))
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
         assert result.valid is False
         errors = [e for e in result.errors if e.code == "broken_range_scheme_ref"]
         assert len(errors) == 1
         assert errors[0].entity_id == prop.id
 
     def test_valid_range_scheme_ref_passes(self) -> None:
+        cls = _class("Class", uri="http://example.org/Class")
         scheme = _scheme(concepts=[_concept("Term")])
         prop = SnapshotProperty.model_construct(
             id=uuid4(),
             identifier="prop1",
+            uri="http://example.org/prop1",
             label="Test Property",
             domain_class="http://example.org/Class",
             range_scheme_id=scheme.id,
+            range_scheme_uri="http://example.org/scheme",
             cardinality="one",
             required=False,
         )
-        result = validate_snapshot(_vocab(scheme, properties=[prop]))
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
         assert result.valid is True
 
     def test_null_range_scheme_passes(self) -> None:
+        cls = _class("Class", uri="http://example.org/Class")
         prop = SnapshotProperty.model_construct(
             id=uuid4(),
             identifier="prop1",
+            uri="http://example.org/prop1",
             label="Test Property",
             domain_class="http://example.org/Class",
             range_scheme_id=None,
+            range_datatype="xsd:string",
             cardinality="one",
             required=False,
         )
         scheme = _scheme(concepts=[_concept("Term")])
-        result = validate_snapshot(_vocab(scheme, properties=[prop]))
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
+        assert result.valid is True
+
+
+class TestClassMissingUri:
+    def test_class_missing_uri(self) -> None:
+        class_id = uuid4()
+        cls = _class("No URI", id=class_id, uri=None)
+        scheme = _scheme(concepts=[_concept()])
+        result = validate_snapshot(_vocab(scheme, classes=[cls]))
+        assert result.valid is False
+        uri_errors = [e for e in result.errors if e.code == "class_missing_uri"]
+        assert len(uri_errors) == 1
+        assert uri_errors[0].entity_id == class_id
+        assert uri_errors[0].entity_label == "No URI"
+
+
+class TestClassMissingLabel:
+    def test_whitespace_only_label(self) -> None:
+        cls = _class("   ")
+        scheme = _scheme(concepts=[_concept()])
+        result = validate_snapshot(_vocab(scheme, classes=[cls]))
+        assert result.valid is False
+        assert any(e.code == "class_missing_label" for e in result.errors)
+
+
+class TestBrokenDomainClassRef:
+    def test_property_domain_class_not_in_classes(self) -> None:
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class="http://example.org/NonExistent",
+            range_datatype="xsd:string",
+            cardinality="one",
+            required=False,
+        )
+        cls = _class("MyClass", uri="http://example.org/class/myclass")
+        concept = _concept("Term")
+        scheme = _scheme(concepts=[concept])
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "broken_domain_class_ref"]
+        assert len(errors) == 1
+        assert errors[0].entity_id == prop.id
+
+    def test_valid_domain_class_ref_passes(self) -> None:
+        cls = _class("MyClass", uri="http://example.org/Class")
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class="http://example.org/Class",
+            range_datatype="xsd:string",
+            cardinality="one",
+            required=False,
+        )
+        concept = _concept("Term")
+        scheme = _scheme(concepts=[concept])
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
         assert result.valid is True

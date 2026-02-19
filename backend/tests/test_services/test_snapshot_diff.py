@@ -59,7 +59,9 @@ def _property(label: str, **kwargs) -> SnapshotProperty:
 
 
 def _class(label: str, uri: str, **kwargs) -> SnapshotClass:
-    return SnapshotClass.model_construct(uri=uri, label=label, **kwargs)
+    return SnapshotClass.model_construct(
+        id=kwargs.pop("id", uuid4()), uri=uri, label=label, **kwargs
+    )
 
 
 class TestNoDiff:
@@ -291,7 +293,7 @@ class TestClassDiff:
         assert len(result.added) == 1
         assert result.added[0].label == "Document"
         assert result.added[0].entity_type == "class"
-        assert result.added[0].uri == "http://example.org/Document"
+        assert result.added[0].id == cls.id
 
     def test_removed_class(self) -> None:
         cls = _class("Document", "http://example.org/Document")
@@ -301,10 +303,25 @@ class TestClassDiff:
         assert len(result.removed) == 1
         assert result.removed[0].label == "Document"
         assert result.removed[0].entity_type == "class"
+        assert result.removed[0].id == cls.id
 
-    def test_class_not_in_modified(self) -> None:
-        """Classes with same URI are never in modified, even if label changes."""
-        prev = _vocab(classes=[_class("Old Name", "http://example.org/Doc")])
-        curr = _vocab(classes=[_class("New Name", "http://example.org/Doc")])
+    def test_modified_class_label(self) -> None:
+        """Classes with same ID but different label appear in modified."""
+        cid = uuid4()
+        prev = _vocab(classes=[_class("Old Name", "http://example.org/Doc", id=cid)])
+        curr = _vocab(classes=[_class("New Name", "http://example.org/Doc", id=cid)])
         result = compute_diff(prev, curr)
+        assert len(result.modified) == 1
+        assert result.modified[0].entity_type == "class"
+        assert result.modified[0].id == cid
+        changes = {c.field: c for c in result.modified[0].changes}
+        assert "label" in changes
+        assert changes["label"].old == "Old Name"
+        assert changes["label"].new == "New Name"
+
+    def test_unchanged_class_not_in_modified(self) -> None:
+        """Identical classes are not in modified."""
+        cid = uuid4()
+        cls = _class("Same", "http://example.org/Doc", id=cid)
+        result = compute_diff(_vocab(classes=[cls]), _vocab(classes=[cls]))
         assert result.modified == []

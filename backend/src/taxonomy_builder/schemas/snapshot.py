@@ -12,7 +12,7 @@ potentially-invalid projects (e.g. for preview).
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 
@@ -22,7 +22,7 @@ class SnapshotConcept(BaseModel):
     id: UUID
     pref_label: str
     identifier: str | None = None
-    uri: str | None = None
+    uri: str
     definition: str | None = None
     scope_note: str | None = None
     alt_labels: list[str] = Field(default_factory=list)
@@ -113,7 +113,7 @@ class SnapshotProperty(BaseModel):
 
     id: UUID
     identifier: str
-    uri: str | None = None
+    uri: str
     label: str
     description: str | None = None
     domain_class: str
@@ -123,13 +123,78 @@ class SnapshotProperty(BaseModel):
     cardinality: str
     required: bool
 
+    @model_validator(mode="after")
+    def require_exactly_one_range(self) -> SnapshotProperty:
+        has_scheme = self.range_scheme_id is not None
+        has_datatype = self.range_datatype is not None
+        if has_scheme == has_datatype:
+            raise PydanticCustomError(
+                "property_invalid_range",
+                "Property '{label}' must have either a range scheme"
+                " or a range datatype, not both or neither.",
+                {
+                    "label": self.label,
+                    "entity_type": "property",
+                    "entity_id": str(self.id),
+                    "entity_label": self.label,
+                },
+            )
+        if has_scheme and self.range_scheme_uri is None:
+            raise PydanticCustomError(
+                "property_missing_range_scheme_uri",
+                "Property '{label}' has a range scheme ID"
+                " but no range scheme URI.",
+                {
+                    "label": self.label,
+                    "entity_type": "property",
+                    "entity_id": str(self.id),
+                    "entity_label": self.label,
+                },
+            )
+        return self
+
 
 class SnapshotClass(BaseModel):
     """An ontology class within a snapshot."""
 
-    uri: str
+    id: UUID
+    identifier: str
     label: str
+    uri: str
     description: str | None = None
+    scope_note: str | None = None
+
+    @field_validator("label", mode="after")
+    @classmethod
+    def non_empty_label(cls, v: str, info: ValidationInfo) -> str:
+        if not v.strip():
+            raise PydanticCustomError(
+                "class_missing_label",
+                "A class has an empty label.",
+                {
+                    "entity_type": "class",
+                    "entity_id": str(info.data.get("id", "")),
+                    "entity_label": v,
+                },
+            )
+        return v
+
+    @field_validator("uri", mode="before")
+    @classmethod
+    def require_uri(cls, v: str | None, info: ValidationInfo) -> str:
+        if v is None:
+            label = info.data.get("label", "?")
+            raise PydanticCustomError(
+                "class_missing_uri",
+                "Class '{label}' has no URI.",
+                {
+                    "label": label,
+                    "entity_type": "class",
+                    "entity_id": str(info.data.get("id", "")),
+                    "entity_label": label,
+                },
+            )
+        return v
 
 
 class SnapshotProjectMetadata(BaseModel):
@@ -152,7 +217,8 @@ class SnapshotVocabulary(BaseModel):
     @field_validator("concept_schemes", mode="after")
     @classmethod
     def require_schemes(
-        cls, v: list[SnapshotScheme],
+        cls,
+        v: list[SnapshotScheme],
     ) -> list[SnapshotScheme]:
         if not v:
             raise PydanticCustomError(

@@ -114,6 +114,7 @@ class PublishingService:
             schemes=len(snapshot.concept_schemes),
             concepts=sum(len(s.concepts) for s in snapshot.concept_schemes),
             properties=len(snapshot.properties),
+            classes=len(snapshot.classes),
         )
 
         latest = await self._get_latest_finalized(project_id)
