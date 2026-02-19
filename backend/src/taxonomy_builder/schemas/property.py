@@ -1,11 +1,12 @@
 """Pydantic schemas for Property."""
 
-import re
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from taxonomy_builder.schemas.validators import validate_identifier
 
 # Allowed XSD datatypes for range_datatype
 ALLOWED_DATATYPES = frozenset([
@@ -17,9 +18,6 @@ ALLOWED_DATATYPES = frozenset([
     "xsd:dateTime",
     "xsd:anyURI",
 ])
-
-# Pattern for URI-safe identifiers: alphanumeric, underscores, hyphens, starting with letter
-IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]*$")
 
 
 class PropertyCreate(BaseModel):
@@ -36,18 +34,11 @@ class PropertyCreate(BaseModel):
 
     @field_validator("identifier")
     @classmethod
-    def validate_identifier(cls, v: str) -> str:
+    def check_identifier(cls, v: str) -> str:
         """Validate identifier is URI-safe."""
-        v = v.strip()
-        if not v:
-            raise ValueError("identifier must not be empty")
-        if not v[0].isalpha():
-            raise ValueError("identifier must start with a letter")
-        if not IDENTIFIER_PATTERN.match(v):
-            raise ValueError(
-                "identifier must be URI-safe: alphanumeric, underscores, and hyphens only"
-            )
-        return v
+        result = validate_identifier(v)
+        assert result is not None  # v is required (non-None)
+        return result
 
     @field_validator("label")
     @classmethod
@@ -79,20 +70,9 @@ class PropertyUpdate(BaseModel):
 
     @field_validator("identifier")
     @classmethod
-    def validate_identifier(cls, v: str | None) -> str | None:
+    def check_identifier(cls, v: str | None) -> str | None:
         """Validate identifier is URI-safe if provided."""
-        if v is None:
-            return v
-        v = v.strip()
-        if not v:
-            raise ValueError("identifier must not be empty")
-        if not v[0].isalpha():
-            raise ValueError("identifier must start with a letter")
-        if not IDENTIFIER_PATTERN.match(v):
-            raise ValueError(
-                "identifier must be URI-safe: alphanumeric, underscores, and hyphens only"
-            )
-        return v
+        return validate_identifier(v)
 
     @field_validator("label")
     @classmethod
