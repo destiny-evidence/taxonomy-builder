@@ -104,6 +104,9 @@ class ReaderFileService:
             "published_at": version.published_at.isoformat(),
             "publisher": version.publisher,
             "pre_release": not version.finalized,
+            "previous_version_id": (
+                str(version.previous_version_id) if version.previous_version_id else None
+            ),
             "project": {
                 "id": str(snapshot.project.id),
                 "name": snapshot.project.name,
@@ -135,6 +138,9 @@ class ReaderFileService:
                     "published_at": v.published_at.isoformat(),
                     "publisher": v.publisher,
                     "pre_release": not v.finalized,
+                    "previous_version_id": (
+                        str(v.previous_version_id) if v.previous_version_id else None
+                    ),
                     "notes": v.notes,
                     "content_summary": {
                         "schemes": len(snapshot.concept_schemes),

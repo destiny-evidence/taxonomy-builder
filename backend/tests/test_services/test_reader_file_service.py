@@ -141,6 +141,7 @@ def _make_version(
     published_at=None,
     publisher="Jane Smith",
     notes=None,
+    previous_version_id=None,
     snapshot=None,
     project_id=PROJECT_ID,
     id=VERSION_ID,
@@ -156,6 +157,7 @@ def _make_version(
         published_at=published_at or datetime(2026, 2, 1, 9, 0, 0, tzinfo=UTC),
         publisher=publisher,
         notes=notes,
+        previous_version_id=previous_version_id,
         snapshot=snap,
         snapshot_vocabulary=SnapshotVocabulary.model_validate(snap),
     )
