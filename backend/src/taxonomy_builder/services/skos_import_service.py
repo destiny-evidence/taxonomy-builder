@@ -1,5 +1,6 @@
 """SKOS Import service for parsing and importing RDF files."""
 
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
@@ -59,6 +60,18 @@ FORMAT_MAP = {
     ".nt": "nt",
     ".n3": "n3",
 }
+
+
+@dataclass
+class ExistingProjectData:
+    """Pre-loaded project data for duplicate detection and range resolution."""
+
+    scheme_uris: set[str] = field(default_factory=set)
+    scheme_uri_to_id: dict[str, UUID] = field(default_factory=dict)
+    scheme_uri_to_title: dict[str, str] = field(default_factory=dict)
+    class_uris: set[str] = field(default_factory=set)
+    class_identifiers: set[str] = field(default_factory=set)
+    property_identifiers: set[str] = field(default_factory=set)
 
 
 class SKOSImportService:
@@ -283,31 +296,39 @@ class SKOSImportService:
             "uri": str(prop_uri),
         }
 
-    def _resolve_range_to_scheme(
+    def _resolve_object_range(
         self,
         g: Graph,
         range_uri: str,
-        scheme_uri_to_id: dict[str, UUID],
-    ) -> UUID | None:
-        """Resolve a property range URI to a scheme ID using two strategies.
+        scheme_uris: set[str],
+        class_uris: set[str],
+    ) -> tuple[str, str] | None:
+        """Resolve an object property range URI.
 
-        1. RDF linkage: find concepts typed with the range class, check their inScheme
-        2. URI fallback: if range_uri is itself a scheme URI, match directly
+        Returns ("scheme", scheme_uri), ("class", range_uri), or None.
+
+        Strategies:
+        1. RDF linkage: find concepts typed with the range class, follow inScheme
+        2. Direct scheme URI match
+        3. Class URI match
         """
         range_ref = URIRef(range_uri)
 
-        # Strategy 1: Follow RDF linkage
-        # Find concepts that are instances of the range class
+        # Strategy 1: Follow RDF linkage to a scheme
         for instance in g.subjects(RDF.type, range_ref):
             if not isinstance(instance, URIRef):
                 continue
             scheme = self._get_concept_scheme(g, instance)
-            if scheme and str(scheme) in scheme_uri_to_id:
-                return scheme_uri_to_id[str(scheme)]
+            if scheme and str(scheme) in scheme_uris:
+                return ("scheme", str(scheme))
 
         # Strategy 2: Direct scheme URI match
-        if range_uri in scheme_uri_to_id:
-            return scheme_uri_to_id[range_uri]
+        if range_uri in scheme_uris:
+            return ("scheme", range_uri)
+
+        # Strategy 3: Class URI match
+        if range_uri in class_uris:
+            return ("class", range_uri)
 
         return None
 
@@ -413,27 +434,92 @@ class SKOSImportService:
         g = self._parse_rdf(content, format)
 
         analysis = self._analyze_graph(g)
-        schemes = analysis["schemes"]
-        concepts_by_scheme = analysis["concepts_by_scheme"]
-        global_warnings = analysis["warnings"]
-        class_metadata = analysis["classes"]
-        property_metadata = analysis["properties"]
 
-        # Check for URI conflicts
-        scheme_uris = [str(s) for s in schemes]
-        await self._check_uri_conflicts(project_id, scheme_uris)
+        # Load existing project data for duplicate detection and range resolution
+        existing = await self._load_existing_project_data(project_id)
 
-        # Build scheme URI → title map for range resolution display
-        scheme_uri_to_title: dict[str, str] = {}
-        for scheme_uri in schemes:
-            scheme_uri_to_title[str(scheme_uri)] = self._get_scheme_title(g, scheme_uri)
+        # Build combined URI sets (existing + from file)
+        scheme_uris = set(existing.scheme_uris)
+        scheme_uri_to_title = dict(existing.scheme_uri_to_title)
+        for scheme_uri in analysis["schemes"]:
+            uri = str(scheme_uri)
+            scheme_uris.add(uri)
+            scheme_uri_to_title[uri] = self._get_scheme_title(g, scheme_uri)
 
-        # Build preview for each scheme
-        scheme_previews: list[SchemePreviewResponse] = []
+        class_uris = set(existing.class_uris)
+        for cm in analysis["classes"]:
+            class_uris.add(cm["uri"])
+
+        scheme_previews, total_concepts, total_relationships = self._preview_schemes(
+            g, analysis["schemes"], analysis["concepts_by_scheme"],
+            existing.scheme_uris,
+        )
+        class_previews = self._preview_classes(
+            analysis["classes"], existing.class_identifiers
+        )
+        property_previews, warnings = self._preview_properties(
+            g, analysis["properties"], existing.property_identifiers,
+            scheme_uris, scheme_uri_to_title, class_uris,
+        )
+
+        return ImportPreviewResponse(
+            valid=True,
+            schemes=scheme_previews,
+            total_concepts_count=total_concepts,
+            total_relationships_count=total_relationships,
+            classes=class_previews,
+            properties=property_previews,
+            classes_count=len(class_previews),
+            properties_count=len(property_previews),
+            warnings=warnings,
+            errors=analysis["warnings"],
+        )
+
+    async def _load_existing_project_data(
+        self, project_id: UUID
+    ) -> ExistingProjectData:
+        """Load existing project entities for duplicate detection and range resolution."""
+        existing_schemes = (
+            await self.db.execute(
+                select(ConceptScheme).where(ConceptScheme.project_id == project_id)
+            )
+        ).scalars().all()
+
+        existing_classes = (
+            await self.db.execute(
+                select(OntologyClass).where(OntologyClass.project_id == project_id)
+            )
+        ).scalars().all()
+
+        existing_prop_result = await self.db.execute(
+            select(Property.identifier).where(Property.project_id == project_id)
+        )
+
+        return ExistingProjectData(
+            scheme_uris={s.uri for s in existing_schemes if s.uri},
+            scheme_uri_to_id={s.uri: s.id for s in existing_schemes if s.uri},
+            scheme_uri_to_title={s.uri: s.title for s in existing_schemes if s.uri},
+            class_uris={c.uri for c in existing_classes if c.uri},
+            class_identifiers={c.identifier for c in existing_classes},
+            property_identifiers=set(existing_prop_result.scalars().all()),
+        )
+
+    def _preview_schemes(
+        self,
+        g: Graph,
+        schemes: list[URIRef],
+        concepts_by_scheme: dict[URIRef, set[URIRef]],
+        existing_scheme_uris: set[str],
+    ) -> tuple[list[SchemePreviewResponse], int, int]:
+        """Build scheme previews, skipping existing."""
+        previews: list[SchemePreviewResponse] = []
         total_concepts = 0
         total_relationships = 0
 
         for scheme_uri in schemes:
+            if str(scheme_uri) in existing_scheme_uris:
+                continue
+
             concepts = concepts_by_scheme[scheme_uri]
             title = self._get_scheme_title(g, scheme_uri)
             description = self._get_scheme_description(g, scheme_uri)
@@ -445,7 +531,7 @@ class SKOSImportService:
                 if warning:
                     warnings.append(warning)
 
-            scheme_previews.append(
+            previews.append(
                 SchemePreviewResponse(
                     title=title,
                     description=description,
@@ -455,39 +541,58 @@ class SKOSImportService:
                     warnings=warnings,
                 )
             )
-
             total_concepts += len(concepts)
             total_relationships += relationships
 
-        # Build class previews
-        class_previews = [
+        return previews, total_concepts, total_relationships
+
+    def _preview_classes(
+        self,
+        class_metadata: list[dict],
+        existing_identifiers: set[str],
+    ) -> list[ClassPreviewResponse]:
+        """Build class previews, skipping existing."""
+        return [
             ClassPreviewResponse(
                 identifier=cm["identifier"],
                 label=cm["label"],
                 uri=cm["uri"],
             )
             for cm in class_metadata
+            if cm["identifier"] not in existing_identifiers
         ]
 
-        # Build property previews with range scheme resolution
-        property_previews: list[PropertyPreviewResponse] = []
+    def _preview_properties(
+        self,
+        g: Graph,
+        property_metadata: list[dict],
+        existing_identifiers: set[str],
+        scheme_uris: set[str],
+        scheme_uri_to_title: dict[str, str],
+        class_uris: set[str],
+    ) -> tuple[list[PropertyPreviewResponse], list[str]]:
+        """Build property previews with range resolution checks, skipping existing."""
+        previews: list[PropertyPreviewResponse] = []
+        warnings: list[str] = []
+
         for pm in property_metadata:
+            if pm["identifier"] in existing_identifiers:
+                continue
+
             range_scheme_title = None
             if pm["range_uri"] and pm["property_type"] == "object":
-                # Try to resolve range to a scheme title for display
-                range_ref = URIRef(pm["range_uri"])
-                # Check RDF linkage
-                for instance in g.subjects(RDF.type, range_ref):
-                    if isinstance(instance, URIRef):
-                        scheme = self._get_concept_scheme(g, instance)
-                        if scheme and str(scheme) in scheme_uri_to_title:
-                            range_scheme_title = scheme_uri_to_title[str(scheme)]
-                            break
-                # Direct scheme match
-                if not range_scheme_title and pm["range_uri"] in scheme_uri_to_title:
-                    range_scheme_title = scheme_uri_to_title[pm["range_uri"]]
+                resolved = self._resolve_object_range(
+                    g, pm["range_uri"], scheme_uris, class_uris
+                )
+                if resolved and resolved[0] == "scheme":
+                    range_scheme_title = scheme_uri_to_title.get(resolved[1])
+                elif resolved is None:
+                    warnings.append(
+                        f"Property '{pm['identifier']}' range '{pm['range_uri']}' "
+                        f"not found in project"
+                    )
 
-            property_previews.append(
+            previews.append(
                 PropertyPreviewResponse(
                     identifier=pm["identifier"],
                     label=pm["label"],
@@ -498,17 +603,7 @@ class SKOSImportService:
                 )
             )
 
-        return ImportPreviewResponse(
-            valid=True,
-            schemes=scheme_previews,
-            total_concepts_count=total_concepts,
-            total_relationships_count=total_relationships,
-            classes=class_previews,
-            properties=property_previews,
-            classes_count=len(class_previews),
-            properties_count=len(property_previews),
-            errors=global_warnings,
-        )
+        return previews, warnings
 
     # --- Execute ---
 
@@ -516,23 +611,49 @@ class SKOSImportService:
         self, project_id: UUID, content: bytes, filename: str
     ) -> ImportResultResponse:
         """Parse RDF and create schemes/concepts/classes/properties in database."""
-        format = self._detect_format(filename)
-        g = self._parse_rdf(content, format)
+        fmt = self._detect_format(filename)
+        g = self._parse_rdf(content, fmt)
 
         analysis = self._analyze_graph(g)
-        schemes = analysis["schemes"]
-        concepts_by_scheme = analysis["concepts_by_scheme"]
-        class_metadata = analysis["classes"]
-        property_metadata = analysis["properties"]
 
-        # Check for URI conflicts
-        scheme_uris = [str(s) for s in schemes]
-        await self._check_uri_conflicts(project_id, scheme_uris)
+        classes_created = await self._import_classes(
+            project_id, analysis["classes"]
+        )
+        class_uri_to_id = await self._build_class_uri_map(
+            project_id, analysis["classes"]
+        )
 
-        # --- Step 1: Create OntologyClass records ---
-        classes_created: list[ClassCreatedResponse] = []
+        # Load existing data once for duplicate detection and range resolution
+        existing = await self._load_existing_project_data(project_id)
+
+        schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
+            await self._import_schemes(
+                g, project_id, analysis["schemes"], analysis["concepts_by_scheme"],
+                existing.scheme_uri_to_id,
+            )
+        )
+
+        properties_created, warnings = await self._import_properties(
+            g, project_id, analysis["properties"],
+            existing.property_identifiers,
+            scheme_uri_to_id, class_uri_to_id,
+        )
+
+        return ImportResultResponse(
+            schemes_created=schemes_created,
+            total_concepts_created=total_concepts,
+            total_relationships_created=total_relationships,
+            classes_created=classes_created,
+            properties_created=properties_created,
+            warnings=warnings,
+        )
+
+    async def _import_classes(
+        self, project_id: UUID, class_metadata: list[dict]
+    ) -> list[ClassCreatedResponse]:
+        """Create OntologyClass records, skipping duplicates."""
+        created: list[ClassCreatedResponse] = []
         for cm in class_metadata:
-            # Check if class already exists in this project
             existing = await self.db.execute(
                 select(OntologyClass).where(
                     OntologyClass.project_id == project_id,
@@ -540,7 +661,7 @@ class SKOSImportService:
                 )
             )
             if existing.scalar_one_or_none():
-                continue  # Skip duplicate
+                continue
 
             ont_class = OntologyClass(
                 project_id=project_id,
@@ -566,33 +687,60 @@ class SKOSImportService:
                 },
             )
 
-            classes_created.append(
+            created.append(
                 ClassCreatedResponse(
                     id=ont_class.id,
                     identifier=ont_class.identifier,
                     label=ont_class.label,
                 )
             )
+        return created
 
-        # Build class URI → ID map for range resolution (includes pre-existing classes)
+    async def _build_class_uri_map(
+        self, project_id: UUID, class_metadata: list[dict]
+    ) -> dict[str, UUID]:
+        """Build class URI -> ID map for range resolution.
+
+        Uses computed URIs (from project namespace) and raw TTL URIs as fallback.
+        """
         all_classes = (
             await self.db.execute(
                 select(OntologyClass).where(OntologyClass.project_id == project_id)
             )
         ).scalars().all()
-        class_uri_to_id: dict[str, UUID] = {
-            c.uri: c.id for c in all_classes if c.uri
-        }
 
-        # --- Step 2: Create ConceptScheme + Concept records ---
-        schemes_created: list[SchemeCreatedResponse] = []
-        scheme_uri_to_id: dict[str, UUID] = {}
+        uri_map: dict[str, UUID] = {c.uri: c.id for c in all_classes if c.uri}
+
+        # Fallback: map by raw TTL URI for projects without a namespace
+        for cm in class_metadata:
+            cls = next(
+                (c for c in all_classes if c.identifier == cm["identifier"]), None
+            )
+            if cls and cm["uri"] not in uri_map:
+                uri_map[cm["uri"]] = cls.id
+
+        return uri_map
+
+    async def _import_schemes(
+        self,
+        g: Graph,
+        project_id: UUID,
+        schemes: list[URIRef],
+        concepts_by_scheme: dict[URIRef, set[URIRef]],
+        existing_scheme_uri_to_id: dict[str, UUID],
+    ) -> tuple[list[SchemeCreatedResponse], dict[str, UUID], int, int]:
+        """Create ConceptScheme and Concept records, skipping existing schemes."""
+        scheme_uri_to_id: dict[str, UUID] = dict(existing_scheme_uri_to_id)
+
+        created: list[SchemeCreatedResponse] = []
         total_concepts = 0
         total_relationships = 0
 
         for scheme_uri in schemes:
-            concepts = concepts_by_scheme[scheme_uri]
+            if str(scheme_uri) in scheme_uri_to_id:
+                continue
 
+            concepts = concepts_by_scheme[scheme_uri]
             base_title = self._get_scheme_title(g, scheme_uri)
             title = await self._get_unique_title(project_id, base_title)
             description = self._get_scheme_description(g, scheme_uri)
@@ -619,86 +767,112 @@ class SKOSImportService:
                 scheme_id=scheme.id,
             )
 
-            # Create concepts - first pass
-            uri_to_concept: dict[URIRef, Concept] = {}
+            _, relationship_count = await self._import_concepts(
+                g, project_id, scheme.id, concepts
+            )
 
-            for concept_uri in concepts:
-                pref_label, _ = self._get_concept_pref_label(g, concept_uri)
-                identifier = self._get_identifier_from_uri(concept_uri)
-
-                definition = None
-                def_value = g.value(concept_uri, SKOS.definition)
-                if def_value:
-                    definition = str(def_value)
-
-                scope_note = None
-                scope_value = g.value(concept_uri, SKOS.scopeNote)
-                if scope_value:
-                    scope_note = str(scope_value)
-
-                alt_labels: list[str] = []
-                for alt in g.objects(concept_uri, SKOS.altLabel):
-                    if isinstance(alt, Literal):
-                        alt_labels.append(str(alt))
-
-                concept = Concept(
-                    scheme_id=scheme.id,
-                    pref_label=pref_label,
-                    identifier=identifier,
-                    definition=definition,
-                    scope_note=scope_note,
-                    alt_labels=alt_labels,
-                )
-                self.db.add(concept)
-                uri_to_concept[concept_uri] = concept
-
-            await self.db.flush()
-
-            for concept in uri_to_concept.values():
-                await self.db.refresh(concept)
-
-            # Second pass: broader relationships
-            relationship_count = 0
-            for concept_uri, concept in uri_to_concept.items():
-                for broader_uri in g.objects(concept_uri, SKOS.broader):
-                    if isinstance(broader_uri, URIRef) and broader_uri in uri_to_concept:
-                        broader_concept = uri_to_concept[broader_uri]
-                        rel = ConceptBroader(
-                            concept_id=concept.id,
-                            broader_concept_id=broader_concept.id,
-                        )
-                        self.db.add(rel)
-                        relationship_count += 1
-
-            await self.db.flush()
-
-            for concept in uri_to_concept.values():
-                await self._tracker.record(
-                    project_id=project_id,
-                    entity_type="concept",
-                    entity_id=concept.id,
-                    action="create",
-                    before=None,
-                    after=self._tracker.serialize_concept(concept),
-                    scheme_id=scheme.id,
-                )
-
-            schemes_created.append(
+            created.append(
                 SchemeCreatedResponse(
                     id=scheme.id,
                     title=title,
                     concepts_created=len(concepts),
                 )
             )
-
             total_concepts += len(concepts)
             total_relationships += relationship_count
 
-        # --- Step 3: Create Property records ---
-        properties_created: list[PropertyCreatedResponse] = []
+        return created, scheme_uri_to_id, total_concepts, total_relationships
+
+    async def _import_concepts(
+        self,
+        g: Graph,
+        project_id: UUID,
+        scheme_id: UUID,
+        concept_uris: set[URIRef],
+    ) -> tuple[dict[URIRef, Concept], int]:
+        """Create Concept records and broader relationships for a scheme."""
+        uri_to_concept: dict[URIRef, Concept] = {}
+
+        for concept_uri in concept_uris:
+            pref_label, _ = self._get_concept_pref_label(g, concept_uri)
+            identifier = self._get_identifier_from_uri(concept_uri)
+
+            definition = None
+            def_value = g.value(concept_uri, SKOS.definition)
+            if def_value:
+                definition = str(def_value)
+
+            scope_note = None
+            scope_value = g.value(concept_uri, SKOS.scopeNote)
+            if scope_value:
+                scope_note = str(scope_value)
+
+            alt_labels: list[str] = []
+            for alt in g.objects(concept_uri, SKOS.altLabel):
+                if isinstance(alt, Literal):
+                    alt_labels.append(str(alt))
+
+            concept = Concept(
+                scheme_id=scheme_id,
+                pref_label=pref_label,
+                identifier=identifier,
+                definition=definition,
+                scope_note=scope_note,
+                alt_labels=alt_labels,
+            )
+            self.db.add(concept)
+            uri_to_concept[concept_uri] = concept
+
+        await self.db.flush()
+        for concept in uri_to_concept.values():
+            await self.db.refresh(concept)
+
+        # Broader relationships
+        relationship_count = 0
+        for concept_uri, concept in uri_to_concept.items():
+            for broader_uri in g.objects(concept_uri, SKOS.broader):
+                if isinstance(broader_uri, URIRef) and broader_uri in uri_to_concept:
+                    broader_concept = uri_to_concept[broader_uri]
+                    rel = ConceptBroader(
+                        concept_id=concept.id,
+                        broader_concept_id=broader_concept.id,
+                    )
+                    self.db.add(rel)
+                    relationship_count += 1
+
+        await self.db.flush()
+
+        for concept in uri_to_concept.values():
+            await self._tracker.record(
+                project_id=project_id,
+                entity_type="concept",
+                entity_id=concept.id,
+                action="create",
+                before=None,
+                after=self._tracker.serialize_concept(concept),
+                scheme_id=scheme_id,
+            )
+
+        return uri_to_concept, relationship_count
+
+    async def _import_properties(
+        self,
+        g: Graph,
+        project_id: UUID,
+        property_metadata: list[dict],
+        existing_prop_ids: set[str],
+        scheme_uri_to_id: dict[str, UUID],
+        class_uri_to_id: dict[str, UUID],
+    ) -> tuple[list[PropertyCreatedResponse], list[str]]:
+        """Create Property records, skipping duplicates, resolving ranges."""
+        created: list[PropertyCreatedResponse] = []
         warnings: list[str] = []
+
         for pm in property_metadata:
             identifier = pm["identifier"]
+            if identifier in existing_prop_ids:
+                continue
+
             range_uri = pm["range_uri"]
             prop_type = pm["property_type"]
             domain_uri = pm["domain_uri"] or ""
@@ -710,17 +884,21 @@ class SKOSImportService:
             if prop_type == "datatype" and range_uri:
                 range_datatype = self._abbreviate_xsd(range_uri)
             elif prop_type == "object" and range_uri:
-                range_scheme_id = self._resolve_range_to_scheme(
-                    g, range_uri, scheme_uri_to_id
+                resolved = self._resolve_object_range(
+                    g, range_uri, set(scheme_uri_to_id.keys()),
+                    set(class_uri_to_id.keys()),
                 )
-                if range_scheme_id is None:
-                    # Try to resolve to an OntologyClass in the project
-                    range_class_id = class_uri_to_id.get(range_uri)
-                    if range_class_id is None:
-                        warnings.append(
-                            f"Property '{identifier}' range '{range_uri}' "
-                            f"not found in project — skipping range"
-                        )
+                if resolved:
+                    kind, uri = resolved
+                    if kind == "scheme":
+                        range_scheme_id = scheme_uri_to_id[uri]
+                    else:
+                        range_class_id = class_uri_to_id[uri]
+                else:
+                    warnings.append(
+                        f"Property '{identifier}' range '{range_uri}' "
+                        f"not found in project \u2014 skipping range"
+                    )
 
             prop = Property(
                 project_id=project_id,
@@ -754,7 +932,7 @@ class SKOSImportService:
                 },
             )
 
-            properties_created.append(
+            created.append(
                 PropertyCreatedResponse(
                     id=prop.id,
                     identifier=prop.identifier,
@@ -765,11 +943,4 @@ class SKOSImportService:
                 )
             )
 
-        return ImportResultResponse(
-            schemes_created=schemes_created,
-            total_concepts_created=total_concepts,
-            total_relationships_created=total_relationships,
-            classes_created=classes_created,
-            properties_created=properties_created,
-            warnings=warnings,
-        )
+        return created, warnings

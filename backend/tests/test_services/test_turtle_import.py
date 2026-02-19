@@ -337,6 +337,75 @@ ex:Finding a owl:Class ;
         assert count_prop.range_datatype == "xsd:integer"
 
     @pytest.mark.asyncio
+    async def test_cross_file_range_resolution(
+        self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    ) -> None:
+        """Property in second import resolves range to scheme from first import."""
+        # First import: scheme only
+        vocab = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:LevelScheme a skos:ConceptScheme ;
+    rdfs:label "Levels" .
+
+ex:High a skos:Concept ;
+    skos:inScheme ex:LevelScheme ;
+    skos:prefLabel "High" .
+"""
+        await import_service.execute(project.id, vocab, "vocab.ttl")
+
+        # Second import: property referencing that scheme
+        onto = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:level a owl:ObjectProperty ;
+    rdfs:label "Level" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range ex:LevelScheme .
+"""
+        result = await import_service.execute(project.id, onto, "onto.ttl")
+        assert len(result.warnings) == 0
+
+        props = (
+            await db_session.execute(
+                select(Property).where(Property.project_id == project.id)
+            )
+        ).scalars().all()
+        assert props[0].range_scheme_id is not None
+
+    @pytest.mark.asyncio
+    async def test_no_label_falls_back_to_identifier(
+        self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    ) -> None:
+        """Property with no rdfs:label uses URI fragment."""
+        ttl = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:unlabeled a owl:DatatypeProperty ;
+    rdfs:domain ex:Thing ;
+    rdfs:range xsd:string .
+"""
+        await import_service.execute(project.id, ttl, "test.ttl")
+
+        props = (
+            await db_session.execute(
+                select(Property).where(Property.project_id == project.id)
+            )
+        ).scalars().all()
+        assert props[0].label == "unlabeled"
+        assert props[0].identifier == "unlabeled"
+
+    @pytest.mark.asyncio
     async def test_skos_only_backward_compatible(
         self, import_service: SKOSImportService, project: Project
     ) -> None:
