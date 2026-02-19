@@ -1,6 +1,6 @@
 """Service for building, validating, and diffing immutable project snapshots."""
 
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,11 @@ from taxonomy_builder.schemas.snapshot import (
     ValidationResult,
 )
 from taxonomy_builder.services.concept_service import ConceptService
+from taxonomy_builder.services.core_ontology_service import get_core_ontology
 from taxonomy_builder.services.project_service import ProjectService
+
+# Namespace for generating deterministic UUIDs for core ontology classes
+_CORE_ONTOLOGY_UUID_NS = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 
 class SnapshotService:
@@ -51,9 +55,7 @@ class SnapshotService:
 
         schemes = []
         for scheme in project.schemes:
-            concepts = await self._concept_service.list_concepts_for_scheme(
-                scheme.id
-            )
+            concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
             schemes.append(self._build_scheme(scheme, concepts))
 
         properties = [self._build_property(p) for p in project.properties]
@@ -74,9 +76,7 @@ class SnapshotService:
             namespace=project.namespace,
         )
 
-    def _build_scheme(
-        self, scheme: ConceptScheme, concepts: list[Concept]
-    ) -> SnapshotScheme:
+    def _build_scheme(self, scheme: ConceptScheme, concepts: list[Concept]) -> SnapshotScheme:
         return SnapshotScheme.model_construct(
             id=scheme.id,
             title=scheme.title,
@@ -113,10 +113,8 @@ class SnapshotService:
             required=prop.required,
         )
 
-    def _build_classes(
-        self, ontology_classes: list[OntologyClass]
-    ) -> list[SnapshotClass]:
-        return [
+    def _build_classes(self, ontology_classes: list[OntologyClass]) -> list[SnapshotClass]:
+        project_classes = [
             SnapshotClass.model_construct(
                 id=cls.id,
                 identifier=cls.identifier,
@@ -127,6 +125,27 @@ class SnapshotService:
             )
             for cls in ontology_classes
         ]
+
+        # Temporarily include core ontology classes in every snapshot
+        # To be removed (probably) after #66
+        core = get_core_ontology()
+        project_uris = {cls.uri for cls in project_classes}
+        core_classes = [
+            SnapshotClass.model_construct(
+                id=uuid5(_CORE_ONTOLOGY_UUID_NS, c.uri),
+                identifier=c.uri.split("#")[-1]
+                if "#" in c.uri
+                else c.uri.rstrip("/").split("/")[-1],
+                uri=c.uri,
+                label=c.label,
+                description=c.comment,
+                scope_note=None,
+            )
+            for c in core.classes
+            if c.uri not in project_uris
+        ]
+
+        return project_classes + core_classes
 
 
 def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:
@@ -162,9 +181,7 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
     errors: list[ValidationError] = []
 
     all_concept_ids = {
-        concept.id
-        for scheme in snapshot.concept_schemes
-        for concept in (scheme.concepts or [])
+        concept.id for scheme in snapshot.concept_schemes for concept in (scheme.concepts or [])
     }
     scheme_ids = {scheme.id for scheme in snapshot.concept_schemes}
 
@@ -172,46 +189,54 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
         for concept in scheme.concepts or []:
             for bid in concept.broader_ids or []:
                 if bid not in all_concept_ids:
-                    errors.append(ValidationError(
-                        code="broken_broader_ref",
-                        message=f"Concept '{concept.pref_label}' has a broader reference to a non-existent concept.",
-                        entity_type="concept",
-                        entity_id=concept.id,
-                        entity_label=concept.pref_label,
-                    ))
+                    errors.append(
+                        ValidationError(
+                            code="broken_broader_ref",
+                            message=f"Concept '{concept.pref_label}' has a broader reference to a non-existent concept.",
+                            entity_type="concept",
+                            entity_id=concept.id,
+                            entity_label=concept.pref_label,
+                        )
+                    )
             for rid in concept.related_ids or []:
                 if rid not in all_concept_ids:
-                    errors.append(ValidationError(
-                        code="broken_related_ref",
-                        message=f"Concept '{concept.pref_label}' has a related reference to a non-existent concept.",
-                        entity_type="concept",
-                        entity_id=concept.id,
-                        entity_label=concept.pref_label,
-                    ))
+                    errors.append(
+                        ValidationError(
+                            code="broken_related_ref",
+                            message=f"Concept '{concept.pref_label}' has a related reference to a non-existent concept.",
+                            entity_type="concept",
+                            entity_id=concept.id,
+                            entity_label=concept.pref_label,
+                        )
+                    )
 
     class_uris = {cls.uri for cls in snapshot.classes if cls.uri}
 
     for prop in snapshot.properties or []:
         if prop.range_scheme_id and prop.range_scheme_id not in scheme_ids:
-            errors.append(ValidationError(
-                code="broken_range_scheme_ref",
-                message=f"Property '{prop.label}' references a non-existent scheme.",
-                entity_type="property",
-                entity_id=prop.id,
-                entity_label=prop.label,
-            ))
+            errors.append(
+                ValidationError(
+                    code="broken_range_scheme_ref",
+                    message=f"Property '{prop.label}' references a non-existent scheme.",
+                    entity_type="property",
+                    entity_id=prop.id,
+                    entity_label=prop.label,
+                )
+            )
         if prop.domain_class and prop.domain_class not in class_uris:
-            errors.append(ValidationError(
-                code="broken_domain_class_ref",
-                message=(
-                    f"Property '{prop.label}' references domain class"
-                    f" '{prop.domain_class}' which is not in the"
-                    " project's ontology classes."
-                ),
-                entity_type="property",
-                entity_id=prop.id,
-                entity_label=prop.label,
-            ))
+            errors.append(
+                ValidationError(
+                    code="broken_domain_class_ref",
+                    message=(
+                        f"Property '{prop.label}' references domain class"
+                        f" '{prop.domain_class}' which is not in the"
+                        " project's ontology classes."
+                    ),
+                    entity_type="property",
+                    entity_id=prop.id,
+                    entity_label=prop.label,
+                )
+            )
 
     return errors
 
@@ -262,8 +287,7 @@ def compute_diff(
     added_classes = [curr_classes[cid] for cid in curr_classes.keys() - prev_classes.keys()]
     removed_classes = [prev_classes[cid] for cid in prev_classes.keys() - curr_classes.keys()]
     modified_classes = [
-        (prev_classes[cid], curr_classes[cid])
-        for cid in prev_classes.keys() & curr_classes.keys()
+        (prev_classes[cid], curr_classes[cid]) for cid in prev_classes.keys() & curr_classes.keys()
     ]
 
     added = (
@@ -321,10 +345,7 @@ def compute_diff(
             for property in removed_properties
         ]
         # Removed classes
-        + [
-            DiffItem(id=cls.id, label=cls.label, entity_type="class")
-            for cls in removed_classes
-        ]
+        + [DiffItem(id=cls.id, label=cls.label, entity_type="class") for cls in removed_classes]
     )
 
     modified = (
@@ -337,11 +358,7 @@ def compute_diff(
                 changes=changes,
             )
             for prev_scheme, curr_scheme, _, _ in modified_schemes
-            if (
-                changes := _field_changes(
-                    prev_scheme, curr_scheme, {"id", "concepts"}
-                )
-            )
+            if (changes := _field_changes(prev_scheme, curr_scheme, {"id", "concepts"}))
         ]
         # Modified concepts in existing schemes
         + [
@@ -368,11 +385,7 @@ def compute_diff(
                 changes=changes,
             )
             for prev_property, curr_property in modified_properties
-            if (
-                changes := _field_changes(
-                    prev_property, curr_property, {"id"}
-                )
-            )
+            if (changes := _field_changes(prev_property, curr_property, {"id"}))
         ]
         # Modified classes
         + [
@@ -383,11 +396,7 @@ def compute_diff(
                 changes=changes,
             )
             for prev_cls, curr_cls in modified_classes
-            if (
-                changes := _field_changes(
-                    prev_cls, curr_cls, {"id"}
-                )
-            )
+            if (changes := _field_changes(prev_cls, curr_cls, {"id"}))
         ]
     )
 

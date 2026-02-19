@@ -1,0 +1,110 @@
+{
+  "format_version": "1.0",
+  "version": "1.0",
+  "title": "Test release",
+  "published_at": "2026-02-19T07:24:35.714310+00:00",
+  "publisher": "Local Dev User",
+  "pre_release": false,
+  "project": {
+    "id": "019c74c8-f8db-7514-93d6-35c7f35305ec",
+    "name": "Demo Taxonomy",
+    "description": "A simple demo taxonomy for testing.",
+    "namespace": "http://example.org/taxonomies/demo"
+  },
+  "schemes": [
+    {
+      "id": "019c74c8-f8db-7514-93d6-35c8399b41fd",
+      "title": "Colors",
+      "description": "A simple color taxonomy.",
+      "uri": "http://example.org/demo/colors",
+      "top_concepts": [
+        "019c74c8-f8dc-7410-b38f-b64668bd8e72",
+        "019c74c8-f8dc-7410-b38f-b6457d2251d6"
+      ],
+      "concepts": {
+        "019c74c8-f8dd-7007-86b9-3af672465d28": {
+          "pref_label": "Blue",
+          "identifier": "blue",
+          "uri": "http://example.org/demo/colors/blue",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Azure", "Navy"],
+          "broader": ["019c74c8-f8dc-7410-b38f-b64668bd8e72"],
+          "related": []
+        },
+        "019c74c8-f8dc-7410-b38f-b64668bd8e72": {
+          "pref_label": "Cool Colors",
+          "identifier": "cool",
+          "uri": "http://example.org/demo/colors/cool",
+          "definition": "Colors associated with coolness.",
+          "scope_note": null,
+          "alt_labels": [],
+          "broader": [],
+          "related": []
+        },
+        "019c74c8-f8dd-7007-86b9-3af7eed13aa8": {
+          "pref_label": "Green",
+          "identifier": "green",
+          "uri": "http://example.org/demo/colors/green",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Emerald"],
+          "broader": ["019c74c8-f8dc-7410-b38f-b64668bd8e72"],
+          "related": []
+        },
+        "019c74c8-f8dd-7007-86b9-3af4454ce3e7": {
+          "pref_label": "Orange",
+          "identifier": "orange",
+          "uri": "http://example.org/demo/colors/orange",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": [],
+          "broader": ["019c74c8-f8dc-7410-b38f-b6457d2251d6"],
+          "related": []
+        },
+        "019c74c8-f8dd-7007-86b9-3af814c228da": {
+          "pref_label": "Purple",
+          "identifier": "purple",
+          "uri": "http://example.org/demo/colors/purple",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Violet"],
+          "broader": ["019c74c8-f8dc-7410-b38f-b64668bd8e72"],
+          "related": []
+        },
+        "019c74c8-f8dc-7410-b38f-b647f57e94a1": {
+          "pref_label": "Red",
+          "identifier": "red",
+          "uri": "http://example.org/demo/colors/red",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Crimson", "Scarlet"],
+          "broader": ["019c74c8-f8dc-7410-b38f-b6457d2251d6"],
+          "related": []
+        },
+        "019c74c8-f8dc-7410-b38f-b6457d2251d6": {
+          "pref_label": "Warm Colors",
+          "identifier": "warm",
+          "uri": "http://example.org/demo/colors/warm",
+          "definition": "Colors associated with warmth.",
+          "scope_note": null,
+          "alt_labels": [],
+          "broader": [],
+          "related": []
+        },
+        "019c74c8-f8dd-7007-86b9-3af5927760e2": {
+          "pref_label": "Yellow",
+          "identifier": "yellow",
+          "uri": "http://example.org/demo/colors/yellow",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Gold"],
+          "broader": ["019c74c8-f8dc-7410-b38f-b6457d2251d6"],
+          "related": []
+        }
+      }
+    }
+  ],
+  "classes": [],
+  "properties": []
+}
