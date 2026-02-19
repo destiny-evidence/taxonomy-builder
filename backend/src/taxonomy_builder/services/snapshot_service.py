@@ -9,7 +9,7 @@ from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
-from taxonomy_builder.models.prop import prop
+from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.snapshot import (
     DiffItem,
     DiffResult,
@@ -98,7 +98,7 @@ class SnapshotService:
             related_ids=[r.id for r in concept.related],
         )
 
-    def _build_property(self, prop: prop) -> SnapshotProperty:
+    def _build_property(self, prop: Property) -> SnapshotProperty:
         return SnapshotProperty.model_construct(
             id=prop.id,
             identifier=prop.identifier,
@@ -218,7 +218,7 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                 ValidationError(
                     code="broken_range_scheme_ref",
                     message=f"prop '{prop.label}' references a non-existent scheme.",
-                    entity_type="prop",
+                    entity_type="property",
                     entity_id=prop.id,
                     entity_label=prop.label,
                 )
@@ -232,7 +232,7 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                         f" '{prop.domain_class}' which is not in the"
                         " project's ontology classes."
                     ),
-                    entity_type="prop",
+                    entity_type="property",
                     entity_id=prop.id,
                     entity_label=prop.label,
                 )
@@ -343,7 +343,10 @@ def compute_diff(
             for concept_id in curr_concepts.keys() - prev_concepts.keys()
         ]
         # New properties
-        + [DiffItem(id=prop.id, label=prop.label, entity_type="prop") for prop in added_properties]
+        + [
+            DiffItem(id=prop.id, label=prop.label, entity_type="property")
+            for prop in added_properties
+        ]
         # New classes
         + [DiffItem(id=cls.id, label=cls.label, entity_type="class") for cls in added_classes]
     )
@@ -370,7 +373,7 @@ def compute_diff(
         ]
         # Removed properties
         + [
-            DiffItem(id=prop.id, label=prop.label, entity_type="prop")
+            DiffItem(id=prop.id, label=prop.label, entity_type="property")
             for prop in removed_properties
         ]
         # Removed classes
@@ -410,7 +413,7 @@ def compute_diff(
             ModifiedItem(
                 id=curr_property.id,
                 label=curr_property.label,
-                entity_type="prop",
+                entity_type="property",
                 changes=changes,
             )
             for prev_property, curr_property in modified_properties
