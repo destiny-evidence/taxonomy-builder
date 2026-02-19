@@ -160,6 +160,20 @@ export function ImportModal({
               </span>
             </div>
 
+            {preview.warnings.length > 0 && (
+              <div class="import-modal__warnings">
+                <p class="import-modal__warning-summary">
+                  {preview.warnings.length} warning{preview.warnings.length !== 1 ? "s" : ""}:
+                  {preview.warnings.length <= 5
+                    ? ""
+                    : ` showing first 5 of ${preview.warnings.length}`}
+                </p>
+                {preview.warnings.slice(0, 5).map((w, i) => (
+                  <p key={i} class="import-modal__warning">{w}</p>
+                ))}
+              </div>
+            )}
+
             {error && <p class="import-modal__error">{error}</p>}
 
             <div class="import-modal__actions">
@@ -180,19 +194,26 @@ export function ImportModal({
         {step === "success" && result && (
           <div class="import-modal__success">
             <p>
-              Successfully imported
-              {result.classes_created.length > 0 &&
-                ` ${result.classes_created.length} classes,`}
-              {result.properties_created.length > 0 &&
-                ` ${result.properties_created.length} properties,`}
-              {result.schemes_created.length > 0 &&
-                ` ${result.schemes_created.length} schemes with ${result.total_concepts_created} concepts and ${result.total_relationships_created} relationships`}
-              {result.schemes_created.length === 0 &&
-                result.classes_created.length === 0 &&
-                result.properties_created.length === 0 &&
-                " no entities found in file"}
-              .
+              {(() => {
+                const parts = [
+                  result.classes_created.length > 0 &&
+                    `${result.classes_created.length} classes`,
+                  result.properties_created.length > 0 &&
+                    `${result.properties_created.length} properties`,
+                  result.schemes_created.length > 0 &&
+                    `${result.schemes_created.length} schemes with ${result.total_concepts_created} concepts and ${result.total_relationships_created} relationships`,
+                ].filter(Boolean);
+                return parts.length > 0
+                  ? `Successfully imported ${parts.join(", ")}.`
+                  : "No entities found in file.";
+              })()}
             </p>
+            {result.warnings.length > 0 && (
+              <p class="import-modal__warning-summary">
+                {result.warnings.length} property range{result.warnings.length !== 1 ? "s" : ""} could
+                not be resolved.
+              </p>
+            )}
             <div class="import-modal__actions">
               <Button onClick={handleClose}>Done</Button>
             </div>

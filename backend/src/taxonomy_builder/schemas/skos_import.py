@@ -46,6 +46,7 @@ class ImportPreviewResponse(BaseModel):
     properties: list[PropertyPreviewResponse] = Field(default_factory=list)
     classes_count: int = 0
     properties_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
 
