@@ -1070,4 +1070,4 @@ esea:C0040 a esea:EffectSizeType ;
 esea:C0050 a esea:EffectSizeType ;
     skos:inScheme esea:EffectSizeTypeScheme ;
     skos:prefLabel "Correlation coefficient" ;
-    skos:notation "r" 
+    skos:notation "r" .
