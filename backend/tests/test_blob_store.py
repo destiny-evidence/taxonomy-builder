@@ -1,7 +1,7 @@
 """Tests for blob store implementations."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
@@ -18,75 +18,81 @@ from taxonomy_builder.config import Settings
 
 
 class TestFilesystemBlobStore:
-    def test_put_creates_file(self, tmp_path: Path) -> None:
+    async def test_put_creates_file(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.put("foo/bar.json", b'{"key": "value"}')
+        await store.put("foo/bar.json", b'{"key": "value"}')
         assert (tmp_path / "foo" / "bar.json").read_bytes() == b'{"key": "value"}'
 
-    def test_put_creates_intermediate_directories(self, tmp_path: Path) -> None:
+    async def test_put_creates_intermediate_directories(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.put("a/b/c/d.json", b"data")
+        await store.put("a/b/c/d.json", b"data")
         assert (tmp_path / "a" / "b" / "c" / "d.json").exists()
 
-    def test_put_overwrites_existing(self, tmp_path: Path) -> None:
+    async def test_put_overwrites_existing(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.put("f.json", b"old")
-        store.put("f.json", b"new")
+        await store.put("f.json", b"old")
+        await store.put("f.json", b"new")
         assert (tmp_path / "f.json").read_bytes() == b"new"
 
-    def test_exists_true(self, tmp_path: Path) -> None:
+    async def test_exists_true(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.put("x.json", b"data")
-        assert store.exists("x.json") is True
+        await store.put("x.json", b"data")
+        assert await store.exists("x.json") is True
 
-    def test_exists_false(self, tmp_path: Path) -> None:
+    async def test_exists_false(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        assert store.exists("missing.json") is False
+        assert await store.exists("missing.json") is False
 
-    def test_delete_removes_file(self, tmp_path: Path) -> None:
+    async def test_delete_removes_file(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.put("to_delete.json", b"data")
-        store.delete("to_delete.json")
+        await store.put("to_delete.json", b"data")
+        await store.delete("to_delete.json")
         assert not (tmp_path / "to_delete.json").exists()
 
-    def test_delete_missing_is_noop(self, tmp_path: Path) -> None:
+    async def test_delete_missing_is_noop(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.delete("nonexistent.json")  # should not raise
+        await store.delete("nonexistent.json")  # should not raise
 
-    def test_list_returns_files_under_prefix(self, tmp_path: Path) -> None:
+    async def test_list_returns_files_under_prefix(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        store.put("projects/abc/v1/index.json", b"1")
-        store.put("projects/abc/v2/index.json", b"2")
-        store.put("projects/xyz/v1/index.json", b"3")
-        result = store.list("projects/abc")
+        await store.put("projects/abc/v1/index.json", b"1")
+        await store.put("projects/abc/v2/index.json", b"2")
+        await store.put("projects/xyz/v1/index.json", b"3")
+        result = await store.list("projects/abc")
         assert sorted(result) == [
             "projects/abc/v1/index.json",
             "projects/abc/v2/index.json",
         ]
 
-    def test_list_empty_prefix(self, tmp_path: Path) -> None:
+    async def test_list_empty_prefix(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
-        assert store.list("nonexistent") == []
+        assert await store.list("nonexistent") == []
 
-    def test_path_traversal_rejected(self, tmp_path: Path) -> None:
+    async def test_path_traversal_rejected(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
         with pytest.raises(ValueError, match="Path escapes root"):
-            store.put("../../etc/passwd", b"evil")
+            await store.put("../../etc/passwd", b"evil")
 
-    def test_path_traversal_rejected_on_delete(self, tmp_path: Path) -> None:
+    async def test_path_traversal_rejected_on_delete(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
         with pytest.raises(ValueError, match="Path escapes root"):
-            store.delete("../outside")
+            await store.delete("../outside")
 
-    def test_path_traversal_rejected_on_exists(self, tmp_path: Path) -> None:
+    async def test_path_traversal_rejected_on_exists(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
         with pytest.raises(ValueError, match="Path escapes root"):
-            store.exists("../outside")
+            await store.exists("../outside")
 
-    def test_path_traversal_rejected_on_list(self, tmp_path: Path) -> None:
+    async def test_path_traversal_rejected_on_list(self, tmp_path: Path) -> None:
         store = FilesystemBlobStore(root=tmp_path)
         with pytest.raises(ValueError, match="Path escapes root"):
-            store.list("../outside")
+            await store.list("../outside")
+
+
+async def _async_iter(items):
+    """Helper to create an async iterable from a list."""
+    for item in items:
+        yield item
 
 
 @patch("taxonomy_builder.blob_store.DefaultAzureCredential")
@@ -96,15 +102,18 @@ class TestAzureBlobStore:
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> tuple[AzureBlobStore, MagicMock]:
         container = MagicMock()
+        container.upload_blob = AsyncMock()
+        blob_client = AsyncMock()
+        container.get_blob_client.return_value = blob_client
         mock_client_cls.return_value.get_container_client.return_value = container
         store = AzureBlobStore("https://acct.blob.core.windows.net", "published")
         return store, container
 
-    def test_put_uploads_blob(
+    async def test_put_uploads_blob(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
-        store.put("path/to/file.json", b'{"data": true}', "application/json")
+        await store.put("path/to/file.json", b'{"data": true}', "application/json")
 
         container.upload_blob.assert_called_once()
         kwargs = container.upload_blob.call_args.kwargs
@@ -112,50 +121,50 @@ class TestAzureBlobStore:
         assert kwargs["data"] == b'{"data": true}'
         assert kwargs["overwrite"] is True
 
-    def test_put_sets_content_type(
+    async def test_put_sets_content_type(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
-        store.put("file.xml", b"<xml/>", "application/xml")
+        await store.put("file.xml", b"<xml/>", "application/xml")
 
         content_settings = container.upload_blob.call_args.kwargs["content_settings"]
         assert content_settings.content_type == "application/xml"
 
-    def test_delete_calls_delete_blob(
+    async def test_delete_calls_delete_blob(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
-        store.delete("path/to/file.json")
+        await store.delete("path/to/file.json")
 
         container.get_blob_client.assert_called_once_with("path/to/file.json")
         container.get_blob_client.return_value.delete_blob.assert_called_once()
 
-    def test_delete_missing_is_noop(
+    async def test_delete_missing_is_noop(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
         container.get_blob_client.return_value.delete_blob.side_effect = (
             ResourceNotFoundError("not found")
         )
-        store.delete("missing.json")  # should not raise
+        await store.delete("missing.json")  # should not raise
 
-    def test_exists_true(
+    async def test_exists_true(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
-        assert store.exists("file.json") is True
+        assert await store.exists("file.json") is True
         container.get_blob_client.return_value.get_blob_properties.assert_called_once()
 
-    def test_exists_false_on_missing(
+    async def test_exists_false_on_missing(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
         container.get_blob_client.return_value.get_blob_properties.side_effect = (
             ResourceNotFoundError("not found")
         )
-        assert store.exists("missing.json") is False
+        assert await store.exists("missing.json") is False
 
-    def test_list_returns_blob_names(
+    async def test_list_returns_blob_names(
         self, mock_client_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
         store, container = self._make_store(mock_client_cls, mock_cred)
@@ -163,9 +172,9 @@ class TestAzureBlobStore:
         blob1.name = "prefix/a.json"
         blob2 = MagicMock()
         blob2.name = "prefix/b.json"
-        container.list_blobs.return_value = [blob1, blob2]
+        container.list_blobs.return_value = _async_iter([blob1, blob2])
 
-        result = store.list("prefix/")
+        result = await store.list("prefix/")
         assert result == ["prefix/a.json", "prefix/b.json"]
         container.list_blobs.assert_called_once_with(name_starts_with="prefix/")
 
@@ -206,16 +215,17 @@ class TestCreateBlobStore:
 @patch("taxonomy_builder.blob_store.DefaultAzureCredential")
 @patch("taxonomy_builder.blob_store.CdnManagementClient")
 class TestAzureFrontDoorPurger:
-    def test_purge_calls_begin_purge_content(
+    async def test_purge_calls_begin_purge_content(
         self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content = AsyncMock()
         purger = AzureFrontDoorPurger(
             subscription_id="sub-123",
             resource_group="rg-test",
             profile_name="fd-test",
             endpoint_name="fde-test",
         )
-        purger.purge(["/published/abc/latest/*", "/published/abc/index.json"])
+        await purger.purge(["/published/abc/latest/*", "/published/abc/index.json"])
 
         mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.assert_called_once()
         call_kwargs = (
@@ -225,16 +235,17 @@ class TestAzureFrontDoorPurger:
         assert call_kwargs["profile_name"] == "fd-test"
         assert call_kwargs["endpoint_name"] == "fde-test"
 
-    def test_purge_passes_correct_paths(
+    async def test_purge_passes_correct_paths(
         self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content = AsyncMock()
         purger = AzureFrontDoorPurger(
             subscription_id="sub-123",
             resource_group="rg-test",
             profile_name="fd-test",
             endpoint_name="fde-test",
         )
-        purger.purge(["/published/abc/latest/*"])
+        await purger.purge(["/published/abc/latest/*"])
 
         contents = (
             mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.call_args.kwargs[
@@ -243,24 +254,28 @@ class TestAzureFrontDoorPurger:
         )
         assert contents.content_paths == ["/published/abc/latest/*"]
 
-    def test_purge_waits_for_completion(
+    async def test_purge_waits_for_completion(
         self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
+        poller = AsyncMock()
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content = AsyncMock(
+            return_value=poller
+        )
         purger = AzureFrontDoorPurger(
             subscription_id="sub-123",
             resource_group="rg-test",
             profile_name="fd-test",
             endpoint_name="fde-test",
         )
-        purger.purge(["/published/abc/latest/*"])
+        await purger.purge(["/published/abc/latest/*"])
 
-        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.return_value.wait.assert_called_once()
+        poller.wait.assert_called_once()
 
 
 class TestNoOpPurger:
-    def test_purge_does_nothing(self) -> None:
+    async def test_purge_does_nothing(self) -> None:
         purger = NoOpPurger()
-        purger.purge(["/published/abc/latest/*"])  # should not raise
+        await purger.purge(["/published/abc/latest/*"])  # should not raise
 
 
 class TestCreateCdnPurger:
