@@ -93,6 +93,18 @@ module "container_app_api" {
       value = azurerm_user_assigned_identity.api.client_id
     },
     {
+      name  = "TAXONOMY_BLOB_BACKEND"
+      value = "azure"
+    },
+    {
+      name  = "TAXONOMY_BLOB_AZURE_ACCOUNT_URL"
+      value = "https://${azurerm_storage_account.published.name}.blob.core.windows.net"
+    },
+    {
+      name  = "TAXONOMY_BLOB_AZURE_CONTAINER"
+      value = azurerm_storage_container.published.name
+    },
+    {
       name        = "TAXONOMY_DB_PASSWORD"
       secret_name = "db-password"
     },

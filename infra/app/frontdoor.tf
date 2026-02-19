@@ -42,6 +42,16 @@ resource "azurerm_cdn_frontdoor_origin_group" "api" {
   }
 }
 
+resource "azurerm_cdn_frontdoor_origin_group" "published" {
+  name                     = "published-origin-group"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+
+  load_balancing {
+    sample_size                 = 4
+    successful_samples_required = 3
+  }
+}
+
 resource "azurerm_cdn_frontdoor_origin_group" "keycloak" {
   name                     = "keycloak-origin-group"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
@@ -80,6 +90,18 @@ resource "azurerm_cdn_frontdoor_origin" "api" {
   http_port                      = 80
   https_port                     = 443
   origin_host_header             = data.azurerm_container_app.api.ingress[0].fqdn
+  certificate_name_check_enabled = true
+}
+
+resource "azurerm_cdn_frontdoor_origin" "published" {
+  name                          = "published-origin"
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
+
+  enabled                        = true
+  host_name                      = azurerm_storage_account.published.primary_blob_host
+  http_port                      = 80
+  https_port                     = 443
+  origin_host_header             = azurerm_storage_account.published.primary_blob_host
   certificate_name_check_enabled = true
 }
 
@@ -126,6 +148,21 @@ resource "azurerm_cdn_frontdoor_route" "api" {
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
 }
 
+resource "azurerm_cdn_frontdoor_route" "published" {
+  name                          = "published-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.published.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/published/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = true
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+}
+
 resource "azurerm_cdn_frontdoor_route" "keycloak" {
   name                          = "keycloak-route"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
@@ -158,6 +195,7 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
   cdn_frontdoor_route_ids = [
     azurerm_cdn_frontdoor_route.frontend.id,
     azurerm_cdn_frontdoor_route.api.id,
+    azurerm_cdn_frontdoor_route.published.id,
     azurerm_cdn_frontdoor_route.keycloak.id,
   ]
 }

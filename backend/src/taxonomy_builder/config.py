@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     # Core ontology file path
     core_ontology_path: str = _default_core_ontology_path()
 
+    # Blob storage
+    blob_backend: str = "filesystem"
+    blob_filesystem_root: str = "./.blob-storage"
+    blob_azure_account_url: str | None = None
+    blob_azure_container: str = "published"
+
     model_config = {"env_prefix": "TAXONOMY_"}
 
     @computed_field
