@@ -91,7 +91,8 @@ async def test_empty_project(db_session: AsyncSession, project: Project) -> None
 
     assert snapshot.concept_schemes == []
     assert snapshot.properties == []
-    assert snapshot.classes == []
+    # Only core ontology classes (no project-specific classes)
+    assert all(cls.scope_note is None for cls in snapshot.classes)
 
 
 @pytest.mark.asyncio
@@ -279,14 +280,14 @@ async def test_classes_from_project(db_session: AsyncSession, project: Project) 
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert len(snapshot.classes) == 2
-    classes_by_label = {c.label: c for c in snapshot.classes}
-    assert classes_by_label["Finding"].id == cls1.id
-    assert classes_by_label["Finding"].identifier == "Finding"
-    assert classes_by_label["Finding"].uri == "http://example.org/vocab/Finding"
-    assert classes_by_label["Finding"].description == "A finding"
-    assert classes_by_label["Finding"].scope_note == "Use for findings"
-    assert classes_by_label["Study"].id == cls2.id
+    assert len(snapshot.classes) >= 2
+    classes_by_id = {c.id: c for c in snapshot.classes}
+    finding = classes_by_id[cls1.id]
+    assert finding.identifier == "Finding"
+    assert finding.uri == "http://example.org/vocab/Finding"
+    assert finding.description == "A finding"
+    assert finding.scope_note == "Use for findings"
+    assert cls2.id in classes_by_id
 
 
 @pytest.mark.asyncio
@@ -388,7 +389,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     assert len(snapshot.properties) == 1
     assert snapshot.properties[0].identifier == "topic"
 
-    # One class from project ontology classes
-    assert len(snapshot.classes) == 1
-    assert snapshot.classes[0].id == ont_cls.id
-    assert snapshot.classes[0].uri == "http://example.org/vocab/Finding"
+    # Project ontology class is included (alongside core ontology classes)
+    project_classes = [c for c in snapshot.classes if c.id == ont_cls.id]
+    assert len(project_classes) == 1
+    assert project_classes[0].uri == "http://example.org/vocab/Finding"
