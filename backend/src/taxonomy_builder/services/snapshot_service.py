@@ -241,11 +241,33 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
     return errors
 
 
-def _field_changes(prev, curr, exclude: set[str]) -> list[FieldChange]:
+def _resolve_change(field: str, old, new, labels: dict[UUID, str]) -> FieldChange:
+    """Turn a raw field diff into a FieldChange, resolving IDs to labels."""
+    if field.endswith("_ids"):
+        return FieldChange(
+            field=field.removesuffix("_ids"),
+            old=", ".join(sorted(labels.get(v, str(v)) for v in old)) if old else "",
+            new=", ".join(sorted(labels.get(v, str(v)) for v in new)) if new else "",
+        )
+    if field.endswith("_id"):
+        return FieldChange(
+            field=field.removesuffix("_id"),
+            old=labels.get(old, str(old)) if old else None,
+            new=labels.get(new, str(new)) if new else None,
+        )
+    return FieldChange(field=field, old=str(old), new=str(new))
+
+
+def _field_changes(
+    prev,
+    curr,
+    exclude: set[str],
+    labels: dict[UUID, str] | None = None,
+) -> list[FieldChange]:
     prev_data = prev.model_dump(exclude=exclude)
     curr_data = curr.model_dump(exclude=exclude)
     return [
-        FieldChange(field=f, old=str(prev_data[f]), new=str(curr_data[f]))
+        _resolve_change(f, prev_data[f], curr_data[f], labels or {})
         for f in prev_data
         if prev_data[f] != curr_data[f]
     ]
@@ -256,6 +278,16 @@ def compute_diff(
     current: SnapshotVocabulary,
 ) -> DiffResult:
     """Diff two snapshots, returning added/modified/removed items."""
+    # Build label lookup for resolving IDs in relationship fields
+    labels: dict[UUID, str] = {}
+    for snap in (previous, current):
+        if snap is None:
+            continue
+        for scheme in snap.concept_schemes:
+            labels[scheme.id] = scheme.title
+            for concept in scheme.concepts or []:
+                labels[concept.id] = concept.pref_label
+
     prev_schemes = {s.id: s for s in previous.concept_schemes} if previous else {}
     curr_schemes = {s.id: s for s in current.concept_schemes}
     prev_props = {p.id: p for p in previous.properties} if previous else {}
@@ -372,7 +404,7 @@ def compute_diff(
             for concept_id in prev_concepts.keys() & curr_concepts.keys()
             if (
                 changes := _field_changes(
-                    prev_concepts[concept_id], curr_concepts[concept_id], {"id"}
+                    prev_concepts[concept_id], curr_concepts[concept_id], {"id"}, labels
                 )
             )
         ]
@@ -385,7 +417,7 @@ def compute_diff(
                 changes=changes,
             )
             for prev_property, curr_property in modified_properties
-            if (changes := _field_changes(prev_property, curr_property, {"id"}))
+            if (changes := _field_changes(prev_property, curr_property, {"id"}, labels))
         ]
         # Modified classes
         + [
