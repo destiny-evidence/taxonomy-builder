@@ -325,3 +325,129 @@ class TestClassDiff:
         cls = _class("Same", "http://example.org/Doc", id=cid)
         result = compute_diff(_vocab(classes=[cls]), _vocab(classes=[cls]))
         assert result.modified == []
+
+
+class TestRelationshipLabelResolution:
+    """Relationship fields should show human-readable labels, not UUIDs."""
+
+    def test_broader_change_shows_labels(self) -> None:
+        """broader_ids diff should resolve to pref_labels."""
+        scheme_id = uuid4()
+        parent_a = _concept("Animal", id=uuid4(), uri="http://ex.org/animal")
+        parent_b = _concept("Plant", id=uuid4(), uri="http://ex.org/plant")
+        child_id = uuid4()
+
+        prev_child = _concept(
+            "Dog", id=child_id, uri="http://ex.org/dog", broader_ids=[parent_a.id]
+        )
+        curr_child = _concept(
+            "Dog", id=child_id, uri="http://ex.org/dog", broader_ids=[parent_b.id]
+        )
+
+        prev = _vocab(_scheme("S", id=scheme_id, concepts=[parent_a, parent_b, prev_child]))
+        curr = _vocab(_scheme("S", id=scheme_id, concepts=[parent_a, parent_b, curr_child]))
+        result = compute_diff(prev, curr)
+
+        assert len(result.modified) == 1
+        changes = {c.field: c for c in result.modified[0].changes}
+        assert "broader" in changes
+        assert "broader_ids" not in changes
+        assert changes["broader"].old == "Animal"
+        assert changes["broader"].new == "Plant"
+
+    def test_broader_change_multiple_labels_sorted(self) -> None:
+        """Multiple broader labels should be sorted and comma-separated."""
+        scheme_id = uuid4()
+        a = _concept("Alpha", id=uuid4(), uri="http://ex.org/a")
+        b = _concept("Beta", id=uuid4(), uri="http://ex.org/b")
+        c = _concept("Gamma", id=uuid4(), uri="http://ex.org/c")
+        child_id = uuid4()
+
+        prev_child = _concept(
+            "X", id=child_id, uri="http://ex.org/x", broader_ids=[b.id, a.id]
+        )
+        curr_child = _concept(
+            "X", id=child_id, uri="http://ex.org/x", broader_ids=[c.id, a.id]
+        )
+
+        prev = _vocab(_scheme("S", id=scheme_id, concepts=[a, b, c, prev_child]))
+        curr = _vocab(_scheme("S", id=scheme_id, concepts=[a, b, c, curr_child]))
+        result = compute_diff(prev, curr)
+
+        changes = {c.field: c for c in result.modified[0].changes}
+        assert changes["broader"].old == "Alpha, Beta"
+        assert changes["broader"].new == "Alpha, Gamma"
+
+    def test_related_change_shows_labels(self) -> None:
+        """related_ids diff should resolve to pref_labels."""
+        scheme_id = uuid4()
+        rel_a = _concept("Color", id=uuid4(), uri="http://ex.org/color")
+        rel_b = _concept("Shape", id=uuid4(), uri="http://ex.org/shape")
+        concept_id = uuid4()
+
+        prev_concept = _concept(
+            "Thing", id=concept_id, uri="http://ex.org/thing", related_ids=[rel_a.id]
+        )
+        curr_concept = _concept(
+            "Thing", id=concept_id, uri="http://ex.org/thing", related_ids=[rel_b.id]
+        )
+
+        prev = _vocab(_scheme("S", id=scheme_id, concepts=[rel_a, rel_b, prev_concept]))
+        curr = _vocab(_scheme("S", id=scheme_id, concepts=[rel_a, rel_b, curr_concept]))
+        result = compute_diff(prev, curr)
+
+        changes = {c.field: c for c in result.modified[0].changes}
+        assert "related" in changes
+        assert "related_ids" not in changes
+        assert changes["related"].old == "Color"
+        assert changes["related"].new == "Shape"
+
+    def test_range_scheme_change_shows_title_and_uri(self) -> None:
+        """range_scheme_id diff should show both scheme title and URI."""
+        scheme_a = _scheme("Materials", id=uuid4(), uri="http://ex.org/materials")
+        scheme_b = _scheme("Colors", id=uuid4(), uri="http://ex.org/colors")
+        pid = uuid4()
+
+        prev_prop = _property(
+            "hasMaterial", id=pid, uri="http://ex.org/hasMaterial",
+            range_scheme_id=scheme_a.id, range_scheme_uri=scheme_a.uri,
+        )
+        curr_prop = _property(
+            "hasMaterial", id=pid, uri="http://ex.org/hasMaterial",
+            range_scheme_id=scheme_b.id, range_scheme_uri=scheme_b.uri,
+        )
+
+        prev = _vocab(scheme_a, scheme_b, properties=[prev_prop])
+        curr = _vocab(scheme_a, scheme_b, properties=[curr_prop])
+        result = compute_diff(prev, curr)
+
+        changes = {c.field: c for c in result.modified[0].changes}
+        assert "range_scheme" in changes
+        assert "range_scheme_id" not in changes
+        assert changes["range_scheme"].old == "Materials"
+        assert changes["range_scheme"].new == "Colors"
+        # URI shown separately
+        assert "range_scheme_uri" in changes
+        assert changes["range_scheme_uri"].old == "http://ex.org/materials"
+        assert changes["range_scheme_uri"].new == "http://ex.org/colors"
+
+    def test_broader_removed_entirely(self) -> None:
+        """Going from some broader concepts to none."""
+        scheme_id = uuid4()
+        parent = _concept("Animal", id=uuid4(), uri="http://ex.org/animal")
+        child_id = uuid4()
+
+        prev_child = _concept(
+            "Dog", id=child_id, uri="http://ex.org/dog", broader_ids=[parent.id]
+        )
+        curr_child = _concept(
+            "Dog", id=child_id, uri="http://ex.org/dog", broader_ids=[]
+        )
+
+        prev = _vocab(_scheme("S", id=scheme_id, concepts=[parent, prev_child]))
+        curr = _vocab(_scheme("S", id=scheme_id, concepts=[parent, curr_child]))
+        result = compute_diff(prev, curr)
+
+        changes = {c.field: c for c in result.modified[0].changes}
+        assert changes["broader"].old == "Animal"
+        assert changes["broader"].new == ""
