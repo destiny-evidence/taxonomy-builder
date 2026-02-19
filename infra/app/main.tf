@@ -1,5 +1,3 @@
-data "azurerm_subscription" "current" {}
-
 # Shared container registry
 data "azurerm_container_registry" "this" {
   name                = var.container_registry_name
