@@ -43,6 +43,7 @@ export interface ImportPreview {
   properties: PropertyPreview[];
   classes_count: number;
   properties_count: number;
+  warnings: string[];
   errors: string[];
 }
 

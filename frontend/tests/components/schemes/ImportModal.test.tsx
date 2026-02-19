@@ -51,6 +51,7 @@ describe("ImportModal", () => {
     properties: [],
     classes_count: 0,
     properties_count: 0,
+    warnings: [],
     errors: [],
   };
 

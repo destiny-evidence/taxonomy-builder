@@ -346,7 +346,7 @@ async def test_preview_unsupported_format(
 async def test_preview_scheme_uri_conflict(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
-    """Test that existing scheme with same URI raises conflict error."""
+    """Test that existing scheme with same URI is skipped in preview."""
     # Create existing scheme with same URI
     existing = ConceptScheme(
         project_id=project.id,
@@ -356,8 +356,9 @@ async def test_preview_scheme_uri_conflict(
     db_session.add(existing)
     await db_session.flush()
 
-    with pytest.raises(SchemeURIConflictError):
-        await import_service.preview(project.id, SIMPLE_SCHEME_TTL, "test.ttl")
+    result = await import_service.preview(project.id, SIMPLE_SCHEME_TTL, "test.ttl")
+    # Scheme should be skipped (already exists), so 0 new schemes
+    assert len(result.schemes) == 0
 
 
 # Execute tests
