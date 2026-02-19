@@ -29,6 +29,7 @@ def _scheme(**overrides) -> dict:
     defaults = {
         "id": "00000000-0000-0000-0000-000000000010",
         "title": "Test Scheme",
+        "uri": "http://example.org/scheme",
     }
     return {**defaults, **overrides}
 

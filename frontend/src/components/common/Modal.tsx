@@ -7,9 +7,10 @@ interface ModalProps {
   title: string;
   children: ComponentChildren;
   onClose: () => void;
+  size?: "default" | "wide";
 }
 
-export function Modal({ isOpen, title, children, onClose }: ModalProps) {
+export function Modal({ isOpen, title, children, onClose, size = "default" }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export function Modal({ isOpen, title, children, onClose }: ModalProps) {
   };
 
   return (
-    <dialog ref={dialogRef} class="modal" onClick={handleBackdropClick}>
+    <dialog ref={dialogRef} class={`modal ${size === "wide" ? "modal--wide" : ""}`} onClick={handleBackdropClick}>
       <div class="modal__content">
         <header class="modal__header">
           <h2 class="modal__title">{title}</h2>

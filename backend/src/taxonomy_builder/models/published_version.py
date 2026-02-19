@@ -7,6 +7,7 @@ from uuid import UUID, uuid7
 from sqlalchemy import (
     Boolean,
     Computed,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -28,18 +29,12 @@ if TYPE_CHECKING:
 
 
 class PublishedVersion(Base):
-    """A published (or draft) snapshot of a project's vocabulary."""
+    """A published snapshot of a project's vocabulary (release or pre-release)."""
 
     __tablename__ = "published_versions"
     __table_args__ = (
         UniqueConstraint(
             "project_id", "version", name="uq_published_version_per_project"
-        ),
-        Index(
-            "ix_one_draft_per_project",
-            "project_id",
-            unique=True,
-            postgresql_where="NOT finalized",
         ),
         Index(
             "ix_latest_version_lookup",
@@ -57,7 +52,9 @@ class PublishedVersion(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    published_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     previous_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("published_versions.id", ondelete="SET NULL"), nullable=True
     )
@@ -65,7 +62,15 @@ class PublishedVersion(Base):
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
     version_sort_key: Mapped[list[int]] = mapped_column(
         PG_ARRAY(Integer),
-        Computed("string_to_array(version, '.')::int[]", persisted=True),
+        Computed(
+            "CASE WHEN version LIKE '%%-pre%%' THEN"
+            " string_to_array(split_part(version, '-pre', 1), '.')::int[]"
+            " || ARRAY[split_part(version, '-pre', 2)::int]"
+            " ELSE"
+            " string_to_array(version, '.')::int[] || ARRAY[2147483647]"
+            " END",
+            persisted=True,
+        ),
     )
 
     project: Mapped["Project"] = relationship(lazy="selectin")
