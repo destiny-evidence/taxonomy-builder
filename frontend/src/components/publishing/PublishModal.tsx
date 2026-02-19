@@ -32,7 +32,6 @@ export function PublishModal({
 
   // Form fields
   const [version, setVersion] = useState("");
-  const [preSuffix, setPreSuffix] = useState("");
   const [preRelease, setPreRelease] = useState(false);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -74,7 +73,6 @@ export function PublishModal({
     setVersions([]);
     setError(null);
     setVersion("");
-    setPreSuffix("");
     setPreRelease(false);
     setTitle("");
     setNotes("");
@@ -88,11 +86,9 @@ export function PublishModal({
     setSubmitting(true);
     setError(null);
 
-    const fullVersion = preRelease ? version + preSuffix : version;
-
     try {
       const result = await publishingApi.publish(projectId, {
-        version: fullVersion,
+        version,
         title,
         notes: notes || null,
         pre_release: preRelease,
@@ -107,8 +103,10 @@ export function PublishModal({
   }
 
   const isValid = preview?.validation.valid ?? false;
-  const VERSION_PATTERN = /^\d+(\.\d+)+$/;
-  const versionFormatValid = version.trim() === "" || VERSION_PATTERN.test(version.trim());
+  const RELEASE_PATTERN = /^\d+(\.\d+)+$/;
+  const PRE_RELEASE_PATTERN = /^\d+(\.\d+)+-pre\d+$/;
+  const versionPattern = preRelease ? PRE_RELEASE_PATTERN : RELEASE_PATTERN;
+  const versionFormatValid = version.trim() === "" || versionPattern.test(version.trim());
   const canPublish =
     isValid && version.trim() !== "" && versionFormatValid && title.trim() !== "" && !submitting;
 
@@ -157,21 +155,11 @@ export function PublishModal({
                             const checked = (e.target as HTMLInputElement)
                               .checked;
                             setPreRelease(checked);
-                            if (checked) {
-                              const suggested =
-                                preview?.suggested_pre_release_version ?? "";
-                              const dashPre = suggested.indexOf("-pre");
-                              if (dashPre !== -1) {
-                                setVersion(suggested.slice(0, dashPre));
-                                setPreSuffix(suggested.slice(dashPre));
-                              } else {
-                                setVersion(suggested);
-                                setPreSuffix("");
-                              }
-                            } else {
-                              setVersion(preview?.suggested_version ?? "");
-                              setPreSuffix("");
-                            }
+                            setVersion(
+                              checked
+                                ? (preview?.suggested_pre_release_version ?? "")
+                                : (preview?.suggested_version ?? ""),
+                            );
                           }}
                         />
                         Pre-release
@@ -193,25 +181,20 @@ export function PublishModal({
                       <label class="publish-modal__label" for="publish-version">
                         Version
                       </label>
-                      <div class="publish-modal__version-group">
-                        <input
-                          id="publish-version"
-                          type="text"
-                          class="publish-modal__input publish-modal__version-input"
-                          value={version}
-                          onInput={(e) =>
-                            setVersion((e.target as HTMLInputElement).value)
-                          }
-                        />
-                        {preRelease && preSuffix && (
-                          <span class="publish-modal__version-suffix">
-                            {preSuffix}
-                          </span>
-                        )}
-                      </div>
+                      <input
+                        id="publish-version"
+                        type="text"
+                        class="publish-modal__input publish-modal__version-input"
+                        value={version}
+                        onInput={(e) =>
+                          setVersion((e.target as HTMLInputElement).value)
+                        }
+                      />
                       {!versionFormatValid && (
                         <span class="publish-modal__version-error">
-                          Version must be like 1.0 or 2.1.3
+                          {preRelease
+                            ? "Version must be like 2.0-pre1"
+                            : "Version must be like 1.0 or 2.1.3"}
                         </span>
                       )}
                       {(preview.latest_version ||
@@ -280,7 +263,7 @@ export function PublishModal({
                 <p>
                   You are about to publish{" "}
                   {preRelease ? "pre-release " : ""}version{" "}
-                  <strong>{preRelease ? version + preSuffix : version}</strong> — {title}.
+                  <strong>{version}</strong> — {title}.
                 </p>
                 <p class="publish-modal__confirm-warning">
                   Published versions are immutable and cannot be changed.

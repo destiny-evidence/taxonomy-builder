@@ -265,11 +265,9 @@ describe("PublishModal", () => {
 
       fireEvent.click(screen.getByLabelText("Pre-release"));
 
-      // Input shows base version, suffix is shown separately
       expect(
         (screen.getByLabelText("Version") as HTMLInputElement).value
-      ).toBe("2.0");
-      expect(screen.getByText("-pre1")).toBeInTheDocument();
+      ).toBe("2.0-pre1");
     });
 
     it("allows manual version override", async () => {
@@ -346,12 +344,11 @@ describe("PublishModal", () => {
         (screen.getByLabelText("Version") as HTMLInputElement).value
       ).toBe("99.99");
 
-      // Toggle pre-release on — resets to pre-release suggestion (base only in input)
+      // Toggle pre-release on — resets to pre-release suggestion
       fireEvent.click(screen.getByLabelText("Pre-release"));
       expect(
         (screen.getByLabelText("Version") as HTMLInputElement).value
-      ).toBe("2.0");
-      expect(screen.getByText("-pre1")).toBeInTheDocument();
+      ).toBe("2.0-pre1");
 
       // Toggle pre-release off — resets to release suggestion
       fireEvent.click(screen.getByLabelText("Pre-release"));
