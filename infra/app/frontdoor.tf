@@ -161,6 +161,41 @@ resource "azurerm_cdn_frontdoor_route" "published" {
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+  cdn_frontdoor_rule_set_ids      = [azurerm_cdn_frontdoor_rule_set.published_cache.id]
+
+  cache {
+    query_string_caching_behavior = "IgnoreQueryString"
+    compression_enabled           = true
+    content_types_to_compress     = ["application/json"]
+  }
+}
+
+# Cache rule set for published content — 365-day TTL, purged on publish
+resource "azurerm_cdn_frontdoor_rule_set" "published_cache" {
+  name                     = "publishedcache"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+}
+
+resource "azurerm_cdn_frontdoor_rule" "cache_published" {
+  name                      = "CachePublished"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.published_cache.id
+  order                     = 1
+
+  actions {
+    route_configuration_override_action {
+      cache_behavior                = "OverrideAlways"
+      cache_duration                = "365.00:00:00"
+      compression_enabled           = true
+      query_string_caching_behavior = "IgnoreQueryString"
+    }
+  }
+}
+
+# API identity needs permission to purge cached content on publish
+resource "azurerm_role_assignment" "api_cdn_purger" {
+  role_definition_name = "CDN Endpoint Contributor"
+  scope                = azurerm_cdn_frontdoor_profile.this.id
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
 }
 
 resource "azurerm_cdn_frontdoor_route" "keycloak" {

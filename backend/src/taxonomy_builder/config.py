@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     blob_azure_account_url: str | None = None
     blob_azure_container: str = "published"
 
+    # CDN cache purge (Azure Front Door)
+    cdn_subscription_id: str | None = None
+    cdn_resource_group: str | None = None
+    cdn_profile_name: str | None = None
+    cdn_endpoint_name: str | None = None
+
     model_config = {"env_prefix": "TAXONOMY_"}
 
     @computed_field

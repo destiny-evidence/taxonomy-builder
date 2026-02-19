@@ -1,3 +1,5 @@
+data "azurerm_subscription" "current" {}
+
 # Shared container registry
 data "azurerm_container_registry" "this" {
   name                = var.container_registry_name
@@ -103,6 +105,22 @@ module "container_app_api" {
     {
       name  = "TAXONOMY_BLOB_AZURE_CONTAINER"
       value = azurerm_storage_container.published.name
+    },
+    {
+      name  = "TAXONOMY_CDN_SUBSCRIPTION_ID"
+      value = data.azurerm_subscription.current.subscription_id
+    },
+    {
+      name  = "TAXONOMY_CDN_RESOURCE_GROUP"
+      value = azurerm_resource_group.this.name
+    },
+    {
+      name  = "TAXONOMY_CDN_PROFILE_NAME"
+      value = azurerm_cdn_frontdoor_profile.this.name
+    },
+    {
+      name  = "TAXONOMY_CDN_ENDPOINT_NAME"
+      value = azurerm_cdn_frontdoor_endpoint.this.name
     },
     {
       name        = "TAXONOMY_DB_PASSWORD"

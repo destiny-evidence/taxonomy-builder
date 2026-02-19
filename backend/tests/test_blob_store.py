@@ -6,7 +6,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
 
-from taxonomy_builder.blob_store import AzureBlobStore, FilesystemBlobStore, create_blob_store
+from taxonomy_builder.blob_store import (
+    AzureBlobStore,
+    AzureFrontDoorPurger,
+    FilesystemBlobStore,
+    NoOpPurger,
+    create_blob_store,
+    create_cdn_purger,
+)
 from taxonomy_builder.config import Settings
 
 
@@ -194,3 +201,94 @@ class TestCreateBlobStore:
         settings = Settings(blob_backend="azure", blob_azure_account_url=None)
         with pytest.raises(ValueError, match="TAXONOMY_BLOB_AZURE_ACCOUNT_URL"):
             create_blob_store(settings)
+
+
+@patch("taxonomy_builder.blob_store.DefaultAzureCredential")
+@patch("taxonomy_builder.blob_store.CdnManagementClient")
+class TestAzureFrontDoorPurger:
+    def test_purge_calls_begin_purge_content(
+        self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
+    ) -> None:
+        purger = AzureFrontDoorPurger(
+            subscription_id="sub-123",
+            resource_group="rg-test",
+            profile_name="fd-test",
+            endpoint_name="fde-test",
+        )
+        purger.purge(["/published/abc/latest/*", "/published/abc/index.json"])
+
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.assert_called_once()
+        call_kwargs = (
+            mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.call_args.kwargs
+        )
+        assert call_kwargs["resource_group_name"] == "rg-test"
+        assert call_kwargs["profile_name"] == "fd-test"
+        assert call_kwargs["endpoint_name"] == "fde-test"
+
+    def test_purge_passes_correct_paths(
+        self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
+    ) -> None:
+        purger = AzureFrontDoorPurger(
+            subscription_id="sub-123",
+            resource_group="rg-test",
+            profile_name="fd-test",
+            endpoint_name="fde-test",
+        )
+        purger.purge(["/published/abc/latest/*"])
+
+        contents = (
+            mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.call_args.kwargs[
+                "contents"
+            ]
+        )
+        assert contents.content_paths == ["/published/abc/latest/*"]
+
+    def test_purge_waits_for_completion(
+        self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
+    ) -> None:
+        purger = AzureFrontDoorPurger(
+            subscription_id="sub-123",
+            resource_group="rg-test",
+            profile_name="fd-test",
+            endpoint_name="fde-test",
+        )
+        purger.purge(["/published/abc/latest/*"])
+
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.return_value.wait.assert_called_once()
+
+
+class TestNoOpPurger:
+    def test_purge_does_nothing(self) -> None:
+        purger = NoOpPurger()
+        purger.purge(["/published/abc/latest/*"])  # should not raise
+
+
+class TestCreateCdnPurger:
+    def test_returns_noop_for_filesystem_backend(self) -> None:
+        settings = Settings(blob_backend="filesystem")
+        purger = create_cdn_purger(settings)
+        assert isinstance(purger, NoOpPurger)
+
+    @patch("taxonomy_builder.blob_store.DefaultAzureCredential")
+    @patch("taxonomy_builder.blob_store.CdnManagementClient")
+    def test_returns_azure_purger_when_cdn_settings_present(
+        self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
+    ) -> None:
+        settings = Settings(
+            blob_backend="azure",
+            blob_azure_account_url="https://acct.blob.core.windows.net",
+            cdn_subscription_id="sub-123",
+            cdn_resource_group="rg-test",
+            cdn_profile_name="fd-test",
+            cdn_endpoint_name="fde-test",
+        )
+        purger = create_cdn_purger(settings)
+        assert isinstance(purger, AzureFrontDoorPurger)
+
+    def test_returns_noop_when_azure_but_cdn_settings_missing(self) -> None:
+        settings = Settings(
+            blob_backend="azure",
+            blob_azure_account_url="https://acct.blob.core.windows.net",
+        )
+        purger = create_cdn_purger(settings)
+        assert isinstance(purger, NoOpPurger)

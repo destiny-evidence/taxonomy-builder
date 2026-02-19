@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
+from azure.mgmt.cdn import CdnManagementClient
+from azure.mgmt.cdn.models import AfdPurgeParameters
 from azure.storage.blob import BlobServiceClient, ContentSettings
 
 if TYPE_CHECKING:
@@ -111,6 +113,48 @@ class AzureBlobStore:
         return [b.name for b in self._container.list_blobs(name_starts_with=prefix)]
 
 
+@runtime_checkable
+class CdnPurger(Protocol):
+    """Interface for purging CDN-cached paths."""
+
+    def purge(self, paths: list[str]) -> None:
+        """Purge the given paths from the CDN cache."""
+        ...
+
+
+class AzureFrontDoorPurger:
+    """Purges paths from Azure Front Door cache."""
+
+    def __init__(
+        self,
+        subscription_id: str,
+        resource_group: str,
+        profile_name: str,
+        endpoint_name: str,
+    ) -> None:
+        credential = DefaultAzureCredential()
+        self._client = CdnManagementClient(credential, subscription_id)
+        self._resource_group = resource_group
+        self._profile_name = profile_name
+        self._endpoint_name = endpoint_name
+
+    def purge(self, paths: list[str]) -> None:
+        poller = self._client.afd_endpoints.begin_purge_content(
+            resource_group_name=self._resource_group,
+            profile_name=self._profile_name,
+            endpoint_name=self._endpoint_name,
+            contents=AfdPurgeParameters(content_paths=paths),
+        )
+        poller.wait()
+
+
+class NoOpPurger:
+    """No-op purger for local dev (Caddy doesn't cache)."""
+
+    def purge(self, paths: list[str]) -> None:
+        pass
+
+
 _blob_store: BlobStore | None = None
 
 
@@ -137,3 +181,34 @@ def create_blob_store(settings: Settings) -> BlobStore:
         )
     else:
         raise ValueError(f"Unknown blob_backend: {settings.blob_backend}")
+
+
+_cdn_purger: CdnPurger | None = None
+
+
+def init_cdn_purger(settings: Settings) -> None:
+    global _cdn_purger
+    _cdn_purger = create_cdn_purger(settings)
+
+
+def get_cdn_purger() -> CdnPurger:
+    if _cdn_purger is None:
+        raise RuntimeError("CDN purger not initialized")
+    return _cdn_purger
+
+
+def create_cdn_purger(settings: Settings) -> CdnPurger:
+    if (
+        settings.blob_backend == "azure"
+        and settings.cdn_subscription_id
+        and settings.cdn_resource_group
+        and settings.cdn_profile_name
+        and settings.cdn_endpoint_name
+    ):
+        return AzureFrontDoorPurger(
+            subscription_id=settings.cdn_subscription_id,
+            resource_group=settings.cdn_resource_group,
+            profile_name=settings.cdn_profile_name,
+            endpoint_name=settings.cdn_endpoint_name,
+        )
+    return NoOpPurger()
