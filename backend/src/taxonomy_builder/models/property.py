@@ -11,6 +11,7 @@ from taxonomy_builder.database import Base, UrlString
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.concept_scheme import ConceptScheme
+    from taxonomy_builder.models.ontology_class import OntologyClass
     from taxonomy_builder.models.project import Project
 
 
@@ -37,11 +38,14 @@ class Property(Base):
     # Domain: the ontology class this property applies to
     domain_class: Mapped[str] = mapped_column(UrlString(), nullable=False)
 
-    # Range: either a concept scheme or a datatype (exactly one must be set)
+    # Range: a concept scheme, a datatype, or an ontology class
     range_scheme_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("concept_schemes.id", ondelete="RESTRICT"), nullable=True
     )
     range_datatype: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    range_class_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("ontology_classes.id", ondelete="RESTRICT"), nullable=True
+    )
 
     # Cardinality and optionality
     cardinality: Mapped[str] = mapped_column(String(20), nullable=False)  # 'single' or 'multiple'
@@ -54,6 +58,7 @@ class Property(Base):
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="properties", lazy="selectin")
     range_scheme: Mapped["ConceptScheme | None"] = relationship(lazy="selectin")
+    range_class: Mapped["OntologyClass | None"] = relationship(lazy="selectin")
 
     @property
     def uri(self) -> str | None:

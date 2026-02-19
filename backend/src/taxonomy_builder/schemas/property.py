@@ -29,6 +29,7 @@ class PropertyCreate(BaseModel):
     domain_class: str = Field(..., max_length=2048)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
+    range_class_id: UUID | None = None
     cardinality: Literal["single", "multiple"]
     required: bool = False
 
@@ -65,6 +66,7 @@ class PropertyUpdate(BaseModel):
     domain_class: str | None = Field(default=None, max_length=2048)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
+    range_class_id: UUID | None = None
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
 
@@ -102,6 +104,17 @@ class ConceptSchemeBrief(BaseModel):
     uri: str | None
 
 
+class OntologyClassBrief(BaseModel):
+    """Brief class info for nested property responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    identifier: str
+    label: str
+    uri: str | None
+
+
 class PropertyRead(BaseModel):
     """Schema for reading a property."""
 
@@ -116,6 +129,8 @@ class PropertyRead(BaseModel):
     range_scheme_id: UUID | None
     range_scheme: ConceptSchemeBrief | None
     range_datatype: str | None
+    range_class_id: UUID | None
+    range_class: OntologyClassBrief | None
     cardinality: str
     required: bool
     uri: str | None
