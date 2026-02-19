@@ -1,7 +1,7 @@
 """semver suffix and tz-aware datetime
 
 Revision ID: c6371081056f
-Revises: 7e9830fce9b3
+Revises: 70a40f327144
 Create Date: 2026-02-19 11:22:16.601296
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "c6371081056f"
-down_revision: Union[str, Sequence[str], None] = "7e9830fce9b3"
+down_revision: Union[str, Sequence[str], None] = "70a40f327144"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
