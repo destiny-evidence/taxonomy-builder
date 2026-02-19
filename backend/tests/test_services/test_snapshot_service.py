@@ -1,6 +1,5 @@
 """Tests for the SnapshotService."""
 
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -10,11 +9,11 @@ from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.concept_service import ConceptService
-from taxonomy_builder.services.core_ontology_service import CoreOntology, OntologyClass
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
@@ -258,46 +257,36 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
 
 
 @pytest.mark.asyncio
-async def test_classes_filtered_by_properties(db_session: AsyncSession, project: Project) -> None:
-    """Test that only ontology classes referenced by properties are included."""
-    prop = Property(
+async def test_classes_from_project(db_session: AsyncSession, project: Project) -> None:
+    """Test that snapshot classes come from project ontology classes."""
+    cls1 = OntologyClass(
         project_id=project.id,
-        identifier="prop1",
-        label="Prop 1",
-        domain_class="http://example.org/vocab/Finding",
-        range_datatype="xsd:string",
-        cardinality="single",
-        required=False,
+        identifier="Finding",
+        label="Finding",
+        description="A finding",
+        scope_note="Use for findings",
     )
-    db_session.add(prop)
+    cls2 = OntologyClass(
+        project_id=project.id,
+        identifier="Study",
+        label="Study",
+        description="A study",
+    )
+    db_session.add_all([cls1, cls2])
     await db_session.flush()
+    await db_session.refresh(cls1)
+    await db_session.refresh(cls2)
 
-    mock_ontology = CoreOntology(
-        classes=[
-            OntologyClass(
-                uri="http://example.org/vocab/Finding",
-                label="Finding",
-                comment="A finding",
-            ),
-            OntologyClass(
-                uri="http://example.org/vocab/Study",
-                label="Study",
-                comment="A study",
-            ),
-        ]
-    )
+    snapshot = await service(db_session).build_snapshot(project.id)
 
-    with patch(
-        "taxonomy_builder.services.snapshot_service.get_core_ontology",
-        return_value=mock_ontology,
-    ):
-        snapshot = await service(db_session).build_snapshot(project.id)
-
-    assert len(snapshot.classes) == 1
-    cls = snapshot.classes[0]
-    assert cls.uri == "http://example.org/vocab/Finding"
-    assert cls.label == "Finding"
-    assert cls.description == "A finding"
+    assert len(snapshot.classes) == 2
+    classes_by_label = {c.label: c for c in snapshot.classes}
+    assert classes_by_label["Finding"].id == cls1.id
+    assert classes_by_label["Finding"].identifier == "Finding"
+    assert classes_by_label["Finding"].uri == "http://example.org/vocab/Finding"
+    assert classes_by_label["Finding"].description == "A finding"
+    assert classes_by_label["Finding"].scope_note == "Use for findings"
+    assert classes_by_label["Study"].id == cls2.id
 
 
 @pytest.mark.asyncio
@@ -350,6 +339,17 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     db_session.add(standalone)
     await db_session.flush()
 
+    # Create ontology class
+    ont_cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        description="A finding",
+    )
+    db_session.add(ont_cls)
+    await db_session.flush()
+    await db_session.refresh(ont_cls)
+
     # Create property
     prop = Property(
         project_id=project.id,
@@ -363,21 +363,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     db_session.add(prop)
     await db_session.flush()
 
-    mock_ontology = CoreOntology(
-        classes=[
-            OntologyClass(
-                uri="http://example.org/vocab/Finding",
-                label="Finding",
-                comment="A finding",
-            ),
-        ]
-    )
-
-    with patch(
-        "taxonomy_builder.services.snapshot_service.get_core_ontology",
-        return_value=mock_ontology,
-    ):
-        snapshot = await service(db_session).build_snapshot(project.id)
+    snapshot = await service(db_session).build_snapshot(project.id)
 
     # Project metadata is self-contained
     assert snapshot.project.name == "Snapshot Test Project"
@@ -402,6 +388,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     assert len(snapshot.properties) == 1
     assert snapshot.properties[0].identifier == "topic"
 
-    # One class
+    # One class from project ontology classes
     assert len(snapshot.classes) == 1
+    assert snapshot.classes[0].id == ont_cls.id
     assert snapshot.classes[0].uri == "http://example.org/vocab/Finding"

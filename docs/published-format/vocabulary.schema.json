@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/vocabulary.schema.json",
+  "title": "Published Vocabulary",
+  "description": "Complete vocabulary data for one published version. Concepts are nested under their scheme; classes and properties are top-level. Cross-references use IDs and URIs. Immutable once published. Served at /{project-id}/{version}/vocabulary.json.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "version",
+    "title",
+    "published_at",
+    "pre_release",
+    "project",
+    "schemes",
+    "classes",
+    "properties"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forwards compatibility."
+    },
+    "version": {
+      "type": "string",
+      "description": "Version string (e.g. \"1.0\", \"2.0-pre1\").",
+      "pattern": "^\\d+(\\.\\d+)+(-pre\\d+)?$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable version title."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of when this version was published."
+    },
+    "publisher": {
+      "type": ["string", "null"],
+      "description": "Display name of the user who published this version."
+    },
+    "pre_release": {
+      "type": "boolean",
+      "description": "True for pre-releases, false for finalized releases."
+    },
+    "project": {
+      "type": "object",
+      "description": "Project metadata as captured at publish time.",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Project UUID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable project name."
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Project description."
+        },
+        "namespace": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "Project namespace URI."
+        }
+      }
+    },
+    "schemes": {
+      "type": "array",
+      "description": "Concept schemes with their concepts. Each scheme owns a flat concept map keyed by UUID.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "uri", "top_concepts", "concepts"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Concept scheme UUID."
+          },
+          "title": {
+            "type": "string",
+            "description": "Vocabulary title."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Vocabulary description."
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "SKOS ConceptScheme URI."
+          },
+          "top_concepts": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "description": "UUIDs of root concepts (no broader relationships) in this scheme. Entry points for tree rendering."
+          },
+          "concepts": {
+            "type": "object",
+            "description": "Flat map of concepts in this scheme, keyed by UUID. O(1) lookup for resolving broader/related references.",
+            "propertyNames": { "type": "string", "format": "uuid" },
+            "additionalProperties": {
+              "type": "object",
+              "required": ["pref_label", "uri", "alt_labels", "broader", "related"],
+              "additionalProperties": false,
+              "properties": {
+                "pref_label": {
+                  "type": "string",
+                  "description": "Preferred label."
+                },
+                "identifier": {
+                  "type": ["string", "null"],
+                  "description": "URI-safe identifier segment."
+                },
+                "uri": {
+                  "type": "string",
+                  "description": "Full concept URI."
+                },
+                "definition": {
+                  "type": ["string", "null"],
+                  "description": "Concept definition."
+                },
+                "scope_note": {
+                  "type": ["string", "null"],
+                  "description": "Scope note clarifying the intended use."
+                },
+                "alt_labels": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Alternative labels (synonyms, abbreviations). Always emitted, empty array if none."
+                },
+                "broader": {
+                  "type": "array",
+                  "items": { "type": "string", "format": "uuid" },
+                  "description": "UUIDs of broader (parent) concepts. Empty array for top concepts."
+                },
+                "related": {
+                  "type": "array",
+                  "items": { "type": "string", "format": "uuid" },
+                  "description": "UUIDs of related concepts (symmetric SKOS related). Empty array if none."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "classes": {
+      "type": "array",
+      "description": "Ontology classes (domain entities). Referenced by properties via domain_class_uri.",
+      "items": {
+        "type": "object",
+        "required": ["id", "identifier", "uri", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Ontology class UUID."
+          },
+          "identifier": {
+            "type": "string",
+            "description": "URI-safe identifier segment."
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "Full ontology class URI."
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable class label (e.g. \"Finding\", \"Investigation\")."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Description of the class."
+          },
+          "scope_note": {
+            "type": ["string", "null"],
+            "description": "Scope note clarifying when to use this class."
+          }
+        }
+      }
+    },
+    "properties": {
+      "type": "array",
+      "description": "Property definitions linking ontology classes to concept schemes or datatypes. Navigate from class (via domain_class_uri) or from scheme (via range_scheme_id).",
+      "items": {
+        "type": "object",
+        "required": ["id", "identifier", "uri", "label", "domain_class_uri", "cardinality", "required"],
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "range_scheme_id": { "type": "string" },
+              "range_datatype": { "type": "null" }
+            },
+            "required": ["range_scheme_id", "range_scheme_uri"]
+          },
+          {
+            "properties": {
+              "range_scheme_id": { "type": "null" },
+              "range_datatype": { "type": "string" }
+            },
+            "required": ["range_datatype"]
+          }
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Property UUID."
+          },
+          "identifier": {
+            "type": "string",
+            "description": "URI-safe identifier segment."
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "Full property URI."
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable property label."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Coding guidance for data entry."
+          },
+          "domain_class_uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "URI of the ontology class this property applies to. Resolve from the classes array."
+          },
+          "range_scheme_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "UUID of the concept scheme providing values, or null if range is a datatype."
+          },
+          "range_scheme_uri": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "URI of the range concept scheme, or null if range is a datatype."
+          },
+          "range_datatype": {
+            "type": ["string", "null"],
+            "description": "XSD datatype (e.g. \"xsd:integer\"), or null if range is a concept scheme."
+          },
+          "cardinality": {
+            "type": "string",
+            "enum": ["single", "multiple"],
+            "description": "Whether the property accepts a single value or multiple values."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the property is required for its domain class."
+          }
+        }
+      }
+    }
+  }
+}
