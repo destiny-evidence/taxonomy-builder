@@ -289,7 +289,7 @@ export function SchemeWorkspacePage({
               )}
             </div>
             {showGraph ? (
-              <OntologyGraph />
+              <OntologyGraph onSchemeNavigate={handleSchemeNavigate} />
             ) : (
               <ClassDetailPane
                 classUri={selectedClassUri.value!}
