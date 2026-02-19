@@ -1,7 +1,8 @@
-"""Service for building immutable project snapshots."""
+"""Service for building, validating, and diffing immutable project snapshots."""
 
 from uuid import UUID
 
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -9,12 +10,18 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.snapshot import (
+    DiffItem,
+    DiffResult,
+    FieldChange,
+    ModifiedItem,
     SnapshotClass,
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotProperty,
     SnapshotScheme,
     SnapshotVocabulary,
+    ValidationError,
+    ValidationResult,
 )
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
@@ -54,7 +61,7 @@ class SnapshotService:
         domain_uris = {p.domain_class for p in project.properties}
         classes = self._build_classes(domain_uris)
 
-        return SnapshotVocabulary(
+        return SnapshotVocabulary.model_construct(
             project=self._build_project(project),
             concept_schemes=schemes,
             properties=properties,
@@ -62,7 +69,7 @@ class SnapshotService:
         )
 
     def _build_project(self, project: Project) -> SnapshotProjectMetadata:
-        return SnapshotProjectMetadata(
+        return SnapshotProjectMetadata.model_construct(
             id=project.id,
             name=project.name,
             description=project.description,
@@ -72,7 +79,7 @@ class SnapshotService:
     def _build_scheme(
         self, scheme: ConceptScheme, concepts: list[Concept]
     ) -> SnapshotScheme:
-        return SnapshotScheme(
+        return SnapshotScheme.model_construct(
             id=scheme.id,
             title=scheme.title,
             description=scheme.description,
@@ -81,7 +88,7 @@ class SnapshotService:
         )
 
     def _build_concept(self, concept: Concept) -> SnapshotConcept:
-        return SnapshotConcept(
+        return SnapshotConcept.model_construct(
             id=concept.id,
             identifier=concept.identifier,
             uri=concept.uri,
@@ -94,7 +101,7 @@ class SnapshotService:
         )
 
     def _build_property(self, prop: Property) -> SnapshotProperty:
-        return SnapshotProperty(
+        return SnapshotProperty.model_construct(
             id=prop.id,
             identifier=prop.identifier,
             uri=prop.uri,
@@ -114,7 +121,7 @@ class SnapshotService:
 
         ontology = get_core_ontology()
         return [
-            SnapshotClass(
+            SnapshotClass.model_construct(
                 uri=cls.uri,
                 label=cls.label,
                 description=cls.comment,
@@ -122,3 +129,235 @@ class SnapshotService:
             for cls in ontology.classes
             if cls.uri in domain_uris
         ]
+
+
+def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:
+    """Validate a snapshot is ready to publish.
+
+    Runs Pydantic validators on the snapshot data, then checks
+    referential integrity (broader/related/range_scheme links).
+    """
+    errors: list[ValidationError] = []
+
+    try:
+        SnapshotVocabulary.model_validate(snapshot.model_dump(mode="json"))
+    except PydanticValidationError as e:
+        for err in e.errors():
+            ctx = err.get("ctx", {})
+            entity_id_str = ctx.get("entity_id")
+            errors.append(
+                ValidationError(
+                    code=err["type"],
+                    message=err["msg"],
+                    entity_type=ctx.get("entity_type"),
+                    entity_id=UUID(entity_id_str) if entity_id_str else None,
+                    entity_label=ctx.get("entity_label"),
+                )
+            )
+
+    errors.extend(_validate_references(snapshot))
+    return ValidationResult(valid=len(errors) == 0, errors=errors)
+
+
+def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
+    """Check that all broader/related/range_scheme references resolve."""
+    errors: list[ValidationError] = []
+
+    all_concept_ids = {
+        concept.id
+        for scheme in snapshot.concept_schemes
+        for concept in (scheme.concepts or [])
+    }
+    scheme_ids = {scheme.id for scheme in snapshot.concept_schemes}
+
+    for scheme in snapshot.concept_schemes:
+        for concept in scheme.concepts or []:
+            for bid in concept.broader_ids or []:
+                if bid not in all_concept_ids:
+                    errors.append(ValidationError(
+                        code="broken_broader_ref",
+                        message=f"Concept '{concept.pref_label}' has a broader reference to a non-existent concept.",
+                        entity_type="concept",
+                        entity_id=concept.id,
+                        entity_label=concept.pref_label,
+                    ))
+            for rid in concept.related_ids or []:
+                if rid not in all_concept_ids:
+                    errors.append(ValidationError(
+                        code="broken_related_ref",
+                        message=f"Concept '{concept.pref_label}' has a related reference to a non-existent concept.",
+                        entity_type="concept",
+                        entity_id=concept.id,
+                        entity_label=concept.pref_label,
+                    ))
+
+    for prop in snapshot.properties or []:
+        if prop.range_scheme_id and prop.range_scheme_id not in scheme_ids:
+            errors.append(ValidationError(
+                code="broken_range_scheme_ref",
+                message=f"Property '{prop.label}' references a non-existent scheme.",
+                entity_type="property",
+                entity_id=prop.id,
+                entity_label=prop.label,
+            ))
+
+    return errors
+
+
+def _field_changes(prev, curr, exclude: set[str]) -> list[FieldChange]:
+    prev_data = prev.model_dump(exclude=exclude)
+    curr_data = curr.model_dump(exclude=exclude)
+    return [
+        FieldChange(field=f, old=str(prev_data[f]), new=str(curr_data[f]))
+        for f in prev_data
+        if prev_data[f] != curr_data[f]
+    ]
+
+
+def compute_diff(
+    previous: SnapshotVocabulary | None,
+    current: SnapshotVocabulary,
+) -> DiffResult:
+    """Diff two snapshots, returning added/modified/removed items."""
+    prev_schemes = {s.id: s for s in previous.concept_schemes} if previous else {}
+    curr_schemes = {s.id: s for s in current.concept_schemes}
+    prev_props = {p.id: p for p in previous.properties} if previous else {}
+    curr_props = {p.id: p for p in current.properties}
+    prev_classes = {c.uri: c for c in previous.classes} if previous else {}
+    curr_classes = {c.uri: c for c in current.classes}
+
+    # Categorise changes
+    added_schemes = [
+        curr_schemes[scheme_id] for scheme_id in curr_schemes.keys() - prev_schemes.keys()
+    ]
+    removed_schemes = [
+        prev_schemes[scheme_id] for scheme_id in prev_schemes.keys() - curr_schemes.keys()
+    ]
+    modified_schemes = [
+        (
+            prev_schemes[scheme_id],
+            curr_schemes[scheme_id],
+            {concept.id: concept for concept in prev_schemes[scheme_id].concepts},
+            {concept.id: concept for concept in curr_schemes[scheme_id].concepts},
+        )
+        for scheme_id in prev_schemes.keys() & curr_schemes.keys()
+    ]
+    added_properties = [curr_props[pid] for pid in curr_props.keys() - prev_props.keys()]
+    removed_properties = [prev_props[pid] for pid in prev_props.keys() - curr_props.keys()]
+    modified_properties = [
+        (prev_props[pid], curr_props[pid]) for pid in prev_props.keys() & curr_props.keys()
+    ]
+    added_classes = [curr_classes[uri] for uri in curr_classes.keys() - prev_classes.keys()]
+    removed_classes = [prev_classes[uri] for uri in prev_classes.keys() - curr_classes.keys()]
+
+    added = (
+        # New schemes
+        [
+            DiffItem(id=scheme.id, label=scheme.title, entity_type="scheme")
+            for scheme in added_schemes
+        ]
+        # Concepts in new schemes
+        + [
+            DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
+            for scheme in added_schemes
+            for concept in scheme.concepts
+        ]
+        # New concepts in existing schemes
+        + [
+            DiffItem(
+                id=concept_id, label=curr_concepts[concept_id].pref_label, entity_type="concept"
+            )
+            for _, _, prev_concepts, curr_concepts in modified_schemes
+            for concept_id in curr_concepts.keys() - prev_concepts.keys()
+        ]
+        # New properties
+        + [
+            DiffItem(id=property.id, label=property.label, entity_type="property")
+            for property in added_properties
+        ]
+        # New classes
+        + [DiffItem(uri=cls.uri, label=cls.label, entity_type="class") for cls in added_classes]
+    )
+
+    removed = (
+        # Removed schemes
+        [
+            DiffItem(id=scheme.id, label=scheme.title, entity_type="scheme")
+            for scheme in removed_schemes
+        ]
+        # Concepts in removed schemes
+        + [
+            DiffItem(id=concept.id, label=concept.pref_label, entity_type="concept")
+            for scheme in removed_schemes
+            for concept in scheme.concepts
+        ]
+        # Removed concepts in existing schemes
+        + [
+            DiffItem(
+                id=concept_id, label=prev_concepts[concept_id].pref_label, entity_type="concept"
+            )
+            for _, _, prev_concepts, curr_concepts in modified_schemes
+            for concept_id in prev_concepts.keys() - curr_concepts.keys()
+        ]
+        # Removed properties
+        + [
+            DiffItem(id=property.id, label=property.label, entity_type="property")
+            for property in removed_properties
+        ]
+        # Removed classes
+        + [
+            DiffItem(uri=cls.uri, label=cls.label, entity_type="class")
+            for cls in removed_classes
+        ]
+    )
+
+    modified = (
+        # Modified scheme metadata
+        [
+            ModifiedItem(
+                id=curr_scheme.id,
+                label=curr_scheme.title,
+                entity_type="scheme",
+                changes=changes,
+            )
+            for prev_scheme, curr_scheme, _, _ in modified_schemes
+            if (
+                changes := _field_changes(
+                    prev_scheme, curr_scheme, {"id", "concepts"}
+                )
+            )
+        ]
+        # Modified concepts in existing schemes
+        + [
+            ModifiedItem(
+                id=concept_id,
+                label=curr_concepts[concept_id].pref_label,
+                entity_type="concept",
+                changes=changes,
+            )
+            for _, _, prev_concepts, curr_concepts in modified_schemes
+            for concept_id in prev_concepts.keys() & curr_concepts.keys()
+            if (
+                changes := _field_changes(
+                    prev_concepts[concept_id], curr_concepts[concept_id], {"id"}
+                )
+            )
+        ]
+        # Modified properties
+        + [
+            ModifiedItem(
+                id=curr_property.id,
+                label=curr_property.label,
+                entity_type="property",
+                changes=changes,
+            )
+            for prev_property, curr_property in modified_properties
+            if (
+                changes := _field_changes(
+                    prev_property, curr_property, {"id"}
+                )
+            )
+        ]
+    )
+
+    return DiffResult(added=added, modified=modified, removed=removed)
