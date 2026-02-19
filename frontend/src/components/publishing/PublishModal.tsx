@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { Modal } from "../common/Modal";
 import { Button } from "../common/Button";
+import { Input } from "../common/Input";
 import {
   publishingApi,
   type PublishPreview,
@@ -184,21 +185,21 @@ export function PublishModal({
                       </span>
                     </div>
 
-                    <div class="publish-modal__field">
-                      <label class="publish-modal__label" for="publish-version">
+                    <div class="input-field">
+                      <label class="input-field__label" for="publish-version">
                         Version
                       </label>
                       <input
                         id="publish-version"
                         type="text"
-                        class="publish-modal__input publish-modal__version-input"
+                        class="input-field__input publish-modal__version-input"
                         value={version}
                         onInput={(e) =>
                           setVersion((e.target as HTMLInputElement).value)
                         }
                       />
                       {!versionFormatValid && (
-                        <span class="publish-modal__version-error">
+                        <span class="input-field__error">
                           {preRelease
                             ? "Version must be like 2.0-pre1"
                             : "Version must be like 1.0 or 2.1.3"}
@@ -218,37 +219,24 @@ export function PublishModal({
                       )}
                     </div>
 
-                    <div class="publish-modal__field">
-                      <label class="publish-modal__label" for="publish-title">
-                        Title <span class="publish-modal__required">*</span>
-                      </label>
-                      <input
-                        id="publish-title"
-                        type="text"
-                        class="publish-modal__input"
-                        value={title}
-                        onInput={(e) =>
-                          setTitle((e.target as HTMLInputElement).value)
-                        }
-                        placeholder="e.g. Initial release"
-                      />
-                    </div>
+                    <Input
+                      label="Title"
+                      name="publish-title"
+                      value={title}
+                      onChange={setTitle}
+                      placeholder="e.g. Initial release"
+                      required
+                    />
 
-                    <div class="publish-modal__field">
-                      <label class="publish-modal__label" for="publish-notes">
-                        Release notes
-                      </label>
-                      <textarea
-                        id="publish-notes"
-                        class="publish-modal__input publish-modal__textarea"
-                        value={notes}
-                        onInput={(e) =>
-                          setNotes((e.target as HTMLTextAreaElement).value)
-                        }
-                        rows={3}
-                        placeholder="Optional notes about this version"
-                      />
-                    </div>
+                    <Input
+                      label="Release notes"
+                      name="publish-notes"
+                      value={notes}
+                      onChange={setNotes}
+                      placeholder="Optional notes about this version"
+                      multiline
+                      rows={3}
+                    />
                   </div>
                 )}
 
@@ -354,10 +342,10 @@ export function PublishModal({
                       </span>
                     </div>
                     {v.latest && (
-                      <span class="publish-modal__latest-badge">latest</span>
+                      <span class="publish-modal__status-badge publish-modal__status-badge--latest">latest</span>
                     )}
                     {!v.finalized && (
-                      <span class="publish-modal__pre-release-badge">
+                      <span class="publish-modal__status-badge publish-modal__status-badge--pre-release">
                         pre-release
                       </span>
                     )}
