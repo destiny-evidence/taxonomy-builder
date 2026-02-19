@@ -195,7 +195,9 @@ async def test_get_project_history(
     authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
 ) -> None:
     """Test getting history for a project returns property change events."""
-    service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
+    service = PropertyService(
+        db_session, ProjectService(db_session), ConceptSchemeService(db_session)
+    )
     prop = await service.create_property(
         project_id=project.id,
         property_in=PropertyCreate(
@@ -237,7 +239,9 @@ async def test_get_project_history_with_pagination(
     authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
 ) -> None:
     """Test pagination for project history."""
-    service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
+    service = PropertyService(
+        db_session, ProjectService(db_session), ConceptSchemeService(db_session)
+    )
     for i in range(5):
         await service.create_property(
             project_id=project.id,
@@ -271,7 +275,9 @@ async def test_get_property_history(
     authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
 ) -> None:
     """Test getting history for a specific property."""
-    service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
+    service = PropertyService(
+        db_session, ProjectService(db_session), ConceptSchemeService(db_session)
+    )
     prop = await service.create_property(
         project_id=project.id,
         property_in=PropertyCreate(

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/preact";
+import { render, screen, waitFor, fireEvent } from "@testing-library/preact";
 import { HistoryPanel } from "../../../src/components/history/HistoryPanel";
 import * as historyApi from "../../../src/api/history";
 import type { ChangeEvent } from "../../../src/types/models";
@@ -197,31 +197,6 @@ describe("HistoryPanel", () => {
   });
 
   describe("ChangeDescription for new entity types", () => {
-    it("shows property label for property events", async () => {
-      const propertyEvent: ChangeEvent[] = [
-        {
-          id: "event-20",
-          timestamp: "2024-01-15T10:30:00Z",
-          entity_type: "property",
-          entity_id: "prop-1",
-          scheme_id: null,
-          project_id: null,
-          action: "create",
-          before_state: null,
-          after_state: { label: "Finding Name" },
-          user_id: null,
-          user_display_name: null,
-        },
-      ];
-      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(propertyEvent);
-
-      render(<HistoryPanel source={{ type: "scheme", id: "scheme-456" }} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Finding Name")).toBeInTheDocument();
-      });
-    });
-
     it("shows project name for project events", async () => {
       const projectEvent: ChangeEvent[] = [
         {
@@ -270,6 +245,163 @@ describe("HistoryPanel", () => {
       await waitFor(() => {
         expect(screen.getByText("My Taxonomy")).toBeInTheDocument();
       });
+    });
+  });
+
+  describe("entity type filtering", () => {
+    const mixedHistory: ChangeEvent[] = [
+      {
+        id: "evt-concept",
+        timestamp: "2024-01-15T10:30:00Z",
+        entity_type: "concept",
+        entity_id: "c-1",
+        project_id: "p-1",
+        scheme_id: "s-1",
+        action: "create",
+        before_state: null,
+        after_state: { pref_label: "Dog" },
+        user_id: null,
+        user_display_name: null,
+      },
+      {
+        id: "evt-property",
+        timestamp: "2024-01-15T09:00:00Z",
+        entity_type: "property",
+        entity_id: "prop-1",
+        project_id: "p-1",
+        scheme_id: null,
+        action: "create",
+        before_state: null,
+        after_state: { label: "Severity" },
+        user_id: null,
+        user_display_name: null,
+      },
+      {
+        id: "evt-broader",
+        timestamp: "2024-01-15T08:00:00Z",
+        entity_type: "concept_broader",
+        entity_id: "c-1",
+        project_id: "p-1",
+        scheme_id: "s-1",
+        action: "create",
+        before_state: null,
+        after_state: { concept_label: "Dog", broader_label: "Animal" },
+        user_id: null,
+        user_display_name: null,
+      },
+    ];
+
+    it("scheme view defaults to showing only concepts", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        // Concept event visible (default filter)
+        expect(screen.getByText("Dog")).toBeInTheDocument();
+      });
+
+      // Property and broader events hidden by default
+      expect(screen.queryByText("Severity")).not.toBeInTheDocument();
+      expect(screen.queryByText("Animal")).not.toBeInTheDocument();
+    });
+
+    it("clicking a pill toggles that filter on", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Dog")).toBeInTheDocument();
+      });
+
+      // Activate Relationships pill
+      fireEvent.click(screen.getByText("Relationships"));
+
+      // Both concept and broader events visible
+      expect(screen.getAllByText("Dog")).toHaveLength(2);
+      expect(screen.getByText("Animal")).toBeInTheDocument();
+      // Property still hidden
+      expect(screen.queryByText("Severity")).not.toBeInTheDocument();
+    });
+
+    it("clicking an active pill toggles it off", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Dog")).toBeInTheDocument();
+      });
+
+      // Deactivate Concepts pill
+      fireEvent.click(screen.getByText("Concepts"));
+
+      // No filters active — show all
+      expect(screen.getAllByText("Dog")).toHaveLength(2);
+      expect(screen.getByText("Severity")).toBeInTheDocument();
+      expect(screen.getByText("Animal")).toBeInTheDocument();
+    });
+
+    it("shows 'no changes match' when filter excludes all events", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mixedHistory);
+
+      const { rerender } = render(
+        <HistoryPanel source={{ type: "scheme", id: "s-1" }} refreshKey={0} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Dog")).toBeInTheDocument();
+      });
+
+      // Activate only Properties
+      fireEvent.click(screen.getByText("Concepts")); // deactivate
+      fireEvent.click(screen.getByText("Properties")); // activate
+
+      // Data refreshes with only concept events (no properties)
+      const conceptOnly: ChangeEvent[] = [mixedHistory[0]];
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(conceptOnly);
+      rerender(
+        <HistoryPanel source={{ type: "scheme", id: "s-1" }} refreshKey={1} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/no changes match/i)).toBeInTheDocument();
+      });
+    });
+
+    it("only shows pill for filter groups that have matching events", async () => {
+      // History with concept + broader only — no property/scheme/project/version events
+      const limitedHistory: ChangeEvent[] = [mixedHistory[0], mixedHistory[2]];
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(limitedHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Dog")).toBeInTheDocument();
+      });
+
+      // Pills for relevant categories exist
+      expect(screen.getByText("Concepts")).toBeInTheDocument();
+      expect(screen.getByText("Relationships")).toBeInTheDocument();
+      // No pills for categories without events
+      expect(screen.queryByText("Properties")).not.toBeInTheDocument();
+      expect(screen.queryByText("Schemes")).not.toBeInTheDocument();
+      expect(screen.queryByText("Project settings")).not.toBeInTheDocument();
+      expect(screen.queryByText("Published versions")).not.toBeInTheDocument();
+    });
+
+    it("always shows filter pills even with one category", async () => {
+      vi.mocked(historyApi.getSchemeHistory).mockResolvedValue(mockHistory);
+
+      render(<HistoryPanel source={{ type: "scheme", id: "s-1" }} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("New Label")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("Show only")).toBeInTheDocument();
+      expect(screen.getByText("Concepts")).toBeInTheDocument();
     });
   });
 });
