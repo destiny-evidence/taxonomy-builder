@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/project-index.schema.json",
   "title": "Published Project Index",
-  "description": "Top-level index for a published project. Contains current project metadata and a list of published schemes. Regenerated whenever any scheme publishes a new version. Served at /{project-id}/index.json.",
+  "description": "Version history for a single project. Lists all published versions (finalized and pre-release) ordered by semver descending. Loaded on demand when the reader needs a version picker. Served at /{project-id}/index.json.",
   "type": "object",
-  "required": ["format_version", "project", "schemes"],
+  "required": ["format_version", "project", "latest_version", "versions"],
   "additionalProperties": false,
   "properties": {
     "format_version": {
@@ -14,7 +14,7 @@
     },
     "project": {
       "type": "object",
-      "description": "Latest project metadata.",
+      "description": "Project metadata.",
       "required": ["id", "name"],
       "additionalProperties": false,
       "properties": {
@@ -34,44 +34,76 @@
         "namespace": {
           "type": ["string", "null"],
           "format": "uri",
-          "description": "Project namespace URI."
+          "description": "Project namespace URI used for constructing entity URIs."
         }
       }
     },
-    "schemes": {
+    "latest_version": {
+      "type": ["string", "null"],
+      "description": "Version string of the latest finalized release. Null if only pre-releases exist.",
+      "pattern": "^\\d+(\\.\\d+)+(-pre\\d+)?$"
+    },
+    "versions": {
       "type": "array",
-      "description": "Published concept schemes in this project.",
+      "description": "All published versions ordered by semver descending.",
       "items": {
         "type": "object",
-        "required": ["id", "title", "latest_version", "latest_path", "concept_count"],
+        "required": ["version", "title", "published_at", "pre_release", "content_summary"],
         "additionalProperties": false,
         "properties": {
-          "id": {
+          "version": {
             "type": "string",
-            "format": "uuid",
-            "description": "Concept scheme UUID."
+            "description": "Version string (e.g. \"1.0\", \"2.0-pre1\").",
+            "pattern": "^\\d+(\\.\\d+)+(-pre\\d+)?$"
           },
           "title": {
             "type": "string",
-            "description": "Vocabulary title."
+            "description": "Human-readable version title."
           },
-          "description": {
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp of when this version was published."
+          },
+          "publisher": {
             "type": ["string", "null"],
-            "description": "Vocabulary description."
+            "description": "Display name of the user who published this version."
           },
-          "latest_version": {
-            "type": "string",
-            "description": "Version label of the latest published version (display only)."
+          "pre_release": {
+            "type": "boolean",
+            "description": "True for pre-releases (e.g. 2.0-pre1), false for finalized releases."
           },
-          "latest_path": {
-            "type": "string",
-            "description": "Relative path to the latest vocabulary file.",
-            "examples": ["01965a00-0000-7000-8000-000000000001/01965a00-0000-7000-8000-100000000000.json"]
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Release notes."
           },
-          "concept_count": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of concepts in the latest version."
+          "content_summary": {
+            "type": "object",
+            "description": "Entity counts for this version.",
+            "required": ["schemes", "concepts", "properties", "classes"],
+            "additionalProperties": false,
+            "properties": {
+              "schemes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of concept schemes."
+              },
+              "concepts": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Total number of concepts across all schemes."
+              },
+              "properties": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of properties."
+              },
+              "classes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of ontology classes."
+              }
+            }
           }
         }
       }

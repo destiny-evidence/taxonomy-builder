@@ -6,14 +6,35 @@
     "description": "A simple demo taxonomy for testing.",
     "namespace": "http://example.org/taxonomies/demo"
   },
-  "schemes": [
+  "latest_version": "2.0",
+  "versions": [
     {
-      "id": "01965a00-0000-7000-8000-000000000001",
-      "title": "Colors",
-      "description": "A simple color taxonomy.",
-      "latest_version": "2.0",
-      "latest_path": "01965a00-0000-7000-8000-000000000001/01965a00-0000-7000-8000-200000000000.json",
-      "concept_count": 7
+      "version": "2.0",
+      "title": "Add warm/cool categories",
+      "published_at": "2026-03-01T09:00:00Z",
+      "publisher": "Jane Smith",
+      "pre_release": false,
+      "notes": "Organised into warm and cool categories, added turquoise and orange.",
+      "content_summary": {
+        "schemes": 1,
+        "concepts": 7,
+        "properties": 1,
+        "classes": 8
+      }
+    },
+    {
+      "version": "1.0",
+      "title": "Initial release",
+      "published_at": "2026-02-01T09:00:00Z",
+      "publisher": "Jane Smith",
+      "pre_release": false,
+      "notes": null,
+      "content_summary": {
+        "schemes": 1,
+        "concepts": 3,
+        "properties": 1,
+        "classes": 8
+      }
     }
   ]
 }

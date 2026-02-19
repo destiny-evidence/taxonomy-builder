@@ -1,94 +1,78 @@
 # Published Document Format
 
-Static JSON format served to the taxonomy reader frontend, projected from `PublishedVersion.snapshot`. These are compressed to `.gz` at the blob level - this compression factor should be quite favourable as the majority of the data are `UUIDv7`s which have similar prefixes.
+Static JSON format served to the taxonomy reader frontend, projected from `PublishedVersion.snapshot`. Files are compressed to `.gz` at the blob level — compression is favourable due to repetitive JSON structure (keys, braces, quotes). UUIDv7 prefix similarity within a project gives a modest additional compression bonus.
 
 ## Storage layout
 
-Each scheme is versioned independently.
+Versioning is at the project level. Each published version captures a complete snapshot of all schemes, concepts, ontology classes, and properties.
 
-```none
+```text
+/index.json                             # root: all projects + latest version pointers
 /{project-id}/
-  index.json                  # project metadata + list of schemes
-  ontology.json               # domain classes + properties
-  {scheme-id}/
-    index.json                # scheme metadata + version list
-    {version-id}.json         # concept data for a specific version
+  index.json                            # version picker for this project
+  {version}/
+    vocabulary.json                     # all schemes, concepts, classes, properties
 ```
 
-The project index and ontology file are regenerated whenever any scheme publishes a new version. Version files are immutable once published. Filenames use version UUIDs rather than user-provided version labels, avoiding filename-safety concerns. The project index carries `latest_path` per scheme, giving the reader a direct relative path to the latest vocabulary file.
+The root index and project index are regenerated on every publish. Vocabulary files are immutable once written. Version strings (e.g. `1.0`, `2.0-pre1`) are used as directory names — safe per the version format constraint `^\d+(\.\d+)+(-pre\d+)?$`.
 
 ### Reader flow
 
-1. Fetch `/{project-id}/index.json` — render scheme list. Each scheme includes `latest_path`
-2. User picks a vocabulary — fetch `/{project-id}/{latest_path}` — render concepts
-3. User wants a different version — fetch `/{project-id}/{scheme-id}/index.json` — show version picker — fetch `/{project-id}/{scheme-id}/{path}`
-4. User wants domain models & properties — fetch `/{project-id}/ontology.json`. Reader can use index loaded from 1. to navigate to vocabularies from here.
+1. `GET /index.json` — render project list. Each entry carries `latest_version` for a direct link.
+2. User picks a project — `GET /{project-id}/{latest_version}/vocabulary.json` — render schemes, concepts, ontology. **Two fetches for the common case.**
+3. User wants a different version — `GET /{project-id}/index.json` — show version picker — `GET /{project-id}/{version}/vocabulary.json`. **Third fetch only when switching versions.**
 
 ## File types
 
-Four file types, each with a JSON Schema definition:
+Three file types, each with a JSON Schema definition.
+
+### Root index (`root-index.schema.json`)
+
+Served at `/index.json`. Minimal entry point listing all published projects with their latest finalized version. This is the reader's landing page — no scheme or concept details, just enough to link to each project's latest vocabulary.
 
 ### Project index (`project-index.schema.json`)
 
-Served at `/{project-id}/index.json`. Contains current project metadata and a list of published schemes with their latest version label, path to the latest vocabulary file, and concept count - only the information required for navigation from a landing page. This is the reader's entry point.
-
-### Vocabulary index (`vocabulary-index.schema.json`)
-
-Served at `/{project-id}/{scheme-id}/index.json`. Lists available versions of a scheme/vocabulary with release notes and timestamps. Only loaded on demand when the reader needs to view/switch versions.
-
-### Ontology file (`ontology.schema.json`)
-
-Served at `/{project-id}/ontology.json`. Contains the domain classes from the core ontology and the properties that link them to concept schemes or datatypes. Properties reference schemes by UUID (cross-reference with the project index's `schemes` array) and domain classes by URI (resolve labels from the `domain_classes` array in the same file). Loaded on demand when the reader needs to display the domain model. Separating from the index also allows it to be on a different cache cycle.
+Served at `/{project-id}/index.json`. Version picker for a single project. Lists all published versions (finalized and pre-release) ordered by semver descending, each with a content summary. Loaded on demand when the reader needs to browse or switch versions.
 
 ### Vocabulary file (`vocabulary.schema.json`)
 
-Served at `/{project-id}/{scheme-id}/{version-id}.json`. Contains the scheme ID and all concepts as a flat map keyed by UUID. Each concept carries `pref_label`, `definition`, `scope_note`, `alt_labels` (for search), `broader` (parent IDs), and `related` (related concept IDs). A `top_concepts` array lists root entry points for tree rendering. Scheme metadata is taken from the higher index file.
+Served at `/{project-id}/{version}/vocabulary.json`. Complete vocabulary data for one published version. Concepts are nested under their owning scheme; classes and properties are top-level. Cross-references use IDs and URIs.
 
-This is normalized, meaning each concept's information is only represented once, but does require the client to build the tree in `O(n)` time. `narrower` is omitted because it's derivable from `broader` and hence superfluous.
+**Schemes** own their concepts. Each scheme carries a flat concept map keyed by UUID (O(1) lookup) and a `top_concepts` array listing tree entry points. `narrower` is omitted because it is derivable from `broader`.
+
+**Properties** are flat at the top level with `domain_class_uri` and `range_scheme_id` — they are a join between classes and schemes, so nesting under either side would privilege one navigation direction.
+
+**Classes** carry their full metadata including `scope_note`.
 
 ## Considerations
 
-### Future implications
+### Pre-releases
 
-Issue [#33](https://github.com/destiny-evidence/taxonomy-builder/issues/33) must add a mechanism to declare if a "published" version is a draft. Only non-draft versions should update the root project `index.json`.
+Pre-releases (`2.0-pre1`, etc.) are included in the project index and have vocabulary files generated. The root index's `latest_version` only points to finalized versions.
+
+### Caching
+
+Vocabulary files are immutable (write-once) and can use aggressive cache headers (`Cache-Control: immutable`). The root and project index files are regenerated on each publish and should use shorter cache times or `must-revalidate`.
 
 ### Size estimates
 
-For a typical vocabulary with 100 concepts, ~1 broader and ~2 related refs per concept.
+Expected pattern: multiple schemes with moderate concept counts.
 
-Per-concept breakdown (~400 bytes each):
+Per-entity byte estimates:
 
-| Field                  | Bytes |
-| ---------------------- | ----- |
-| UUID key               | ~38   |
-| `pref_label`           | ~25   |
-| `definition`           | ~90   |
-| `scope_note`           | ~50   |
-| `alt_labels` (1 label) | ~30   |
-| `broader` (1 UUID)     | ~55   |
-| `related` (2 UUIDs)    | ~95   |
-| JSON punctuation       | ~20   |
+| Entity   | Bytes each |
+| -------- | ---------- |
+| Concept  | ~400       |
+| Property | ~120       |
+| Class    | ~150       |
+| Scheme   | ~200       |
 
-Per-property breakdown (~120 bytes each):
+File-level estimates for a single vocabulary file:
 
-| Field              | Bytes |
-| ------------------ | ----- |
-| UUID `id`          | ~38   |
-| `identifier`       | ~20   |
-| `label`            | ~20   |
-| `description`      | ~50   |
-| `domain_class_uri` | ~45   |
-| `range_scheme_id`  | ~40   |
-| `cardinality`      | ~15   |
-| JSON punctuation   | ~15   |
+| Scenario | Schemes | Concepts | Classes | Properties | Uncompressed | Gzipped |
+| -------- | ------- | -------- | ------- | ---------- | ------------ | ------- |
+| Small    | 3       | 50       | 5       | 10         | ~25 KB       | ~6 KB   |
+| Typical  | 10      | 300      | 8       | 24         | ~130 KB      | ~30 KB  |
+| Large    | 20      | 1000     | 12      | 40         | ~420 KB      | ~95 KB  |
 
-File-level estimates:
-
-|                                | Uncompressed | Gzipped  |
-| ------------------------------ | ------------ | -------- |
-| Vocabulary file (100 concepts) | ~40 KB       | ~8-10 KB |
-| Ontology file (20 properties)  | ~4 KB        | ~1-2 KB  |
-| Scheme index                   | <1 KB        | <1 KB    |
-| Project index                  | <1 KB        | <1 KB    |
-
-We can consider two versions of the vocabulary file if we need even lighter files, which might exclude things like related concepts and definitions.
+Root index and project index are under 1 KB in all cases.
