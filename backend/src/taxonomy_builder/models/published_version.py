@@ -7,6 +7,7 @@ from uuid import UUID, uuid7
 from sqlalchemy import (
     Boolean,
     Computed,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -51,7 +52,9 @@ class PublishedVersion(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    published_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     previous_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("published_versions.id", ondelete="SET NULL"), nullable=True
     )
