@@ -65,6 +65,7 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
     setIsExpanded(false);
     setNewComment("");
     setError(null);
+    setFilter("unresolved");
     loadComments();
   }, [conceptId]);
 
