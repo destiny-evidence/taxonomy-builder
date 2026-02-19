@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from taxonomy_builder.schemas.snapshot import DiffResult, ValidationResult
 
@@ -31,6 +31,9 @@ class PublishPreview(BaseModel):
 VERSION_PATTERN = r"^\d+(\.\d+)+(-pre\d+)?$"
 
 
+PRE_RELEASE_SUFFIX = r"-pre\d+$"
+
+
 class PublishRequest(BaseModel):
     """Request body for publishing a version."""
 
@@ -38,6 +41,17 @@ class PublishRequest(BaseModel):
     title: str
     notes: str | None = None
     pre_release: bool = False
+
+    @model_validator(mode="after")
+    def version_matches_pre_release_flag(self) -> "PublishRequest":
+        import re
+
+        has_suffix = bool(re.search(PRE_RELEASE_SUFFIX, self.version))
+        if self.pre_release and not has_suffix:
+            raise ValueError("pre-release versions must have a -preN suffix")
+        if not self.pre_release and has_suffix:
+            raise ValueError("release versions must not have a -preN suffix")
+        return self
 
 
 class PublishedVersionRead(BaseModel):

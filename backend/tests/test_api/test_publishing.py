@@ -308,6 +308,26 @@ class TestPublish:
         assert resp.status_code == 409
 
     @pytest.mark.asyncio
+    async def test_publish_pre_release_flag_requires_suffix(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "X", "pre_release": True},
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_publish_release_rejects_pre_release_suffix(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0-pre1", "title": "X", "pre_release": False},
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_publish_not_found(self, authenticated_client: AsyncClient) -> None:
         resp = await authenticated_client.post(
             f"/api/projects/{uuid4()}/publish",
