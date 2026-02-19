@@ -23,6 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from taxonomy_builder.database import Base
+from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.project import Project
@@ -33,9 +34,7 @@ class PublishedVersion(Base):
 
     __tablename__ = "published_versions"
     __table_args__ = (
-        UniqueConstraint(
-            "project_id", "version", name="uq_published_version_per_project"
-        ),
+        UniqueConstraint("project_id", "version", name="uq_published_version_per_project"),
         Index(
             "ix_latest_version_lookup",
             "project_id",
@@ -52,9 +51,7 @@ class PublishedVersion(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    published_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     previous_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("published_versions.id", ondelete="SET NULL"), nullable=True
     )
@@ -87,6 +84,9 @@ class PublishedVersion(Base):
             .correlate(cls)
             .scalar_subquery()
         )
-        cls.latest = column_property(
-            func.coalesce(cls.version_sort_key == max_key, False)
-        )
+        cls.latest = column_property(func.coalesce(cls.version_sort_key == max_key, False))
+
+    @property
+    def snapshot_vocabulary(self) -> SnapshotVocabulary:
+        """Deserialize the JSONB snapshot into a typed SnapshotVocabulary."""
+        return SnapshotVocabulary.model_validate(self.snapshot)

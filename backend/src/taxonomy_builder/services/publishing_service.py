@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.publishing import (
     ContentSummary,
@@ -15,7 +16,6 @@ from taxonomy_builder.schemas.publishing import (
 )
 from taxonomy_builder.schemas.snapshot import (
     DiffResult,
-    SnapshotVocabulary,
     ValidationResult,
 )
 from taxonomy_builder.services.project_service import ProjectService
@@ -105,6 +105,25 @@ class PublishingService:
         )
         return list(result.scalars().all())
 
+    async def list_projects_with_latest_version(self) -> list[tuple[Project, str | None]]:
+        """All projects with published versions and their latest finalized version string."""
+        result = await self.db.execute(
+            select(PublishedVersion).order_by(PublishedVersion.version_sort_key.desc())
+        )
+        all_versions = result.scalars().all()
+
+        project_latest: dict[UUID, tuple[Project, str | None]] = {}
+        for version in all_versions:
+            if version.project_id not in project_latest:
+                project_latest[version.project_id] = (
+                    version.project,
+                    version.version if version.finalized else None,
+                )
+            elif project_latest[version.project_id][1] is None and version.finalized:
+                project_latest[version.project_id] = (version.project, version.version)
+
+        return list(project_latest.values())
+
     async def preview(self, project_id: UUID) -> PublishPreview:
         """Build a publish preview: validation, content summary, and diff."""
         snapshot = await self._snapshot_service.build_snapshot(project_id)
@@ -120,8 +139,7 @@ class PublishingService:
         latest = await self._get_latest_finalized(project_id)
         diff = None
         if latest:
-            prev_snapshot = SnapshotVocabulary.model_validate(latest.snapshot)
-            diff = compute_diff(prev_snapshot, snapshot)
+            diff = compute_diff(latest.snapshot_vocabulary, snapshot)
 
         latest_version = latest.version if latest else None
         suggested = await self._suggest_version(latest_version, diff)
@@ -213,7 +231,7 @@ class PublishingService:
             try:
                 major = int(parts[0])
                 minor = int(parts[1]) if len(parts) > 1 else 0
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 base = "1.0"
             else:
                 if pre_release or (diff and (diff.modified or diff.removed)):
