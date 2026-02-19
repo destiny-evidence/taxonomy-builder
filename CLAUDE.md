@@ -20,7 +20,7 @@ We can always squash commits later, but using --amend is more likely to cause tr
 
 ## Project Overview
 
-Taxonomy Builder is a web-based tool for creating and managing SKOS vocabularies. The data model follows the SKOS hierarchy: **Project → Concept Scheme → Concept**. Concepts support polyhierarchy through broader/narrower relationships (DAG structure, not strict tree).
+Taxonomy Builder is a web-based tool for creating and managing SKOS vocabularies. The data model follows the SKOS hierarchy: **Project → Concept Scheme → Concept**. Concepts support polyhierarchy through broader/narrower relationships (DAG structure, not strict tree). Projects also contain Properties (OWL/RDFS) and Ontology Classes as first-class entities alongside concept schemes.
 
 ## Development Commands
 

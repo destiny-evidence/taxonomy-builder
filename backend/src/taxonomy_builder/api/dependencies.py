@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
     from taxonomy_builder.services.concept_service import ConceptService
     from taxonomy_builder.services.history_service import HistoryService
+    from taxonomy_builder.services.ontology_class_service import OntologyClassService
     from taxonomy_builder.services.property_service import PropertyService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
 
@@ -142,6 +143,18 @@ def get_history_service(db: AsyncSession = Depends(get_db)) -> HistoryService:
     from taxonomy_builder.services.history_service import HistoryService
 
     return HistoryService(db)
+
+
+def get_ontology_class_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> OntologyClassService:
+    """Dependency that provides an OntologyClassService with user context."""
+    from taxonomy_builder.services.ontology_class_service import OntologyClassService
+    from taxonomy_builder.services.project_service import ProjectService
+
+    project_service = ProjectService(db, user_id=current_user.user.id)
+    return OntologyClassService(db, project_service, user_id=current_user.user.id)
 
 
 def get_property_service(

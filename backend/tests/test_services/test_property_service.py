@@ -10,11 +10,10 @@ from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
-from taxonomy_builder.services.project_service import ProjectService
+from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
-    ProjectNotFoundError,
     PropertyIdentifierExistsError,
     PropertyService,
     SchemeNotInProjectError,
