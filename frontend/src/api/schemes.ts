@@ -19,11 +19,30 @@ export interface SchemePreview {
   warnings: string[];
 }
 
+export interface ClassPreview {
+  identifier: string;
+  label: string;
+  uri: string;
+}
+
+export interface PropertyPreview {
+  identifier: string;
+  label: string;
+  property_type: string;
+  domain_class_uri: string | null;
+  range_uri: string | null;
+  range_scheme_title: string | null;
+}
+
 export interface ImportPreview {
   valid: boolean;
   schemes: SchemePreview[];
   total_concepts_count: number;
   total_relationships_count: number;
+  classes: ClassPreview[];
+  properties: PropertyPreview[];
+  classes_count: number;
+  properties_count: number;
   errors: string[];
 }
 
@@ -37,6 +56,9 @@ export interface ImportResult {
   schemes_created: SchemeCreated[];
   total_concepts_created: number;
   total_relationships_created: number;
+  classes_created: { id: string; identifier: string; label: string }[];
+  properties_created: { id: string; identifier: string; label: string }[];
+  warnings: string[];
 }
 
 export function getExportUrl(schemeId: string, format: ExportFormat): string {
