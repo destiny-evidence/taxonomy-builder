@@ -86,8 +86,6 @@ class ConceptSchemeService:
             title=scheme_in.title,
             description=scheme_in.description,
             uri=scheme_in.uri,
-            publisher=scheme_in.publisher,
-            version=scheme_in.version,
         )
         self.db.add(scheme)
         try:
@@ -136,10 +134,6 @@ class ConceptSchemeService:
             scheme.description = scheme_in.description
         if scheme_in.uri is not None:
             scheme.uri = scheme_in.uri
-        if scheme_in.publisher is not None:
-            scheme.publisher = scheme_in.publisher
-        if scheme_in.version is not None:
-            scheme.version = scheme_in.version
 
         try:
             await self.db.flush()

@@ -17,8 +17,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
   const [title, setTitle] = useState(scheme?.title ?? "");
   const [description, setDescription] = useState(scheme?.description ?? "");
   const [uri, setUri] = useState(scheme?.uri ?? "");
-  const [publisher, setPublisher] = useState(scheme?.publisher ?? "");
-  const [version, setVersion] = useState(scheme?.version ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,8 +25,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
     setTitle(scheme?.title ?? "");
     setDescription(scheme?.description ?? "");
     setUri(scheme?.uri ?? "");
-    setPublisher(scheme?.publisher ?? "");
-    setVersion(scheme?.version ?? "");
     setError(null);
   }, [scheme]);
 
@@ -41,8 +37,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
       title,
       description: description || null,
       uri: uri || null,
-      publisher: publisher || null,
-      version: version || null,
     };
 
     try {
@@ -93,24 +87,6 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
         placeholder="https://example.org/scheme"
         onChange={setUri}
       />
-
-      <div class="scheme-form__row">
-        <Input
-          label="Publisher"
-          name="publisher"
-          value={publisher}
-          placeholder="Organization name"
-          onChange={setPublisher}
-        />
-
-        <Input
-          label="Version"
-          name="version"
-          value={version}
-          placeholder="1.0.0"
-          onChange={setVersion}
-        />
-      </div>
 
       <div class="scheme-form__actions">
         <Button variant="secondary" onClick={onCancel}>

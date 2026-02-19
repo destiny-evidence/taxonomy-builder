@@ -120,6 +120,66 @@ export const renderTree = computed(() => {
   return nodes;
 });
 
+// Build render tree from raw tree data (for external use)
+export function buildRenderTree(nodes: TreeNode[]): RenderNode[] {
+  const idOccurrences = new Map<string, string[]>();
+
+  // First pass: count occurrences and track parent labels
+  function countOccurrences(
+    treeNodes: TreeNode[],
+    parentLabel: string | null = null
+  ) {
+    for (const node of treeNodes) {
+      const labels = idOccurrences.get(node.id) || [];
+      if (parentLabel) {
+        labels.push(parentLabel);
+      }
+      idOccurrences.set(node.id, labels);
+      countOccurrences(node.narrower, node.pref_label);
+    }
+  }
+  countOccurrences(nodes);
+
+  // Second pass: build render nodes (no search matching for external use)
+  function buildNodes(
+    treeNodes: TreeNode[],
+    parentPath: string = "",
+    depth: number = 0,
+    currentParentLabel: string | null = null
+  ): RenderNode[] {
+    return treeNodes.map((node) => {
+      const path = parentPath ? `${parentPath}/${node.id}` : node.id;
+      const allParentLabels = idOccurrences.get(node.id) || [];
+      const hasMultipleParents = allParentLabels.length > 1;
+
+      const otherParentLabels = currentParentLabel
+        ? allParentLabels.filter((l) => l !== currentParentLabel)
+        : allParentLabels.slice(1);
+
+      const children = buildNodes(
+        node.narrower,
+        path,
+        depth + 1,
+        node.pref_label
+      );
+
+      return {
+        id: node.id,
+        pref_label: node.pref_label,
+        definition: node.definition,
+        path,
+        depth,
+        hasMultipleParents,
+        otherParentLabels,
+        children,
+        matchStatus: "none" as const,
+      };
+    });
+  }
+
+  return buildNodes(nodes);
+}
+
 // ============ Drag and Drop State ============
 
 export const isDragging = signal(false);

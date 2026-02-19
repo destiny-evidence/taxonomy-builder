@@ -28,8 +28,6 @@ async def test_create_concept_scheme(db_session: AsyncSession, project: Project)
         title="Test Scheme",
         description="A test scheme",
         uri="http://example.org/schemes/test",
-        publisher="Test Publisher",
-        version="1.0",
     )
     db_session.add(scheme)
     await db_session.flush()
@@ -41,8 +39,6 @@ async def test_create_concept_scheme(db_session: AsyncSession, project: Project)
     assert scheme.title == "Test Scheme"
     assert scheme.description == "A test scheme"
     assert scheme.uri == "http://example.org/schemes/test"
-    assert scheme.publisher == "Test Publisher"
-    assert scheme.version == "1.0"
     assert scheme.created_at is not None
     assert scheme.updated_at is not None
 
@@ -72,7 +68,7 @@ async def test_concept_scheme_title_required(db_session: AsyncSession, project: 
 
 @pytest.mark.asyncio
 async def test_concept_scheme_optional_fields(db_session: AsyncSession, project: Project) -> None:
-    """Test that description, uri, publisher, version are optional."""
+    """Test that description and uri are optional."""
     scheme = ConceptScheme(project_id=project.id, title="Minimal Scheme")
     db_session.add(scheme)
     await db_session.flush()
@@ -80,8 +76,6 @@ async def test_concept_scheme_optional_fields(db_session: AsyncSession, project:
 
     assert scheme.description is None
     assert scheme.uri is None
-    assert scheme.publisher is None
-    assert scheme.version is None
 
 
 @pytest.mark.asyncio

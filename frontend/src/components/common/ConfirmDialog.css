@@ -3,6 +3,21 @@
   margin-bottom: var(--spacing-lg);
 }
 
+.confirm-dialog--danger {
+  text-align: center;
+}
+
+.confirm-dialog--danger .confirm-dialog__message {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.confirm-dialog__icon {
+  display: block;
+  margin: 0 auto var(--spacing-sm);
+  color: var(--color-error);
+}
+
 .confirm-dialog__actions {
   display: flex;
   justify-content: flex-end;

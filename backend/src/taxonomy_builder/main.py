@@ -11,10 +11,14 @@ from taxonomy_builder.api.comments import comments_router, concept_comments_rout
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
 from taxonomy_builder.api.history import router as history_router
 from taxonomy_builder.api.ontology import router as ontology_router
+from taxonomy_builder.api.ontology_classes import (
+    ontology_classes_router,
+    project_ontology_classes_router,
+)
 from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.properties import project_properties_router, properties_router
+from taxonomy_builder.api.publishing import router as publishing_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
-from taxonomy_builder.api.versions import router as versions_router
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
@@ -42,13 +46,15 @@ app.include_router(project_schemes_router)
 app.include_router(schemes_router)
 app.include_router(project_properties_router)
 app.include_router(properties_router)
+app.include_router(project_ontology_classes_router)
+app.include_router(ontology_classes_router)
 app.include_router(scheme_concepts_router)
 app.include_router(concepts_router)
 app.include_router(concept_comments_router)
 app.include_router(comments_router)
 app.include_router(history_router)
-app.include_router(versions_router)
 app.include_router(ontology_router)
+app.include_router(publishing_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])

@@ -9,12 +9,7 @@ from alembic import context
 
 # Import models to register them with Base.metadata
 from taxonomy_builder.database import Base
-from taxonomy_builder.models import (
-    Concept,
-    ConceptBroader,
-    ConceptScheme,
-    Project,
-)  # noqa: F401
+import taxonomy_builder.models  # noqa: F401
 from taxonomy_builder.config import settings
 
 # this is the Alembic Config object, which provides

@@ -1,6 +1,5 @@
 """Comment API endpoints."""
 
-from collections import defaultdict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,6 +17,7 @@ from taxonomy_builder.services.comment_service import (
     ConceptNotFoundError,
     InvalidParentCommentError,
     NotCommentOwnerError,
+    NotTopLevelCommentError,
 )
 
 # Router for concept-scoped comment operations
@@ -41,11 +41,17 @@ def get_comment_service(
 async def list_comments(
     concept_id: UUID,
     service: CommentService = Depends(get_comment_service),
+    resolved: bool | None = None,
 ) -> list[dict]:
-    """List all comments for a concept, grouped by thread."""
-    try:
-        comments = await service.list_comments(concept_id)
+    """List all comments for a concept, grouped by thread.
 
+    Args:
+        concept_id: The ID of the concept to list comments for
+        resolved: If True, only show resolved comments.
+                  If False, only show unresolved comments.
+                  If None (default), show all comments.
+    """
+    try:
         # Helper function to format a comment
         def format_comment(comment):
             return {
@@ -56,23 +62,23 @@ async def list_comments(
                 "content": comment.content,
                 "created_at": comment.created_at,
                 "updated_at": comment.updated_at,
+                "resolved_at": comment.resolved_at,
+                "resolved_by": comment.resolved_by,
                 "user": {
                     "id": comment.user.id,
                     "display_name": comment.user.display_name,
                 },
+                "resolver": {
+                    "id": comment.resolver.id,
+                    "display_name": comment.resolver.display_name,
+                } if comment.resolver else None,
                 "can_delete": comment.user_id == service.user_id,
                 "replies": [],
             }
 
-        # Separate top-level comments from replies
-        top_level = []
-        replies_by_parent = defaultdict(list)
-
-        for comment in comments:
-            if comment.parent_comment_id is None:
-                top_level.append(comment)
-            else:
-                replies_by_parent[comment.parent_comment_id].append(comment)
+        top_level, replies_by_parent = await service.list_comment_threads(
+            concept_id=concept_id, resolved=resolved
+        )
 
         # Build threaded structure
         threads = []
@@ -80,7 +86,7 @@ async def list_comments(
             parent_dict = format_comment(parent)
             # Add replies to parent
             parent_dict["replies"] = [
-                format_comment(reply) for reply in replies_by_parent[parent.id]
+                format_comment(reply) for reply in replies_by_parent.get(parent.id, [])
             ]
             threads.append(parent_dict)
 
@@ -133,4 +139,31 @@ async def delete_comment(
     except CommentNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except NotCommentOwnerError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@comments_router.post("/{comment_id}/resolve", status_code=status.HTTP_204_NO_CONTENT)
+async def resolve_comment(
+    comment_id: UUID,
+    service: CommentService = Depends(get_comment_service)
+) -> None:
+    """Resolve a comment (only if it is a top level comment)."""
+    try:
+        await service.resolve_comment(comment_id)
+    except CommentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NotTopLevelCommentError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+@comments_router.post("/{comment_id}/unresolve", status_code=status.HTTP_204_NO_CONTENT)
+async def unresolve_comment(
+    comment_id: UUID,
+    service: CommentService = Depends(get_comment_service)
+) -> None:
+    """Unresolve a comment (only if it is a top level comment)."""
+    try:
+        await service.unresolve_comment(comment_id)
+    except CommentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NotTopLevelCommentError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

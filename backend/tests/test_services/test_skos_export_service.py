@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 from rdflib import Graph
-from rdflib.namespace import RDF, SKOS, DCTERMS, OWL
+from rdflib.namespace import DCTERMS, RDF, SKOS
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -33,8 +33,6 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         title="Test Taxonomy",
         description="A test taxonomy",
         uri="http://example.org/taxonomy",
-        publisher="Test Publisher",
-        version="1.0",
     )
     db_session.add(scheme)
     await db_session.flush()
@@ -90,8 +88,6 @@ async def test_export_scheme_metadata(
     # Check all metadata fields
     assert str(g.value(scheme_uri, DCTERMS.title)) == "Test Taxonomy"
     assert str(g.value(scheme_uri, DCTERMS.description)) == "A test taxonomy"
-    assert str(g.value(scheme_uri, DCTERMS.publisher)) == "Test Publisher"
-    assert str(g.value(scheme_uri, OWL.versionInfo)) == "1.0"
 
 
 # Single concept tests

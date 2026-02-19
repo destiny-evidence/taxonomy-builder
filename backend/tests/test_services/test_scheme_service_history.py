@@ -8,6 +8,7 @@ from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept_scheme import ConceptSchemeCreate, ConceptSchemeUpdate
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+from taxonomy_builder.services.history_service import HistoryService
 
 
 @pytest.fixture
@@ -36,15 +37,8 @@ async def test_create_scheme_creates_change_event(
         ),
     )
 
-    # Check that a change event was created
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "concept_scheme",
-            ChangeEvent.entity_id == scheme.id,
-            ChangeEvent.action == "create",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_scheme_history(scheme.id)
+    event = next(e for e in events if e.action == "create")
 
     assert event.scheme_id == scheme.id
     assert event.before_state is None
@@ -80,15 +74,8 @@ async def test_update_scheme_creates_change_event_with_before_after(
         ),
     )
 
-    # Check that an update change event was created
-    result = await db_session.execute(
-        select(ChangeEvent).where(
-            ChangeEvent.entity_type == "concept_scheme",
-            ChangeEvent.entity_id == scheme_id,
-            ChangeEvent.action == "update",
-        )
-    )
-    event = result.scalar_one()
+    events = await HistoryService(db_session).get_scheme_history(scheme_id)
+    event = next(e for e in events if e.action == "update")
 
     assert event.scheme_id == scheme_id
     assert event.before_state is not None
@@ -120,7 +107,7 @@ async def test_delete_scheme_creates_change_event(
     # Delete the scheme
     await service.delete_scheme(scheme_id)
 
-    # Check that a delete change event was created
+    # scheme_id FK is SET NULL on cascade, so query ChangeEvent directly
     result = await db_session.execute(
         select(ChangeEvent).where(
             ChangeEvent.entity_type == "concept_scheme",

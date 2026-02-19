@@ -12,8 +12,6 @@ class ConceptSchemeCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     uri: str | None = Field(default=None, max_length=2048)
-    publisher: str | None = Field(default=None, max_length=255)
-    version: str | None = Field(default=None, max_length=50)
 
     @field_validator("title")
     @classmethod
@@ -28,8 +26,6 @@ class ConceptSchemeUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     uri: str | None = Field(default=None, max_length=2048)
-    publisher: str | None = Field(default=None, max_length=255)
-    version: str | None = Field(default=None, max_length=50)
 
     @field_validator("title")
     @classmethod
@@ -50,7 +46,5 @@ class ConceptSchemeRead(BaseModel):
     title: str
     description: str | None
     uri: str | None
-    publisher: str | None
-    version: str | None
     created_at: datetime
     updated_at: datetime

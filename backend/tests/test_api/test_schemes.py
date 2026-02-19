@@ -29,8 +29,6 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         title="Test Scheme",
         description="A test scheme",
         uri="http://example.org/schemes/test",
-        publisher="Test Publisher",
-        version="1.0",
     )
     db_session.add(scheme)
     await db_session.flush()
@@ -79,8 +77,6 @@ async def test_create_scheme(authenticated_client: AsyncClient, project: Project
             "title": "New Scheme",
             "description": "A new scheme",
             "uri": "http://example.org/new",
-            "publisher": "Publisher",
-            "version": "1.0",
         },
     )
     assert response.status_code == 201

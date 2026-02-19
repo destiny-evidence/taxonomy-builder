@@ -65,6 +65,20 @@ async def user(db_session: AsyncSession) -> User:
     return user
 
 
+@pytest.fixture
+async def resolver_user(db_session: AsyncSession) -> User:
+    """Create a resolver user for testing resolutions."""
+    user = User(
+        keycloak_user_id="resolver-keycloak-id",
+        email="resolver@example.com",
+        display_name="Resolver User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    return user
+
+
 @pytest.mark.asyncio
 async def test_create_comment(
     db_session: AsyncSession, concept: Concept, user: User
@@ -204,3 +218,66 @@ async def test_cascade_delete_with_user(
 
     result = await db_session.execute(select(Comment).where(Comment.id == comment_id))
     assert result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_add_resolution_to_parent_comment(
+    db_session: AsyncSession, concept: Concept, user: User, resolver_user: User
+) -> None:
+    """Test adding a resolution to a parent comment."""
+    # Create a top-level comment (no parent_comment_id)
+    top_level_comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="This is a top-level comment",
+    )
+    db_session.add(top_level_comment)
+    await db_session.flush()
+    await db_session.refresh(top_level_comment)
+
+    assert top_level_comment.parent_comment_id is None
+    assert top_level_comment.resolved_at is None
+    assert top_level_comment.resolved_by is None
+
+    # Add a resolution to the top-level comment
+    top_level_comment.resolved_at = datetime.now()
+    top_level_comment.resolved_by = resolver_user.id
+    await db_session.flush()
+    await db_session.refresh(top_level_comment)
+
+    assert top_level_comment.resolved_at is not None
+    assert isinstance(top_level_comment.resolved_at, datetime)
+    assert top_level_comment.resolved_by == resolver_user.id
+
+
+@pytest.mark.asyncio
+async def test_remove_resolution_from_comment(
+    db_session: AsyncSession, concept: Concept, user: User, resolver_user: User
+) -> None:
+    """Test removing a resolution from a comment."""
+    # Create a parent comment
+    comment = Comment(
+        concept_id=concept.id,
+        user_id=user.id,
+        content="Comment with resolution",
+        resolved_at=datetime.now(),
+        resolved_by=resolver_user.id
+    )
+    db_session.add(comment)
+    await db_session.flush()
+    await db_session.refresh(comment)
+
+    assert comment.resolved_at is not None
+    assert comment.resolved_by == resolver_user.id
+
+    # Remove the resolution by setting fields to None
+    comment.resolved_at = None
+    comment.resolved_by = None
+    await db_session.flush()
+    await db_session.refresh(comment)
+
+    # Verify the resolution has been removed
+    assert comment.resolved_at is None
+    assert comment.resolved_by is None
+
+

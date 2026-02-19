@@ -27,8 +27,6 @@ export interface ConceptScheme {
   title: string;
   description: string | null;
   uri: string | null;
-  publisher: string | null;
-  version: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -37,16 +35,12 @@ export interface ConceptSchemeCreate {
   title: string;
   description?: string | null;
   uri?: string | null;
-  publisher?: string | null;
-  version?: string | null;
 }
 
 export interface ConceptSchemeUpdate {
   title?: string;
   description?: string | null;
   uri?: string | null;
-  publisher?: string | null;
-  version?: string | null;
 }
 
 // ============ Concepts ============
@@ -139,26 +133,12 @@ export interface ChangeEvent {
   entity_type: string;
   entity_id: string;
   scheme_id: string | null;
+  project_id: string | null;
   action: string;
   before_state: Record<string, unknown> | null;
   after_state: Record<string, unknown> | null;
   user_id: string | null;
   user_display_name: string | null;
-}
-
-// ============ Published Versions ============
-export interface PublishedVersion {
-  id: string;
-  scheme_id: string;
-  version_label: string;
-  published_at: string;
-  snapshot: Record<string, unknown>;
-  notes: string | null;
-}
-
-export interface PublishedVersionCreate {
-  version_label: string;
-  notes?: string | null;
 }
 
 // ============ Comments ============
@@ -183,5 +163,88 @@ export interface Comment {
 export interface CommentCreate {
   content: string;
   parent_comment_id?: string;
+}
+
+// ============ Properties ============
+// Brief scheme info nested in property responses
+export interface ConceptSchemeBrief {
+  id: string;
+  title: string;
+  uri: string | null;
+}
+
+export interface Property {
+  id: string;
+  project_id: string;
+  identifier: string;
+  label: string;
+  description: string | null;
+  domain_class: string;
+  range_scheme_id: string | null;
+  range_scheme: ConceptSchemeBrief | null;
+  range_datatype: string | null;
+  cardinality: "single" | "multiple";
+  required: boolean;
+  uri: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyCreate {
+  identifier: string;
+  label: string;
+  description?: string | null;
+  domain_class: string;
+  range_scheme_id?: string | null;
+  range_datatype?: string | null;
+  cardinality: "single" | "multiple";
+  required?: boolean;
+}
+
+export interface PropertyUpdate {
+  identifier?: string;
+  label?: string;
+  description?: string | null;
+  domain_class?: string;
+  range_scheme_id?: string | null;
+  range_datatype?: string | null;
+  cardinality?: "single" | "multiple";
+  required?: boolean;
+}
+
+export const DATATYPE_LABELS: Record<string, string> = {
+  "xsd:string": "Text",
+  "xsd:integer": "Integer",
+  "xsd:decimal": "Decimal",
+  "xsd:boolean": "Yes / No",
+  "xsd:date": "Date",
+  "xsd:dateTime": "Date & Time",
+  "xsd:anyURI": "URL",
+};
+
+export function datatypeLabel(xsdType: string): string {
+  return DATATYPE_LABELS[xsdType] ?? xsdType;
+}
+
+// ============ Ontology ============
+export interface OntologyClass {
+  uri: string;
+  label: string;
+  comment: string | null;
+}
+
+export interface OntologyProperty {
+  uri: string;
+  label: string;
+  comment: string | null;
+  domain: string[];
+  range: string[];
+  property_type: "object" | "datatype";
+}
+
+export interface CoreOntology {
+  classes: OntologyClass[];
+  object_properties: OntologyProperty[];
+  datatype_properties: OntologyProperty[];
 }
 

@@ -39,8 +39,6 @@ const mockScheme: ConceptScheme = {
   title: "Animal Taxonomy",
   description: "A taxonomy of animals",
   uri: "http://example.org/animals",
-  publisher: null,
-  version: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -162,19 +160,6 @@ describe("TreePane", () => {
     expect(screen.getByRole("button", { name: /history/i })).toBeInTheDocument();
   });
 
-  it("renders collapsible Versions section in footer", () => {
-    render(
-      <TreePane
-        schemeId="scheme-1"
-        onExpandAll={() => {}}
-        onCollapseAll={() => {}}
-        onRefresh={async () => {}}
-      />
-    );
-
-    expect(screen.getByRole("button", { name: /versions/i })).toBeInTheDocument();
-  });
-
   it("expands History section when clicked", () => {
     render(
       <TreePane
@@ -190,48 +175,6 @@ describe("TreePane", () => {
 
     expect(screen.getByTestId("history-panel")).toBeInTheDocument();
     expect(historyButton).toHaveAttribute("aria-expanded", "true");
-  });
-
-  it("expands Versions section when clicked", () => {
-    render(
-      <TreePane
-        schemeId="scheme-1"
-        onExpandAll={() => {}}
-        onCollapseAll={() => {}}
-        onRefresh={async () => {}}
-      />
-    );
-
-    const versionsButton = screen.getByRole("button", { name: /versions/i });
-    fireEvent.click(versionsButton);
-
-    expect(screen.getByTestId("versions-panel")).toBeInTheDocument();
-    expect(versionsButton).toHaveAttribute("aria-expanded", "true");
-  });
-
-  it("only allows one section open at a time (accordion)", () => {
-    render(
-      <TreePane
-        schemeId="scheme-1"
-        onExpandAll={() => {}}
-        onCollapseAll={() => {}}
-        onRefresh={async () => {}}
-      />
-    );
-
-    const historyButton = screen.getByRole("button", { name: /history/i });
-    const versionsButton = screen.getByRole("button", { name: /versions/i });
-
-    // Open History
-    fireEvent.click(historyButton);
-    expect(screen.getByTestId("history-panel")).toBeInTheDocument();
-
-    // Open Versions - should close History
-    fireEvent.click(versionsButton);
-    expect(screen.getByTestId("versions-panel")).toBeInTheDocument();
-    expect(screen.queryByTestId("history-panel")).not.toBeInTheDocument();
-    expect(historyButton).toHaveAttribute("aria-expanded", "false");
-    expect(versionsButton).toHaveAttribute("aria-expanded", "true");
   });
 
   it("collapses section when clicked again", () => {

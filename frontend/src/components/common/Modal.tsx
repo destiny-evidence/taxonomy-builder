@@ -56,7 +56,7 @@ export function Modal({ isOpen, title, children, onClose }: ModalProps) {
             &times;
           </button>
         </header>
-        <div class="modal__body">{children}</div>
+        <div class="modal__body">{isOpen && children}</div>
       </div>
     </dialog>
   );
