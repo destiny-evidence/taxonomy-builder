@@ -1,12 +1,16 @@
 import { useEffect, useState } from "preact/hooks";
 import type { JSX } from "preact";
-import { getSchemeHistory } from "../../api/history";
+import { getSchemeHistory, getProjectHistory } from "../../api/history";
 import { getActionLabel, getEntityTypeLabel } from "./historyStrings";
 import type { ChangeEvent } from "../../types/models";
 import "./HistoryPanel.css";
 
+export type HistorySource =
+  | { type: "scheme"; id: string }
+  | { type: "project"; id: string };
+
 interface HistoryPanelProps {
-  schemeId: string;
+  source: HistorySource;
   refreshKey?: number;
 }
 
@@ -55,6 +59,30 @@ function ChangeDescription({ event }: { event: ChangeEvent }): JSX.Element | nul
     }
   }
 
+  // For properties, show label
+  if (event.entity_type === "property") {
+    const label = afterState?.label || beforeState?.label;
+    if (label && typeof label === "string") {
+      return <strong>{label}</strong>;
+    }
+  }
+
+  // For projects, show name
+  if (event.entity_type === "project") {
+    const name = afterState?.name || beforeState?.name;
+    if (name && typeof name === "string") {
+      return <strong>{name}</strong>;
+    }
+  }
+
+  // For concept schemes, show title
+  if (event.entity_type === "concept_scheme") {
+    const title = afterState?.title || beforeState?.title;
+    if (title && typeof title === "string") {
+      return <strong>{title}</strong>;
+    }
+  }
+
   // For published versions, show version label
   const versionLabel = afterState?.version_label || beforeState?.version_label;
   if (versionLabel && typeof versionLabel === "string") {
@@ -90,7 +118,7 @@ function formatTimestamp(timestamp: string): string {
   return date.toLocaleDateString();
 }
 
-export function HistoryPanel({ schemeId, refreshKey }: HistoryPanelProps) {
+export function HistoryPanel({ source, refreshKey }: HistoryPanelProps) {
   const [history, setHistory] = useState<ChangeEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +128,10 @@ export function HistoryPanel({ schemeId, refreshKey }: HistoryPanelProps) {
       try {
         setLoading(true);
         setError(null);
-        const data = await getSchemeHistory(schemeId);
+        const data =
+          source.type === "scheme"
+            ? await getSchemeHistory(source.id)
+            : await getProjectHistory(source.id);
         setHistory(data);
       } catch (err) {
         setError("Failed to load history");
@@ -109,7 +140,7 @@ export function HistoryPanel({ schemeId, refreshKey }: HistoryPanelProps) {
       }
     }
     fetchHistory();
-  }, [schemeId, refreshKey]);
+  }, [source.type, source.id, refreshKey]);
 
   if (loading) {
     return (

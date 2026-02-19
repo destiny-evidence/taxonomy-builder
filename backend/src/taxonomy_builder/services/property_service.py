@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     from taxonomy_builder.models.concept_scheme import ConceptScheme
 
 
+class PropertyNotFoundError(Exception):
+    """Raised when a property is not found."""
+
+    def __init__(self, property_id: UUID) -> None:
+        self.property_id = property_id
+        super().__init__(f"Property '{property_id}' not found")
+
+
 class DomainClassNotFoundError(Exception):
     """Raised when a domain class is not found in the core ontology."""
 
@@ -108,7 +116,11 @@ class PropertyService:
                 raise SchemeNotInProjectError(range_scheme_id, project_id)
 
     def _serialize_property(self, prop: Property) -> dict:
-        """Serialize a property for change tracking."""
+        """Serialize a property for change tracking.
+
+        Manual serialization because Property is a SQLAlchemy model (no model_dump).
+        Intentionally excludes timestamps and relationships — only domain fields.
+        """
         return {
             "id": str(prop.id),
             "identifier": prop.identifier,

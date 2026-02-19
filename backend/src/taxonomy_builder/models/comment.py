@@ -37,9 +37,20 @@ class Comment(Base):
         default=datetime.now, onupdate=datetime.now
     )
     deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    resolved_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
-    user: Mapped["User"] = relationship(lazy="selectin")
+    user: Mapped["User"] = relationship(
+        foreign_keys=[user_id], lazy="selectin"
+    )
+
+    resolver: Mapped["User"] = relationship(
+        foreign_keys=[resolved_by], lazy="selectin"
+    )
 
     __table_args__ = (
         Index("ix_comments_concept_deleted", concept_id, deleted_at),
+        Index("ix_comments_parent_comment_id", parent_comment_id, unique=False)
     )

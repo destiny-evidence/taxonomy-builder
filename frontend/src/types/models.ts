@@ -133,6 +133,7 @@ export interface ChangeEvent {
   entity_type: string;
   entity_id: string;
   scheme_id: string | null;
+  project_id: string | null;
   action: string;
   before_state: Record<string, unknown> | null;
   after_state: Record<string, unknown> | null;

@@ -25,6 +25,7 @@ import {
 import { selectionMode, isClassMode, isSchemeMode } from "../state/workspace";
 import { selectedClassUri, selectedClass, ontology } from "../state/ontology";
 import { properties, selectedPropertyId } from "../state/properties";
+import { historyVersion } from "../state/history";
 import { projectsApi } from "../api/projects";
 import { schemesApi } from "../api/schemes";
 import { conceptsApi } from "../api/concepts";
@@ -146,12 +147,14 @@ export function SchemeWorkspacePage({
   async function handleRefresh() {
     if (schemeId) {
       await Promise.all([loadTree(schemeId), loadConcepts(schemeId)]);
+      historyVersion.value++;
     }
   }
 
   async function handlePropertiesRefresh() {
     if (projectId) {
       await loadProperties(projectId);
+      historyVersion.value++;
     }
   }
 
@@ -212,7 +215,7 @@ export function SchemeWorkspacePage({
   }
 
   async function handlePropertyDelete() {
-    // PropertyDetail handles deletion internally
+    // PropertyDetail handles deletion internally; handlePropertiesRefresh bumps historyVersion
     await handlePropertiesRefresh();
   }
 
@@ -224,7 +227,7 @@ export function SchemeWorkspacePage({
   async function handleFormSuccess() {
     handleFormClose();
     if (schemeId) {
-      await handleRefresh();
+      await handleRefresh(); // handleRefresh bumps historyVersion
     }
   }
 

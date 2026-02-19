@@ -153,6 +153,6 @@ def get_property_service(
     from taxonomy_builder.services.project_service import ProjectService
     from taxonomy_builder.services.property_service import PropertyService
 
-    project_service = ProjectService(db)
+    project_service = ProjectService(db, user_id=current_user.user.id)
     scheme_service = ConceptSchemeService(db, user_id=current_user.user.id)
     return PropertyService(db, project_service, scheme_service, user_id=current_user.user.id)

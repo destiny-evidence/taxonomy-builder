@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import CurrentUser, get_import_service
+from taxonomy_builder.api.dependencies import AuthenticatedUser, CurrentUser, get_current_user, get_import_service
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
@@ -24,9 +24,12 @@ from taxonomy_builder.services.skos_import_service import (
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
-def get_project_service(db: AsyncSession = Depends(get_db)) -> ProjectService:
-    """Dependency that provides a ProjectService instance."""
-    return ProjectService(db)
+def get_project_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> ProjectService:
+    """Dependency that provides a ProjectService instance with user context."""
+    return ProjectService(db, user_id=current_user.user.id)
 
 
 @router.get("", response_model=list[ProjectRead])

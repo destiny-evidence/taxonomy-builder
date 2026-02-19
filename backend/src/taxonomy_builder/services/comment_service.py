@@ -1,9 +1,10 @@
 """Comment service for business logic."""
 
+from collections import defaultdict
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -35,6 +36,16 @@ class NotCommentOwnerError(Exception):
         self.comment_id = comment_id
         self.user_id = user_id
         super().__init__("Cannot delete another user's comment")
+
+class NotTopLevelCommentError(Exception):
+    """
+    Raised when user tries perform an action that is restricted
+    to top-level comments on a reply comment.
+    """
+
+    def __init__(self, comment_id: UUID, action: str) -> None:
+        self.comment_id = comment_id
+        super().__init__(f"'{action}' can only be performed on top-level comments")
 
 
 class InvalidParentCommentError(Exception):
@@ -96,18 +107,72 @@ class CommentService:
 
         return parent
 
-    async def list_comments(self, concept_id: UUID) -> list[Comment]:
-        """List all non-deleted comments for a concept, ordered by created_at."""
+    async def get_comments(self, concept_id: UUID, resolved: bool | None = None) -> list[Comment]:
+        """Get non-deleted comments for a concept, ordered by created_at.
+
+        Allow filtering out of resolved or unresolved comments.
+
+        Args:
+            concept_id: The ID of the concept to list comments for
+            resolved: If True, return only resolved comments.
+                If False, return only unresolved comments.
+                If None (default), return all comments.
+        """
         await self._get_concept(concept_id)
 
-        result = await self.db.execute(
+        query = (
             select(Comment)
             .where(Comment.concept_id == concept_id)
             .where(Comment.deleted_at.is_(None))
             .options(selectinload(Comment.user))
+            .options(selectinload(Comment.resolver))
             .order_by(Comment.created_at)
         )
-        return list(result.scalars().all())
+
+        if resolved is not None:
+            # Get IDs of matching top-level comments
+            top_level_subq = (
+                select(Comment.id)
+                .where(Comment.concept_id == concept_id, Comment.parent_comment_id.is_(None))
+                .where(Comment.resolved_at.isnot(None) if resolved else Comment.resolved_at.is_(None))
+            )
+            # Get top-level + their replies in one query
+            query = query.where(
+                or_(Comment.id.in_(top_level_subq), Comment.parent_comment_id.in_(top_level_subq))
+            )
+
+        result = await self.db.execute(query)
+        comments = list(result.scalars().all())
+
+        return comments
+
+    async def list_comment_threads(
+            self, concept_id: UUID, resolved: bool | None = None
+    ) -> tuple[list[Comment], dict[UUID, list[Comment]]]:
+        """List comment threads for a concept, ordered by created_at
+
+        Args:
+            concept_id: The ID of the concept to list comments for
+            resolved: If True, return only resolved comments.
+                If False, return only unresolved comments.
+                If None (default), return all comments.
+        Returns:
+            tuple[thread_parents, dict[thread_parent_id, list[replies]]]
+        """
+        comments = await self.get_comments(concept_id=concept_id, resolved=resolved)
+
+        # Separate top-level comments from replies
+        top_level = []
+        replies_by_parent = defaultdict(list)
+
+        for comment in comments:
+            if comment.parent_comment_id is None:
+                top_level.append(comment)
+            else:
+                replies_by_parent[comment.parent_comment_id].append(comment)
+
+        return top_level, replies_by_parent
+
 
     async def create_comment(
         self, concept_id: UUID, comment_in: CommentCreate
@@ -139,4 +204,34 @@ class CommentService:
             raise NotCommentOwnerError(comment_id, self.user_id)
 
         comment.deleted_at = datetime.now()
+        await self.db.flush()
+
+    async def resolve_comment(self, comment_id: UUID) -> None:
+        """
+        Resolve a comment (only if it is a top level comment).
+
+        If the comment is already resolved, do not update the resolution fields.
+        """
+        comment = await self._get_comment(comment_id)
+
+        if comment.parent_comment_id:
+            raise NotTopLevelCommentError(comment_id=comment.id, action="resolve")
+
+        # Only set resolution fields if not already resolved
+        if comment.resolved_at is None:
+            comment.resolved_at = datetime.now()
+            comment.resolved_by = self.user_id
+
+        await self.db.flush()
+
+    async def unresolve_comment(self, comment_id: UUID) -> None:
+        """Unresolve a comment (only if it is a top level comment)."""
+        comment = await self._get_comment(comment_id)
+
+        if comment.parent_comment_id:
+            raise NotTopLevelCommentError(comment_id=comment.id, action="unresolve")
+
+        comment.resolved_at = None
+        comment.resolved_by = None
+
         await self.db.flush()
