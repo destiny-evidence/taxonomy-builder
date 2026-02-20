@@ -91,7 +91,7 @@ describe("ProjectPane", () => {
   describe("publish button", () => {
     it("shows New version button", () => {
       const { props } = renderPane();
-      const btn = screen.getByRole("button", { name: "New version" });
+      const btn = screen.getByRole("button", { name: "New Version" });
       expect(btn).toBeInTheDocument();
 
       fireEvent.click(btn);

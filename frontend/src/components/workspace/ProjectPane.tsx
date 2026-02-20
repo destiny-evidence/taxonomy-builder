@@ -56,7 +56,7 @@ export function ProjectPane({
         <span class="project-pane__section-title">Publishing</span>
         <div class="project-pane__publish-group">
           <button class="project-pane__publish-btn" onClick={onPublish}>
-            New version
+            New Version
           </button>
           <button class="project-pane__versions-btn" onClick={onVersions}>
             History
