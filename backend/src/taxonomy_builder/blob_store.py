@@ -17,7 +17,7 @@ from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobServiceClient
 
 if TYPE_CHECKING:
-    from taxonomy_builder.config import Settings
+    from taxonomy_builder.config import CDNSettings, Settings
 
 
 @runtime_checkable
@@ -225,7 +225,8 @@ _cdn_purger: CdnPurger | None = None
 
 def init_cdn_purger(settings: Settings) -> None:
     global _cdn_purger
-    _cdn_purger = create_cdn_purger(settings)
+    cdn = settings.cdn if settings.blob_backend == "azure" else None
+    _cdn_purger = create_cdn_purger(cdn)
 
 
 def get_cdn_purger() -> CdnPurger:
@@ -241,18 +242,12 @@ async def close_cdn_purger() -> None:
     _cdn_purger = None
 
 
-def create_cdn_purger(settings: Settings) -> CdnPurger:
-    if (
-        settings.blob_backend == "azure"
-        and settings.cdn_subscription_id
-        and settings.cdn_resource_group
-        and settings.cdn_profile_name
-        and settings.cdn_endpoint_name
-    ):
+def create_cdn_purger(cdn: CDNSettings | None) -> CdnPurger:
+    if cdn is not None:
         return AzureFrontDoorPurger(
-            subscription_id=settings.cdn_subscription_id,
-            resource_group=settings.cdn_resource_group,
-            profile_name=settings.cdn_profile_name,
-            endpoint_name=settings.cdn_endpoint_name,
+            subscription_id=cdn.subscription_id,
+            resource_group=cdn.resource_group,
+            profile_name=cdn.profile_name,
+            endpoint_name=cdn.endpoint_name,
         )
     return NoOpPurger()

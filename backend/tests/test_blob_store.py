@@ -14,7 +14,7 @@ from taxonomy_builder.blob_store import (
     create_blob_store,
     create_cdn_purger,
 )
-from taxonomy_builder.config import Settings
+from taxonomy_builder.config import CDNSettings, Settings
 
 
 class TestFilesystemBlobStore:
@@ -279,9 +279,8 @@ class TestNoOpPurger:
 
 
 class TestCreateCdnPurger:
-    def test_returns_noop_for_filesystem_backend(self) -> None:
-        settings = Settings(blob_backend="filesystem")
-        purger = create_cdn_purger(settings)
+    def test_returns_noop_when_cdn_is_none(self) -> None:
+        purger = create_cdn_purger(None)
         assert isinstance(purger, NoOpPurger)
 
     @patch("taxonomy_builder.blob_store.DefaultAzureCredential")
@@ -289,21 +288,12 @@ class TestCreateCdnPurger:
     def test_returns_azure_purger_when_cdn_settings_present(
         self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
-        settings = Settings(
-            blob_backend="azure",
-            blob_azure_account_url="https://acct.blob.core.windows.net",
-            cdn_subscription_id="sub-123",
-            cdn_resource_group="rg-test",
-            cdn_profile_name="fd-test",
-            cdn_endpoint_name="fde-test",
+        purger = create_cdn_purger(
+            CDNSettings(
+                subscription_id="sub-123",
+                resource_group="rg-test",
+                profile_name="fd-test",
+                endpoint_name="fde-test",
+            )
         )
-        purger = create_cdn_purger(settings)
         assert isinstance(purger, AzureFrontDoorPurger)
-
-    def test_returns_noop_when_azure_but_cdn_settings_missing(self) -> None:
-        settings = Settings(
-            blob_backend="azure",
-            blob_azure_account_url="https://acct.blob.core.windows.net",
-        )
-        purger = create_cdn_purger(settings)
-        assert isinstance(purger, NoOpPurger)
