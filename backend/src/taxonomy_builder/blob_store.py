@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity.aio import DefaultAzureCredential
@@ -20,32 +21,31 @@ if TYPE_CHECKING:
     from taxonomy_builder.config import CDNSettings, Settings
 
 
-@runtime_checkable
-class BlobStore(Protocol):
+class BlobStore(ABC):
     """Write-side interface for blob storage."""
 
+    @abstractmethod
     async def put(self, path: str, data: bytes, content_type: str = "application/json") -> None:
         """Write data to the given path, overwriting if it exists."""
-        ...
 
+    @abstractmethod
     async def delete(self, path: str) -> None:
         """Delete the blob at the given path. No-op if it doesn't exist."""
-        ...
 
+    @abstractmethod
     async def exists(self, path: str) -> bool:
         """Check whether a blob exists at the given path."""
-        ...
 
+    @abstractmethod
     async def list(self, prefix: str) -> list[str]:
         """List all blob paths matching the given prefix."""
-        ...
 
+    @abstractmethod
     async def close(self) -> None:
         """Release underlying resources."""
-        ...
 
 
-class FilesystemBlobStore:
+class FilesystemBlobStore(BlobStore):
     """Blob store backed by the local filesystem."""
 
     def __init__(self, root: Path) -> None:
@@ -95,7 +95,7 @@ class FilesystemBlobStore:
         pass
 
 
-class AzureBlobStore:
+class AzureBlobStore(BlobStore):
     """Blob store backed by Azure Blob Storage."""
 
     def __init__(self, account_url: str, container_name: str) -> None:
@@ -132,20 +132,19 @@ class AzureBlobStore:
         await self._credential.close()
 
 
-@runtime_checkable
-class CdnPurger(Protocol):
+class CdnPurger(ABC):
     """Interface for purging CDN-cached paths."""
 
+    @abstractmethod
     async def purge(self, paths: list[str]) -> None:
         """Purge the given paths from the CDN cache."""
-        ...
 
+    @abstractmethod
     async def close(self) -> None:
         """Release underlying resources."""
-        ...
 
 
-class AzureFrontDoorPurger:
+class AzureFrontDoorPurger(CdnPurger):
     """Purges paths from Azure Front Door cache."""
 
     def __init__(
@@ -175,7 +174,7 @@ class AzureFrontDoorPurger:
         await self._credential.close()
 
 
-class NoOpPurger:
+class NoOpPurger(CdnPurger):
     """No-op purger for local dev (Caddy doesn't cache)."""
 
     async def purge(self, paths: list[str]) -> None:
