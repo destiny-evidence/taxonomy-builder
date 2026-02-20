@@ -21,6 +21,7 @@ services:
       - DNSIMPLE_KEY
     volumes:
       - ./dev/caddy:/etc/caddy:ro
+      - ./.blob-storage:/srv/blob-storage:ro
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     extra_hosts:

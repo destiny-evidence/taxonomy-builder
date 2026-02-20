@@ -110,6 +110,7 @@ if [ -n "$DEV_DOMAIN" ]; then
     echo "Creating Caddy config at $CADDY_CONFIG..."
     cat > "$CADDY_CONFIG" << EOF
 https://${SAFE_NAME}.${DEV_DOMAIN} {
+	import published
 	reverse_proxy /api/* host.docker.internal:${BACKEND_PORT}
 	reverse_proxy host.docker.internal:${FRONTEND_PORT}
 }
@@ -137,7 +138,8 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
         "cwd": "\${workspaceFolder}/backend",
         "env": {
           "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}",
-          "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}"
+          "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}",
+          "TAXONOMY_BLOB_FILESYSTEM_ROOT": "${REPO_ROOT}/.blob-storage"
         }
       },
       "isBackground": true,
@@ -201,7 +203,8 @@ cat > "$VSCODE_DIR/launch.json" << EOF
       "cwd": "\${workspaceFolder}/backend",
       "env": {
         "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}",
-        "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}"
+        "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}",
+        "TAXONOMY_BLOB_FILESYSTEM_ROOT": "${REPO_ROOT}/.blob-storage"
       },
       "console": "integratedTerminal"
     }

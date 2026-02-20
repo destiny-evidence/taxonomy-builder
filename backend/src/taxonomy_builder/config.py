@@ -3,13 +3,22 @@
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from pydantic import computed_field
+from pydantic import BaseModel, computed_field
 from pydantic_settings import BaseSettings
 
 
 def _default_core_ontology_path() -> str:
     """Get the default path to the bundled core ontology file."""
     return str(Path(__file__).parent / "data" / "evrepo-core.ttl")
+
+
+class CDNSettings(BaseModel):
+    """Azure Front Door settings for CDN cache purging."""
+
+    subscription_id: str
+    resource_group: str
+    profile_name: str
+    endpoint_name: str
 
 
 class Settings(BaseSettings):
@@ -33,6 +42,15 @@ class Settings(BaseSettings):
 
     # Core ontology file path
     core_ontology_path: str = _default_core_ontology_path()
+
+    # Blob storage
+    blob_backend: str = "filesystem"
+    blob_filesystem_root: str = "./.blob-storage"
+    blob_azure_account_url: str | None = None
+    blob_azure_container: str = "published"
+
+    # CDN cache purge (Azure Front Door)
+    cdn: CDNSettings | None = None
 
     model_config = {"env_prefix": "TAXONOMY_"}
 

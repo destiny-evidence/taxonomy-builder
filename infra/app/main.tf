@@ -93,6 +93,27 @@ module "container_app_api" {
       value = azurerm_user_assigned_identity.api.client_id
     },
     {
+      name  = "TAXONOMY_BLOB_BACKEND"
+      value = "azure"
+    },
+    {
+      name  = "TAXONOMY_BLOB_AZURE_ACCOUNT_URL"
+      value = "https://${azurerm_storage_account.published.name}.blob.core.windows.net"
+    },
+    {
+      name  = "TAXONOMY_BLOB_AZURE_CONTAINER"
+      value = azurerm_storage_container.published.name
+    },
+    {
+      name = "TAXONOMY_CDN"
+      value = jsonencode({
+        subscription_id = data.azurerm_subscription.current.subscription_id
+        resource_group  = azurerm_resource_group.this.name
+        profile_name    = azurerm_cdn_frontdoor_profile.this.name
+        endpoint_name   = azurerm_cdn_frontdoor_endpoint.this.name
+      })
+    },
+    {
       name        = "TAXONOMY_DB_PASSWORD"
       secret_name = "db-password"
     },
