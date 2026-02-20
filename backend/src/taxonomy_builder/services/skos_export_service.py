@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.published_version import PublishedVersion
 
 
 class SchemeNotFoundError(Exception):
@@ -142,6 +143,18 @@ class SKOSExportService:
         graph = self._build_graph(scheme, concepts)
 
         return graph.serialize(format=format)
+
+    async def export_published_version(self, published_version: PublishedVersion, format: str) -> str:
+        """Export a published version's snapshot as SKOS RDF.
+
+        Args:
+            published_version: The PublishedVersion model containing the snapshot
+            format: The RDF format - 'turtle', 'xml', or 'json-ld'
+
+        Returns:
+            The serialized RDF as a string
+        """
+        raise NotImplementedError
 
     def export_snapshot(self, snapshot: dict, format: str) -> str:
         """Export a version snapshot as SKOS RDF.

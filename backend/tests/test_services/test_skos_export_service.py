@@ -11,8 +11,15 @@ from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.models.project import Project
-from taxonomy_builder.services.skos_export_service import SKOSExportService, SchemeNotFoundError
+from taxonomy_builder.schemas.snapshot import (
+    SnapshotConcept,
+    SnapshotProjectMetadata,
+    SnapshotScheme,
+    SnapshotVocabulary,
+)
+from taxonomy_builder.services.skos_export_service import SchemeNotFoundError, SKOSExportService
 
 
 @pytest.fixture
@@ -528,3 +535,188 @@ async def test_export_related_is_symmetric(
     cats_related = list(g.objects(cats_uri, SKOS.related))
     assert len(cats_related) == 1
     assert str(cats_related[0]) == str(dogs_uri)
+
+
+# Published version export tests
+
+
+def _build_snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
+    """Build a SnapshotVocabulary from existing DB fixtures for test use."""
+    animal_id = uuid4()
+    mammal_id = uuid4()
+
+    return SnapshotVocabulary(
+        project=SnapshotProjectMetadata(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+        ),
+        concept_schemes=[
+            SnapshotScheme(
+                id=scheme.id,
+                title=scheme.title,
+                description=scheme.description,
+                uri=scheme.uri,
+                concepts=[
+                    SnapshotConcept(
+                        id=animal_id,
+                        pref_label="Animals",
+                        identifier="animals",
+                        uri=f"{scheme.uri}/animals",
+                        definition="Living organisms",
+                        alt_labels=["Fauna"],
+                    ),
+                    SnapshotConcept(
+                        id=mammal_id,
+                        pref_label="Mammals",
+                        identifier="mammals",
+                        uri=f"{scheme.uri}/mammals",
+                        broader_ids=[animal_id],
+                    ),
+                ],
+            )
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_basic(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+    scheme: ConceptScheme,
+) -> None:
+    """Test exporting a published version produces valid SKOS RDF."""
+    snapshot = _build_snapshot(project, scheme)
+
+    published = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot.model_dump(mode="json"),
+    )
+    db_session.add(published)
+    await db_session.flush()
+    await db_session.refresh(published)
+
+    result = await export_service.export_published_version(published, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should contain the scheme
+    scheme_uri = next(g.subjects(RDF.type, SKOS.ConceptScheme))
+    assert str(scheme_uri) == "http://example.org/taxonomy"
+    assert str(g.value(scheme_uri, DCTERMS.title)) == "Test Taxonomy"
+
+    # Should contain both concepts
+    concepts = list(g.subjects(RDF.type, SKOS.Concept))
+    assert len(concepts) == 2
+
+    # Animals should be a top concept
+    top_concepts = list(g.objects(scheme_uri, SKOS.hasTopConcept))
+    assert len(top_concepts) == 1
+    assert "animals" in str(top_concepts[0])
+
+    # Mammals should have broader -> Animals
+    mammals_uri = next(u for u in concepts if "mammals" in str(u))
+    broader = g.value(mammals_uri, SKOS.broader)
+    assert "animals" in str(broader)
+
+    # Animals should have alt label
+    animals_uri = next(u for u in concepts if "animals" in str(u))
+    alt_labels = [str(label) for label in g.objects(animals_uri, SKOS.altLabel)]
+    assert alt_labels == ["Fauna"]
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_respects_format(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+    scheme: ConceptScheme,
+) -> None:
+    """Test that export_published_version serializes in the requested format."""
+    snapshot = _build_snapshot(project, scheme)
+
+    published = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot.model_dump(mode="json"),
+    )
+    db_session.add(published)
+    await db_session.flush()
+    await db_session.refresh(published)
+
+    result = await export_service.export_published_version(published, "xml")
+
+    g = Graph()
+    g.parse(data=result, format="xml")
+    assert len(list(g.subjects(RDF.type, SKOS.Concept))) == 2
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_multiple_schemes(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+    scheme: ConceptScheme,
+) -> None:
+    """Test exporting a published version with multiple concept schemes."""
+    concept_id = uuid4()
+    snapshot = SnapshotVocabulary(
+        project=SnapshotProjectMetadata(
+            id=project.id,
+            name=project.name,
+        ),
+        concept_schemes=[
+            SnapshotScheme(
+                id=scheme.id,
+                title=scheme.title,
+                uri=scheme.uri,
+                concepts=[
+                    SnapshotConcept(
+                        id=uuid4(),
+                        pref_label="Alpha",
+                        uri=f"{scheme.uri}/alpha",
+                    ),
+                ],
+            ),
+            SnapshotScheme(
+                id=uuid4(),
+                title="Second Scheme",
+                uri="http://example.org/second",
+                concepts=[
+                    SnapshotConcept(
+                        id=concept_id,
+                        pref_label="Beta",
+                        uri="http://example.org/second/beta",
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    published = PublishedVersion(
+        project_id=project.id,
+        version="2.0",
+        title="v2.0",
+        snapshot=snapshot.model_dump(mode="json"),
+    )
+    db_session.add(published)
+    await db_session.flush()
+    await db_session.refresh(published)
+
+    result = await export_service.export_published_version(published, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should have two concept schemes
+    schemes = list(g.subjects(RDF.type, SKOS.ConceptScheme))
+    assert len(schemes) == 2
+
+    # Should have two concepts total
+    concepts = list(g.subjects(RDF.type, SKOS.Concept))
+    assert len(concepts) == 2
