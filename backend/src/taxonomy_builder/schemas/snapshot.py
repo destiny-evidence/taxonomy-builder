@@ -142,8 +142,7 @@ class SnapshotProperty(BaseModel):
         if has_scheme and self.range_scheme_uri is None:
             raise PydanticCustomError(
                 "property_missing_range_scheme_uri",
-                "Property '{label}' has a range scheme ID"
-                " but no range scheme URI.",
+                "Property '{label}' has a range scheme ID but no range scheme URI.",
                 {
                     "label": self.label,
                     "entity_type": "property",

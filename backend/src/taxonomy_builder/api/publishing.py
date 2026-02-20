@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.api.dependencies import CurrentUser
+from taxonomy_builder.blob_store import get_blob_store, get_cdn_purger
 from taxonomy_builder.database import get_db
 from taxonomy_builder.schemas.publishing import (
     PublishedVersionRead,
@@ -19,6 +20,7 @@ from taxonomy_builder.services.publishing_service import (
     ValidationFailedError,
     VersionConflictError,
 )
+from taxonomy_builder.services.reader_file_service import ReaderFileService
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
 router = APIRouter(prefix="/api/projects", tags=["publishing"])
@@ -63,6 +65,8 @@ async def publish_version(
         version = await service.publish(
             project_id, request, publisher=current_user.user.display_name
         )
+        reader_service = ReaderFileService(service, get_blob_store(), get_cdn_purger())
+        await reader_service.publish_reader_files(version)
         return PublishedVersionRead.model_validate(version)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

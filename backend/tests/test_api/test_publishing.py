@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.blob_store import FilesystemBlobStore
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
@@ -406,3 +407,49 @@ class TestListVersions:
         assert data[0]["finalized"] is False
         assert data[1]["version"] == "1.0"
         assert data[1]["finalized"] is True
+
+
+class TestReaderFiles:
+    """Verify that publishing writes reader files to blob storage."""
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_vocabulary_file(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        assert resp.status_code == 201
+        path = f"{publishable_project.id}/1.0/vocabulary.json"
+        assert await blob_store.exists(path)
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_project_index(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        path = f"{publishable_project.id}/index.json"
+        assert await blob_store.exists(path)
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_root_index(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        assert await blob_store.exists("index.json")
