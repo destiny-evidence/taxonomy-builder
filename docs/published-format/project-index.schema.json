@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/project-index.schema.json",
+  "title": "Published Project Index",
+  "description": "Version history for a single project. Lists all published versions (finalized and pre-release) ordered by semver descending. Loaded on demand when the reader needs a version picker. Served at /{project-id}/index.json.",
+  "type": "object",
+  "required": ["format_version", "project", "latest_version", "versions"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forwards compatibility."
+    },
+    "project": {
+      "type": "object",
+      "description": "Project metadata.",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Project UUID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable project name."
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Project description."
+        },
+        "namespace": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "Project namespace URI used for constructing entity URIs."
+        }
+      }
+    },
+    "latest_version": {
+      "type": ["string", "null"],
+      "description": "Version string of the latest finalized release. Null if only pre-releases exist.",
+      "pattern": "^\\d+(\\.\\d+)+(-pre\\d+)?$"
+    },
+    "versions": {
+      "type": "array",
+      "description": "All published versions ordered by semver descending.",
+      "items": {
+        "type": "object",
+        "required": ["version", "title", "published_at", "pre_release", "content_summary"],
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Version string (e.g. \"1.0\", \"2.0-pre1\").",
+            "pattern": "^\\d+(\\.\\d+)+(-pre\\d+)?$"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable version title."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp of when this version was published."
+          },
+          "publisher": {
+            "type": ["string", "null"],
+            "description": "Display name of the user who published this version."
+          },
+          "pre_release": {
+            "type": "boolean",
+            "description": "True for pre-releases (e.g. 2.0-pre1), false for finalized releases."
+          },
+          "previous_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "UUID of the version this was published against, or null for the first version."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Release notes."
+          },
+          "content_summary": {
+            "type": "object",
+            "description": "Entity counts for this version.",
+            "required": ["schemes", "concepts", "properties", "classes"],
+            "additionalProperties": false,
+            "properties": {
+              "schemes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of concept schemes."
+              },
+              "concepts": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Total number of concepts across all schemes."
+              },
+              "properties": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of properties."
+              },
+              "classes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of ontology classes."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
