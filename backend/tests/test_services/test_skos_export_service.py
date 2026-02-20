@@ -1,6 +1,6 @@
 """Tests for SKOS Export Service."""
 
-from uuid import uuid4
+from uuid import uuid4, uuid7
 
 import pytest
 from rdflib import Graph
@@ -11,8 +11,8 @@ from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.snapshot import (
     SnapshotConcept,
     SnapshotProjectMetadata,
@@ -540,7 +540,8 @@ async def test_export_related_is_symmetric(
 # Published version export tests
 
 
-def _build_snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
+@pytest.fixture
+def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
     """Build a SnapshotVocabulary from existing DB fixtures for test use."""
     animal_id = uuid4()
     mammal_id = uuid4()
@@ -579,16 +580,11 @@ def _build_snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabula
     )
 
 
-@pytest.mark.asyncio
-async def test_export_published_version_basic(
-    db_session: AsyncSession,
-    export_service: SKOSExportService,
-    project: Project,
-    scheme: ConceptScheme,
-) -> None:
-    """Test exporting a published version produces valid SKOS RDF."""
-    snapshot = _build_snapshot(project, scheme)
-
+@pytest.fixture
+async def published_version(
+    db_session: AsyncSession, project: Project, snapshot: SnapshotVocabulary
+) -> PublishedVersion:
+    """Create a published version with the default snapshot."""
     published = PublishedVersion(
         project_id=project.id,
         version="1.0",
@@ -598,8 +594,16 @@ async def test_export_published_version_basic(
     db_session.add(published)
     await db_session.flush()
     await db_session.refresh(published)
+    return published
 
-    result = await export_service.export_published_version(published, "turtle")
+
+@pytest.mark.asyncio
+async def test_export_published_version_basic(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test exporting a published version produces valid SKOS RDF."""
+    result = await export_service.export_published_version(published_version, "turtle")
 
     g = Graph()
     g.parse(data=result, format="turtle")
@@ -631,25 +635,11 @@ async def test_export_published_version_basic(
 
 @pytest.mark.asyncio
 async def test_export_published_version_respects_format(
-    db_session: AsyncSession,
     export_service: SKOSExportService,
-    project: Project,
-    scheme: ConceptScheme,
+    published_version: PublishedVersion,
 ) -> None:
     """Test that export_published_version serializes in the requested format."""
-    snapshot = _build_snapshot(project, scheme)
-
-    published = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="v1.0",
-        snapshot=snapshot.model_dump(mode="json"),
-    )
-    db_session.add(published)
-    await db_session.flush()
-    await db_session.refresh(published)
-
-    result = await export_service.export_published_version(published, "xml")
+    result = await export_service.export_published_version(published_version, "xml")
 
     g = Graph()
     g.parse(data=result, format="xml")
@@ -660,46 +650,26 @@ async def test_export_published_version_respects_format(
 async def test_export_published_version_multiple_schemes(
     db_session: AsyncSession,
     export_service: SKOSExportService,
-    project: Project,
-    scheme: ConceptScheme,
+    snapshot: SnapshotVocabulary,
 ) -> None:
     """Test exporting a published version with multiple concept schemes."""
-    concept_id = uuid4()
-    snapshot = SnapshotVocabulary(
-        project=SnapshotProjectMetadata(
-            id=project.id,
-            name=project.name,
-        ),
-        concept_schemes=[
-            SnapshotScheme(
-                id=scheme.id,
-                title=scheme.title,
-                uri=scheme.uri,
-                concepts=[
-                    SnapshotConcept(
-                        id=uuid4(),
-                        pref_label="Alpha",
-                        uri=f"{scheme.uri}/alpha",
-                    ),
-                ],
-            ),
-            SnapshotScheme(
+    additional_scheme = SnapshotScheme(
+        id=uuid4(),
+        title="Second Scheme",
+        uri="http://example.org/second",
+        concepts=[
+            SnapshotConcept(
                 id=uuid4(),
-                title="Second Scheme",
-                uri="http://example.org/second",
-                concepts=[
-                    SnapshotConcept(
-                        id=concept_id,
-                        pref_label="Beta",
-                        uri="http://example.org/second/beta",
-                    ),
-                ],
+                pref_label="Beta",
+                uri="http://example.org/second/beta",
             ),
         ],
     )
 
+    snapshot.concept_schemes.append(additional_scheme)
+
     published = PublishedVersion(
-        project_id=project.id,
+        project_id=snapshot.project.id,
         version="2.0",
         title="v2.0",
         snapshot=snapshot.model_dump(mode="json"),
@@ -719,4 +689,4 @@ async def test_export_published_version_multiple_schemes(
 
     # Should have two concepts total
     concepts = list(g.subjects(RDF.type, SKOS.Concept))
-    assert len(concepts) == 2
+    assert len(concepts) == 3
