@@ -119,58 +119,31 @@ async def test_same_version_different_projects(
 
 
 @pytest.mark.asyncio
-async def test_only_one_draft_per_project(
+async def test_multiple_pre_releases_allowed(
     db_session: AsyncSession, project: Project
 ) -> None:
-    """Test that a project can only have one draft (non-finalized) version."""
-    draft1 = PublishedVersion(
+    """Test that multiple pre-releases (non-finalized) can coexist for a project."""
+    pre1 = PublishedVersion(
         project_id=project.id,
-        version="1.0",
-        title="Draft 1",
+        version="1.1-pre1",
+        title="Pre-release 1",
         finalized=False,
-        snapshot={},
-    )
-    db_session.add(draft1)
-    await db_session.flush()
-
-    draft2 = PublishedVersion(
-        project_id=project.id,
-        version="2.0",
-        title="Draft 2",
-        finalized=False,
-        snapshot={},
-    )
-    db_session.add(draft2)
-
-    with pytest.raises(IntegrityError):
-        await db_session.flush()
-
-
-@pytest.mark.asyncio
-async def test_draft_plus_finalized_succeeds(
-    db_session: AsyncSession, project: Project
-) -> None:
-    """Test that a project can have one draft and one finalized version."""
-    finalized = PublishedVersion(
-        project_id=project.id,
-        version="1.0",
-        title="Released",
-        finalized=True,
         published_at=datetime.now(),
         snapshot={},
     )
-    draft = PublishedVersion(
+    pre2 = PublishedVersion(
         project_id=project.id,
-        version="2.0",
-        title="In Progress",
+        version="1.1-pre2",
+        title="Pre-release 2",
         finalized=False,
+        published_at=datetime.now(),
         snapshot={},
     )
-    db_session.add_all([finalized, draft])
+    db_session.add_all([pre1, pre2])
     await db_session.flush()
 
-    assert finalized.finalized is True
-    assert draft.finalized is False
+    assert pre1.finalized is False
+    assert pre2.finalized is False
 
 
 @pytest.mark.asyncio
@@ -318,8 +291,71 @@ async def test_version_sort_key(
     await db_session.refresh(v3)
     await db_session.refresh(v2)
 
-    assert v3.version_sort_key == [1, 2, 3]
-    assert v2.version_sort_key == [2, 0]
+    assert v3.version_sort_key == [1, 2, 3, 2147483647]
+    assert v2.version_sort_key == [2, 0, 2147483647]
+
+
+@pytest.mark.asyncio
+async def test_version_sort_key_pre_release(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that pre-release versions get correct sort keys."""
+    pre1 = PublishedVersion(
+        project_id=project.id,
+        version="1.0-pre1",
+        title="Pre 1",
+        finalized=False,
+        snapshot={},
+    )
+    pre2 = PublishedVersion(
+        project_id=project.id,
+        version="1.0-pre2",
+        title="Pre 2",
+        finalized=False,
+        snapshot={},
+    )
+    release = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="Release",
+        finalized=True,
+        snapshot={},
+    )
+    db_session.add_all([pre1, pre2, release])
+    await db_session.flush()
+    await db_session.refresh(pre1)
+    await db_session.refresh(pre2)
+    await db_session.refresh(release)
+
+    assert pre1.version_sort_key == [1, 0, 1]
+    assert pre2.version_sort_key == [1, 0, 2]
+    assert release.version_sort_key == [1, 0, 2147483647]
+
+
+@pytest.mark.asyncio
+async def test_pre_release_sorts_before_release(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that pre-releases sort before their corresponding release."""
+    for v in ["1.0", "1.0-pre1", "1.0-pre2", "1.1-pre1"]:
+        db_session.add(
+            PublishedVersion(
+                project_id=project.id,
+                version=v,
+                title=f"V{v}",
+                finalized=not v.endswith(("-pre1", "-pre2")),
+                snapshot={},
+            )
+        )
+    await db_session.flush()
+
+    result = await db_session.execute(
+        select(PublishedVersion)
+        .where(PublishedVersion.project_id == project.id)
+        .order_by(PublishedVersion.version_sort_key.asc())
+    )
+    versions = [v.version for v in result.scalars().all()]
+    assert versions == ["1.0-pre1", "1.0-pre2", "1.0", "1.1-pre1"]
 
 
 @pytest.mark.asyncio
@@ -359,10 +395,10 @@ async def test_latest_true_for_highest_finalized(
 
 
 @pytest.mark.asyncio
-async def test_latest_excludes_drafts(
+async def test_latest_excludes_pre_releases(
     db_session: AsyncSession, project: Project
 ) -> None:
-    """Test that a draft with higher version doesn't count as latest."""
+    """Test that a pre-release with higher version doesn't count as latest."""
     finalized = PublishedVersion(
         project_id=project.id,
         version="1.0",
@@ -371,14 +407,15 @@ async def test_latest_excludes_drafts(
         published_at=datetime.now(),
         snapshot={},
     )
-    draft = PublishedVersion(
+    pre_release = PublishedVersion(
         project_id=project.id,
-        version="2.0",
-        title="Draft",
+        version="2.0-pre1",
+        title="Pre-release",
         finalized=False,
+        published_at=datetime.now(),
         snapshot={},
     )
-    db_session.add_all([finalized, draft])
+    db_session.add_all([finalized, pre_release])
     await db_session.flush()
 
     result = await db_session.execute(
@@ -389,22 +426,23 @@ async def test_latest_excludes_drafts(
     versions = {v.version: v for v in result.scalars().all()}
 
     assert versions["1.0"].latest is True
-    assert versions["2.0"].latest is False
+    assert versions["2.0-pre1"].latest is False
 
 
 @pytest.mark.asyncio
-async def test_latest_false_when_not_finalized(
+async def test_latest_false_when_only_pre_releases(
     db_session: AsyncSession, project: Project
 ) -> None:
-    """Test that a single draft version is not latest."""
-    draft = PublishedVersion(
+    """Test that a single pre-release version is not latest."""
+    pre = PublishedVersion(
         project_id=project.id,
-        version="1.0",
-        title="Draft",
+        version="1.0-pre1",
+        title="Pre-release",
         finalized=False,
+        published_at=datetime.now(),
         snapshot={},
     )
-    db_session.add(draft)
+    db_session.add(pre)
     await db_session.flush()
 
     result = await db_session.execute(

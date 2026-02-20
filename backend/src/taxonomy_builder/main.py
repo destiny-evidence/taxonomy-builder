@@ -17,6 +17,7 @@ from taxonomy_builder.api.ontology_classes import (
 )
 from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.properties import project_properties_router, properties_router
+from taxonomy_builder.api.publishing import router as publishing_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
@@ -53,6 +54,7 @@ app.include_router(concept_comments_router)
 app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(ontology_router)
+app.include_router(publishing_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
