@@ -303,13 +303,10 @@ describe("PublishModal", () => {
         target: { value: "Custom version" },
       });
 
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       // Confirm step
-      fireEvent.click(screen.getByText("Confirm & Publish"));
+      fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
         expect(publishingApi.publishingApi.publish).toHaveBeenCalledWith(
@@ -407,10 +404,7 @@ describe("PublishModal", () => {
       render(<PublishModal {...defaultProps} />);
 
       await waitFor(() => {
-        const publishBtn = screen.getAllByText("Publish").find(
-          (el) => el.classList.contains("btn")
-        )!;
-        expect(publishBtn).toBeDisabled();
+        expect(screen.getByText("Next")).toBeDisabled();
       });
     });
 
@@ -437,10 +431,7 @@ describe("PublishModal", () => {
 
       expect(screen.getByText(/Version must be/)).toBeInTheDocument();
 
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      expect(publishBtn).toBeDisabled();
+      expect(screen.getByText("Next")).toBeDisabled();
     });
 
     it("disables Publish button when validation fails", async () => {
@@ -452,10 +443,7 @@ describe("PublishModal", () => {
       render(<PublishModal {...defaultProps} />);
 
       await waitFor(() => {
-        const publishBtn = screen.getAllByText("Publish").find(
-          (el) => el.classList.contains("btn")
-        )!;
-        expect(publishBtn).toBeDisabled();
+        expect(screen.getByText("Next")).toBeDisabled();
       });
     });
   });
@@ -479,10 +467,7 @@ describe("PublishModal", () => {
         target: { value: "New release" },
       });
 
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       expect(screen.getByText(/cannot be changed/i)).toBeInTheDocument();
       expect(screen.getByText("1.1")).toBeInTheDocument();
@@ -508,10 +493,7 @@ describe("PublishModal", () => {
         target: { value: "New release" },
       });
 
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       expect(screen.getByText(/cannot be changed/i)).toBeInTheDocument();
 
@@ -552,13 +534,10 @@ describe("PublishModal", () => {
         target: { value: "New release" },
       });
 
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       // Confirm step
-      fireEvent.click(screen.getByText("Confirm & Publish"));
+      fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
         expect(publishingApi.publishingApi.publish).toHaveBeenCalledWith(
@@ -603,13 +582,10 @@ describe("PublishModal", () => {
         target: { value: "Pre-release" },
       });
 
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       // Confirm step
-      fireEvent.click(screen.getByText("Confirm & Publish"));
+      fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
         expect(publishingApi.publishingApi.publish).toHaveBeenCalledWith(
@@ -652,13 +628,10 @@ describe("PublishModal", () => {
       fireEvent.input(screen.getByLabelText(/Title/), {
         target: { value: "New release" },
       });
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       // Confirm step
-      fireEvent.click(screen.getByText("Confirm & Publish"));
+      fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
         expect(screen.getByText(/1\.1/)).toBeInTheDocument();
@@ -696,13 +669,10 @@ describe("PublishModal", () => {
       fireEvent.input(screen.getByLabelText(/Title/), {
         target: { value: "Pre-release" },
       });
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       // Confirm step
-      fireEvent.click(screen.getByText("Confirm & Publish"));
+      fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
         expect(screen.getByText(/published as pre-release/)).toBeInTheDocument();
@@ -729,13 +699,10 @@ describe("PublishModal", () => {
       fireEvent.input(screen.getByLabelText(/Title/), {
         target: { value: "New release" },
       });
-      const publishBtn = screen.getAllByText("Publish").find(
-        (el) => el.classList.contains("btn")
-      )!;
-      fireEvent.click(publishBtn);
+      fireEvent.click(screen.getByText("Next"));
 
       // Confirm step
-      fireEvent.click(screen.getByText("Confirm & Publish"));
+      fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
         expect(
