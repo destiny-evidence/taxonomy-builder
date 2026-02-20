@@ -1,0 +1,40 @@
+{
+  "format_version": "1.0",
+  "project": {
+    "id": "01965a00-0000-7000-8000-000000000000",
+    "name": "Demo Taxonomy",
+    "description": "A simple demo taxonomy for testing.",
+    "namespace": "http://example.org/taxonomies/demo"
+  },
+  "latest_version": "2.0",
+  "versions": [
+    {
+      "version": "2.0",
+      "title": "Add warm/cool categories",
+      "published_at": "2026-03-01T09:00:00Z",
+      "publisher": "Jane Smith",
+      "pre_release": false,
+      "notes": "Organised into warm and cool categories, added turquoise and orange.",
+      "content_summary": {
+        "schemes": 1,
+        "concepts": 7,
+        "properties": 1,
+        "classes": 8
+      }
+    },
+    {
+      "version": "1.0",
+      "title": "Initial release",
+      "published_at": "2026-02-01T09:00:00Z",
+      "publisher": "Jane Smith",
+      "pre_release": false,
+      "notes": null,
+      "content_summary": {
+        "schemes": 1,
+        "concepts": 3,
+        "properties": 1,
+        "classes": 8
+      }
+    }
+  ]
+}
