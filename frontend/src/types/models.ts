@@ -142,7 +142,7 @@ export interface ChangeEvent {
 }
 
 // ============ Comments ============
-export interface CommentAuthor {
+export interface User {
   id: string;
   display_name: string;
 }
@@ -155,7 +155,10 @@ export interface Comment {
   content: string;
   created_at: string;
   updated_at: string;
-  user: CommentAuthor;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolver: User | null;
+  user: User;
   can_delete: boolean;
   replies?: Comment[];  // Nested replies for threaded display
 }

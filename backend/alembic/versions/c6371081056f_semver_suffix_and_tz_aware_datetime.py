@@ -52,7 +52,7 @@ def upgrade() -> None:
                 " string_to_array(split_part(version, '-pre', 1), '.')::int[]"
                 " || ARRAY[split_part(version, '-pre', 2)::int]"
                 " ELSE"
-                " string_to_array(version, '.')::int[] || ARRAY[2147483647]"
+                " string_to_array(version, '.')::int[] || ARRAY[(2^31-1)::int]"
                 " END",
                 persisted=True,
             ),

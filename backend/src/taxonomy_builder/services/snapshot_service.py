@@ -217,7 +217,7 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
             errors.append(
                 ValidationError(
                     code="broken_range_scheme_ref",
-                    message=f"Property '{prop.label}' references a non-existent scheme.",
+                    message=f"prop '{prop.label}' references a non-existent scheme.",
                     entity_type="property",
                     entity_id=prop.id,
                     entity_label=prop.label,
@@ -228,7 +228,7 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                 ValidationError(
                     code="broken_domain_class_ref",
                     message=(
-                        f"Property '{prop.label}' references domain class"
+                        f"prop '{prop.label}' references domain class"
                         f" '{prop.domain_class}' which is not in the"
                         " project's ontology classes."
                     ),
@@ -344,8 +344,8 @@ def compute_diff(
         ]
         # New properties
         + [
-            DiffItem(id=property.id, label=property.label, entity_type="property")
-            for property in added_properties
+            DiffItem(id=prop.id, label=prop.label, entity_type="property")
+            for prop in added_properties
         ]
         # New classes
         + [DiffItem(id=cls.id, label=cls.label, entity_type="class") for cls in added_classes]
@@ -373,8 +373,8 @@ def compute_diff(
         ]
         # Removed properties
         + [
-            DiffItem(id=property.id, label=property.label, entity_type="property")
-            for property in removed_properties
+            DiffItem(id=prop.id, label=prop.label, entity_type="property")
+            for prop in removed_properties
         ]
         # Removed classes
         + [DiffItem(id=cls.id, label=cls.label, entity_type="class") for cls in removed_classes]
