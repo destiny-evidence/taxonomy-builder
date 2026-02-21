@@ -74,7 +74,7 @@ class PropertyCreatedResponse(BaseModel):
     label: str
     range_scheme_id: UUID | None
     range_datatype: str | None
-    range_class_id: UUID | None
+    range_class: str | None
 
 
 class ImportResultResponse(BaseModel):

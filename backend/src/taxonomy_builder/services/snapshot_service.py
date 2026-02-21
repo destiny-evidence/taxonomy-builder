@@ -109,6 +109,7 @@ class SnapshotService:
             range_scheme_id=prop.range_scheme_id,
             range_scheme_uri=prop.range_scheme.uri if prop.range_scheme else None,
             range_datatype=prop.range_datatype,
+            range_class=prop.range_class,
             cardinality=prop.cardinality,
             required=prop.required,
         )
