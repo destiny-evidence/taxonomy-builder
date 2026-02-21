@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.schemas.ontology_class import OntologyClassCreate, OntologyClassUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
@@ -30,6 +31,17 @@ class OntologyClassIdentifierExistsError(Exception):
         self.project_id = project_id
         super().__init__(
             f"Ontology class with identifier '{identifier}' already exists in project"
+        )
+
+
+class OntologyClassURIExistsError(Exception):
+    """Raised when an ontology class URI already exists in the project."""
+
+    def __init__(self, uri: str, project_id: UUID) -> None:
+        self.uri = uri
+        self.project_id = project_id
+        super().__init__(
+            f"Ontology class with URI '{uri}' already exists in project"
         )
 
 
@@ -96,8 +108,11 @@ class OntologyClassService:
         try:
             await self.db.flush()
             await self.db.refresh(ontology_class)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
+            constraint = get_constraint_name(e)
+            if constraint == "uq_ontology_classes_project_uri":
+                raise OntologyClassURIExistsError(uri, project_id)
             raise OntologyClassIdentifierExistsError(
                 ontology_class_in.identifier, project_id
             )

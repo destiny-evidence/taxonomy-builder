@@ -29,13 +29,14 @@ def upgrade() -> None:
     op.add_column('properties', sa.Column('uri', sa.String(2048), nullable=True))
 
     # Backfill URIs from project namespace + identifier
+    # NULLIF guards against empty-string namespaces producing "/identifier"
     op.execute("""
         UPDATE ontology_classes oc
-        SET uri = RTRIM(p.namespace, '/') || '/' || oc.identifier
+        SET uri = RTRIM(NULLIF(TRIM(p.namespace), ''), '/') || '/' || oc.identifier
         FROM projects p
-        WHERE oc.project_id = p.id AND p.namespace IS NOT NULL
+        WHERE oc.project_id = p.id AND NULLIF(TRIM(p.namespace), '') IS NOT NULL
     """)
-    # Fallback for rows where project has no namespace
+    # Fallback for rows where project has no namespace (NULL or empty)
     op.execute("""
         UPDATE ontology_classes
         SET uri = 'urn:taxonomy:class:' || id::text
@@ -43,11 +44,11 @@ def upgrade() -> None:
     """)
     op.execute("""
         UPDATE properties pr
-        SET uri = RTRIM(p.namespace, '/') || '/' || pr.identifier
+        SET uri = RTRIM(NULLIF(TRIM(p.namespace), ''), '/') || '/' || pr.identifier
         FROM projects p
-        WHERE pr.project_id = p.id AND p.namespace IS NOT NULL
+        WHERE pr.project_id = p.id AND NULLIF(TRIM(p.namespace), '') IS NOT NULL
     """)
-    # Fallback for rows where project has no namespace
+    # Fallback for rows where project has no namespace (NULL or empty)
     op.execute("""
         UPDATE properties
         SET uri = 'urn:taxonomy:property:' || id::text

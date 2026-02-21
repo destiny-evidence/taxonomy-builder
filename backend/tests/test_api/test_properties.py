@@ -164,7 +164,7 @@ class TestCreateProperty:
     async def test_create_property_invalid_range(
         self, authenticated_client: AsyncClient, project: Project
     ) -> None:
-        """Test creating a property with neither range field."""
+        """Test creating a property with neither range field returns 422 (schema validation)."""
         response = await authenticated_client.post(
             f"/api/projects/{project.id}/properties",
             json={
@@ -174,8 +174,7 @@ class TestCreateProperty:
                 "cardinality": "single",
             },
         )
-        assert response.status_code == 400
-        assert "exactly one" in response.json()["detail"].lower()
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_create_property_duplicate_identifier(
@@ -276,6 +275,29 @@ class TestUpdateProperty:
         )
         assert response.status_code == 404
 
+    @pytest.mark.asyncio
+    async def test_update_domain_class_to_invalid_returns_400(
+        self, authenticated_client: AsyncClient, property_obj: Property
+    ) -> None:
+        """Updating domain_class to invalid class returns 400."""
+        response = await authenticated_client.put(
+            f"/api/properties/{property_obj.id}",
+            json={"domain_class": "https://example.org/Bogus"},
+        )
+        assert response.status_code == 400
+        assert "domain class" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_update_empty_string_fields_rejected(
+        self, authenticated_client: AsyncClient, property_obj: Property
+    ) -> None:
+        """Empty string domain_class and range_class rejected by schema."""
+        response = await authenticated_client.put(
+            f"/api/properties/{property_obj.id}",
+            json={"domain_class": ""},
+        )
+        assert response.status_code == 422
+
 
 class TestDeleteProperty:
     """Tests for deleting properties."""
@@ -299,3 +321,80 @@ class TestDeleteProperty:
         """Test deleting a non-existent property."""
         response = await authenticated_client.delete(f"/api/properties/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestPropertyURICollision:
+    """Tests for URI collision returning 409."""
+
+    @pytest.mark.asyncio
+    async def test_duplicate_uri_returns_409(
+        self, authenticated_client: AsyncClient, project: Project
+    ) -> None:
+        """Two properties with same explicit URI but different identifiers → 409."""
+        response1 = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "propA",
+                "label": "Property A",
+                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "range_datatype": "xsd:string",
+                "cardinality": "single",
+                "uri": "https://example.org/vocab/sharedUri",
+            },
+        )
+        assert response1.status_code == 201
+
+        response2 = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "propB",
+                "label": "Property B",
+                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "range_datatype": "xsd:integer",
+                "cardinality": "single",
+                "uri": "https://example.org/vocab/sharedUri",
+            },
+        )
+        assert response2.status_code == 409
+
+
+class TestPropertyNullDomain:
+    """Tests for nullable domain_class via API."""
+
+    @pytest.mark.asyncio
+    async def test_create_property_without_domain_class(
+        self, authenticated_client: AsyncClient, project: Project
+    ) -> None:
+        """Creating a property without domain_class succeeds."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "noDomain",
+                "label": "No Domain Property",
+                "range_datatype": "xsd:string",
+                "cardinality": "single",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["domain_class"] is None
+
+    @pytest.mark.asyncio
+    async def test_create_property_with_range_class(
+        self, authenticated_client: AsyncClient, project: Project
+    ) -> None:
+        """Creating a property with range_class succeeds."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "rangeClassProp",
+                "label": "Range Class Property",
+                "range_class": "https://example.org/vocab/Outcome",
+                "cardinality": "single",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["range_class"] == "https://example.org/vocab/Outcome"
+        assert data["range_scheme_id"] is None
+        assert data["range_datatype"] is None

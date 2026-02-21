@@ -261,17 +261,39 @@ class SKOSImportService:
     def _find_properties(self, g: Graph) -> list[tuple[URIRef, str]]:
         """Find owl:ObjectProperty and owl:DatatypeProperty instances.
 
-        Returns list of (uri, property_type) tuples.
+        Returns list of (uri, property_type) tuples, deduplicated by URI.
+        If a property is typed as both ObjectProperty and DatatypeProperty,
+        the type is resolved from rdfs:range: XSD range → datatype,
+        otherwise → object.
         """
-        properties: list[tuple[URIRef, str]] = []
+        object_props: set[URIRef] = set()
+        datatype_props: set[URIRef] = set()
 
         for subject in g.subjects(RDF.type, OWL.ObjectProperty):
             if isinstance(subject, URIRef):
-                properties.append((subject, "object"))
+                object_props.add(subject)
 
         for subject in g.subjects(RDF.type, OWL.DatatypeProperty):
             if isinstance(subject, URIRef):
-                properties.append((subject, "datatype"))
+                datatype_props.add(subject)
+
+        all_uris = object_props | datatype_props
+        properties: list[tuple[URIRef, str]] = []
+
+        for uri in all_uris:
+            is_obj = uri in object_props
+            is_dt = uri in datatype_props
+            if is_obj and is_dt:
+                # Dual-typed: resolve from range
+                range_val = g.value(uri, RDFS.range)
+                if range_val and str(range_val).startswith(str(XSD)):
+                    properties.append((uri, "datatype"))
+                else:
+                    properties.append((uri, "object"))
+            elif is_dt:
+                properties.append((uri, "datatype"))
+            else:
+                properties.append((uri, "object"))
 
         return properties
 
@@ -447,10 +469,6 @@ class SKOSImportService:
             scheme_uris.add(uri)
             scheme_uri_to_title[uri] = self._get_scheme_title(g, scheme_uri)
 
-        class_uris = set(existing.class_uris)
-        for cm in analysis["classes"]:
-            class_uris.add(cm["uri"])
-
         scheme_previews, total_concepts, total_relationships = self._preview_schemes(
             g, analysis["schemes"], analysis["concepts_by_scheme"],
             existing.scheme_uris,
@@ -458,6 +476,8 @@ class SKOSImportService:
         class_previews = self._preview_classes(
             analysis["classes"], existing.class_uris, existing.class_identifiers
         )
+        # Build class_uris from existing + those that will actually be created
+        class_uris = existing.class_uris | {cp.uri for cp in class_previews}
         property_previews, warnings = self._preview_properties(
             g, analysis["properties"],
             existing.property_identifiers, existing.property_uris,
@@ -639,8 +659,8 @@ class SKOSImportService:
             )
         )
 
-        # Combine existing class URIs with those from the current file
-        class_uris = existing.class_uris | {cm["uri"] for cm in analysis["classes"]}
+        # Combine existing class URIs with those actually created (not skipped)
+        class_uris = existing.class_uris | {c.uri for c in classes_created}
 
         properties_created, warnings = await self._import_properties(
             g, project_id, analysis["properties"],
@@ -703,6 +723,7 @@ class SKOSImportService:
                     id=ont_class.id,
                     identifier=ont_class.identifier,
                     label=ont_class.label,
+                    uri=ont_class.uri,
                 )
             )
         return created
@@ -864,7 +885,7 @@ class SKOSImportService:
 
             range_uri = pm["range_uri"]
             prop_type = pm["property_type"]
-            domain_uri = pm["domain_uri"] or ""
+            domain_uri = pm["domain_uri"]
 
             range_scheme_id: UUID | None = None
             range_datatype: str | None = None

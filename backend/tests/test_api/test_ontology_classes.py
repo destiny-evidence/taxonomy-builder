@@ -272,3 +272,32 @@ class TestDeleteOntologyClass:
         """Test deleting a non-existent ontology class."""
         response = await authenticated_client.delete(f"/api/classes/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestOntologyClassURICollision:
+    """Tests for URI collision returning 409."""
+
+    @pytest.mark.asyncio
+    async def test_duplicate_uri_returns_409(
+        self, authenticated_client: AsyncClient, project: Project
+    ) -> None:
+        """Two classes with same explicit URI but different identifiers → 409."""
+        response1 = await authenticated_client.post(
+            f"/api/projects/{project.id}/classes",
+            json={
+                "identifier": "ClassA",
+                "label": "Class A",
+                "uri": "https://example.org/vocab/sharedUri",
+            },
+        )
+        assert response1.status_code == 201
+
+        response2 = await authenticated_client.post(
+            f"/api/projects/{project.id}/classes",
+            json={
+                "identifier": "ClassB",
+                "label": "Class B",
+                "uri": "https://example.org/vocab/sharedUri",
+            },
+        )
+        assert response2.status_code == 409

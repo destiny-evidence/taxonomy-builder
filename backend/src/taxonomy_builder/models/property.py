@@ -36,7 +36,8 @@ class Property(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Domain: the ontology class this property applies to
-    domain_class: Mapped[str] = mapped_column(UrlString(), nullable=False)
+    # Nullable because OWL properties may omit rdfs:domain
+    domain_class: Mapped[str | None] = mapped_column(UrlString(), nullable=True)
 
     # Range: a concept scheme, a datatype, or an ontology class
     range_scheme_id: Mapped[UUID | None] = mapped_column(

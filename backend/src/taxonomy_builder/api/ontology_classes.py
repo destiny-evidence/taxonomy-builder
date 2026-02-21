@@ -14,6 +14,7 @@ from taxonomy_builder.schemas.ontology_class import (
 from taxonomy_builder.services.ontology_class_service import (
     OntologyClassIdentifierExistsError,
     OntologyClassService,
+    OntologyClassURIExistsError,
 )
 from taxonomy_builder.services.project_service import ProjectNotFoundError
 
@@ -56,6 +57,8 @@ async def create_ontology_class(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except OntologyClassIdentifierExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except OntologyClassURIExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 

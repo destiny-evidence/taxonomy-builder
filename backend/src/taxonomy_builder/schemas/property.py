@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from taxonomy_builder.schemas.validators import validate_identifier
 
@@ -26,13 +26,17 @@ class PropertyCreate(BaseModel):
     identifier: str = Field(..., min_length=1, max_length=255)
     label: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
-    domain_class: str = Field(..., max_length=2048)
+    domain_class: str | None = Field(
+        default=None, min_length=1, max_length=2048
+    )
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
-    range_class: str | None = None
+    range_class: str | None = Field(
+        default=None, min_length=1, max_length=2048
+    )
     cardinality: Literal["single", "multiple"]
     required: bool = False
-    uri: str | None = None
+    uri: str | None = Field(default=None, min_length=1, max_length=2048)
 
     @field_validator("identifier")
     @classmethod
@@ -57,6 +61,24 @@ class PropertyCreate(BaseModel):
             raise ValueError(f"range_datatype must be one of: {allowed}")
         return v
 
+    @model_validator(mode="after")
+    def check_exactly_one_range(self) -> "PropertyCreate":  # noqa: UP037
+        """Enforce exactly one of range_scheme_id, range_datatype, range_class."""
+        set_count = sum(
+            x is not None
+            for x in (self.range_scheme_id, self.range_datatype, self.range_class)
+        )
+        if set_count == 0:
+            raise ValueError(
+                "Exactly one of range_scheme_id, range_datatype, or range_class must be provided"
+            )
+        if set_count > 1:
+            raise ValueError(
+                "Exactly one of range_scheme_id, range_datatype,"
+                " or range_class must be provided, not multiple"
+            )
+        return self
+
 
 class PropertyUpdate(BaseModel):
     """Schema for updating an existing property."""
@@ -64,10 +86,14 @@ class PropertyUpdate(BaseModel):
     identifier: str | None = Field(default=None, min_length=1, max_length=255)
     label: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
-    domain_class: str | None = Field(default=None, max_length=2048)
+    domain_class: str | None = Field(
+        default=None, min_length=1, max_length=2048
+    )
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
-    range_class: str | None = None
+    range_class: str | None = Field(
+        default=None, min_length=1, max_length=2048
+    )
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
 
@@ -115,7 +141,7 @@ class PropertyRead(BaseModel):
     identifier: str
     label: str
     description: str | None
-    domain_class: str
+    domain_class: str | None
     range_scheme_id: UUID | None
     range_scheme: ConceptSchemeBrief | None
     range_datatype: str | None

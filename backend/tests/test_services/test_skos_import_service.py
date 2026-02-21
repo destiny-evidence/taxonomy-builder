@@ -558,3 +558,118 @@ async def test_format_detection_rdf_xml(
     result = await import_service.preview(project.id, rdf_xml, "test.rdf")
     assert result.valid is True
     assert result.schemes[0].title == "Test Scheme"
+
+
+# --- Domain-less property import tests ---
+
+
+PROPERTY_WITHOUT_DOMAIN_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:domainlessProp a owl:DatatypeProperty ;
+    rdfs:label "Domainless Property" ;
+    rdfs:range xsd:string .
+
+ex:domainedProp a owl:DatatypeProperty ;
+    rdfs:label "Domained Property" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:integer .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_property_without_domain_stores_null(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Import a property without rdfs:domain stores NULL, not empty string."""
+    from sqlalchemy import select
+    from taxonomy_builder.models.property import Property
+
+    result = await import_service.execute(
+        project.id, PROPERTY_WITHOUT_DOMAIN_TTL, "test.ttl"
+    )
+
+    assert len(result.properties_created) == 2
+
+    props = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalars().all()
+
+    domainless = next(p for p in props if p.identifier == "domainlessProp")
+    domained = next(p for p in props if p.identifier == "domainedProp")
+
+    assert domainless.domain_class is None
+    assert domained.domain_class == "http://example.org/Finding"
+
+
+# --- Dual-typed property deduplication test ---
+
+
+DUAL_TYPED_PROPERTY_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:dualProp a owl:ObjectProperty, owl:DatatypeProperty ;
+    rdfs:label "Dual Typed Property" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string .
+"""
+
+
+@pytest.mark.asyncio
+async def test_preview_dual_typed_property_not_duplicated(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """A property typed as both ObjectProperty and DatatypeProperty appears only once."""
+    result = await import_service.preview(
+        project.id, DUAL_TYPED_PROPERTY_TTL, "test.ttl"
+    )
+
+    # Should have exactly 1 property, not 2
+    assert result.properties_count == 1
+    # XSD range → treated as datatype, not object
+    assert result.properties[0].property_type == "datatype"
+
+
+DUAL_TYPED_OBJECT_RANGE_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:Outcome a owl:Class ;
+    rdfs:label "Outcome" .
+
+ex:dualProp a owl:ObjectProperty, owl:DatatypeProperty ;
+    rdfs:label "Dual With Object Range" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range ex:Outcome .
+"""
+
+
+@pytest.mark.asyncio
+async def test_dual_typed_with_object_range_becomes_object(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Dual-typed property with non-XSD range → treated as object."""
+    result = await import_service.preview(
+        project.id, DUAL_TYPED_OBJECT_RANGE_TTL, "test.ttl"
+    )
+
+    assert result.properties_count == 1
+    assert result.properties[0].property_type == "object"

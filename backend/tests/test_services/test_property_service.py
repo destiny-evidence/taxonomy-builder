@@ -16,6 +16,7 @@ from taxonomy_builder.services.property_service import (
     InvalidRangeError,
     PropertyIdentifierExistsError,
     PropertyService,
+    PropertyURIExistsError,
     SchemeNotInProjectError,
 )
 
@@ -153,37 +154,33 @@ class TestCreateProperty:
     async def test_create_property_both_range_fields_error(
         self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
-        """Test that providing both range_scheme_id and range_datatype raises error."""
-        service = property_service
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
-            range_scheme_id=scheme.id,
-            range_datatype="xsd:string",
-            cardinality="single",
-        )
+        """Test that providing both range_scheme_id and range_datatype raises error at schema level."""
+        from pydantic import ValidationError
 
-        with pytest.raises(InvalidRangeError) as exc_info:
-            await service.create_property(project.id, prop_in)
-        assert "exactly one" in str(exc_info.value).lower()
+        with pytest.raises(ValidationError, match="(?i)exactly one"):
+            PropertyCreate(
+                identifier="testProp",
+                label="Test",
+                domain_class="https://evrepo.example.org/vocab/Finding",
+                range_scheme_id=scheme.id,
+                range_datatype="xsd:string",
+                cardinality="single",
+            )
 
     @pytest.mark.asyncio
     async def test_create_property_neither_range_field_error(
         self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
-        """Test that providing neither range field raises error."""
-        service = property_service
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
-            cardinality="single",
-        )
+        """Test that providing neither range field raises error at schema level."""
+        from pydantic import ValidationError
 
-        with pytest.raises(InvalidRangeError) as exc_info:
-            await service.create_property(project.id, prop_in)
-        assert "exactly one" in str(exc_info.value).lower()
+        with pytest.raises(ValidationError, match="(?i)exactly one"):
+            PropertyCreate(
+                identifier="testProp",
+                label="Test",
+                domain_class="https://evrepo.example.org/vocab/Finding",
+                cardinality="single",
+            )
 
     @pytest.mark.asyncio
     async def test_create_property_scheme_not_in_project(
@@ -710,3 +707,201 @@ class TestPropertyURI:
         assert updated is not None
         assert updated.identifier == "renamedProp"
         assert updated.uri == original_uri
+
+
+class TestRangeClassValidation:
+    """Tests for range_class as a valid range option."""
+
+    @pytest.mark.asyncio
+    async def test_create_property_with_range_class(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """range_class alone is a valid range option."""
+        prop_in = PropertyCreate(
+            identifier="relatedClass",
+            label="Related Class",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_class="https://example.org/vocab/Outcome",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.range_class == "https://example.org/vocab/Outcome"
+        assert prop.range_scheme_id is None
+        assert prop.range_datatype is None
+
+    @pytest.mark.asyncio
+    async def test_range_class_plus_datatype_error(self) -> None:
+        """range_class + range_datatype raises validation error."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="(?i)exactly one"):
+            PropertyCreate(
+                identifier="testProp",
+                label="Test",
+                range_class="https://example.org/vocab/Foo",
+                range_datatype="xsd:string",
+                cardinality="single",
+            )
+
+    @pytest.mark.asyncio
+    async def test_range_class_plus_scheme_error(self, scheme: ConceptScheme) -> None:
+        """range_class + range_scheme_id raises validation error."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="(?i)exactly one"):
+            PropertyCreate(
+                identifier="testProp",
+                label="Test",
+                range_class="https://example.org/vocab/Foo",
+                range_scheme_id=scheme.id,
+                cardinality="single",
+            )
+
+
+class TestNullableDomainClass:
+    """Tests for nullable domain_class."""
+
+    @pytest.mark.asyncio
+    async def test_create_property_without_domain_class(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Properties can be created without domain_class (NULL)."""
+        prop_in = PropertyCreate(
+            identifier="domainlessProp",
+            label="Domainless Property",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.domain_class is None
+
+    @pytest.mark.asyncio
+    async def test_create_property_with_domain_class(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Properties with domain_class still validate against core ontology."""
+        prop_in = PropertyCreate(
+            identifier="domainProp",
+            label="Domain Property",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.domain_class == "https://evrepo.example.org/vocab/Finding"
+
+
+class TestURICollision:
+    """Tests for URI collision handling."""
+
+    @pytest.mark.asyncio
+    async def test_duplicate_uri_different_identifier_raises_uri_error(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Two properties with different identifiers but same URI → PropertyURIExistsError."""
+        prop_in1 = PropertyCreate(
+            identifier="prop1",
+            label="Property 1",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="https://example.org/vocab/sharedUri",
+        )
+        await property_service.create_property(project.id, prop_in1)
+
+        prop_in2 = PropertyCreate(
+            identifier="prop2",
+            label="Property 2",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:integer",
+            cardinality="single",
+            uri="https://example.org/vocab/sharedUri",
+        )
+        with pytest.raises(PropertyURIExistsError):
+            await property_service.create_property(project.id, prop_in2)
+
+
+class TestUpdateDomainValidation:
+    """Tests for domain_class validation on update path."""
+
+    @pytest.mark.asyncio
+    async def test_update_domain_class_to_invalid_raises(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Updating domain_class to a non-existent class raises error."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await property_service.create_property(
+            project.id, prop_in
+        )
+
+        update = PropertyUpdate(
+            domain_class="https://example.org/NonExistentClass"
+        )
+        with pytest.raises(DomainClassNotFoundError):
+            await property_service.update_property(created.id, update)
+
+    @pytest.mark.asyncio
+    async def test_update_domain_class_to_none_ok(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Updating domain_class to None (clearing it) succeeds."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await property_service.create_property(
+            project.id, prop_in
+        )
+
+        update = PropertyUpdate(domain_class=None)
+        updated = await property_service.update_property(
+            created.id, update
+        )
+
+        assert updated is not None
+        assert updated.domain_class is None
+
+    @pytest.mark.asyncio
+    async def test_update_domain_class_to_valid_ok(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Updating domain_class to a valid class succeeds."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await property_service.create_property(
+            project.id, prop_in
+        )
+
+        update = PropertyUpdate(
+            domain_class="https://evrepo.example.org/vocab/Finding"
+        )
+        updated = await property_service.update_property(
+            created.id, update
+        )
+
+        assert updated is not None
+        assert updated.domain_class == (
+            "https://evrepo.example.org/vocab/Finding"
+        )
