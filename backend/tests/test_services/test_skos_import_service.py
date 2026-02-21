@@ -558,3 +558,137 @@ async def test_format_detection_rdf_xml(
     result = await import_service.preview(project.id, rdf_xml, "test.rdf")
     assert result.valid is True
     assert result.schemes[0].title == "Test Scheme"
+
+
+# --- Domain-less property tests ---
+
+
+PROPERTY_WITHOUT_DOMAIN_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:domainlessProp a owl:DatatypeProperty ;
+    rdfs:label "Domainless Property" ;
+    rdfs:range xsd:string .
+
+ex:domainedProp a owl:DatatypeProperty ;
+    rdfs:label "Domained Property" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:integer .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_property_without_domain_skipped_with_warning(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Property without rdfs:domain is skipped; domained property is imported."""
+    from sqlalchemy import select
+    from taxonomy_builder.models.property import Property
+
+    result = await import_service.execute(
+        project.id, PROPERTY_WITHOUT_DOMAIN_TTL, "test.ttl"
+    )
+
+    # Only the domained property is created
+    assert len(result.properties_created) == 1
+    assert result.properties_created[0].identifier == "domainedProp"
+
+    # Warning about the skipped one
+    assert any(
+        "domainlessProp" in w and "skipped" in w
+        for w in result.warnings
+    )
+
+    # Verify only one property in DB
+    props = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalars().all()
+    assert len(props) == 1
+
+
+@pytest.mark.asyncio
+async def test_preview_property_without_domain_skipped_with_warning(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Preview skips domain-less properties and warns."""
+    result = await import_service.preview(
+        project.id, PROPERTY_WITHOUT_DOMAIN_TTL, "test.ttl"
+    )
+
+    assert result.properties_count == 1
+    assert result.properties[0].identifier == "domainedProp"
+    assert any(
+        "domainlessProp" in w and "skipped" in w
+        for w in result.warnings
+    )
+
+
+# --- Dual-typed property deduplication tests ---
+
+
+DUAL_TYPED_PROPERTY_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:dualProp a owl:ObjectProperty, owl:DatatypeProperty ;
+    rdfs:label "Dual Typed Property" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string .
+"""
+
+
+@pytest.mark.asyncio
+async def test_preview_dual_typed_property_not_duplicated(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """A dual-typed property appears once; XSD range -> datatype."""
+    result = await import_service.preview(
+        project.id, DUAL_TYPED_PROPERTY_TTL, "test.ttl"
+    )
+
+    assert result.properties_count == 1
+    assert result.properties[0].property_type == "datatype"
+
+
+DUAL_TYPED_OBJECT_RANGE_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:Outcome a owl:Class ;
+    rdfs:label "Outcome" .
+
+ex:dualProp a owl:ObjectProperty, owl:DatatypeProperty ;
+    rdfs:label "Dual With Object Range" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range ex:Outcome .
+"""
+
+
+@pytest.mark.asyncio
+async def test_dual_typed_with_object_range_becomes_object(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Dual-typed property with non-XSD range -> treated as object."""
+    result = await import_service.preview(
+        project.id, DUAL_TYPED_OBJECT_RANGE_TTL, "test.ttl"
+    )
+
+    assert result.properties_count == 1
+    assert result.properties[0].property_type == "object"
