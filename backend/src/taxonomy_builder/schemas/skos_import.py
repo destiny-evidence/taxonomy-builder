@@ -64,6 +64,7 @@ class ClassCreatedResponse(BaseModel):
     id: UUID
     identifier: str
     label: str
+    uri: str
 
 
 class PropertyCreatedResponse(BaseModel):
