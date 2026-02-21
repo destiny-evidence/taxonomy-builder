@@ -168,6 +168,7 @@ class PropertyService:
             domain_class=property_in.domain_class,
             range_scheme_id=property_in.range_scheme_id,
             range_datatype=property_in.range_datatype,
+            range_class=property_in.range_class,
             cardinality=property_in.cardinality,
             required=property_in.required,
         )
