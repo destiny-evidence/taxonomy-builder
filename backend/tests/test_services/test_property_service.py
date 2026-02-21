@@ -604,3 +604,109 @@ class TestDeleteProperty:
         service = property_service
         result = await service.delete_property(uuid4())
         assert result is False
+
+
+class TestPropertyURI:
+    """Tests for URI behavior on Property create/update."""
+
+    @pytest.mark.asyncio
+    async def test_create_computes_uri_from_namespace(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Create without explicit URI computes from project namespace."""
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.uri == "https://example.org/vocab/educationLevel"
+
+    @pytest.mark.asyncio
+    async def test_create_with_explicit_uri_stores_as_is(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Create with explicit URI stores it directly (import path)."""
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="https://external.org/props/educationLevel",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.uri == "https://external.org/props/educationLevel"
+
+    @pytest.mark.asyncio
+    async def test_create_without_namespace_raises(
+        self,
+        db_session: AsyncSession,
+        property_service: PropertyService,
+    ) -> None:
+        """Create without namespace and no explicit URI raises ValueError."""
+        project_nn = Project(name="No Namespace")
+        db_session.add(project_nn)
+        await db_session.flush()
+        await db_session.refresh(project_nn)
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        with pytest.raises(ValueError, match="namespace"):
+            await property_service.create_property(project_nn.id, prop_in)
+
+    @pytest.mark.asyncio
+    async def test_create_with_explicit_uri_no_namespace_ok(
+        self,
+        db_session: AsyncSession,
+        property_service: PropertyService,
+    ) -> None:
+        """Create with explicit URI works even without project namespace."""
+        project_nn = Project(name="No Namespace")
+        db_session.add(project_nn)
+        await db_session.flush()
+        await db_session.refresh(project_nn)
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="https://external.org/props/testProp",
+        )
+        prop = await property_service.create_property(project_nn.id, prop_in)
+        assert prop.uri == "https://external.org/props/testProp"
+
+    @pytest.mark.asyncio
+    async def test_update_identifier_does_not_change_uri(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """URI is immutable — updating identifier does not change URI."""
+        from taxonomy_builder.schemas.property import PropertyUpdate
+
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+        original_uri = prop.uri
+
+        update = PropertyUpdate(identifier="renamedProp")
+        updated = await property_service.update_property(prop.id, update)
+
+        assert updated is not None
+        assert updated.identifier == "renamedProp"
+        assert updated.uri == original_uri

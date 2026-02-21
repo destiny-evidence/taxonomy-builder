@@ -72,7 +72,16 @@ class OntologyClassService:
             ProjectNotFoundError: If the project doesn't exist
             OntologyClassIdentifierExistsError: If the identifier already exists
         """
-        await self._project_service.get_project(project_id)
+        project = await self._project_service.get_project(project_id)
+
+        if ontology_class_in.uri:
+            uri = ontology_class_in.uri
+        elif project.namespace:
+            uri = project.namespace.rstrip("/") + "/" + ontology_class_in.identifier
+        else:
+            raise ValueError(
+                "Project namespace required to create ontology classes without explicit URI"
+            )
 
         ontology_class = OntologyClass(
             project_id=project_id,
@@ -80,6 +89,7 @@ class OntologyClassService:
             label=ontology_class_in.label,
             description=ontology_class_in.description,
             scope_note=ontology_class_in.scope_note,
+            uri=uri,
         )
         self.db.add(ontology_class)
 

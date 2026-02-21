@@ -149,7 +149,7 @@ class PropertyService:
             PropertyIdentifierExistsError: If the identifier already exists
         """
         # Verify project exists
-        await self._project_service.get_project(project_id)
+        project = await self._project_service.get_project(project_id)
 
         # Validate domain class
         self._validate_domain_class(property_in.domain_class)
@@ -158,6 +158,16 @@ class PropertyService:
         await self._validate_range(
             project_id, property_in.range_scheme_id, property_in.range_datatype
         )
+
+        # Determine URI: explicit (import) or computed from namespace (manual)
+        if property_in.uri:
+            uri = property_in.uri
+        elif project.namespace:
+            uri = project.namespace.rstrip("/") + "/" + property_in.identifier
+        else:
+            raise ValueError(
+                "Project namespace required to create properties without explicit URI"
+            )
 
         # Create property
         prop = Property(
@@ -171,6 +181,7 @@ class PropertyService:
             range_class=property_in.range_class,
             cardinality=property_in.cardinality,
             required=property_in.required,
+            uri=uri,
         )
         self.db.add(prop)
 

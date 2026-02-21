@@ -72,6 +72,7 @@ class ExistingProjectData:
     class_uris: set[str] = field(default_factory=set)
     class_identifiers: set[str] = field(default_factory=set)
     property_identifiers: set[str] = field(default_factory=set)
+    property_uris: set[str] = field(default_factory=set)
 
 
 class SKOSImportService:
@@ -458,7 +459,8 @@ class SKOSImportService:
             analysis["classes"], existing.class_uris, existing.class_identifiers
         )
         property_previews, warnings = self._preview_properties(
-            g, analysis["properties"], existing.property_identifiers,
+            g, analysis["properties"],
+            existing.property_identifiers, existing.property_uris,
             scheme_uris, scheme_uri_to_title, class_uris,
         )
 
@@ -491,9 +493,11 @@ class SKOSImportService:
             )
         ).scalars().all()
 
-        existing_prop_result = await self.db.execute(
-            select(Property.identifier).where(Property.project_id == project_id)
-        )
+        existing_props = (
+            await self.db.execute(
+                select(Property).where(Property.project_id == project_id)
+            )
+        ).scalars().all()
 
         return ExistingProjectData(
             scheme_uris={s.uri for s in existing_schemes if s.uri},
@@ -501,7 +505,8 @@ class SKOSImportService:
             scheme_uri_to_title={s.uri: s.title for s in existing_schemes if s.uri},
             class_uris={c.uri for c in existing_classes if c.uri},
             class_identifiers={c.identifier for c in existing_classes},
-            property_identifiers=set(existing_prop_result.scalars().all()),
+            property_identifiers={p.identifier for p in existing_props},
+            property_uris={p.uri for p in existing_props},
         )
 
     def _preview_schemes(
@@ -569,6 +574,7 @@ class SKOSImportService:
         g: Graph,
         property_metadata: list[dict],
         existing_identifiers: set[str],
+        existing_uris: set[str],
         scheme_uris: set[str],
         scheme_uri_to_title: dict[str, str],
         class_uris: set[str],
@@ -578,7 +584,7 @@ class SKOSImportService:
         warnings: list[str] = []
 
         for pm in property_metadata:
-            if pm["identifier"] in existing_identifiers:
+            if pm["uri"] in existing_uris or pm["identifier"] in existing_identifiers:
                 continue
 
             range_scheme_title = None
@@ -638,7 +644,7 @@ class SKOSImportService:
 
         properties_created, warnings = await self._import_properties(
             g, project_id, analysis["properties"],
-            existing.property_identifiers,
+            existing.property_identifiers, existing.property_uris,
             scheme_uri_to_id, class_uris,
         )
 
@@ -670,6 +676,7 @@ class SKOSImportService:
                 label=cm["label"],
                 description=cm["description"],
                 scope_note=cm["scope_note"],
+                uri=cm["uri"],
             )
             self.db.add(ont_class)
             await self.db.flush()
@@ -840,16 +847,19 @@ class SKOSImportService:
         project_id: UUID,
         property_metadata: list[dict],
         existing_prop_ids: set[str],
+        existing_prop_uris: set[str],
         scheme_uri_to_id: dict[str, UUID],
         class_uris: set[str],
     ) -> tuple[list[PropertyCreatedResponse], list[str]]:
-        """Create Property records, skipping duplicates, resolving ranges."""
+        """Create Property records, skipping duplicates by URI (identifier fallback)."""
+        known_uris = set(existing_prop_uris)
+        known_identifiers = set(existing_prop_ids)
         created: list[PropertyCreatedResponse] = []
         warnings: list[str] = []
 
         for pm in property_metadata:
             identifier = pm["identifier"]
-            if identifier in existing_prop_ids:
+            if pm["uri"] in known_uris or identifier in known_identifiers:
                 continue
 
             range_uri = pm["range_uri"]
@@ -891,6 +901,7 @@ class SKOSImportService:
                 range_class=range_class,
                 cardinality="single",
                 required=False,
+                uri=pm["uri"],
             )
             self.db.add(prop)
             await self.db.flush()
@@ -912,6 +923,9 @@ class SKOSImportService:
                     "range_class": prop.range_class,
                 },
             )
+
+            known_uris.add(pm["uri"])
+            known_identifiers.add(identifier)
 
             created.append(
                 PropertyCreatedResponse(

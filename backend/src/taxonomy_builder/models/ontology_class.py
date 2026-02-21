@@ -25,6 +25,7 @@ class OntologyClass(Base):
         UniqueConstraint(
             "project_id", "identifier", name="uq_ontology_class_identifier_per_project"
         ),
+        UniqueConstraint("project_id", "uri", name="uq_ontology_classes_project_uri"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
@@ -35,6 +36,7 @@ class OntologyClass(Base):
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     scope_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    uri: Mapped[str] = mapped_column(String(2048), nullable=False)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
@@ -45,13 +47,3 @@ class OntologyClass(Base):
         back_populates="ontology_classes", lazy="selectin"
     )
 
-    @property
-    def uri(self) -> str | None:
-        """Compute URI from project namespace and identifier.
-
-        Returns None if the project has no namespace.
-        """
-        if not self.project or not self.project.namespace:
-            return None
-        namespace = self.project.namespace.rstrip("/")
-        return f"{namespace}/{self.identifier}"
