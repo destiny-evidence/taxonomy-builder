@@ -9,6 +9,10 @@
   inset: 0;
 }
 
+.modal--wide {
+  max-width: 680px;
+}
+
 .modal::backdrop {
   background: rgba(0, 0, 0, 0.5);
 }

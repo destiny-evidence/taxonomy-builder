@@ -1,0 +1,182 @@
+{
+  "format_version": "1.0",
+  "version": "2.0",
+  "title": "Add warm/cool categories",
+  "published_at": "2026-03-01T09:00:00Z",
+  "publisher": "Jane Smith",
+  "pre_release": false,
+  "project": {
+    "id": "01965a00-0000-7000-8000-000000000000",
+    "name": "Demo Taxonomy",
+    "description": "A simple demo taxonomy for testing.",
+    "namespace": "http://example.org/taxonomies/demo"
+  },
+  "schemes": [
+    {
+      "id": "01965a00-0000-7000-8000-000000000001",
+      "title": "Colors",
+      "description": "A simple color taxonomy.",
+      "uri": "http://example.org/demo/colors",
+      "top_concepts": [
+        "01965a00-0000-7000-8000-000000000005",
+        "01965a00-0000-7000-8000-000000000006"
+      ],
+      "concepts": {
+        "01965a00-0000-7000-8000-000000000002": {
+          "pref_label": "Red",
+          "identifier": "red",
+          "uri": "http://example.org/demo/colors/red",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Crimson", "Scarlet"],
+          "broader": ["01965a00-0000-7000-8000-000000000005"],
+          "related": []
+        },
+        "01965a00-0000-7000-8000-000000000003": {
+          "pref_label": "Blue",
+          "identifier": "blue",
+          "uri": "http://example.org/demo/colors/blue",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Azure", "Navy"],
+          "broader": ["01965a00-0000-7000-8000-000000000006"],
+          "related": ["01965a00-0000-7000-8000-000000000007"]
+        },
+        "01965a00-0000-7000-8000-000000000004": {
+          "pref_label": "Green",
+          "identifier": "green",
+          "uri": "http://example.org/demo/colors/green",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Emerald"],
+          "broader": ["01965a00-0000-7000-8000-000000000006"],
+          "related": ["01965a00-0000-7000-8000-000000000007"]
+        },
+        "01965a00-0000-7000-8000-000000000005": {
+          "pref_label": "Warm Colors",
+          "identifier": "warm-colors",
+          "uri": "http://example.org/demo/colors/warm-colors",
+          "definition": "Colors associated with warmth.",
+          "scope_note": null,
+          "alt_labels": [],
+          "broader": [],
+          "related": []
+        },
+        "01965a00-0000-7000-8000-000000000006": {
+          "pref_label": "Cool Colors",
+          "identifier": "cool-colors",
+          "uri": "http://example.org/demo/colors/cool-colors",
+          "definition": "Colors associated with coolness.",
+          "scope_note": null,
+          "alt_labels": [],
+          "broader": [],
+          "related": []
+        },
+        "01965a00-0000-7000-8000-000000000007": {
+          "pref_label": "Turquoise",
+          "identifier": "turquoise",
+          "uri": "http://example.org/demo/colors/turquoise",
+          "definition": "A cyan-like color between blue and green.",
+          "scope_note": "Used when a color is perceived as both blue and green.",
+          "alt_labels": ["Teal"],
+          "broader": ["01965a00-0000-7000-8000-000000000006"],
+          "related": [
+            "01965a00-0000-7000-8000-000000000003",
+            "01965a00-0000-7000-8000-000000000004"
+          ]
+        },
+        "01965a00-0000-7000-8000-000000000008": {
+          "pref_label": "Orange",
+          "identifier": "orange",
+          "uri": "http://example.org/demo/colors/orange",
+          "definition": null,
+          "scope_note": null,
+          "alt_labels": ["Amber"],
+          "broader": ["01965a00-0000-7000-8000-000000000005"],
+          "related": []
+        }
+      }
+    }
+  ],
+  "classes": [
+    {
+      "id": "01965a00-0000-7000-8000-b00000000001",
+      "identifier": "Investigation",
+      "uri": "https://evrepo.example.org/vocab/Investigation",
+      "label": "Investigation",
+      "description": "A discrete research effort reported within a reference.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000002",
+      "identifier": "Finding",
+      "uri": "https://evrepo.example.org/vocab/Finding",
+      "label": "Finding",
+      "description": "The atomic unit of evidence.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000003",
+      "identifier": "Intervention",
+      "uri": "https://evrepo.example.org/vocab/Intervention",
+      "label": "Intervention",
+      "description": "A policy, program, practice, or treatment being evaluated.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000004",
+      "identifier": "Outcome",
+      "uri": "https://evrepo.example.org/vocab/Outcome",
+      "label": "Outcome",
+      "description": "A measured result or endpoint.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000005",
+      "identifier": "EffectEstimate",
+      "uri": "https://evrepo.example.org/vocab/EffectEstimate",
+      "label": "Effect Estimate",
+      "description": "A quantitative estimate of effect size with associated uncertainty measures.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000006",
+      "identifier": "Context",
+      "uri": "https://evrepo.example.org/vocab/Context",
+      "label": "Context",
+      "description": "The setting and circumstances in which an investigation took place.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000007",
+      "identifier": "Funder",
+      "uri": "https://evrepo.example.org/vocab/Funder",
+      "label": "Funder",
+      "description": "An organisation providing financial support.",
+      "scope_note": null
+    },
+    {
+      "id": "01965a00-0000-7000-8000-b00000000008",
+      "identifier": "Implementer",
+      "uri": "https://evrepo.example.org/vocab/Implementer",
+      "label": "Implementer",
+      "description": "An organisation or entity responsible for delivering an intervention.",
+      "scope_note": null
+    }
+  ],
+  "properties": [
+    {
+      "id": "01965a00-0000-7000-8000-a00000000001",
+      "identifier": "riskColor",
+      "uri": "http://example.org/taxonomies/demo/riskColor",
+      "label": "Risk Color",
+      "description": "Color code representing the risk level of a finding.",
+      "domain_class_uri": "https://evrepo.example.org/vocab/Finding",
+      "range_scheme_id": "01965a00-0000-7000-8000-000000000001",
+      "range_scheme_uri": "http://example.org/demo/colors",
+      "range_datatype": null,
+      "cardinality": "single",
+      "required": false
+    }
+  ]
+}

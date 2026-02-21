@@ -50,6 +50,36 @@
   font-size: var(--font-size-sm);
 }
 
+.comments-section__filter {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.comments-section__filter-option {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.comments-section__filter-option:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-secondary);
+}
+
+.comments-section__filter-option--active {
+  background: var(--color-primary);
+  color: var(--color-primary-text, #fff);
+  border-color: var(--color-primary);
+}
+
+.comments-section__filter-option--active:hover {
+  color: var(--color-primary-text, #fff);
+}
+
 .comments-section__list {
   display: flex;
   flex-direction: column;
@@ -60,6 +90,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+}
+
+.comments-section__thread--resolved > .comments-section__comment,
+.comments-section__thread--resolved > .comments-section__replies {
+  opacity: 0.5;
 }
 
 .comments-section__comment {
@@ -170,31 +205,6 @@
   align-self: flex-end;
 }
 
-.comments-section__reply-btn {
-  margin-top: var(--spacing-sm);
-  margin-left: var(--spacing-sm);
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
-  align-self: flex-start;
-}
-
-.comments-section__reply-btn:hover {
-  color: var(--color-primary);
-  background-color: var(--color-bg-secondary);
-  border-color: var(--color-primary);
-}
-
-.comments-section__reply-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 .comments-section__reply-form {
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm);
@@ -211,6 +221,17 @@
   color: var(--color-text-muted);
   font-weight: 500;
   margin-bottom: var(--spacing-xs);
+}
+
+.comments-section__thread-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.comments-section__resolved-info {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 .comments-section__reply-actions {

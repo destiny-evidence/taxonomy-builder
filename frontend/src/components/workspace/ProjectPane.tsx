@@ -12,6 +12,8 @@ interface ProjectPaneProps {
   onClassSelect: (classUri: string) => void;
   onNewScheme: () => void;
   onImport: () => void;
+  onPublish: () => void;
+  onVersions: () => void;
 }
 
 export function ProjectPane({
@@ -21,8 +23,12 @@ export function ProjectPane({
   onClassSelect,
   onNewScheme,
   onImport,
+  onPublish,
+  onVersions,
 }: ProjectPaneProps) {
-  const projectSchemes = schemes.value.filter((s) => s.project_id === projectId);
+  const projectSchemes = schemes.value.filter(
+    (s) => s.project_id === projectId,
+  );
   const project = currentProject.value;
   const classes = ontologyClasses.value;
 
@@ -43,6 +49,18 @@ export function ProjectPane({
           <Button variant="ghost" size="sm" onClick={onImport}>
             Import
           </Button>
+        </div>
+      </div>
+
+      <div class="project-pane__publish-section">
+        <span class="project-pane__section-title">Publishing</span>
+        <div class="project-pane__publish-group">
+          <button class="project-pane__publish-btn" onClick={onPublish}>
+            New Version
+          </button>
+          <button class="project-pane__versions-btn" onClick={onVersions}>
+            History
+          </button>
         </div>
       </div>
 

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://destiny-evidence.github.io/taxonomy-builder/schemas/published/root-index.schema.json",
+  "title": "Published Root Index",
+  "description": "Top-level entry point listing all published projects. Each project includes a pointer to its latest finalized version. Regenerated on any publish. Served at /index.json.",
+  "type": "object",
+  "required": ["format_version", "projects"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forwards compatibility."
+    },
+    "projects": {
+      "type": "array",
+      "description": "All projects that have at least one published version.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Project UUID."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable project name."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Project description."
+          },
+          "latest_version": {
+            "type": ["string", "null"],
+            "description": "Version string of the latest finalized release (e.g. \"2.0\"). Null if only pre-releases exist. The vocabulary file is at /{id}/{latest_version}/vocabulary.json.",
+            "pattern": "^\\d+(\\.\\d+)+(-pre\\d+)?$"
+          }
+        }
+      }
+    }
+  }
+}

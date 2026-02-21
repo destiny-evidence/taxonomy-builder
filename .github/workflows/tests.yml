@@ -36,17 +36,19 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Install python
+        uses: actions/setup-python@v6
+        id: python
+        with:
+          python-version-file: ./backend/pyproject.toml
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.7.14"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-
-      - name: Install python
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: ./backend/pyproject.toml
+          python-version: ${{ steps.python.outputs.python-version }}
 
       - name: Install the project
         run: uv sync --locked --extra dev

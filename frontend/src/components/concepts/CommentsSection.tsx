@@ -32,91 +32,91 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unresolved" | "resolved">("unresolved");
 
   async function loadComments() {
     try {
       setError(null);
       const data = await commentsApi.listForConcept(conceptId);
       setComments(data);
+      return data;
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError("Failed to load comments");
       }
+      return [];
     }
   }
 
-  // Load comments on mount and when concept changes
+  const filteredComments = comments
+    .filter((comment) => {
+      if (filter === "all") return true;
+      if (filter === "resolved") return comment.resolved_at;
+      return !comment.resolved_at;
+    })
+    .sort((a, b) => {
+      if (a.resolved_at && !b.resolved_at) return 1;
+      if (!a.resolved_at && b.resolved_at) return -1;
+      return 0;
+    });
+
+  // Reset UI state and load comments when concept changes
   useEffect(() => {
-    loadComments();
-    setIsExpanded(false);
     setNewComment("");
     setError(null);
+    setFilter("unresolved");
+    loadComments().then((data) => {
+      setIsExpanded(data.some((c) => !c.resolved_at));
+    });
   }, [conceptId]);
+
+  async function withLoading(action: () => Promise<void>, errorMsg: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      await action();
+      await loadComments();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!newComment.trim()) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
+    await withLoading(async () => {
       await commentsApi.create(conceptId, { content: newComment.trim() });
       setNewComment("");
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to add comment");
-      }
-    } finally {
-      setLoading(false);
-    }
+    }, "Failed to add comment");
   }
 
   async function handleDelete(commentId: string) {
-    setLoading(true);
-    try {
-      await commentsApi.delete(commentId);
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to delete comment");
-      }
-    } finally {
-      setLoading(false);
-    }
+    await withLoading(() => commentsApi.delete(commentId), "Failed to delete comment");
+  }
+
+  async function handleResolve(commentId: string) {
+    await withLoading(() => commentsApi.resolve(commentId), "Failed to resolve comment");
+  }
+
+  async function handleUnresolve(commentId: string) {
+    await withLoading(() => commentsApi.unresolve(commentId), "Failed to unresolve comment");
   }
 
   async function handleReplySubmit(e: Event, parentId: string) {
     e.preventDefault();
     if (!replyContent.trim()) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
+    await withLoading(async () => {
       await commentsApi.create(conceptId, {
         content: replyContent.trim(),
         parent_comment_id: parentId,
       });
       setReplyContent("");
       setReplyingTo(null);
-      await loadComments();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to post reply");
-      }
-    } finally {
-      setLoading(false);
-    }
+    }, "Failed to post reply");
   }
 
   function handleCancelReply() {
@@ -143,10 +143,23 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
         <div class="comments-section__content">
           {error && <div class="comments-section__error">{error}</div>}
 
-          {comments.length > 0 ? (
+          <div class="comments-section__filter">
+            {(["all", "unresolved", "resolved"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                class={`comments-section__filter-option ${filter === option ? "comments-section__filter-option--active" : ""}`}
+                onClick={() => setFilter(option)}
+              >
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {filteredComments.length > 0 ? (
             <div class="comments-section__list">
-              {comments.map((comment) => (
-                <div key={comment.id} class="comments-section__thread">
+              {filteredComments.map((comment) => (
+                <div key={comment.id} class={`comments-section__thread ${comment.resolved_at ? "comments-section__thread--resolved" : ""}`}>
                   {/* Top-level comment */}
                   <div class="comments-section__comment">
                     <div class="comments-section__comment-header">
@@ -240,22 +253,41 @@ export function CommentsSection({ conceptId }: CommentsSectionProps) {
                     </form>
                   )}
 
-                  {/* Reply button - at bottom of thread */}
+                  {/* Reply and Resolve buttons - at bottom of thread */}
                   {!replyingTo && (
-                    <button
-                      class="comments-section__reply-btn"
-                      onClick={() => setReplyingTo(comment.id)}
-                      disabled={loading}
-                      type="button"
-                    >
-                      Reply
-                    </button>
+                    <div class="comments-section__thread-actions">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setReplyingTo(comment.id)}
+                        disabled={loading}
+                      >
+                        Reply
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => comment.resolved_at ? handleUnresolve(comment.id) : handleResolve(comment.id)}
+                        disabled={loading}
+                      >
+                        {comment.resolved_at ? "Unresolve" : "Resolve"}
+                      </Button>
+                      {comment.resolver && (
+                        <span class="comments-section__resolved-info">
+                          Resolved by {comment.resolver.display_name} {formatRelativeTime(comment.resolved_at!)}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
             </div>
           ) : (
-            <p class="comments-section__empty">No comments yet</p>
+            <p class="comments-section__empty">
+              {comments.length === 0
+                ? "No comments yet"
+                : `No ${filter} comments`}
+            </p>
           )}
 
           {/* Hide main comment form when replying */}

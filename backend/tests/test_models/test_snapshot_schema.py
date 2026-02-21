@@ -29,6 +29,7 @@ def _scheme(**overrides) -> dict:
     defaults = {
         "id": "00000000-0000-0000-0000-000000000010",
         "title": "Test Scheme",
+        "uri": "http://example.org/scheme",
     }
     return {**defaults, **overrides}
 
@@ -95,11 +96,64 @@ class TestSnapshotProperty:
         assert p.range_scheme_id is None
         assert p.range_datatype == "xsd:string"
 
+    def test_both_range_fields_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SnapshotProperty(
+                **_property(
+                    range_scheme_id="00000000-0000-0000-0000-000000000010",
+                    range_datatype="xsd:string",
+                )
+            )
+
+    def test_neither_range_field_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SnapshotProperty(
+                **_property(range_scheme_id=None, range_datatype=None)
+            )
+
+    def test_range_scheme_id_without_uri_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SnapshotProperty(
+                **_property(
+                    range_scheme_id="00000000-0000-0000-0000-000000000010",
+                    range_scheme_uri=None,
+                    range_datatype=None,
+                )
+            )
+
 
 class TestSnapshotClass:
     def test_valid(self) -> None:
-        c = SnapshotClass(uri="http://example.org/C", label="C", description="A class")
+        c = SnapshotClass(
+            id="00000000-0000-0000-0000-000000000030",
+            identifier="MyClass",
+            uri="http://example.org/C",
+            label="C",
+            description="A class",
+            scope_note="Use for testing",
+        )
         assert c.uri == "http://example.org/C"
+        assert c.id == UUID("00000000-0000-0000-0000-000000000030")
+        assert c.identifier == "MyClass"
+        assert c.scope_note == "Use for testing"
+
+    def test_missing_uri_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SnapshotClass(
+                id="00000000-0000-0000-0000-000000000030",
+                identifier="MyClass",
+                uri=None,
+                label="C",
+            )
+
+    def test_empty_label_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SnapshotClass(
+                id="00000000-0000-0000-0000-000000000030",
+                identifier="MyClass",
+                uri="http://example.org/C",
+                label="   ",
+            )
 
 
 class TestSnapshotProjectMetadata:
@@ -124,7 +178,12 @@ class TestSnapshotVocabulary:
             **_snapshot(
                 concept_schemes=[_scheme(concepts=[_concept()])],
                 properties=[_property()],
-                classes=[{"uri": "http://example.org/C", "label": "C"}],
+                classes=[{
+                    "id": "00000000-0000-0000-0000-000000000030",
+                    "identifier": "C",
+                    "uri": "http://example.org/C",
+                    "label": "C",
+                }],
             )
         )
         assert len(s.concept_schemes) == 1
