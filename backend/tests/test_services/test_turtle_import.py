@@ -292,16 +292,15 @@ ex:Finding a owl:Class ;
         ).scalars().all()
 
         prop = next(p for p in props if p.identifier == "hasFinding")
-        assert prop.range_class_id is not None
+        assert prop.range_class is not None
+        assert prop.range_class == "http://example.org/Finding"
         assert prop.range_scheme_id is None
-        ont_class = await db_session.get(OntologyClass, prop.range_class_id)
-        assert ont_class.identifier == "Finding"
 
     @pytest.mark.asyncio
     async def test_unresolvable_range_emits_warning(
         self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
     ) -> None:
-        """Unresolvable range leaves all range fields NULL and emits warning."""
+        """Unresolvable range stores URI as range_class and emits warning."""
         result = await import_service.execute(project.id, NO_RANGE_MATCH_TTL, "test.ttl")
 
         props = (
@@ -312,7 +311,7 @@ ex:Finding a owl:Class ;
         prop = props[0]
         assert prop.range_scheme_id is None
         assert prop.range_datatype is None
-        assert prop.range_class_id is None
+        assert prop.range_class == "http://example.org/UnknownClass"
 
         assert len(result.warnings) == 1
         assert "UnknownClass" in result.warnings[0]

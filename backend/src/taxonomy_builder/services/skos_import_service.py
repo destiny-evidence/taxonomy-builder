@@ -455,7 +455,7 @@ class SKOSImportService:
             existing.scheme_uris,
         )
         class_previews = self._preview_classes(
-            analysis["classes"], existing.class_identifiers
+            analysis["classes"], existing.class_uris, existing.class_identifiers
         )
         property_previews, warnings = self._preview_properties(
             g, analysis["properties"], existing.property_identifiers,
@@ -549,9 +549,10 @@ class SKOSImportService:
     def _preview_classes(
         self,
         class_metadata: list[dict],
+        existing_class_uris: set[str],
         existing_identifiers: set[str],
     ) -> list[ClassPreviewResponse]:
-        """Build class previews, skipping existing."""
+        """Build class previews, skipping existing (by URI, with identifier fallback)."""
         return [
             ClassPreviewResponse(
                 identifier=cm["identifier"],
@@ -559,7 +560,8 @@ class SKOSImportService:
                 uri=cm["uri"],
             )
             for cm in class_metadata
-            if cm["identifier"] not in existing_identifiers
+            if cm["uri"] not in existing_class_uris
+            and cm["identifier"] not in existing_identifiers
         ]
 
     def _preview_properties(
@@ -616,15 +618,13 @@ class SKOSImportService:
 
         analysis = self._analyze_graph(g)
 
-        classes_created = await self._import_classes(
-            project_id, analysis["classes"]
-        )
-        class_uri_to_id = await self._build_class_uri_map(
-            project_id, analysis["classes"]
-        )
-
         # Load existing data once for duplicate detection and range resolution
         existing = await self._load_existing_project_data(project_id)
+
+        classes_created = await self._import_classes(
+            project_id, analysis["classes"],
+            existing.class_uris, existing.class_identifiers,
+        )
 
         schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
             await self._import_schemes(
@@ -633,10 +633,13 @@ class SKOSImportService:
             )
         )
 
+        # Combine existing class URIs with those from the current file
+        class_uris = existing.class_uris | {cm["uri"] for cm in analysis["classes"]}
+
         properties_created, warnings = await self._import_properties(
             g, project_id, analysis["properties"],
             existing.property_identifiers,
-            scheme_uri_to_id, class_uri_to_id,
+            scheme_uri_to_id, class_uris,
         )
 
         return ImportResultResponse(
@@ -649,18 +652,16 @@ class SKOSImportService:
         )
 
     async def _import_classes(
-        self, project_id: UUID, class_metadata: list[dict]
+        self, project_id: UUID, class_metadata: list[dict],
+        existing_class_uris: set[str], existing_identifiers: set[str],
     ) -> list[ClassCreatedResponse]:
-        """Create OntologyClass records, skipping duplicates."""
+        """Create OntologyClass records, skipping duplicates by URI (identifier fallback)."""
+        known_uris = set(existing_class_uris)
+        known_identifiers = set(existing_identifiers)
+
         created: list[ClassCreatedResponse] = []
         for cm in class_metadata:
-            existing = await self.db.execute(
-                select(OntologyClass).where(
-                    OntologyClass.project_id == project_id,
-                    OntologyClass.identifier == cm["identifier"],
-                )
-            )
-            if existing.scalar_one_or_none():
+            if cm["uri"] in known_uris or cm["identifier"] in known_identifiers:
                 continue
 
             ont_class = OntologyClass(
@@ -687,6 +688,9 @@ class SKOSImportService:
                 },
             )
 
+            known_uris.add(cm["uri"])
+            known_identifiers.add(cm["identifier"])
+
             created.append(
                 ClassCreatedResponse(
                     id=ont_class.id,
@@ -695,31 +699,6 @@ class SKOSImportService:
                 )
             )
         return created
-
-    async def _build_class_uri_map(
-        self, project_id: UUID, class_metadata: list[dict]
-    ) -> dict[str, UUID]:
-        """Build class URI -> ID map for range resolution.
-
-        Uses computed URIs (from project namespace) and raw TTL URIs as fallback.
-        """
-        all_classes = (
-            await self.db.execute(
-                select(OntologyClass).where(OntologyClass.project_id == project_id)
-            )
-        ).scalars().all()
-
-        uri_map: dict[str, UUID] = {c.uri: c.id for c in all_classes if c.uri}
-
-        # Fallback: map by raw TTL URI for projects without a namespace
-        for cm in class_metadata:
-            cls = next(
-                (c for c in all_classes if c.identifier == cm["identifier"]), None
-            )
-            if cls and cm["uri"] not in uri_map:
-                uri_map[cm["uri"]] = cls.id
-
-        return uri_map
 
     async def _import_schemes(
         self,
@@ -862,7 +841,7 @@ class SKOSImportService:
         property_metadata: list[dict],
         existing_prop_ids: set[str],
         scheme_uri_to_id: dict[str, UUID],
-        class_uri_to_id: dict[str, UUID],
+        class_uris: set[str],
     ) -> tuple[list[PropertyCreatedResponse], list[str]]:
         """Create Property records, skipping duplicates, resolving ranges."""
         created: list[PropertyCreatedResponse] = []
@@ -879,25 +858,26 @@ class SKOSImportService:
 
             range_scheme_id: UUID | None = None
             range_datatype: str | None = None
-            range_class_id: UUID | None = None
+            range_class: str | None = None
 
             if prop_type == "datatype" and range_uri:
                 range_datatype = self._abbreviate_xsd(range_uri)
             elif prop_type == "object" and range_uri:
                 resolved = self._resolve_object_range(
                     g, range_uri, set(scheme_uri_to_id.keys()),
-                    set(class_uri_to_id.keys()),
+                    class_uris,
                 )
                 if resolved:
                     kind, uri = resolved
                     if kind == "scheme":
                         range_scheme_id = scheme_uri_to_id[uri]
                     else:
-                        range_class_id = class_uri_to_id[uri]
+                        range_class = uri
                 else:
+                    range_class = range_uri
                     warnings.append(
                         f"Property '{identifier}' range '{range_uri}' "
-                        f"not found in project \u2014 skipping range"
+                        f"not found in project \u2014 stored as unresolved URI"
                     )
 
             prop = Property(
@@ -908,7 +888,7 @@ class SKOSImportService:
                 domain_class=domain_uri,
                 range_scheme_id=range_scheme_id,
                 range_datatype=range_datatype,
-                range_class_id=range_class_id,
+                range_class=range_class,
                 cardinality="single",
                 required=False,
             )
@@ -929,6 +909,7 @@ class SKOSImportService:
                     "domain_class": prop.domain_class,
                     "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
                     "range_datatype": prop.range_datatype,
+                    "range_class": prop.range_class,
                 },
             )
 
@@ -939,7 +920,7 @@ class SKOSImportService:
                     label=prop.label,
                     range_scheme_id=prop.range_scheme_id,
                     range_datatype=prop.range_datatype,
-                    range_class_id=prop.range_class_id,
+                    range_class=prop.range_class,
                 )
             )
 
