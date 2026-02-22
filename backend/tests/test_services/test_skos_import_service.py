@@ -1,7 +1,5 @@
 """Tests for SKOS Import Service."""
 
-from uuid import uuid4
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +7,6 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
-    SchemeURIConflictError,
     SKOSImportService,
 )
 
@@ -692,3 +689,179 @@ async def test_dual_typed_with_object_range_becomes_object(
 
     assert result.properties_count == 1
     assert result.properties[0].property_type == "object"
+
+
+# --- eef:allowMultiple -> cardinality tests ---
+
+
+ALLOW_MULTIPLE_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix eef: <http://eef.example.org/ontology/> .
+@prefix ex: <http://example.org/> .
+
+eef:allowMultiple a owl:AnnotationProperty .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:singleProp a owl:DatatypeProperty ;
+    rdfs:label "Single Prop" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string ;
+    eef:allowMultiple false .
+
+ex:multiProp a owl:DatatypeProperty ;
+    rdfs:label "Multi Prop" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:integer ;
+    eef:allowMultiple true .
+
+ex:defaultProp a owl:DatatypeProperty ;
+    rdfs:label "Default Prop" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:boolean .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_allow_multiple_sets_cardinality(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """eef:allowMultiple true -> 'multiple', false -> 'single', absent -> 'single'."""
+    from sqlalchemy import select
+    from taxonomy_builder.models.property import Property
+
+    result = await import_service.execute(
+        project.id, ALLOW_MULTIPLE_TTL, "test.ttl"
+    )
+
+    assert len(result.properties_created) == 3
+
+    props = {
+        p.identifier: p
+        for p in (
+            await db_session.execute(
+                select(Property).where(Property.project_id == project.id)
+            )
+        ).scalars().all()
+    }
+    assert props["singleProp"].cardinality == "single"
+    assert props["multiProp"].cardinality == "multiple"
+    assert props["defaultProp"].cardinality == "single"
+
+
+# --- Duplicate property identifier tests ---
+
+
+DUPLICATE_PROPERTY_ID_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ns1: <http://example.org/ns1/> .
+@prefix ns2: <http://example.org/ns2/> .
+
+ns1:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ns1:title a owl:DatatypeProperty ;
+    rdfs:label "Title (ns1)" ;
+    rdfs:domain ns1:Finding ;
+    rdfs:range xsd:string .
+
+ns2:title a owl:DatatypeProperty ;
+    rdfs:label "Title (ns2)" ;
+    rdfs:domain ns1:Finding ;
+    rdfs:range xsd:integer .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_duplicate_property_identifier_skipped(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Two properties with different URIs but same identifier: second is skipped."""
+    from sqlalchemy import select
+    from taxonomy_builder.models.property import Property
+
+    result = await import_service.execute(
+        project.id, DUPLICATE_PROPERTY_ID_TTL, "test.ttl"
+    )
+
+    # Only one property created (first one wins)
+    assert len(result.properties_created) == 1
+
+    props = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalars().all()
+    assert len(props) == 1
+
+
+@pytest.mark.asyncio
+async def test_preview_duplicate_property_identifier_skipped(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Preview shows only one property when two share the same identifier."""
+    result = await import_service.preview(
+        project.id, DUPLICATE_PROPERTY_ID_TTL, "test.ttl"
+    )
+
+    assert result.properties_count == 1
+
+
+# --- Ambiguous range resolution tests ---
+
+
+AMBIGUOUS_RANGE_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:SchemeA a skos:ConceptScheme ;
+    rdfs:label "Scheme A" .
+
+ex:SchemeB a skos:ConceptScheme ;
+    rdfs:label "Scheme B" .
+
+ex:EducationLevel a owl:Class ;
+    rdfs:subClassOf skos:Concept .
+
+ex:Level1 a ex:EducationLevel ;
+    skos:inScheme ex:SchemeA ;
+    skos:prefLabel "Level 1" .
+
+ex:Level2 a ex:EducationLevel ;
+    skos:inScheme ex:SchemeB ;
+    skos:prefLabel "Level 2" .
+
+ex:educationProp a owl:ObjectProperty ;
+    rdfs:label "Education Level" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range ex:EducationLevel .
+"""
+
+
+@pytest.mark.asyncio
+async def test_preview_ambiguous_range_not_resolved(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Range class with instances in 2 schemes -> unresolved, warning emitted."""
+    result = await import_service.preview(
+        project.id, AMBIGUOUS_RANGE_TTL, "test.ttl"
+    )
+
+    assert result.properties_count == 1
+    # Range should NOT be resolved to a specific scheme
+    assert result.properties[0].range_scheme_title is None
+    # Warning about unresolved range
+    assert any(
+        "educationProp" in w and "not found" in w
+        for w in result.warnings
+    )

@@ -210,8 +210,8 @@ export function ImportModal({
             </p>
             {result.warnings.length > 0 && (
               <p class="import-modal__warning-summary">
-                {result.warnings.length} property range{result.warnings.length !== 1 ? "s" : ""} could
-                not be resolved.
+                {result.warnings.length} warning{result.warnings.length !== 1 ? "s" : ""} during
+                import.
               </p>
             )}
             <div class="import-modal__actions">
