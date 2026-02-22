@@ -62,58 +62,6 @@ class SKOSExportService:
             return URIRef(f"{scheme_uri.rstrip('/')}/{concept.identifier}")
         return URIRef(f"{scheme_uri.rstrip('/')}/{concept.id}")
 
-    def _build_graph(self, graph: Graph, scheme: ConceptScheme) -> Graph:
-        """Build an RDF graph from a scheme and its concepts."""
-        # Get scheme URI
-        scheme_uri = self._get_scheme_uri(scheme)
-        scheme_uri_str = str(scheme_uri)
-
-        # Add ConceptScheme
-        graph.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
-        graph.add((scheme_uri, DCTERMS.title, Literal(scheme.title)))
-
-        if scheme.description:
-            graph.add((scheme_uri, DCTERMS.description, Literal(scheme.description)))
-
-        # Track which concepts have broader relationships (are not top concepts)
-        has_broader: set[UUID] = set()
-        for concept in scheme.concepts:
-            if concept.broader:
-                has_broader.add(concept.id)
-
-        # Add Concepts
-        for concept in scheme.concepts:
-            concept_uri = self._get_concept_uri(concept, scheme_uri_str)
-
-            graph.add((concept_uri, RDF.type, SKOS.Concept))
-            graph.add((concept_uri, SKOS.prefLabel, Literal(concept.pref_label)))
-            graph.add((concept_uri, SKOS.inScheme, scheme_uri))
-
-            if concept.definition:
-                graph.add((concept_uri, SKOS.definition, Literal(concept.definition)))
-            if concept.scope_note:
-                graph.add((concept_uri, SKOS.scopeNote, Literal(concept.scope_note)))
-
-            # Add alt labels
-            for alt_label in concept.alt_labels:
-                graph.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
-
-            # Add broader relationships
-            for broader_concept in concept.broader:
-                broader_uri = self._get_concept_uri(broader_concept, scheme_uri_str)
-                graph.add((concept_uri, SKOS.broader, broader_uri))
-                # Also add inverse narrower relationship
-                graph.add((broader_uri, SKOS.narrower, concept_uri))
-
-            # Add related relationships (symmetric - add both directions)
-            for related_concept in concept.related:
-                related_uri = self._get_concept_uri(related_concept, scheme_uri_str)
-                graph.add((concept_uri, SKOS.related, related_uri))
-
-            # Add hasTopConcept for concepts without broader
-            if concept.id not in has_broader:
-                graph.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
-
     async def export_scheme(self, scheme_id: UUID, format: str) -> str:
         """Export a concept scheme as SKOS RDF.
 
@@ -136,7 +84,17 @@ class SKOSExportService:
         graph.bind("dct", DCTERMS)
         graph.bind("owl", OWL)
 
-        self._build_graph(graph, scheme)
+        snapshot_scheme = SnapshotScheme.from_scheme(scheme)
+
+        # Ensure scheme uri
+        snapshot_scheme.uri = self._get_scheme_uri(scheme)
+
+        # Ensure concept uris
+        for concept in snapshot_scheme.concepts:
+            if not concept.uri:
+                concept.uri = self._get_concept_uri(concept, snapshot_scheme.uri)
+
+        self._add_scheme_to_graph(graph, snapshot_scheme)
 
         return graph.serialize(format=format)
 
