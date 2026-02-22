@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
@@ -61,6 +62,17 @@ class PropertyIdentifierExistsError(Exception):
         self.project_id = project_id
         super().__init__(
             f"Property with identifier '{identifier}' already exists in project"
+        )
+
+
+class PropertyURIExistsError(Exception):
+    """Raised when a property URI already exists in the project."""
+
+    def __init__(self, uri: str, project_id: UUID) -> None:
+        self.uri = uri
+        self.project_id = project_id
+        super().__init__(
+            f"Property with URI '{uri}' already exists in project"
         )
 
 
@@ -129,6 +141,7 @@ class PropertyService:
             "range_class": prop.range_class,
             "cardinality": prop.cardinality,
             "required": prop.required,
+            "uri": prop.uri,
         }
 
     async def create_property(
@@ -150,8 +163,8 @@ class PropertyService:
             SchemeNotInProjectError: If the scheme doesn't belong to the project
             PropertyIdentifierExistsError: If the identifier already exists
         """
-        # Verify project exists
-        await self._project_service.get_project(project_id)
+        # Verify project exists and get namespace for URI computation
+        project = await self._project_service.get_project(project_id)
 
         # Validate domain class
         self._validate_domain_class(property_in.domain_class)
@@ -163,6 +176,16 @@ class PropertyService:
             property_in.range_datatype,
             property_in.range_class,
         )
+
+        # Determine URI: explicit > computed from namespace > error
+        if property_in.uri:
+            uri = property_in.uri
+        elif project.namespace:
+            uri = project.namespace.rstrip("/") + "/" + property_in.identifier
+        else:
+            raise ValueError(
+                "Project namespace required to create properties without explicit URI"
+            )
 
         # Create property
         prop = Property(
@@ -176,14 +199,18 @@ class PropertyService:
             range_class=property_in.range_class,
             cardinality=property_in.cardinality,
             required=property_in.required,
+            uri=uri,
         )
         self.db.add(prop)
 
         try:
             await self.db.flush()
             await self.db.refresh(prop)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
+            constraint = get_constraint_name(e)
+            if constraint == "uq_properties_project_uri":
+                raise PropertyURIExistsError(uri, project_id)
             raise PropertyIdentifierExistsError(property_in.identifier, project_id)
 
         # Record change event

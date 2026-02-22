@@ -50,6 +50,7 @@ async def property_obj(db_session: AsyncSession, project: Project) -> Property:
         range_datatype="xsd:integer",
         cardinality="single",
         required=True,
+        uri="https://example.org/vocab/sampleSize",
     )
     db_session.add(prop)
     await db_session.flush()

@@ -15,6 +15,7 @@ class OntologyClassCreate(BaseModel):
     label: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     scope_note: str | None = None
+    uri: str | None = Field(default=None, max_length=2048)
 
     @field_validator("identifier")
     @classmethod
@@ -65,6 +66,6 @@ class OntologyClassRead(BaseModel):
     label: str
     description: str | None
     scope_note: str | None
-    uri: str | None
+    uri: str
     created_at: datetime
     updated_at: datetime
