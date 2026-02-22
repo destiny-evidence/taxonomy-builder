@@ -160,10 +160,31 @@ class TestCreateProperty:
         assert "domain class" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
+    async def test_create_property_with_range_class(
+        self, authenticated_client: AsyncClient, project: Project
+    ) -> None:
+        """Test creating a property with range_class (URI string)."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "educationLevel",
+                "label": "Education Level",
+                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "range_class": "https://example.org/ontology/EducationLevel",
+                "cardinality": "single",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["range_class"] == "https://example.org/ontology/EducationLevel"
+        assert data["range_scheme_id"] is None
+        assert data["range_datatype"] is None
+
+    @pytest.mark.asyncio
     async def test_create_property_invalid_range(
         self, authenticated_client: AsyncClient, project: Project
     ) -> None:
-        """Test creating a property with neither range field."""
+        """Test creating a property with no range field — schema rejects with 422."""
         response = await authenticated_client.post(
             f"/api/projects/{project.id}/properties",
             json={
@@ -173,8 +194,7 @@ class TestCreateProperty:
                 "cardinality": "single",
             },
         )
-        assert response.status_code == 400
-        assert "exactly one" in response.json()["detail"].lower()
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_create_property_duplicate_identifier(

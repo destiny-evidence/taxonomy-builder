@@ -224,7 +224,7 @@ async def test_import_unsupported_format(
 async def test_import_uri_conflict(
     db_session: AsyncSession, authenticated_client: AsyncClient, project: Project
 ) -> None:
-    """Test import returns 409 when scheme URI already exists."""
+    """Test import skips scheme when URI already exists (idempotent)."""
     # Create existing scheme with same URI
     existing = ConceptScheme(
         project_id=project.id,
@@ -239,8 +239,10 @@ async def test_import_uri_conflict(
         files={"file": ("test.ttl", SIMPLE_SCHEME_TTL, "text/turtle")},
     )
 
-    assert response.status_code == 409
-    assert "uri" in response.json()["detail"].lower()
+    assert response.status_code == 200
+    data = response.json()
+    # Scheme should be skipped, so 0 new schemes in preview
+    assert len(data["schemes"]) == 0
 
 
 @pytest.mark.asyncio
