@@ -51,77 +51,22 @@ class SnapshotService:
 
         schemes = []
         for scheme in project.schemes:
-            concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
-            schemes.append(self._build_scheme(scheme, concepts))
+            scheme.concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
+            schemes.append(
+                SnapshotScheme.from_scheme(scheme)
+            )
 
-        properties = [self._build_property(p) for p in project.properties]
-        classes = self._build_classes(project.ontology_classes)
+        properties = [SnapshotProperty.from_property(p) for p in project.properties]
+        classes = [
+            SnapshotClass.from_class(ontology_class) for ontology_class in project.ontology_classes
+        ]
 
         return SnapshotVocabulary.model_construct(
-            project=self._build_project(project),
+            project=SnapshotProjectMetadata.from_project(project),
             concept_schemes=schemes,
             properties=properties,
             classes=classes,
         )
-
-    def _build_project(self, project: Project) -> SnapshotProjectMetadata:
-        return SnapshotProjectMetadata.model_construct(
-            id=project.id,
-            name=project.name,
-            description=project.description,
-            namespace=project.namespace,
-        )
-
-    def _build_scheme(self, scheme: ConceptScheme, concepts: list[Concept]) -> SnapshotScheme:
-        return SnapshotScheme.model_construct(
-            id=scheme.id,
-            title=scheme.title,
-            description=scheme.description,
-            uri=scheme.uri,
-            concepts=[self._build_concept(c) for c in concepts],
-        )
-
-    def _build_concept(self, concept: Concept) -> SnapshotConcept:
-        return SnapshotConcept.model_construct(
-            id=concept.id,
-            identifier=concept.identifier,
-            uri=concept.uri,
-            pref_label=concept.pref_label,
-            definition=concept.definition,
-            scope_note=concept.scope_note,
-            alt_labels=list(concept.alt_labels),
-            broader_ids=[b.id for b in concept.broader],
-            related_ids=[r.id for r in concept.related],
-        )
-
-    def _build_property(self, prop: Property) -> SnapshotProperty:
-        return SnapshotProperty.model_construct(
-            id=prop.id,
-            identifier=prop.identifier,
-            uri=prop.uri,
-            label=prop.label,
-            description=prop.description,
-            domain_class=prop.domain_class,
-            range_scheme_id=prop.range_scheme_id,
-            range_scheme_uri=prop.range_scheme.uri if prop.range_scheme else None,
-            range_datatype=prop.range_datatype,
-            range_class=prop.range_class,
-            cardinality=prop.cardinality,
-            required=prop.required,
-        )
-
-    def _build_classes(self, ontology_classes: list[OntologyClass]) -> list[SnapshotClass]:
-        return [
-            SnapshotClass.model_construct(
-                id=cls.id,
-                identifier=cls.identifier,
-                uri=cls.uri,
-                label=cls.label,
-                description=cls.description,
-                scope_note=cls.scope_note,
-            )
-            for cls in ontology_classes
-        ]
 
 
 def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:

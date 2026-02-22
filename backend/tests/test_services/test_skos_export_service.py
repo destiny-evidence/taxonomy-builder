@@ -1,5 +1,6 @@
 """Tests for SKOS Export Service."""
 
+from datetime import datetime
 from uuid import uuid4, uuid7
 
 import pytest
@@ -551,6 +552,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
             id=project.id,
             name=project.name,
             description=project.description,
+            namespace="http://example.org/namespace"
         ),
         concept_schemes=[
             SnapshotScheme(
@@ -590,6 +592,7 @@ async def published_version(
         version="1.0",
         title="v1.0",
         snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now()
     )
     db_session.add(published)
     await db_session.flush()
@@ -673,6 +676,7 @@ async def test_export_published_version_multiple_schemes(
         version="2.0",
         title="v2.0",
         snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now()
     )
     db_session.add(published)
     await db_session.flush()
