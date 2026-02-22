@@ -33,24 +33,22 @@ class SKOSExportService:
         self.db = db
 
     async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
-        """Get a scheme by ID or raise SchemeNotFoundError."""
-        result = await self.db.execute(select(ConceptScheme).where(ConceptScheme.id == scheme_id))
+        """Get a scheme with concepts by ID or raise SchemeNotFoundError."""
+        result = await self.db.execute(
+            select(ConceptScheme)
+            .where(ConceptScheme.id == scheme_id)
+            .options(
+                selectinload(ConceptScheme.concepts).selectinload(Concept.broader),
+                selectinload(ConceptScheme.concepts).selectinload(Concept.narrower),
+                selectinload(ConceptScheme.concepts).selectinload(Concept._related_as_subject),
+                selectinload(ConceptScheme.concepts).selectinload(Concept._related_as_object),
+            )
+            .execution_options(populate_existing=True)
+        )
         scheme = result.scalar_one_or_none()
         if scheme is None:
             raise SchemeNotFoundError(scheme_id)
         return scheme
-
-    async def _get_concepts_for_scheme(self, scheme_id: UUID) -> list[Concept]:
-        """Get all concepts for a scheme with broader and related relationships loaded."""
-        result = await self.db.execute(
-            select(Concept)
-            .where(Concept.scheme_id == scheme_id)
-            .options(selectinload(Concept.broader))
-            .options(selectinload(Concept.scheme))
-            .options(selectinload(Concept._related_as_subject))
-            .options(selectinload(Concept._related_as_object))
-        )
-        return list(result.scalars().all())
 
     def _get_scheme_uri(self, scheme: ConceptScheme) -> URIRef:
         """Get the URI for a scheme, generating a default if not set."""
@@ -64,66 +62,57 @@ class SKOSExportService:
             return URIRef(f"{scheme_uri.rstrip('/')}/{concept.identifier}")
         return URIRef(f"{scheme_uri.rstrip('/')}/{concept.id}")
 
-    def _build_graph(self, scheme: ConceptScheme, concepts: list[Concept]) -> Graph:
+    def _build_graph(self, graph: Graph, scheme: ConceptScheme) -> Graph:
         """Build an RDF graph from a scheme and its concepts."""
-        g = Graph()
-
-        # Bind namespaces for cleaner output
-        g.bind("skos", SKOS)
-        g.bind("dct", DCTERMS)
-        g.bind("owl", OWL)
-
         # Get scheme URI
         scheme_uri = self._get_scheme_uri(scheme)
         scheme_uri_str = str(scheme_uri)
 
         # Add ConceptScheme
-        g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
-        g.add((scheme_uri, DCTERMS.title, Literal(scheme.title)))
+        graph.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
+        graph.add((scheme_uri, DCTERMS.title, Literal(scheme.title)))
 
         if scheme.description:
-            g.add((scheme_uri, DCTERMS.description, Literal(scheme.description)))
+            graph.add((scheme_uri, DCTERMS.description, Literal(scheme.description)))
 
         # Track which concepts have broader relationships (are not top concepts)
         has_broader: set[UUID] = set()
-        for concept in concepts:
+        for concept in scheme.concepts:
             if concept.broader:
                 has_broader.add(concept.id)
 
         # Add Concepts
-        for concept in concepts:
+        for concept in scheme.concepts:
             concept_uri = self._get_concept_uri(concept, scheme_uri_str)
 
-            g.add((concept_uri, RDF.type, SKOS.Concept))
-            g.add((concept_uri, SKOS.prefLabel, Literal(concept.pref_label)))
-            g.add((concept_uri, SKOS.inScheme, scheme_uri))
+            graph.add((concept_uri, RDF.type, SKOS.Concept))
+            graph.add((concept_uri, SKOS.prefLabel, Literal(concept.pref_label)))
+            graph.add((concept_uri, SKOS.inScheme, scheme_uri))
 
             if concept.definition:
-                g.add((concept_uri, SKOS.definition, Literal(concept.definition)))
+                graph.add((concept_uri, SKOS.definition, Literal(concept.definition)))
             if concept.scope_note:
-                g.add((concept_uri, SKOS.scopeNote, Literal(concept.scope_note)))
+                graph.add((concept_uri, SKOS.scopeNote, Literal(concept.scope_note)))
 
             # Add alt labels
             for alt_label in concept.alt_labels:
-                g.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
+                graph.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
 
             # Add broader relationships
             for broader_concept in concept.broader:
                 broader_uri = self._get_concept_uri(broader_concept, scheme_uri_str)
-                g.add((concept_uri, SKOS.broader, broader_uri))
+                graph.add((concept_uri, SKOS.broader, broader_uri))
                 # Also add inverse narrower relationship
-                g.add((broader_uri, SKOS.narrower, concept_uri))
+                graph.add((broader_uri, SKOS.narrower, concept_uri))
 
             # Add related relationships (symmetric - add both directions)
             for related_concept in concept.related:
                 related_uri = self._get_concept_uri(related_concept, scheme_uri_str)
-                g.add((concept_uri, SKOS.related, related_uri))
+                graph.add((concept_uri, SKOS.related, related_uri))
 
             # Add hasTopConcept for concepts without broader
             if concept.id not in has_broader:
-                g.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
-
-        return g
+                graph.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
 
     async def export_scheme(self, scheme_id: UUID, format: str) -> str:
         """Export a concept scheme as SKOS RDF.
@@ -139,9 +128,15 @@ class SKOSExportService:
             SchemeNotFoundError: If the scheme doesn't exist
         """
         scheme = await self._get_scheme(scheme_id)
-        concepts = await self._get_concepts_for_scheme(scheme_id)
 
-        graph = self._build_graph(scheme, concepts)
+        graph = Graph()
+
+        # Bind namespaces for cleaner output
+        graph.bind("skos", SKOS)
+        graph.bind("dct", DCTERMS)
+        graph.bind("owl", OWL)
+
+        self._build_graph(graph, scheme)
 
         return graph.serialize(format=format)
 
