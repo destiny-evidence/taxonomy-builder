@@ -250,7 +250,7 @@ export function PublishModal({
                     onClick={() => setStep("confirm")}
                     disabled={!canPublish}
                   >
-                    Publish
+                    Next
                   </Button>
                 </div>
               </div>
@@ -274,7 +274,7 @@ export function PublishModal({
                     Back
                   </Button>
                   <Button onClick={handlePublish} disabled={submitting}>
-                    {submitting ? "Publishing..." : "Confirm & Publish"}
+                    {submitting ? "Publishing..." : "Publish"}
                   </Button>
                 </div>
               </div>
