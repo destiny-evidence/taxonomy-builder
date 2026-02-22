@@ -235,6 +235,7 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
         range_scheme_id=scheme.id,
         cardinality="single",
         required=True,
+        uri="http://example.org/vocab/testProp",
     )
     db_session.add(prop)
     await db_session.flush()
@@ -266,12 +267,14 @@ async def test_classes_from_project(db_session: AsyncSession, project: Project) 
         label="Finding",
         description="A finding",
         scope_note="Use for findings",
+        uri="http://example.org/vocab/Finding",
     )
     cls2 = OntologyClass(
         project_id=project.id,
         identifier="Study",
         label="Study",
         description="A study",
+        uri="http://example.org/vocab/Study",
     )
     db_session.add_all([cls1, cls2])
     await db_session.flush()
@@ -346,6 +349,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
         identifier="Finding",
         label="Finding",
         description="A finding",
+        uri="http://example.org/vocab/Finding",
     )
     db_session.add(ont_cls)
     await db_session.flush()
@@ -360,6 +364,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
         range_scheme_id=scheme1.id,
         cardinality="multiple",
         required=False,
+        uri="http://example.org/vocab/topic",
     )
     db_session.add(prop)
     await db_session.flush()

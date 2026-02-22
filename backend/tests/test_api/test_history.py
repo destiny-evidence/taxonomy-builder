@@ -17,7 +17,7 @@ from taxonomy_builder.services.property_service import PropertyService
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Test Project")
+    project = Project(name="Test Project", namespace="https://example.org/vocab/")
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
