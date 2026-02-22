@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.schemas.ontology_class import OntologyClassCreate, OntologyClassUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
@@ -33,6 +34,17 @@ class OntologyClassIdentifierExistsError(Exception):
         )
 
 
+class OntologyClassURIExistsError(Exception):
+    """Raised when an ontology class URI already exists in the project."""
+
+    def __init__(self, uri: str, project_id: UUID) -> None:
+        self.uri = uri
+        self.project_id = project_id
+        super().__init__(
+            f"Ontology class with URI '{uri}' already exists in project"
+        )
+
+
 class OntologyClassService:
     """Service for managing ontology classes."""
 
@@ -54,6 +66,7 @@ class OntologyClassService:
             "label": ontology_class.label,
             "description": ontology_class.description,
             "scope_note": ontology_class.scope_note,
+            "uri": ontology_class.uri,
         }
 
     async def create_ontology_class(
@@ -72,7 +85,17 @@ class OntologyClassService:
             ProjectNotFoundError: If the project doesn't exist
             OntologyClassIdentifierExistsError: If the identifier already exists
         """
-        await self._project_service.get_project(project_id)
+        project = await self._project_service.get_project(project_id)
+
+        # Determine URI: explicit > computed from namespace > error
+        if ontology_class_in.uri:
+            uri = ontology_class_in.uri
+        elif project.namespace:
+            uri = project.namespace.rstrip("/") + "/" + ontology_class_in.identifier
+        else:
+            raise ValueError(
+                "Project namespace required to create ontology classes without explicit URI"
+            )
 
         ontology_class = OntologyClass(
             project_id=project_id,
@@ -80,14 +103,18 @@ class OntologyClassService:
             label=ontology_class_in.label,
             description=ontology_class_in.description,
             scope_note=ontology_class_in.scope_note,
+            uri=uri,
         )
         self.db.add(ontology_class)
 
         try:
             await self.db.flush()
             await self.db.refresh(ontology_class)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
+            constraint = get_constraint_name(e)
+            if constraint == "uq_ontology_classes_project_uri":
+                raise OntologyClassURIExistsError(uri, project_id)
             raise OntologyClassIdentifierExistsError(
                 ontology_class_in.identifier, project_id
             )
