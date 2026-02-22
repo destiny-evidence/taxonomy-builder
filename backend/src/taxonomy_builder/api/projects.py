@@ -17,7 +17,6 @@ from taxonomy_builder.services.project_service import (
 )
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
-    SchemeURIConflictError,
     SKOSImportService,
 )
 
@@ -134,5 +133,3 @@ async def import_skos(
             return await import_service.execute(project_id, content, filename)
     except InvalidRDFError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except SchemeURIConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

@@ -40,13 +40,6 @@ class InvalidRDFError(SKOSImportError):
         super().__init__(message)
 
 
-class SchemeURIConflictError(SKOSImportError):
-    """Scheme with this URI already exists in project."""
-
-    def __init__(self, uri: str) -> None:
-        self.uri = uri
-        super().__init__(f"A scheme with URI '{uri}' already exists in this project")
-
 
 # File extension to RDFLib format mapping
 FORMAT_MAP = {
@@ -308,6 +301,14 @@ class SKOSImportService:
         domain = g.value(prop_uri, RDFS.domain)
         range_val = g.value(prop_uri, RDFS.range)
 
+        # Read allowMultiple annotation for cardinality (any namespace)
+        cardinality = "single"
+        for pred, obj in g.predicate_objects(prop_uri):
+            if str(pred).endswith("allowMultiple") and isinstance(obj, Literal):
+                if obj.toPython() is True:
+                    cardinality = "multiple"
+                break
+
         return {
             "identifier": self._get_identifier_from_uri(prop_uri),
             "label": str(label),
@@ -316,6 +317,7 @@ class SKOSImportService:
             "domain_uri": str(domain) if isinstance(domain, URIRef) else None,
             "range_uri": str(range_val) if isinstance(range_val, URIRef) else None,
             "uri": str(prop_uri),
+            "cardinality": cardinality,
         }
 
     def _resolve_object_range(
@@ -337,12 +339,18 @@ class SKOSImportService:
         range_ref = URIRef(range_uri)
 
         # Strategy 1: Follow RDF linkage to a scheme
+        matched_schemes: set[str] = set()
         for instance in g.subjects(RDF.type, range_ref):
             if not isinstance(instance, URIRef):
                 continue
             scheme = self._get_concept_scheme(g, instance)
             if scheme and str(scheme) in scheme_uris:
-                return ("scheme", str(scheme))
+                matched_schemes.add(str(scheme))
+        if len(matched_schemes) == 1:
+            return ("scheme", next(iter(matched_schemes)))
+        if len(matched_schemes) > 1:
+            # Ambiguous: instances span multiple schemes
+            return None
 
         # Strategy 2: Direct scheme URI match
         if range_uri in scheme_uris:
@@ -355,18 +363,6 @@ class SKOSImportService:
         return None
 
     # --- Graph analysis ---
-
-    async def _check_uri_conflicts(self, project_id: UUID, scheme_uris: list[str]) -> None:
-        """Check for URI conflicts with existing schemes."""
-        for uri in scheme_uris:
-            result = await self.db.execute(
-                select(ConceptScheme).where(
-                    ConceptScheme.project_id == project_id,
-                    ConceptScheme.uri == uri,
-                )
-            )
-            if result.scalar_one_or_none():
-                raise SchemeURIConflictError(uri)
 
     async def _get_unique_title(self, project_id: UUID, base_title: str) -> str:
         """Get a unique title, appending (2), (3), etc. if needed."""
@@ -596,9 +592,10 @@ class SKOSImportService:
         """Build property previews with range resolution checks, skipping existing."""
         previews: list[PropertyPreviewResponse] = []
         warnings: list[str] = []
+        known_ids = set(existing_identifiers)
 
         for pm in property_metadata:
-            if pm["identifier"] in existing_identifiers:
+            if pm["identifier"] in known_ids:
                 continue
 
             if not pm["domain_uri"]:
@@ -631,6 +628,7 @@ class SKOSImportService:
                     range_scheme_title=range_scheme_title,
                 )
             )
+            known_ids.add(pm["identifier"])
 
         return previews, warnings
 
@@ -874,10 +872,11 @@ class SKOSImportService:
         """Create Property records, skipping duplicates, resolving ranges."""
         created: list[PropertyCreatedResponse] = []
         warnings: list[str] = []
+        known_ids = set(existing_prop_ids)
 
         for pm in property_metadata:
             identifier = pm["identifier"]
-            if identifier in existing_prop_ids:
+            if identifier in known_ids:
                 continue
 
             domain_uri = pm["domain_uri"]
@@ -924,12 +923,13 @@ class SKOSImportService:
                 range_scheme_id=range_scheme_id,
                 range_datatype=range_datatype,
                 range_class=range_class,
-                cardinality="single",
+                cardinality=pm["cardinality"],
                 required=False,
             )
             self.db.add(prop)
             await self.db.flush()
             await self.db.refresh(prop)
+            known_ids.add(identifier)
 
             await self._tracker.record(
                 project_id=project_id,

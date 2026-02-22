@@ -87,23 +87,24 @@ class PropertyService:
             raise DomainClassNotFoundError(domain_class)
 
     async def _validate_range(
-        self, project_id: UUID, range_scheme_id: UUID | None, range_datatype: str | None
+        self,
+        project_id: UUID,
+        range_scheme_id: UUID | None,
+        range_datatype: str | None,
+        range_class: str | None,
     ) -> None:
-        """Validate that exactly one of range_scheme_id or range_datatype is provided."""
-        has_scheme = range_scheme_id is not None
-        has_datatype = range_datatype is not None
-
-        if has_scheme and has_datatype:
+        """Validate that exactly one of the three range fields is provided."""
+        provided = sum(
+            v is not None for v in (range_scheme_id, range_datatype, range_class)
+        )
+        if provided != 1:
             raise InvalidRangeError(
-                "Exactly one of range_scheme_id or range_datatype must be provided, not both"
-            )
-        if not has_scheme and not has_datatype:
-            raise InvalidRangeError(
-                "Exactly one of range_scheme_id or range_datatype must be provided"
+                "Exactly one of range_scheme_id, range_datatype, or range_class "
+                "must be provided"
             )
 
         # Validate scheme belongs to project
-        if has_scheme:
+        if range_scheme_id is not None:
             try:
                 scheme = await self._scheme_service.get_scheme(range_scheme_id)
             except SchemeNotFoundError:
@@ -125,6 +126,7 @@ class PropertyService:
             "domain_class": prop.domain_class,
             "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
             "range_datatype": prop.range_datatype,
+            "range_class": prop.range_class,
             "cardinality": prop.cardinality,
             "required": prop.required,
         }
@@ -156,7 +158,10 @@ class PropertyService:
 
         # Validate range
         await self._validate_range(
-            project_id, property_in.range_scheme_id, property_in.range_datatype
+            project_id,
+            property_in.range_scheme_id,
+            property_in.range_datatype,
+            property_in.range_class,
         )
 
         # Create property
@@ -250,6 +255,7 @@ class PropertyService:
         # Determine what the new range values will be
         new_scheme_id = prop.range_scheme_id
         new_datatype = prop.range_datatype
+        new_range_class = prop.range_class
 
         # Check if we're updating range fields
         update_data = property_in.model_dump(exclude_unset=True)
@@ -257,10 +263,15 @@ class PropertyService:
             new_scheme_id = update_data["range_scheme_id"]
         if "range_datatype" in update_data:
             new_datatype = update_data["range_datatype"]
+        if "range_class" in update_data:
+            new_range_class = update_data["range_class"]
 
-        # Validate range if either range field is being updated
-        if "range_scheme_id" in update_data or "range_datatype" in update_data:
-            await self._validate_range(prop.project_id, new_scheme_id, new_datatype)
+        # Validate range if any range field is being updated
+        range_fields = {"range_scheme_id", "range_datatype", "range_class"}
+        if range_fields & update_data.keys():
+            await self._validate_range(
+                prop.project_id, new_scheme_id, new_datatype, new_range_class
+            )
 
         # Apply updates
         for key, value in update_data.items():
