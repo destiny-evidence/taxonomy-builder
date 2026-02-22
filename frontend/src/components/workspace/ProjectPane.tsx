@@ -50,16 +50,16 @@ export function ProjectPane({
             Import
           </Button>
         </div>
+      </div>
+
+      <div class="project-pane__publish-section">
+        <span class="project-pane__section-title">Publishing</span>
         <div class="project-pane__publish-group">
           <button class="project-pane__publish-btn" onClick={onPublish}>
-            Publish
+            New Version
           </button>
-          <button
-            class="project-pane__versions-btn"
-            onClick={onVersions}
-            aria-label="Version history"
-          >
-            {"\u2261"}
+          <button class="project-pane__versions-btn" onClick={onVersions}>
+            History
           </button>
         </div>
       </div>

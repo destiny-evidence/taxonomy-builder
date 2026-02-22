@@ -89,18 +89,18 @@ describe("ProjectPane", () => {
   });
 
   describe("publish button", () => {
-    it("shows Publish button", () => {
+    it("shows New version button", () => {
       const { props } = renderPane();
-      const btn = screen.getByRole("button", { name: "Publish" });
+      const btn = screen.getByRole("button", { name: "New Version" });
       expect(btn).toBeInTheDocument();
 
       fireEvent.click(btn);
       expect(props.onPublish).toHaveBeenCalled();
     });
 
-    it("has a versions button that calls onVersions", () => {
+    it("has a History button that calls onVersions", () => {
       const { props } = renderPane();
-      const btn = screen.getByRole("button", { name: /version history/i });
+      const btn = screen.getByRole("button", { name: "History" });
       expect(btn).toBeInTheDocument();
 
       fireEvent.click(btn);
