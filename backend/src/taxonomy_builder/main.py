@@ -19,6 +19,12 @@ from taxonomy_builder.api.projects import router as projects_router
 from taxonomy_builder.api.properties import project_properties_router, properties_router
 from taxonomy_builder.api.publishing import router as publishing_router
 from taxonomy_builder.api.schemes import project_schemes_router, schemes_router
+from taxonomy_builder.blob_store import (
+    close_blob_store,
+    close_cdn_purger,
+    init_blob_store,
+    init_cdn_purger,
+)
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 from taxonomy_builder.services.core_ontology_service import get_core_ontology
@@ -28,9 +34,12 @@ from taxonomy_builder.services.core_ontology_service import get_core_ontology
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup application resources."""
     db_manager.init(settings.effective_database_url)
-    # Warm the core ontology cache at startup
+    init_blob_store(settings)
+    init_cdn_purger(settings)
     get_core_ontology()
     yield
+    await close_cdn_purger()
+    await close_blob_store()
     await db_manager.close()
 
 
