@@ -47,6 +47,11 @@ describe("ImportModal", () => {
     ],
     total_concepts_count: 57,
     total_relationships_count: 50,
+    classes: [],
+    properties: [],
+    classes_count: 0,
+    properties_count: 0,
+    warnings: [],
     errors: [],
   };
 
@@ -57,6 +62,9 @@ describe("ImportModal", () => {
     ],
     total_concepts_created: 57,
     total_relationships_created: 50,
+    classes_created: [],
+    properties_created: [],
+    warnings: [],
   };
 
   afterEach(() => {

@@ -3,12 +3,12 @@
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
-from taxonomy_builder.models.property import Property
-from taxonomy_builder.schemas.property import PropertyCreate
+from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
 from taxonomy_builder.services.property_service import (
@@ -16,6 +16,7 @@ from taxonomy_builder.services.property_service import (
     InvalidRangeError,
     PropertyIdentifierExistsError,
     PropertyService,
+    PropertyURIExistsError,
     SchemeNotInProjectError,
 )
 
@@ -82,6 +83,61 @@ def property_service(db_session: AsyncSession) -> PropertyService:
     return PropertyService(db_session, project_service, scheme_service)
 
 
+# --- Pure schema validation (no DB needed) ---
+
+
+class TestPropertySchemaValidation:
+    """PropertyCreate/PropertyUpdate schema validation."""
+
+    @pytest.mark.parametrize(
+        "range_kwargs",
+        [
+            pytest.param(
+                {"range_scheme_id": uuid4(), "range_datatype": "xsd:string"},
+                id="scheme+datatype",
+            ),
+            pytest.param(
+                {
+                    "range_class": "https://example.org/Foo",
+                    "range_datatype": "xsd:string",
+                },
+                id="class+datatype",
+            ),
+            pytest.param(
+                {
+                    "range_class": "https://example.org/Foo",
+                    "range_scheme_id": uuid4(),
+                },
+                id="class+scheme",
+            ),
+            pytest.param({}, id="none"),
+        ],
+    )
+    def test_create_rejects_invalid_range_combination(
+        self, range_kwargs: dict
+    ) -> None:
+        """PropertyCreate requires exactly one range field."""
+        with pytest.raises(ValidationError, match="(?i)exactly one"):
+            PropertyCreate(
+                identifier="testProp",
+                label="Test",
+                domain_class="https://evrepo.example.org/vocab/Finding",
+                cardinality="single",
+                **range_kwargs,
+            )
+
+    def test_update_rejects_multiple_range_fields(self) -> None:
+        """PropertyUpdate rejects setting >1 range field."""
+        with pytest.raises(ValidationError, match="(?i)at most one"):
+            PropertyUpdate(
+                range_scheme_id=uuid4(),
+                range_datatype="xsd:integer",
+            )
+
+
+# --- Service tests ---
+
+
 class TestCreateProperty:
     """Tests for PropertyService.create_property."""
 
@@ -132,6 +188,27 @@ class TestCreateProperty:
         assert prop.required is True
 
     @pytest.mark.asyncio
+    async def test_create_property_with_range_class(
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
+    ) -> None:
+        """Test creating a property with range_class (URI string)."""
+        service = property_service
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_class="https://example.org/ontology/EducationLevel",
+            cardinality="single",
+        )
+
+        prop = await service.create_property(project.id, prop_in)
+
+        assert prop.id is not None
+        assert prop.range_class == "https://example.org/ontology/EducationLevel"
+        assert prop.range_scheme_id is None
+        assert prop.range_datatype is None
+
+    @pytest.mark.asyncio
     async def test_create_property_invalid_domain_class(
         self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
@@ -148,42 +225,6 @@ class TestCreateProperty:
         with pytest.raises(DomainClassNotFoundError) as exc_info:
             await service.create_property(project.id, prop_in)
         assert "InvalidClass" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_create_property_both_range_fields_error(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
-    ) -> None:
-        """Test that providing both range_scheme_id and range_datatype raises error."""
-        service = property_service
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
-            range_scheme_id=scheme.id,
-            range_datatype="xsd:string",
-            cardinality="single",
-        )
-
-        with pytest.raises(InvalidRangeError) as exc_info:
-            await service.create_property(project.id, prop_in)
-        assert "exactly one" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_create_property_neither_range_field_error(
-        self, db_session: AsyncSession, project: Project, property_service: PropertyService
-    ) -> None:
-        """Test that providing neither range field raises error."""
-        service = property_service
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
-            cardinality="single",
-        )
-
-        with pytest.raises(InvalidRangeError) as exc_info:
-            await service.create_property(project.id, prop_in)
-        assert "exactly one" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_create_property_scheme_not_in_project(
@@ -370,8 +411,6 @@ class TestUpdateProperty:
         self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test updating a property's label."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
@@ -394,8 +433,6 @@ class TestUpdateProperty:
         self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test updating a property's description."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
@@ -417,8 +454,6 @@ class TestUpdateProperty:
         self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
         """Test updating a property's required flag."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
@@ -441,8 +476,6 @@ class TestUpdateProperty:
         self, db_session: AsyncSession, property_service: PropertyService
     ) -> None:
         """Test that updating a non-existent property returns None."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         service = property_service
         update = PropertyUpdate(label="New Label")
         result = await service.update_property(uuid4(), update)
@@ -453,8 +486,6 @@ class TestUpdateProperty:
         self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test updating a property to use a different range scheme."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         # Create a second scheme
         scheme2 = ConceptScheme(
             project_id=project.id,
@@ -486,8 +517,6 @@ class TestUpdateProperty:
         self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test updating from range_scheme_id to range_datatype."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
@@ -507,12 +536,36 @@ class TestUpdateProperty:
         assert updated.range_datatype == "xsd:string"
 
     @pytest.mark.asyncio
+    async def test_update_property_change_to_range_class(
+        self, db_session: AsyncSession, project: Project, property_service: PropertyService
+    ) -> None:
+        """Test updating from range_datatype to range_class."""
+        service = property_service
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(
+            range_datatype=None,
+            range_class="https://example.org/ontology/Foo",
+        )
+        updated = await service.update_property(created.id, update)
+
+        assert updated is not None
+        assert updated.range_class == "https://example.org/ontology/Foo"
+        assert updated.range_datatype is None
+        assert updated.range_scheme_id is None
+
+    @pytest.mark.asyncio
     async def test_update_property_invalid_range_scheme(
         self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme, property_service: PropertyService
     ) -> None:
         """Test that updating to a scheme from another project raises error."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
         service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
@@ -528,33 +581,10 @@ class TestUpdateProperty:
             await service.update_property(created.id, update)
 
     @pytest.mark.asyncio
-    async def test_update_property_both_range_fields_error(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
-    ) -> None:
-        """Test that setting both range fields on update raises error."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
-        service = property_service
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
-            range_datatype="xsd:string",
-            cardinality="single",
-        )
-        created = await service.create_property(project.id, prop_in)
-
-        update = PropertyUpdate(range_scheme_id=scheme.id, range_datatype="xsd:integer")
-        with pytest.raises(InvalidRangeError):
-            await service.update_property(created.id, update)
-
-    @pytest.mark.asyncio
-    async def test_update_property_neither_range_field_error(
+    async def test_update_property_clearing_all_ranges_error(
         self, db_session: AsyncSession, project: Project, property_service: PropertyService
     ) -> None:
-        """Test that clearing both range fields raises error."""
-        from taxonomy_builder.schemas.property import PropertyUpdate
-
+        """Test that clearing all range fields raises error at service level."""
         service = property_service
         prop_in = PropertyCreate(
             identifier="testProp",
@@ -565,7 +595,7 @@ class TestUpdateProperty:
         )
         created = await service.create_property(project.id, prop_in)
 
-        # Explicitly set both to None
+        # Explicitly set both to None — schema allows (0 set), service rejects resulting state
         update = PropertyUpdate(range_scheme_id=None, range_datatype=None)
         with pytest.raises(InvalidRangeError):
             await service.update_property(created.id, update)
@@ -604,3 +634,137 @@ class TestDeleteProperty:
         service = property_service
         result = await service.delete_property(uuid4())
         assert result is False
+
+
+class TestPropertyURI:
+    """Tests for URI behavior on Property create/update."""
+
+    @pytest.mark.asyncio
+    async def test_create_computes_uri_from_namespace(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Create without explicit URI computes from project namespace."""
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.uri == "https://example.org/vocab/educationLevel"
+
+    @pytest.mark.asyncio
+    async def test_create_with_explicit_uri_stores_as_is(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Create with explicit URI stores it directly (import path)."""
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="https://external.org/props/educationLevel",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+
+        assert prop.uri == "https://external.org/props/educationLevel"
+
+    @pytest.mark.asyncio
+    async def test_create_without_namespace_raises(
+        self,
+        db_session: AsyncSession,
+        property_service: PropertyService,
+    ) -> None:
+        """Create without namespace and no explicit URI raises ValueError."""
+        project_nn = Project(name="No Namespace")
+        db_session.add(project_nn)
+        await db_session.flush()
+        await db_session.refresh(project_nn)
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        with pytest.raises(ValueError, match="namespace"):
+            await property_service.create_property(project_nn.id, prop_in)
+
+    @pytest.mark.asyncio
+    async def test_create_with_explicit_uri_no_namespace_ok(
+        self,
+        db_session: AsyncSession,
+        property_service: PropertyService,
+    ) -> None:
+        """Create with explicit URI works even without project namespace."""
+        project_nn = Project(name="No Namespace")
+        db_session.add(project_nn)
+        await db_session.flush()
+        await db_session.refresh(project_nn)
+
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="https://external.org/props/testProp",
+        )
+        prop = await property_service.create_property(project_nn.id, prop_in)
+        assert prop.uri == "https://external.org/props/testProp"
+
+    @pytest.mark.asyncio
+    async def test_update_identifier_does_not_change_uri(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """URI is immutable — updating identifier does not change URI."""
+        prop_in = PropertyCreate(
+            identifier="educationLevel",
+            label="Education Level",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        prop = await property_service.create_property(project.id, prop_in)
+        original_uri = prop.uri
+
+        update = PropertyUpdate(identifier="renamedProp")
+        updated = await property_service.update_property(prop.id, update)
+
+        assert updated is not None
+        assert updated.identifier == "renamedProp"
+        assert updated.uri == original_uri
+
+
+class TestURICollision:
+    """Tests for URI collision handling."""
+
+    @pytest.mark.asyncio
+    async def test_duplicate_uri_different_identifier_raises_uri_error(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Two properties with different identifiers but same URI raises PropertyURIExistsError."""
+        prop_in1 = PropertyCreate(
+            identifier="prop1",
+            label="Property 1",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="https://example.org/vocab/sharedUri",
+        )
+        await property_service.create_property(project.id, prop_in1)
+
+        prop_in2 = PropertyCreate(
+            identifier="prop2",
+            label="Property 2",
+            domain_class="https://evrepo.example.org/vocab/Finding",
+            range_datatype="xsd:integer",
+            cardinality="single",
+            uri="https://example.org/vocab/sharedUri",
+        )
+        with pytest.raises(PropertyURIExistsError):
+            await property_service.create_property(project.id, prop_in2)

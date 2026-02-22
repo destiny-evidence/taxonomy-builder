@@ -29,8 +29,10 @@ class PropertyCreate(BaseModel):
     domain_class: str = Field(..., max_length=2048)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
+    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
     cardinality: Literal["single", "multiple"]
     required: bool = False
+    uri: str | None = Field(default=None, min_length=1, max_length=2048)
 
     @field_validator("identifier")
     @classmethod
@@ -55,6 +57,20 @@ class PropertyCreate(BaseModel):
             raise ValueError(f"range_datatype must be one of: {allowed}")
         return v
 
+    @model_validator(mode="after")
+    def check_exactly_one_range(self) -> "PropertyCreate":  # noqa: UP037
+        """Enforce exactly one of range_scheme_id, range_datatype, or range_class."""
+        provided = sum(
+            v is not None
+            for v in (self.range_scheme_id, self.range_datatype, self.range_class)
+        )
+        if provided != 1:
+            raise ValueError(
+                "Exactly one of range_scheme_id, range_datatype, or range_class "
+                "must be provided"
+            )
+        return self
+
 
 class PropertyUpdate(BaseModel):
     """Schema for updating an existing property."""
@@ -65,6 +81,7 @@ class PropertyUpdate(BaseModel):
     domain_class: str | None = Field(default=None, max_length=2048)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
+    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
 
@@ -91,6 +108,20 @@ class PropertyUpdate(BaseModel):
             raise ValueError(f"range_datatype must be one of: {allowed}")
         return v
 
+    @model_validator(mode="after")
+    def check_at_most_one_range(self) -> "PropertyUpdate":  # noqa: UP037
+        """Reject updates that set multiple range fields simultaneously."""
+        provided = sum(
+            v is not None
+            for v in (self.range_scheme_id, self.range_datatype, self.range_class)
+        )
+        if provided > 1:
+            raise ValueError(
+                "At most one of range_scheme_id, range_datatype, or range_class "
+                "may be set in a single update"
+            )
+        return self
+
 
 class ConceptSchemeBrief(BaseModel):
     """Brief schema info for nested property responses."""
@@ -116,8 +147,9 @@ class PropertyRead(BaseModel):
     range_scheme_id: UUID | None
     range_scheme: ConceptSchemeBrief | None
     range_datatype: str | None
+    range_class: str | None
     cardinality: str
     required: bool
-    uri: str | None
+    uri: str
     created_at: datetime
     updated_at: datetime

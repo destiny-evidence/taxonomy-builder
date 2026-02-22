@@ -32,6 +32,7 @@ async def ontology_class_obj(db_session: AsyncSession, project: Project) -> Onto
         label="Reference",
         description="A bibliographic reference",
         scope_note="Used to represent source documents",
+        uri="https://example.org/vocab/Reference",
     )
     db_session.add(ontology_class)
     await db_session.flush()

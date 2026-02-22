@@ -85,3 +85,34 @@ async def get_db() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency that provides a database session."""
     async with db_manager.session() as session:
         yield session
+
+
+def get_constraint_name(exc: Exception) -> str | None:
+    """Extract the violated constraint name from an IntegrityError.
+
+    Tries DBAPI-specific attributes first (asyncpg, psycopg2),
+    falls back to string matching against the error message.
+    """
+    orig = getattr(exc, "orig", None)
+    if orig is not None:
+        # asyncpg stores it directly
+        name = getattr(orig, "constraint_name", None)
+        if name:
+            return str(name)
+        # psycopg2 uses diag
+        diag = getattr(orig, "diag", None)
+        if diag:
+            name = getattr(diag, "constraint_name", None)
+            if name:
+                return str(name)
+    # Fallback: search the error message for known constraint names
+    msg = str(exc)
+    for candidate in (
+        "uq_properties_project_uri",
+        "uq_ontology_classes_project_uri",
+        "uq_property_identifier_per_project",
+        "uq_ontology_class_identifier_per_project",
+    ):
+        if candidate in msg:
+            return candidate
+    return None

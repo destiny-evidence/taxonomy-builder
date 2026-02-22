@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
@@ -64,6 +65,17 @@ class PropertyIdentifierExistsError(Exception):
         )
 
 
+class PropertyURIExistsError(Exception):
+    """Raised when a property URI already exists in the project."""
+
+    def __init__(self, uri: str, project_id: UUID) -> None:
+        self.uri = uri
+        self.project_id = project_id
+        super().__init__(
+            f"Property with URI '{uri}' already exists in project"
+        )
+
+
 class PropertyService:
     """Service for managing properties."""
 
@@ -87,23 +99,24 @@ class PropertyService:
             raise DomainClassNotFoundError(domain_class)
 
     async def _validate_range(
-        self, project_id: UUID, range_scheme_id: UUID | None, range_datatype: str | None
+        self,
+        project_id: UUID,
+        range_scheme_id: UUID | None,
+        range_datatype: str | None,
+        range_class: str | None,
     ) -> None:
-        """Validate that exactly one of range_scheme_id or range_datatype is provided."""
-        has_scheme = range_scheme_id is not None
-        has_datatype = range_datatype is not None
-
-        if has_scheme and has_datatype:
+        """Validate that exactly one of the three range fields is provided."""
+        provided = sum(
+            v is not None for v in (range_scheme_id, range_datatype, range_class)
+        )
+        if provided != 1:
             raise InvalidRangeError(
-                "Exactly one of range_scheme_id or range_datatype must be provided, not both"
-            )
-        if not has_scheme and not has_datatype:
-            raise InvalidRangeError(
-                "Exactly one of range_scheme_id or range_datatype must be provided"
+                "Exactly one of range_scheme_id, range_datatype, or range_class "
+                "must be provided"
             )
 
         # Validate scheme belongs to project
-        if has_scheme:
+        if range_scheme_id is not None:
             try:
                 scheme = await self._scheme_service.get_scheme(range_scheme_id)
             except SchemeNotFoundError:
@@ -125,8 +138,10 @@ class PropertyService:
             "domain_class": prop.domain_class,
             "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
             "range_datatype": prop.range_datatype,
+            "range_class": prop.range_class,
             "cardinality": prop.cardinality,
             "required": prop.required,
+            "uri": prop.uri,
         }
 
     async def create_property(
@@ -148,16 +163,29 @@ class PropertyService:
             SchemeNotInProjectError: If the scheme doesn't belong to the project
             PropertyIdentifierExistsError: If the identifier already exists
         """
-        # Verify project exists
-        await self._project_service.get_project(project_id)
+        # Verify project exists and get namespace for URI computation
+        project = await self._project_service.get_project(project_id)
 
         # Validate domain class
         self._validate_domain_class(property_in.domain_class)
 
         # Validate range
         await self._validate_range(
-            project_id, property_in.range_scheme_id, property_in.range_datatype
+            project_id,
+            property_in.range_scheme_id,
+            property_in.range_datatype,
+            property_in.range_class,
         )
+
+        # Determine URI: explicit > computed from namespace > error
+        if property_in.uri:
+            uri = property_in.uri
+        elif project.namespace:
+            uri = project.namespace.rstrip("/") + "/" + property_in.identifier
+        else:
+            raise ValueError(
+                "Project namespace required to create properties without explicit URI"
+            )
 
         # Create property
         prop = Property(
@@ -168,16 +196,21 @@ class PropertyService:
             domain_class=property_in.domain_class,
             range_scheme_id=property_in.range_scheme_id,
             range_datatype=property_in.range_datatype,
+            range_class=property_in.range_class,
             cardinality=property_in.cardinality,
             required=property_in.required,
+            uri=uri,
         )
         self.db.add(prop)
 
         try:
             await self.db.flush()
             await self.db.refresh(prop)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
+            constraint = get_constraint_name(e)
+            if constraint == "uq_properties_project_uri":
+                raise PropertyURIExistsError(uri, project_id)
             raise PropertyIdentifierExistsError(property_in.identifier, project_id)
 
         # Record change event
@@ -249,6 +282,7 @@ class PropertyService:
         # Determine what the new range values will be
         new_scheme_id = prop.range_scheme_id
         new_datatype = prop.range_datatype
+        new_range_class = prop.range_class
 
         # Check if we're updating range fields
         update_data = property_in.model_dump(exclude_unset=True)
@@ -256,10 +290,15 @@ class PropertyService:
             new_scheme_id = update_data["range_scheme_id"]
         if "range_datatype" in update_data:
             new_datatype = update_data["range_datatype"]
+        if "range_class" in update_data:
+            new_range_class = update_data["range_class"]
 
-        # Validate range if either range field is being updated
-        if "range_scheme_id" in update_data or "range_datatype" in update_data:
-            await self._validate_range(prop.project_id, new_scheme_id, new_datatype)
+        # Validate range if any range field is being updated
+        range_fields = {"range_scheme_id", "range_datatype", "range_class"}
+        if range_fields & update_data.keys():
+            await self._validate_range(
+                prop.project_id, new_scheme_id, new_datatype, new_range_class
+            )
 
         # Apply updates
         for key, value in update_data.items():

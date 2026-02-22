@@ -120,6 +120,7 @@ class SnapshotProperty(BaseModel):
     range_scheme_id: UUID | None = None
     range_scheme_uri: str | None = None
     range_datatype: str | None = None
+    range_class: str | None = None
     cardinality: str
     required: bool
 

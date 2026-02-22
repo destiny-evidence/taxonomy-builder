@@ -262,6 +262,7 @@ async def test_delete_scheme_referenced_by_property(
         range_scheme_id=scheme.id,
         cardinality="single",
         required=False,
+        uri="https://example.org/vocab/testProp",
     )
     db_session.add(prop)
     await db_session.flush()
