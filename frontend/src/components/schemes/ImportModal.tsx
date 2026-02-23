@@ -8,6 +8,20 @@ import {
 } from "../../api/schemes";
 import "./ImportModal.css";
 
+function formatImportSummary(result: ImportResult): string {
+  const parts = [
+    result.classes_created.length > 0 &&
+      `${result.classes_created.length} classes`,
+    result.properties_created.length > 0 &&
+      `${result.properties_created.length} properties`,
+    result.schemes_created.length > 0 &&
+      `${result.schemes_created.length} schemes with ${result.total_concepts_created} concepts and ${result.total_relationships_created} relationships`,
+  ].filter(Boolean);
+  return parts.length > 0
+    ? `Successfully imported ${parts.join(", ")}.`
+    : "No entities found in file.";
+}
+
 interface ImportModalProps {
   isOpen: boolean;
   projectId: string;
@@ -83,7 +97,7 @@ export function ImportModal({
   }
 
   return (
-    <Modal isOpen={isOpen} title="Import SKOS" onClose={handleClose}>
+    <Modal isOpen={isOpen} title="Import" onClose={handleClose}>
       <div class="import-modal">
         {step === "select" && (
           <div class="import-modal__select">
@@ -146,10 +160,33 @@ export function ImportModal({
 
             <div class="import-modal__totals">
               <span>
-                Total: {preview.total_concepts_count} concepts,{" "}
-                {preview.total_relationships_count} relationships
+                Total:{" "}
+                {[
+                  preview.classes_count > 0 &&
+                    `${preview.classes_count} classes`,
+                  preview.properties_count > 0 &&
+                    `${preview.properties_count} properties`,
+                  `${preview.total_concepts_count} concepts`,
+                  `${preview.total_relationships_count} relationships`,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
               </span>
             </div>
+
+            {preview.warnings.length > 0 && (
+              <div class="import-modal__warnings">
+                <p class="import-modal__warning-summary">
+                  {preview.warnings.length} warning{preview.warnings.length !== 1 ? "s" : ""}:
+                  {preview.warnings.length <= 5
+                    ? ""
+                    : ` showing first 5 of ${preview.warnings.length}`}
+                </p>
+                {preview.warnings.slice(0, 5).map((w, i) => (
+                  <p key={i} class="import-modal__warning">{w}</p>
+                ))}
+              </div>
+            )}
 
             {error && <p class="import-modal__error">{error}</p>}
 
@@ -164,17 +201,19 @@ export function ImportModal({
 
         {step === "importing" && (
           <div class="import-modal__importing">
-            <p>Importing schemes...</p>
+            <p>Importing...</p>
           </div>
         )}
 
         {step === "success" && result && (
           <div class="import-modal__success">
-            <p>
-              Successfully imported {result.schemes_created.length} schemes with{" "}
-              {result.total_concepts_created} concepts and{" "}
-              {result.total_relationships_created} relationships.
-            </p>
+            <p>{formatImportSummary(result)}</p>
+            {result.warnings.length > 0 && (
+              <p class="import-modal__warning-summary">
+                {result.warnings.length} warning{result.warnings.length !== 1 ? "s" : ""} during
+                import.
+              </p>
+            )}
             <div class="import-modal__actions">
               <Button onClick={handleClose}>Done</Button>
             </div>

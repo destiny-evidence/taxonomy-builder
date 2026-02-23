@@ -8,6 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from taxonomy_builder.schemas.validators import validate_identifier
 
+_RANGE_FIELDS = ("range_scheme_id", "range_datatype", "range_class")
+
+
+def _count_range_fields(model: BaseModel) -> int:
+    """Count how many of the three range fields are set (non-None)."""
+    return sum(getattr(model, f) is not None for f in _RANGE_FIELDS)
+
+
 # Allowed XSD datatypes for range_datatype
 ALLOWED_DATATYPES = frozenset([
     "xsd:string",
@@ -29,6 +37,7 @@ class PropertyCreate(BaseModel):
     domain_class: str = Field(..., max_length=2048)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
+    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
     cardinality: Literal["single", "multiple"]
     required: bool = False
 
@@ -55,6 +64,16 @@ class PropertyCreate(BaseModel):
             raise ValueError(f"range_datatype must be one of: {allowed}")
         return v
 
+    @model_validator(mode="after")
+    def check_exactly_one_range(self) -> "PropertyCreate":  # noqa: UP037
+        """Enforce exactly one of range_scheme_id, range_datatype, or range_class."""
+        if _count_range_fields(self) != 1:
+            raise ValueError(
+                "Exactly one of range_scheme_id, range_datatype, or range_class "
+                "must be provided"
+            )
+        return self
+
 
 class PropertyUpdate(BaseModel):
     """Schema for updating an existing property."""
@@ -65,6 +84,7 @@ class PropertyUpdate(BaseModel):
     domain_class: str | None = Field(default=None, max_length=2048)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
+    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
 
@@ -91,6 +111,16 @@ class PropertyUpdate(BaseModel):
             raise ValueError(f"range_datatype must be one of: {allowed}")
         return v
 
+    @model_validator(mode="after")
+    def check_at_most_one_range(self) -> "PropertyUpdate":  # noqa: UP037
+        """Reject updates that set multiple range fields simultaneously."""
+        if _count_range_fields(self) > 1:
+            raise ValueError(
+                "At most one of range_scheme_id, range_datatype, or range_class "
+                "may be set in a single update"
+            )
+        return self
+
 
 class ConceptSchemeBrief(BaseModel):
     """Brief schema info for nested property responses."""
@@ -116,6 +146,7 @@ class PropertyRead(BaseModel):
     range_scheme_id: UUID | None
     range_scheme: ConceptSchemeBrief | None
     range_datatype: str | None
+    range_class: str | None
     cardinality: str
     required: bool
     uri: str | None

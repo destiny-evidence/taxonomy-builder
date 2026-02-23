@@ -1,196 +1,614 @@
-"""SKOS Import service for parsing and importing RDF files."""
+"""SKOS Import service for importing parsed RDF into the database."""
 
+from dataclasses import dataclass, field
 from uuid import UUID
 
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import DCTERMS, RDF, RDFS, SKOS
+from rdflib import Graph, Literal, URIRef
+from rdflib.namespace import SKOS
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
+from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.skos_import import (
+    ClassCreatedResponse,
+    ClassPreviewResponse,
     ImportPreviewResponse,
     ImportResultResponse,
+    PropertyCreatedResponse,
+    PropertyPreviewResponse,
     SchemeCreatedResponse,
     SchemePreviewResponse,
 )
 from taxonomy_builder.services.change_tracker import ChangeTracker
+from taxonomy_builder.services.rdf_parser import (
+    InvalidRDFError,
+    abbreviate_xsd,
+    analyze_graph,
+    count_broader_relationships,
+    detect_format,
+    get_concept_pref_label,
+    get_identifier_from_uri,
+    get_scheme_description,
+    get_scheme_title,
+    parse_rdf,
+    resolve_object_range,
+)
+
+# Re-export for existing importers (api/projects.py)
+__all__ = ["InvalidRDFError", "SKOSImportService"]
 
 
 class SKOSImportError(Exception):
     """Base exception for import errors."""
 
 
-class InvalidRDFError(SKOSImportError):
-    """RDF file could not be parsed."""
+@dataclass
+class ExistingProjectData:
+    """Pre-loaded project data for duplicate detection and range resolution."""
 
-    def __init__(self, message: str = "Could not parse RDF file") -> None:
-        super().__init__(message)
-
-
-class SchemeURIConflictError(SKOSImportError):
-    """Scheme with this URI already exists in project."""
-
-    def __init__(self, uri: str) -> None:
-        self.uri = uri
-        super().__init__(f"A scheme with URI '{uri}' already exists in this project")
-
-
-# File extension to RDFLib format mapping
-FORMAT_MAP = {
-    ".ttl": "turtle",
-    ".turtle": "turtle",
-    ".rdf": "xml",
-    ".xml": "xml",
-    ".owl": "xml",
-    ".jsonld": "json-ld",
-    ".json": "json-ld",
-    ".nt": "nt",
-    ".n3": "n3",
-}
+    scheme_uris: set[str] = field(default_factory=set)
+    scheme_uri_to_id: dict[str, UUID] = field(default_factory=dict)
+    scheme_uri_to_title: dict[str, str] = field(default_factory=dict)
+    class_uris: set[str] = field(default_factory=set)
+    class_identifiers: set[str] = field(default_factory=set)
+    property_identifiers: set[str] = field(default_factory=set)
 
 
 class SKOSImportService:
-    """Service for importing SKOS RDF files into concept schemes."""
+    """Service for importing SKOS RDF files into concept schemes.
+
+    Also handles OWL class and property declarations found in the same file.
+    """
 
     def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
         self.db = db
         self._tracker = ChangeTracker(db, user_id)
 
-    def _detect_format(self, filename: str) -> str:
-        """Detect RDF format from filename extension."""
-        filename_lower = filename.lower()
-        for ext, fmt in FORMAT_MAP.items():
-            if filename_lower.endswith(ext):
-                return fmt
-        raise InvalidRDFError(
-            f"Unsupported file format. Supported formats: {', '.join(FORMAT_MAP.keys())}"
+    # --- Preview ---
+
+    async def preview(
+        self, project_id: UUID, content: bytes, filename: str
+    ) -> ImportPreviewResponse:
+        """Parse RDF and return preview without committing."""
+        fmt = detect_format(filename)
+        g = parse_rdf(content, fmt)
+
+        analysis = analyze_graph(g)
+
+        # Load existing project data for duplicate detection and range resolution
+        existing = await self._load_existing_project_data(project_id)
+
+        # Build combined URI sets (existing + from file)
+        scheme_uris = set(existing.scheme_uris)
+        scheme_uri_to_title = dict(existing.scheme_uri_to_title)
+        for scheme_uri in analysis["schemes"]:
+            uri = str(scheme_uri)
+            scheme_uris.add(uri)
+            scheme_uri_to_title[uri] = get_scheme_title(g, scheme_uri)
+
+        scheme_previews, total_concepts, total_relationships = self._preview_schemes(
+            g, analysis["schemes"], analysis["concepts_by_scheme"],
+            existing.scheme_uris,
+        )
+        class_previews = self._preview_classes(
+            analysis["classes"], existing.class_uris, existing.class_identifiers
+        )
+        # Build class_uris from existing + those that will actually be created
+        class_uris = existing.class_uris | {cp.uri for cp in class_previews}
+        property_previews, warnings = self._preview_properties(
+            g, analysis["properties"], existing.property_identifiers,
+            scheme_uris, scheme_uri_to_title, class_uris,
         )
 
-    def _parse_rdf(self, content: bytes, format: str) -> Graph:
-        """Parse RDF content into a graph."""
-        g = Graph()
-        try:
-            g.parse(data=content, format=format)
-        except Exception as e:
-            raise InvalidRDFError(f"Failed to parse RDF: {e}") from e
-        return g
+        return ImportPreviewResponse(
+            valid=True,
+            schemes=scheme_previews,
+            total_concepts_count=total_concepts,
+            total_relationships_count=total_relationships,
+            classes=class_previews,
+            properties=property_previews,
+            classes_count=len(class_previews),
+            properties_count=len(property_previews),
+            warnings=analysis["warnings"] + warnings,
+        )
 
-    def _find_all_concepts(self, g: Graph) -> set[URIRef]:
-        """Find all concepts including those typed as subclasses of skos:Concept."""
-        concepts: set[URIRef] = set()
+    async def _load_existing_project_data(
+        self, project_id: UUID
+    ) -> ExistingProjectData:
+        """Load existing project entities for duplicate detection and range resolution."""
+        existing_schemes = (
+            await self.db.execute(
+                select(ConceptScheme).where(ConceptScheme.project_id == project_id)
+            )
+        ).scalars().all()
 
-        # Find direct skos:Concept instances
-        for instance in g.subjects(RDF.type, SKOS.Concept):
-            if isinstance(instance, URIRef):
-                concepts.add(instance)
+        existing_classes = (
+            await self.db.execute(
+                select(OntologyClass).where(OntologyClass.project_id == project_id)
+            )
+        ).scalars().all()
 
-        # Find instances of subclasses of skos:Concept
-        for concept_class in g.transitive_subjects(RDFS.subClassOf, SKOS.Concept):
-            for instance in g.subjects(RDF.type, concept_class):
-                if isinstance(instance, URIRef):
-                    concepts.add(instance)
+        existing_prop_result = await self.db.execute(
+            select(Property.identifier).where(Property.project_id == project_id)
+        )
 
-        return concepts
+        return ExistingProjectData(
+            scheme_uris={s.uri for s in existing_schemes if s.uri},
+            scheme_uri_to_id={s.uri: s.id for s in existing_schemes if s.uri},
+            scheme_uri_to_title={s.uri: s.title for s in existing_schemes if s.uri},
+            class_uris={c.uri for c in existing_classes if c.uri},
+            class_identifiers={c.identifier for c in existing_classes},
+            property_identifiers=set(existing_prop_result.scalars().all()),
+        )
 
-    def _get_scheme_title(self, g: Graph, scheme_uri: URIRef) -> str:
-        """Get scheme title with priority: rdfs:label > skos:prefLabel > dcterms:title > URI."""
-        # Try rdfs:label first
-        label = g.value(scheme_uri, RDFS.label)
-        if label:
-            return str(label)
+    def _preview_schemes(
+        self,
+        g: Graph,
+        schemes: list[URIRef],
+        concepts_by_scheme: dict[URIRef, set[URIRef]],
+        existing_scheme_uris: set[str],
+    ) -> tuple[list[SchemePreviewResponse], int, int]:
+        """Build scheme previews, skipping existing."""
+        previews: list[SchemePreviewResponse] = []
+        total_concepts = 0
+        total_relationships = 0
 
-        # Try skos:prefLabel
-        label = g.value(scheme_uri, SKOS.prefLabel)
-        if label:
-            return str(label)
+        for scheme_uri in schemes:
+            if str(scheme_uri) in existing_scheme_uris:
+                continue
 
-        # Try dcterms:title
-        label = g.value(scheme_uri, DCTERMS.title)
-        if label:
-            return str(label)
+            concepts = concepts_by_scheme[scheme_uri]
+            title = get_scheme_title(g, scheme_uri)
+            description = get_scheme_description(g, scheme_uri)
+            relationships = count_broader_relationships(g, concepts)
 
-        # Fall back to URI local name
-        uri_str = str(scheme_uri)
-        if "#" in uri_str:
-            return uri_str.split("#")[-1]
-        return uri_str.rstrip("/").split("/")[-1]
+            warnings: list[str] = []
+            for concept in concepts:
+                _, warning = get_concept_pref_label(g, concept)
+                if warning:
+                    warnings.append(warning)
 
-    def _get_scheme_description(self, g: Graph, scheme_uri: URIRef) -> str | None:
-        """Get scheme description from rdfs:comment or dcterms:description."""
-        desc = g.value(scheme_uri, RDFS.comment)
-        if desc:
-            return str(desc)
-        desc = g.value(scheme_uri, DCTERMS.description)
-        if desc:
-            return str(desc)
-        return None
-
-    def _get_concept_scheme(self, g: Graph, concept_uri: URIRef) -> URIRef | None:
-        """Get the scheme a concept belongs to via skos:inScheme or skos:topConceptOf."""
-        scheme = g.value(concept_uri, SKOS.inScheme)
-        if scheme and isinstance(scheme, URIRef):
-            return scheme
-
-        scheme = g.value(concept_uri, SKOS.topConceptOf)
-        if scheme and isinstance(scheme, URIRef):
-            return scheme
-
-        return None
-
-    def _get_concept_pref_label(self, g: Graph, concept_uri: URIRef) -> tuple[str, str | None]:
-        """Get prefLabel for concept, returning (label, warning) tuple."""
-        label = g.value(concept_uri, SKOS.prefLabel)
-        if label:
-            return str(label), None
-
-        # Fall back to URI local name
-        uri_str = str(concept_uri)
-        if "#" in uri_str:
-            local_name = uri_str.split("#")[-1]
-        else:
-            local_name = uri_str.rstrip("/").split("/")[-1]
-
-        warning = f"Concept {concept_uri} has no prefLabel, using URI fragment: {local_name}"
-        return local_name, warning
-
-    def _get_identifier_from_uri(self, uri: URIRef) -> str:
-        """Extract identifier (local name) from URI."""
-        uri_str = str(uri)
-        if "#" in uri_str:
-            return uri_str.split("#")[-1]
-        return uri_str.rstrip("/").split("/")[-1]
-
-    def _count_broader_relationships(
-        self, g: Graph, concepts: set[URIRef]
-    ) -> int:
-        """Count broader relationships among the given concepts."""
-        count = 0
-        for concept in concepts:
-            for broader in g.objects(concept, SKOS.broader):
-                if isinstance(broader, URIRef) and broader in concepts:
-                    count += 1
-        return count
-
-    async def _check_uri_conflicts(self, project_id: UUID, scheme_uris: list[str]) -> None:
-        """Check for URI conflicts with existing schemes."""
-        for uri in scheme_uris:
-            result = await self.db.execute(
-                select(ConceptScheme).where(
-                    ConceptScheme.project_id == project_id,
-                    ConceptScheme.uri == uri,
+            previews.append(
+                SchemePreviewResponse(
+                    title=title,
+                    description=description,
+                    uri=str(scheme_uri),
+                    concepts_count=len(concepts),
+                    relationships_count=relationships,
+                    warnings=warnings,
                 )
             )
-            if result.scalar_one_or_none():
-                raise SchemeURIConflictError(uri)
+            total_concepts += len(concepts)
+            total_relationships += relationships
+
+        return previews, total_concepts, total_relationships
+
+    def _preview_classes(
+        self,
+        class_metadata: list[dict],
+        existing_class_uris: set[str],
+        existing_identifiers: set[str],
+    ) -> list[ClassPreviewResponse]:
+        """Build class previews, skipping existing (by URI, with identifier fallback)."""
+        return [
+            ClassPreviewResponse(
+                identifier=cm["identifier"],
+                label=cm["label"],
+                uri=cm["uri"],
+            )
+            for cm in class_metadata
+            if cm["uri"] not in existing_class_uris
+            and cm["identifier"] not in existing_identifiers
+        ]
+
+    def _preview_properties(
+        self,
+        g: Graph,
+        property_metadata: list[dict],
+        existing_identifiers: set[str],
+        scheme_uris: set[str],
+        scheme_uri_to_title: dict[str, str],
+        class_uris: set[str],
+    ) -> tuple[list[PropertyPreviewResponse], list[str]]:
+        """Build property previews with range resolution checks, skipping existing."""
+        previews: list[PropertyPreviewResponse] = []
+        warnings: list[str] = []
+        known_ids = set(existing_identifiers)
+
+        for pm in property_metadata:
+            if pm["identifier"] in known_ids:
+                continue
+
+            if not pm["domain_uri"]:
+                warnings.append(
+                    f"Property '{pm['identifier']}' skipped: "
+                    f"no rdfs:domain declared"
+                )
+                continue
+
+            range_scheme_title = None
+            if pm["range_uri"] and pm["property_type"] == "object":
+                match resolve_object_range(
+                    g, pm["range_uri"], scheme_uris, class_uris
+                ):
+                    case ("scheme", scheme_uri):
+                        range_scheme_title = scheme_uri_to_title.get(scheme_uri)
+                    case ("ambiguous", _):
+                        warnings.append(
+                            f"Property '{pm['identifier']}' range '{pm['range_uri']}' "
+                            f"matches multiple schemes \u2014 could not resolve"
+                        )
+                    case None:
+                        warnings.append(
+                            f"Property '{pm['identifier']}' range '{pm['range_uri']}' "
+                            f"not found in project"
+                        )
+
+            previews.append(
+                PropertyPreviewResponse(
+                    identifier=pm["identifier"],
+                    label=pm["label"],
+                    property_type=pm["property_type"],
+                    domain_class_uri=pm["domain_uri"],
+                    range_uri=pm["range_uri"],
+                    range_scheme_title=range_scheme_title,
+                )
+            )
+            known_ids.add(pm["identifier"])
+
+        return previews, warnings
+
+    # --- Execute ---
+
+    async def execute(
+        self, project_id: UUID, content: bytes, filename: str
+    ) -> ImportResultResponse:
+        """Parse RDF and create schemes/concepts/classes/properties in database."""
+        fmt = detect_format(filename)
+        g = parse_rdf(content, fmt)
+
+        analysis = analyze_graph(g)
+
+        # Load existing data once for duplicate detection and range resolution
+        existing = await self._load_existing_project_data(project_id)
+
+        classes_created = await self._import_classes(
+            project_id, analysis["classes"],
+            existing.class_uris, existing.class_identifiers,
+        )
+
+        schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
+            await self._import_schemes(
+                g, project_id, analysis["schemes"], analysis["concepts_by_scheme"],
+                existing.scheme_uri_to_id,
+            )
+        )
+
+        # Combine existing class URIs with those actually created (not skipped)
+        class_uris = existing.class_uris | {c.uri for c in classes_created}
+
+        properties_created, warnings = await self._import_properties(
+            g, project_id, analysis["properties"],
+            existing.property_identifiers,
+            scheme_uri_to_id, class_uris,
+        )
+
+        return ImportResultResponse(
+            schemes_created=schemes_created,
+            total_concepts_created=total_concepts,
+            total_relationships_created=total_relationships,
+            classes_created=classes_created,
+            properties_created=properties_created,
+            warnings=warnings,
+        )
+
+    async def _import_classes(
+        self, project_id: UUID, class_metadata: list[dict],
+        existing_class_uris: set[str], existing_identifiers: set[str],
+    ) -> list[ClassCreatedResponse]:
+        """Create OntologyClass records, skipping duplicates by URI (identifier fallback)."""
+        known_uris = set(existing_class_uris)
+        known_identifiers = set(existing_identifiers)
+
+        to_create: list[tuple[OntologyClass, dict]] = []
+        for cm in class_metadata:
+            if cm["uri"] in known_uris or cm["identifier"] in known_identifiers:
+                continue
+
+            ont_class = OntologyClass(
+                project_id=project_id,
+                identifier=cm["identifier"],
+                label=cm["label"],
+                description=cm["description"],
+                scope_note=cm["scope_note"],
+            )
+            self.db.add(ont_class)
+            known_uris.add(cm["uri"])
+            known_identifiers.add(cm["identifier"])
+            to_create.append((ont_class, cm))
+
+        if not to_create:
+            return []
+
+        await self.db.flush()
+        for ont_class, _ in to_create:
+            await self.db.refresh(ont_class)
+
+        created: list[ClassCreatedResponse] = []
+        for ont_class, cm in to_create:
+            await self._tracker.record(
+                project_id=project_id,
+                entity_type="ontology_class",
+                entity_id=ont_class.id,
+                action="create",
+                before=None,
+                after={
+                    "id": str(ont_class.id),
+                    "identifier": ont_class.identifier,
+                    "label": ont_class.label,
+                },
+            )
+            created.append(
+                ClassCreatedResponse(
+                    id=ont_class.id,
+                    identifier=ont_class.identifier,
+                    label=ont_class.label,
+                    uri=cm["uri"],
+                )
+            )
+        return created
+
+    async def _import_schemes(
+        self,
+        g: Graph,
+        project_id: UUID,
+        schemes: list[URIRef],
+        concepts_by_scheme: dict[URIRef, set[URIRef]],
+        existing_scheme_uri_to_id: dict[str, UUID],
+    ) -> tuple[list[SchemeCreatedResponse], dict[str, UUID], int, int]:
+        """Create ConceptScheme and Concept records, skipping existing schemes."""
+        scheme_uri_to_id: dict[str, UUID] = dict(existing_scheme_uri_to_id)
+
+        created: list[SchemeCreatedResponse] = []
+        total_concepts = 0
+        total_relationships = 0
+
+        for scheme_uri in schemes:
+            if str(scheme_uri) in scheme_uri_to_id:
+                continue
+
+            concepts = concepts_by_scheme[scheme_uri]
+            base_title = get_scheme_title(g, scheme_uri)
+            title = await self._get_unique_title(project_id, base_title)
+            description = get_scheme_description(g, scheme_uri)
+
+            scheme = ConceptScheme(
+                project_id=project_id,
+                title=title,
+                description=description,
+                uri=str(scheme_uri),
+            )
+            self.db.add(scheme)
+            await self.db.flush()
+            await self.db.refresh(scheme)
+
+            scheme_uri_to_id[str(scheme_uri)] = scheme.id
+
+            await self._tracker.record(
+                project_id=project_id,
+                entity_type="scheme",
+                entity_id=scheme.id,
+                action="create",
+                before=None,
+                after=self._tracker.serialize_scheme(scheme),
+                scheme_id=scheme.id,
+            )
+
+            _, relationship_count = await self._import_concepts(
+                g, project_id, scheme.id, concepts
+            )
+
+            created.append(
+                SchemeCreatedResponse(
+                    id=scheme.id,
+                    title=title,
+                    concepts_created=len(concepts),
+                )
+            )
+            total_concepts += len(concepts)
+            total_relationships += relationship_count
+
+        return created, scheme_uri_to_id, total_concepts, total_relationships
+
+    async def _import_concepts(
+        self,
+        g: Graph,
+        project_id: UUID,
+        scheme_id: UUID,
+        concept_uris: set[URIRef],
+    ) -> tuple[dict[URIRef, Concept], int]:
+        """Create Concept records and broader relationships for a scheme."""
+        uri_to_concept: dict[URIRef, Concept] = {}
+
+        for concept_uri in concept_uris:
+            pref_label, _ = get_concept_pref_label(g, concept_uri)
+            identifier = get_identifier_from_uri(concept_uri)
+
+            definition = None
+            def_value = g.value(concept_uri, SKOS.definition)
+            if def_value:
+                definition = str(def_value)
+
+            scope_note = None
+            scope_value = g.value(concept_uri, SKOS.scopeNote)
+            if scope_value:
+                scope_note = str(scope_value)
+
+            alt_labels: list[str] = []
+            for alt in g.objects(concept_uri, SKOS.altLabel):
+                if isinstance(alt, Literal):
+                    alt_labels.append(str(alt))
+
+            concept = Concept(
+                scheme_id=scheme_id,
+                pref_label=pref_label,
+                identifier=identifier,
+                definition=definition,
+                scope_note=scope_note,
+                alt_labels=alt_labels,
+            )
+            self.db.add(concept)
+            uri_to_concept[concept_uri] = concept
+
+        await self.db.flush()
+        for concept in uri_to_concept.values():
+            await self.db.refresh(concept)
+
+        # Broader relationships
+        relationship_count = 0
+        for concept_uri, concept in uri_to_concept.items():
+            for broader_uri in g.objects(concept_uri, SKOS.broader):
+                if isinstance(broader_uri, URIRef) and broader_uri in uri_to_concept:
+                    broader_concept = uri_to_concept[broader_uri]
+                    rel = ConceptBroader(
+                        concept_id=concept.id,
+                        broader_concept_id=broader_concept.id,
+                    )
+                    self.db.add(rel)
+                    relationship_count += 1
+
+        await self.db.flush()
+
+        for concept in uri_to_concept.values():
+            await self._tracker.record(
+                project_id=project_id,
+                entity_type="concept",
+                entity_id=concept.id,
+                action="create",
+                before=None,
+                after=self._tracker.serialize_concept(concept),
+                scheme_id=scheme_id,
+            )
+
+        return uri_to_concept, relationship_count
+
+    async def _import_properties(
+        self,
+        g: Graph,
+        project_id: UUID,
+        property_metadata: list[dict],
+        existing_prop_ids: set[str],
+        scheme_uri_to_id: dict[str, UUID],
+        class_uris: set[str],
+    ) -> tuple[list[PropertyCreatedResponse], list[str]]:
+        """Create Property records, skipping duplicates, resolving ranges."""
+        warnings: list[str] = []
+        known_ids = set(existing_prop_ids)
+        to_create: list[Property] = []
+
+        for pm in property_metadata:
+            identifier = pm["identifier"]
+            if identifier in known_ids:
+                continue
+
+            domain_uri = pm["domain_uri"]
+            if not domain_uri:
+                warnings.append(
+                    f"Property '{identifier}' skipped: "
+                    f"no rdfs:domain declared"
+                )
+                continue
+
+            range_uri = pm["range_uri"]
+            prop_type = pm["property_type"]
+
+            range_scheme_id: UUID | None = None
+            range_datatype: str | None = None
+            range_class: str | None = None
+
+            if prop_type == "datatype" and range_uri:
+                range_datatype = abbreviate_xsd(range_uri)
+            elif prop_type == "object" and range_uri:
+                match resolve_object_range(
+                    g, range_uri, set(scheme_uri_to_id.keys()), class_uris
+                ):
+                    case ("scheme", scheme_uri):
+                        range_scheme_id = scheme_uri_to_id[scheme_uri]
+                    case ("class", uri):
+                        range_class = uri
+                    case ("ambiguous", _):
+                        range_class = range_uri
+                        warnings.append(
+                            f"Property '{identifier}' range '{range_uri}' "
+                            f"matches multiple schemes \u2014 stored as unresolved URI"
+                        )
+                    case None:
+                        range_class = range_uri
+                        warnings.append(
+                            f"Property '{identifier}' range '{range_uri}' "
+                            f"not found in project \u2014 stored as unresolved URI"
+                        )
+
+            prop = Property(
+                project_id=project_id,
+                identifier=identifier,
+                label=pm["label"],
+                description=pm["description"],
+                domain_class=domain_uri,
+                range_scheme_id=range_scheme_id,
+                range_datatype=range_datatype,
+                range_class=range_class,
+                cardinality=pm["cardinality"],
+                required=False,
+            )
+            self.db.add(prop)
+            known_ids.add(identifier)
+            to_create.append(prop)
+
+        if to_create:
+            await self.db.flush()
+            for prop in to_create:
+                await self.db.refresh(prop)
+
+        created: list[PropertyCreatedResponse] = []
+        for prop in to_create:
+            await self._tracker.record(
+                project_id=project_id,
+                entity_type="property",
+                entity_id=prop.id,
+                action="create",
+                before=None,
+                after={
+                    "id": str(prop.id),
+                    "identifier": prop.identifier,
+                    "label": prop.label,
+                    "domain_class": prop.domain_class,
+                    "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
+                    "range_datatype": prop.range_datatype,
+                    "range_class": prop.range_class,
+                },
+            )
+            created.append(
+                PropertyCreatedResponse(
+                    id=prop.id,
+                    identifier=prop.identifier,
+                    label=prop.label,
+                    range_scheme_id=prop.range_scheme_id,
+                    range_datatype=prop.range_datatype,
+                    range_class=prop.range_class,
+                )
+            )
+
+        return created, warnings
 
     async def _get_unique_title(self, project_id: UUID, base_title: str) -> str:
         """Get a unique title, appending (2), (3), etc. if needed."""
         title = base_title
 
-        # Check if base title exists
         result = await self.db.execute(
             select(ConceptScheme).where(
                 ConceptScheme.project_id == project_id,
@@ -200,7 +618,6 @@ class SKOSImportService:
         if not result.scalar_one_or_none():
             return title
 
-        # Find next available number
         counter = 2
         while True:
             title = f"{base_title} ({counter})"
@@ -213,263 +630,3 @@ class SKOSImportService:
             if not result.scalar_one_or_none():
                 return title
             counter += 1
-
-    def _analyze_graph(
-        self, g: Graph
-    ) -> dict:
-        """Analyze the RDF graph and extract scheme/concept structure."""
-        # Find all schemes
-        schemes: list[URIRef] = []
-        for scheme in g.subjects(RDF.type, SKOS.ConceptScheme):
-            if isinstance(scheme, URIRef):
-                schemes.append(scheme)
-
-        # Find all concepts
-        all_concepts = self._find_all_concepts(g)
-
-        # Group concepts by scheme
-        concepts_by_scheme: dict[URIRef, set[URIRef]] = {s: set() for s in schemes}
-        orphan_concepts: set[URIRef] = set()
-
-        for concept in all_concepts:
-            scheme = self._get_concept_scheme(g, concept)
-            if scheme and scheme in concepts_by_scheme:
-                concepts_by_scheme[scheme].add(concept)
-            else:
-                orphan_concepts.add(concept)
-
-        # Handle orphan concepts
-        warnings: list[str] = []
-        if orphan_concepts:
-            if len(schemes) == 1:
-                # Assign to single scheme
-                concepts_by_scheme[schemes[0]].update(orphan_concepts)
-            else:
-                # Generate warnings for orphans
-                for orphan in orphan_concepts:
-                    warnings.append(
-                        f"Concept {orphan} has no scheme membership and was skipped"
-                    )
-
-        return {
-            "schemes": schemes,
-            "concepts_by_scheme": concepts_by_scheme,
-            "warnings": warnings,
-        }
-
-    async def preview(
-        self, project_id: UUID, content: bytes, filename: str
-    ) -> ImportPreviewResponse:
-        """Parse RDF and return preview without committing.
-
-        Args:
-            project_id: The project to import into
-            content: The RDF file content
-            filename: The filename (used for format detection)
-
-        Returns:
-            ImportPreviewResponse with scheme and concept information
-
-        Raises:
-            InvalidRDFError: If the file cannot be parsed
-            SchemeURIConflictError: If a scheme URI already exists in the project
-        """
-        format = self._detect_format(filename)
-        g = self._parse_rdf(content, format)
-
-        analysis = self._analyze_graph(g)
-        schemes = analysis["schemes"]
-        concepts_by_scheme = analysis["concepts_by_scheme"]
-        global_warnings = analysis["warnings"]
-
-        # Check for URI conflicts
-        scheme_uris = [str(s) for s in schemes]
-        await self._check_uri_conflicts(project_id, scheme_uris)
-
-        # Build preview for each scheme
-        scheme_previews: list[SchemePreviewResponse] = []
-        total_concepts = 0
-        total_relationships = 0
-
-        for scheme_uri in schemes:
-            concepts = concepts_by_scheme[scheme_uri]
-            title = self._get_scheme_title(g, scheme_uri)
-            description = self._get_scheme_description(g, scheme_uri)
-            relationships = self._count_broader_relationships(g, concepts)
-
-            # Collect warnings for this scheme
-            warnings: list[str] = []
-            for concept in concepts:
-                _, warning = self._get_concept_pref_label(g, concept)
-                if warning:
-                    warnings.append(warning)
-
-            scheme_previews.append(
-                SchemePreviewResponse(
-                    title=title,
-                    description=description,
-                    uri=str(scheme_uri),
-                    concepts_count=len(concepts),
-                    relationships_count=relationships,
-                    warnings=warnings,
-                )
-            )
-
-            total_concepts += len(concepts)
-            total_relationships += relationships
-
-        return ImportPreviewResponse(
-            valid=True,
-            schemes=scheme_previews,
-            total_concepts_count=total_concepts,
-            total_relationships_count=total_relationships,
-            errors=global_warnings,
-        )
-
-    async def execute(
-        self, project_id: UUID, content: bytes, filename: str
-    ) -> ImportResultResponse:
-        """Parse RDF and create schemes/concepts in database.
-
-        Args:
-            project_id: The project to import into
-            content: The RDF file content
-            filename: The filename (used for format detection)
-
-        Returns:
-            ImportResultResponse with created scheme and concept information
-
-        Raises:
-            InvalidRDFError: If the file cannot be parsed
-            SchemeURIConflictError: If a scheme URI already exists in the project
-        """
-        format = self._detect_format(filename)
-        g = self._parse_rdf(content, format)
-
-        analysis = self._analyze_graph(g)
-        schemes = analysis["schemes"]
-        concepts_by_scheme = analysis["concepts_by_scheme"]
-
-        # Check for URI conflicts
-        scheme_uris = [str(s) for s in schemes]
-        await self._check_uri_conflicts(project_id, scheme_uris)
-
-        schemes_created: list[SchemeCreatedResponse] = []
-        total_concepts = 0
-        total_relationships = 0
-
-        for scheme_uri in schemes:
-            concepts = concepts_by_scheme[scheme_uri]
-
-            # Get scheme metadata
-            base_title = self._get_scheme_title(g, scheme_uri)
-            title = await self._get_unique_title(project_id, base_title)
-            description = self._get_scheme_description(g, scheme_uri)
-
-            # Create scheme
-            scheme = ConceptScheme(
-                project_id=project_id,
-                title=title,
-                description=description,
-                uri=str(scheme_uri),
-            )
-            self.db.add(scheme)
-            await self.db.flush()
-            await self.db.refresh(scheme)
-
-            # Record change
-            await self._tracker.record(
-                project_id=project_id,
-                entity_type="scheme",
-                entity_id=scheme.id,
-                action="create",
-                before=None,
-                after=self._tracker.serialize_scheme(scheme),
-                scheme_id=scheme.id,
-            )
-
-            # Create concepts - first pass: create all concepts
-            uri_to_concept: dict[URIRef, Concept] = {}
-
-            for concept_uri in concepts:
-                pref_label, _ = self._get_concept_pref_label(g, concept_uri)
-                identifier = self._get_identifier_from_uri(concept_uri)
-
-                # Get definition
-                definition = None
-                def_value = g.value(concept_uri, SKOS.definition)
-                if def_value:
-                    definition = str(def_value)
-
-                # Get scope note
-                scope_note = None
-                scope_value = g.value(concept_uri, SKOS.scopeNote)
-                if scope_value:
-                    scope_note = str(scope_value)
-
-                # Get alt labels
-                alt_labels: list[str] = []
-                for alt in g.objects(concept_uri, SKOS.altLabel):
-                    if isinstance(alt, Literal):
-                        alt_labels.append(str(alt))
-
-                concept = Concept(
-                    scheme_id=scheme.id,
-                    pref_label=pref_label,
-                    identifier=identifier,
-                    definition=definition,
-                    scope_note=scope_note,
-                    alt_labels=alt_labels,
-                )
-                self.db.add(concept)
-                uri_to_concept[concept_uri] = concept
-
-            await self.db.flush()
-
-            # Refresh all concepts to get IDs
-            for concept in uri_to_concept.values():
-                await self.db.refresh(concept)
-
-            # Second pass: create broader relationships
-            relationship_count = 0
-            for concept_uri, concept in uri_to_concept.items():
-                for broader_uri in g.objects(concept_uri, SKOS.broader):
-                    if isinstance(broader_uri, URIRef) and broader_uri in uri_to_concept:
-                        broader_concept = uri_to_concept[broader_uri]
-                        rel = ConceptBroader(
-                            concept_id=concept.id,
-                            broader_concept_id=broader_concept.id,
-                        )
-                        self.db.add(rel)
-                        relationship_count += 1
-
-            await self.db.flush()
-
-            # Record concept changes
-            for concept in uri_to_concept.values():
-                await self._tracker.record(
-                    project_id=project_id,
-                    entity_type="concept",
-                    entity_id=concept.id,
-                    action="create",
-                    before=None,
-                    after=self._tracker.serialize_concept(concept),
-                    scheme_id=scheme.id,
-                )
-
-            schemes_created.append(
-                SchemeCreatedResponse(
-                    id=scheme.id,
-                    title=title,
-                    concepts_created=len(concepts),
-                )
-            )
-
-            total_concepts += len(concepts)
-            total_relationships += relationship_count
-
-        return ImportResultResponse(
-            schemes_created=schemes_created,
-            total_concepts_created=total_concepts,
-            total_relationships_created=total_relationships,
-        )
