@@ -51,7 +51,7 @@ class PublishedVersion(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     previous_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("published_versions.id", ondelete="SET NULL"), nullable=True
     )

@@ -1,5 +1,6 @@
 """Integration tests for the publishing API endpoints."""
 
+import json
 from uuid import uuid4
 
 import pytest
@@ -491,4 +492,5 @@ class TestReaderFiles:
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "1.0", "title": "V1"},
         )
-        assert await blob_store.exists("index.json")
+        data = json.loads((blob_store._root / "index.json").read_bytes())
+        assert any(p["id"] == str(publishable_project.id) for p in data["projects"])

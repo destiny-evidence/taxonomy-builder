@@ -121,7 +121,10 @@ class ReaderFileService:
 
     @staticmethod
     def render_project_index(project: Project, versions: list[PublishedVersion]) -> bytes:
-        """Render a project index.json from a project and its versions."""
+        """Render a project index.json from a project and its versions.
+
+        ``versions`` must be sorted by version_sort_key descending (newest first).
+        """
         latest_version = None
         for v in versions:
             if v.finalized:
