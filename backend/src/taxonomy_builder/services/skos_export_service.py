@@ -1,5 +1,6 @@
 """SKOS Export service for generating RDF output."""
 
+from enum import Enum
 from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
@@ -17,6 +18,22 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotScheme,
     SnapshotVocabulary,
 )
+
+
+class ExportFormat(str, Enum):
+    """Supported export formats."""
+
+    TTL = "ttl"
+    XML = "xml"
+    JSONLD = "jsonld"
+
+
+# Format to RDFLib format string and content type mapping
+FORMAT_CONFIG = {
+    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl"),
+    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf"),
+    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld"),
+}
 
 
 class SchemeNotFoundError(Exception):
