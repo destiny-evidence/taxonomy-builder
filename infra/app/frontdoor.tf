@@ -192,20 +192,14 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
 }
 
 # API identity needs permission to purge cached content on publish
-resource "azurerm_role_definition" "cdn_purge" {
-  name        = "CDN Front Door Purge - ${local.name}"
-  scope       = data.azurerm_subscription.current.id
-  description = "Allows purging Azure Front Door cache only"
-
-  permissions {
-    actions = ["Microsoft.Cdn/profiles/afdEndpoints/purge/action"]
-  }
-
-  assignable_scopes = [azurerm_cdn_frontdoor_profile.this.id]
+# Role "CDN Front Door Purge" is created manually at the subscription level
+data "azurerm_role_definition" "cdn_purge" {
+  name  = "CDN Front Door Purge"
+  scope = data.azurerm_subscription.current.id
 }
 
 resource "azurerm_role_assignment" "api_cdn_purger" {
-  role_definition_id = azurerm_role_definition.cdn_purge.role_definition_resource_id
+  role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
   scope              = azurerm_cdn_frontdoor_profile.this.id
   principal_id       = azurerm_user_assigned_identity.api.principal_id
 }
