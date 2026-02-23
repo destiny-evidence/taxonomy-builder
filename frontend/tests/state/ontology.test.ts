@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   ontologyClasses,
-  ontologyLoading,
-  ontologyError,
   selectedClassUri,
   selectedClass,
 } from "../../src/state/ontology";
@@ -17,22 +15,12 @@ const mockClasses: OntologyClass[] = [
 describe("ontology state", () => {
   beforeEach(() => {
     ontologyClasses.value = [];
-    ontologyLoading.value = false;
-    ontologyError.value = null;
     selectedClassUri.value = null;
   });
 
   describe("signals", () => {
     it("ontologyClasses starts as empty array", () => {
       expect(ontologyClasses.value).toEqual([]);
-    });
-
-    it("ontologyLoading starts as false", () => {
-      expect(ontologyLoading.value).toBe(false);
-    });
-
-    it("ontologyError starts as null", () => {
-      expect(ontologyError.value).toBeNull();
     });
 
     it("selectedClassUri starts as null", () => {

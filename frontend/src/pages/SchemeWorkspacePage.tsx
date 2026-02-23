@@ -247,7 +247,11 @@ export function SchemeWorkspacePage({
 
   async function handleImportSuccess() {
     if (projectId) {
-      await Promise.all([loadSchemes(projectId), loadClasses(projectId)]);
+      await Promise.all([
+        loadSchemes(projectId),
+        loadClasses(projectId),
+        loadProperties(projectId),
+      ]);
     }
   }
 

@@ -2,8 +2,6 @@ import { signal, computed } from "@preact/signals";
 import type { OntologyClass } from "../types/models";
 
 export const ontologyClasses = signal<OntologyClass[]>([]);
-export const ontologyLoading = signal(false);
-export const ontologyError = signal<string | null>(null);
 export const selectedClassUri = signal<string | null>(null);
 
 export const selectedClass = computed<OntologyClass | null>(() => {

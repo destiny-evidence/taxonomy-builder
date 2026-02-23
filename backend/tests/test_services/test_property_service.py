@@ -653,6 +653,25 @@ class TestUpdateProperty:
         with pytest.raises(InvalidRangeError):
             await service.update_property(created.id, update)
 
+    @pytest.mark.asyncio
+    async def test_update_property_invalid_domain_class(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Test that updating domain_class to an invalid URI raises error."""
+        service = property_service
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://example.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
+        created = await service.create_property(project.id, prop_in)
+
+        update = PropertyUpdate(domain_class="https://example.org/vocab/NonExistent")
+        with pytest.raises(DomainClassNotFoundError):
+            await service.update_property(created.id, update)
+
 
 @pytest.mark.usefixtures("ontology_class")
 class TestDeleteProperty:

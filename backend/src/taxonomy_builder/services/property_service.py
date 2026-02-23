@@ -314,6 +314,10 @@ class PropertyService:
                 prop.project_id, new_scheme_id, new_datatype, new_range_class
             )
 
+        # Validate domain class if being updated
+        if "domain_class" in update_data:
+            await self._validate_domain_class(prop.project_id, update_data["domain_class"])
+
         # Apply updates
         for key, value in update_data.items():
             setattr(prop, key, value)
