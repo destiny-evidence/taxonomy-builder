@@ -141,18 +141,22 @@ class PublishingService:
         if latest:
             diff = compute_diff(latest.snapshot_vocabulary, snapshot)
 
-        latest_version = latest.version if latest else None
-        suggested = await self._suggest_version(latest_version, diff)
-        suggested_pre = await self._suggest_version(
-            latest_version, diff, pre_release=True, project_id=project_id
-        )
-
         latest_pre = await self._get_latest_pre_release(project_id)
-        # Only show pre-release if it's newer than the latest finalized
+        # A pre-release is "fresh" if it's newer than the latest finalized (or none exists)
         latest_pre_version: str | None = None
-        if latest_pre:
-            if not latest or latest_pre.version_sort_key > latest.version_sort_key:
-                latest_pre_version = latest_pre.version
+        if latest_pre and (not latest or latest_pre.version_sort_key > latest.version_sort_key):
+            latest_pre_version = latest_pre.version
+            # Derive both suggestions from the fresh pre-release's base version
+            base = latest_pre.version.split("-pre")[0]
+            suggested = base
+            pre_num = await self._next_pre_release_number(project_id, base)
+            suggested_pre = f"{base}-pre{pre_num}"
+        else:
+            latest_version = latest.version if latest else None
+            suggested = await self._suggest_version(latest_version, diff)
+            suggested_pre = await self._suggest_version(
+                latest_version, diff, pre_release=True, project_id=project_id
+            )
 
         return PublishPreview(
             validation=validation,

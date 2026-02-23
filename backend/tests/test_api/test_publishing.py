@@ -137,15 +137,14 @@ class TestPreview:
         assert data["latest_pre_release_version"] == "1.0-pre1"
 
     @pytest.mark.asyncio
-    async def test_preview_pre_release_always_major_bump(
+    async def test_preview_suggestions_continue_fresh_pre_release(
         self, authenticated_client: AsyncClient, publishable_project: Project
     ) -> None:
-        """Pre-release suggestion always uses major bump even for minor diffs."""
+        """When a pre-release is fresher than finalized, both suggestions use its base."""
         await authenticated_client.post(
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "1.0", "title": "V1"},
         )
-        # Publish a pre-release at the major bump version
         await authenticated_client.post(
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "2.0-pre1", "title": "Pre 1", "pre_release": True},
@@ -154,10 +153,50 @@ class TestPreview:
             f"/api/projects/{publishable_project.id}/publish/preview"
         )
         data = resp.json()
-        # Release uses diff-based minor bump, pre-release uses major bump
-        assert data["suggested_version"] == "1.1"
+        assert data["suggested_version"] == "2.0"
         assert data["suggested_pre_release_version"] == "2.0-pre2"
         assert data["latest_version"] == "1.0"
+        assert data["latest_pre_release_version"] == "2.0-pre1"
+
+    @pytest.mark.asyncio
+    async def test_preview_suggestions_follow_fresh_pre_release(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        """When a pre-release is fresher than the latest finalized, both suggestions
+        derive from its base version instead of recomputing from scratch."""
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        # User chose a minor-bump pre-release, not the suggested major bump
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.1-pre1", "title": "Pre", "pre_release": True},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        data = resp.json()
+        assert data["suggested_version"] == "1.1"
+        assert data["suggested_pre_release_version"] == "1.1-pre2"
+        assert data["latest_pre_release_version"] == "1.1-pre1"
+
+    @pytest.mark.asyncio
+    async def test_preview_suggestions_follow_fresh_pre_release_no_finalized(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        """When no finalized version exists, suggestions derive from the pre-release base."""
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "2.0-pre1", "title": "Pre", "pre_release": True},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        data = resp.json()
+        assert data["suggested_version"] == "2.0"
+        assert data["suggested_pre_release_version"] == "2.0-pre2"
+        assert data["latest_version"] is None
         assert data["latest_pre_release_version"] == "2.0-pre1"
 
     @pytest.mark.asyncio
