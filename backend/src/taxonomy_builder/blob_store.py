@@ -10,12 +10,16 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import logging
+
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity.aio import DefaultAzureCredential
 from azure.mgmt.cdn.aio import CdnManagementClient
 from azure.mgmt.cdn.models import AfdPurgeParameters
 from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobServiceClient
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from taxonomy_builder.config import CDNSettings, Settings
@@ -161,13 +165,15 @@ class AzureFrontDoorPurger(CdnPurger):
         self._endpoint_name = endpoint_name
 
     async def purge(self, paths: list[str]) -> None:
-        poller = await self._client.afd_endpoints.begin_purge_content(
-            resource_group_name=self._resource_group,
-            profile_name=self._profile_name,
-            endpoint_name=self._endpoint_name,
-            contents=AfdPurgeParameters(content_paths=paths),
-        )
-        await poller.wait()
+        try:
+            await self._client.afd_endpoints.begin_purge_content(
+                resource_group_name=self._resource_group,
+                profile_name=self._profile_name,
+                endpoint_name=self._endpoint_name,
+                contents=AfdPurgeParameters(content_paths=paths),
+            )
+        except Exception:
+            logger.exception("CDN purge failed for paths: %s", paths)
 
     async def close(self) -> None:
         await self._client.close()
