@@ -5,7 +5,7 @@ from uuid import uuid4, uuid7
 
 import pytest
 from rdflib import Graph
-from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS
+from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -18,6 +18,7 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotClass,
     SnapshotConcept,
     SnapshotProjectMetadata,
+    SnapshotProperty,
     SnapshotScheme,
     SnapshotVocabulary,
 )
@@ -580,6 +581,30 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 ],
             )
         ],
+        properties=[
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="studyType",
+                label="Study Type",
+                uri="http://example.org/ontology/studyType",
+                description="The type of study",
+                domain_class="http://example.org/ontology/Study",
+                range_scheme_id=scheme.id,
+                range_scheme_uri=scheme.uri,
+                cardinality="single",
+                required=True,
+            ),
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="sampleSize",
+                label="Sample Size",
+                uri="http://example.org/ontology/sampleSize",
+                domain_class="http://example.org/ontology/Study",
+                range_datatype="xsd:integer",
+                cardinality="single",
+                required=False,
+            ),
+        ],
         classes=[
             SnapshotClass(
                 id=uuid4(),
@@ -782,3 +807,84 @@ async def test_export_published_version_class_without_optional_fields(
     # Should not have description or scope note
     assert g.value(outcome_uri, DCTERMS.description) is None
     assert g.value(outcome_uri, SKOS.scopeNote) is None
+
+
+# Property export tests
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_includes_properties(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that OWL properties from the snapshot are included in the export."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should contain the object property
+    obj_props = list(g.subjects(RDF.type, OWL.ObjectProperty))
+    assert len(obj_props) == 1
+    assert "studyType" in str(obj_props[0])
+
+    # Should contain the datatype property
+    dt_props = list(g.subjects(RDF.type, OWL.DatatypeProperty))
+    assert len(dt_props) == 1
+    assert "sampleSize" in str(dt_props[0])
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_object_property_metadata(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that object property metadata (label, description, domain, range) is exported."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.ObjectProperty) if "studyType" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(prop_uri, RDFS.label)) == "Study Type"
+
+    # Should have description
+    assert str(g.value(prop_uri, DCTERMS.description)) == "The type of study"
+
+    # Should have domain pointing to the class URI
+    assert str(g.value(prop_uri, RDFS.domain)) == "http://example.org/ontology/Study"
+
+    # Should have range pointing to the concept scheme
+    assert str(g.value(prop_uri, RDFS.range)) == "http://example.org/taxonomy"
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_datatype_property(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that datatype properties are exported with correct type and range."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.DatatypeProperty) if "sampleSize" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(prop_uri, RDFS.label)) == "Sample Size"
+
+    # Should have domain pointing to the class URI
+    assert str(g.value(prop_uri, RDFS.domain)) == "http://example.org/ontology/Study"
+
+    # Should have range as XSD datatype
+    assert g.value(prop_uri, RDFS.range) == XSD.integer
+
+    # Should not have description (not set)
+    assert g.value(prop_uri, DCTERMS.description) is None

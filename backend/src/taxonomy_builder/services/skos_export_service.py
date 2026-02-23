@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS
+from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +11,12 @@ from sqlalchemy.orm import selectinload
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.published_version import PublishedVersion
-from taxonomy_builder.schemas.snapshot import SnapshotClass, SnapshotScheme, SnapshotVocabulary
+from taxonomy_builder.schemas.snapshot import (
+    SnapshotClass,
+    SnapshotProperty,
+    SnapshotScheme,
+    SnapshotVocabulary,
+)
 
 
 class SchemeNotFoundError(Exception):
@@ -116,9 +121,13 @@ class SKOSExportService:
         g.bind("dct", DCTERMS)
         g.bind("owl", OWL)
         g.bind("rdfs", RDFS)
+        g.bind("xsd", XSD)
 
         for scheme_snapshot in vocabulary.concept_schemes:
             self._add_scheme_to_graph(g, scheme_snapshot)
+
+        for snapshot_property in vocabulary.properties:
+            self._add_property_to_graph(g, snapshot_property)
 
         for snapshot_class in vocabulary.classes:
             self._add_class_to_graph(g, snapshot_class)
@@ -173,6 +182,23 @@ class SKOSExportService:
 
             if concept.id not in has_broader:
                 g.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
+
+    def _add_property_to_graph(self, g: Graph, snapshot_property: SnapshotProperty) -> None:
+        """Add an OWL property to an RDF graph."""
+        prop_uri = URIRef(snapshot_property.uri)
+
+        if snapshot_property.range_scheme_uri:
+            g.add((prop_uri, RDF.type, OWL.ObjectProperty))
+            g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_scheme_uri)))
+        elif snapshot_property.range_datatype:
+            g.add((prop_uri, RDF.type, OWL.DatatypeProperty))
+            g.add((prop_uri, RDFS.range, XSD[snapshot_property.range_datatype.split(":")[-1]]))
+
+        g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
+        g.add((prop_uri, RDFS.domain, URIRef(snapshot_property.domain_class)))
+
+        if snapshot_property.description:
+            g.add((prop_uri, DCTERMS.description, Literal(snapshot_property.description)))
 
     def _add_class_to_graph(self, g: Graph, snapshot_class: SnapshotClass) -> None:
         """Add an OWL class to an RDF graph."""
