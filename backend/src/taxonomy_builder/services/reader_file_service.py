@@ -191,11 +191,11 @@ class ReaderFileService:
         """Generate and write all reader files for a published version."""
         project = version.project
 
-        # 1. Write vocabulary (immutable, written first)
+        # 1. Write vocabulary (immutable — version in URL, never changes)
         vocab_path = f"{project.id}/{version.version}/vocabulary.json"
         await self._blob_store.put(vocab_path, self.render_vocabulary(version))
 
-        # 2. Write project index (always regenerated)
+        # 2. Write project index (mutable — regenerated on each publish)
         all_versions = await self._publishing_service.list_versions(project.id)
         project_index_path = f"{project.id}/index.json"
         await self._blob_store.put(
@@ -209,7 +209,9 @@ class ReaderFileService:
             projects_with_latest = (
                 await self._publishing_service.list_projects_with_latest_version()
             )
-            await self._blob_store.put("index.json", self.render_root_index(projects_with_latest))
+            await self._blob_store.put(
+                "index.json", self.render_root_index(projects_with_latest)
+            )
             purge_paths.append("/index.json")
 
         # 4. Purge CDN cache for mutable files

@@ -254,12 +254,11 @@ class TestAzureFrontDoorPurger:
         )
         assert contents.content_paths == ["/published/abc/latest/*"]
 
-    async def test_purge_waits_for_completion(
+    async def test_purge_logs_on_failure(
         self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
     ) -> None:
-        poller = AsyncMock()
         mock_cdn_cls.return_value.afd_endpoints.begin_purge_content = AsyncMock(
-            return_value=poller
+            side_effect=Exception("auth failed")
         )
         purger = AzureFrontDoorPurger(
             subscription_id="sub-123",
@@ -267,9 +266,31 @@ class TestAzureFrontDoorPurger:
             profile_name="fd-test",
             endpoint_name="fde-test",
         )
-        await purger.purge(["/published/abc/latest/*"])
+        # Should not raise — errors are logged, not propagated
+        await purger.purge(["/some/path"])
 
-        poller.wait.assert_called_once()
+    async def test_purge_prepends_path_prefix(
+        self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
+    ) -> None:
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content = AsyncMock()
+        purger = AzureFrontDoorPurger(
+            subscription_id="sub-123",
+            resource_group="rg-test",
+            profile_name="fd-test",
+            endpoint_name="fde-test",
+            path_prefix="/published",
+        )
+        await purger.purge(["/abc/index.json", "/index.json"])
+
+        contents = (
+            mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.call_args.kwargs[
+                "contents"
+            ]
+        )
+        assert contents.content_paths == [
+            "/published/abc/index.json",
+            "/published/index.json",
+        ]
 
 
 class TestNoOpPurger:

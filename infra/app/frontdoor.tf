@@ -170,7 +170,7 @@ resource "azurerm_cdn_frontdoor_route" "published" {
   }
 }
 
-# Cache rule set for published content — 365-day TTL, purged on publish
+# Cache rule set for published content — CDN caches aggressively, purged on publish
 resource "azurerm_cdn_frontdoor_rule_set" "published_cache" {
   name                     = "publishedcache"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
@@ -187,6 +187,13 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
       cache_duration                = "365.00:00:00"
       compression_enabled           = true
       query_string_caching_behavior = "IgnoreQueryString"
+    }
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Cache-Control"
+      # Browser caches content but checks with FrontDoor each time.
+      # In the future we may consider a TTL here for local caching.
+      value = "no-cache"
     }
   }
 }
