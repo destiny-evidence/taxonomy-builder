@@ -8,6 +8,20 @@ import {
 } from "../../api/schemes";
 import "./ImportModal.css";
 
+function formatImportSummary(result: ImportResult): string {
+  const parts = [
+    result.classes_created.length > 0 &&
+      `${result.classes_created.length} classes`,
+    result.properties_created.length > 0 &&
+      `${result.properties_created.length} properties`,
+    result.schemes_created.length > 0 &&
+      `${result.schemes_created.length} schemes with ${result.total_concepts_created} concepts and ${result.total_relationships_created} relationships`,
+  ].filter(Boolean);
+  return parts.length > 0
+    ? `Successfully imported ${parts.join(", ")}.`
+    : "No entities found in file.";
+}
+
 interface ImportModalProps {
   isOpen: boolean;
   projectId: string;
@@ -193,21 +207,7 @@ export function ImportModal({
 
         {step === "success" && result && (
           <div class="import-modal__success">
-            <p>
-              {(() => {
-                const parts = [
-                  result.classes_created.length > 0 &&
-                    `${result.classes_created.length} classes`,
-                  result.properties_created.length > 0 &&
-                    `${result.properties_created.length} properties`,
-                  result.schemes_created.length > 0 &&
-                    `${result.schemes_created.length} schemes with ${result.total_concepts_created} concepts and ${result.total_relationships_created} relationships`,
-                ].filter(Boolean);
-                return parts.length > 0
-                  ? `Successfully imported ${parts.join(", ")}.`
-                  : "No entities found in file.";
-              })()}
-            </p>
+            <p>{formatImportSummary(result)}</p>
             {result.warnings.length > 0 && (
               <p class="import-modal__warning-summary">
                 {result.warnings.length} warning{result.warnings.length !== 1 ? "s" : ""} during

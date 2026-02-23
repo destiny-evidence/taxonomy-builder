@@ -301,8 +301,7 @@ async def test_preview_orphan_concept_multi_scheme_warning(
     scheme_a = next(s for s in result.schemes if s.title == "Scheme A")
     assert scheme_a.concepts_count == 1
     # Should have warning about skipped orphan
-    all_warnings = [w for s in result.schemes for w in s.warnings]
-    assert any("OrphanConcept" in w or "orphan" in w.lower() for w in all_warnings) or len(result.errors) > 0
+    assert any("OrphanConcept" in w or "orphan" in w.lower() for w in result.warnings)
 
 
 @pytest.mark.asyncio
@@ -860,8 +859,8 @@ async def test_preview_ambiguous_range_not_resolved(
     assert result.properties_count == 1
     # Range should NOT be resolved to a specific scheme
     assert result.properties[0].range_scheme_title is None
-    # Warning about unresolved range
+    # Warning about ambiguous range
     assert any(
-        "educationProp" in w and "not found" in w
+        "educationProp" in w and "multiple schemes" in w
         for w in result.warnings
     )
