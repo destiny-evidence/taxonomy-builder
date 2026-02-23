@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
@@ -77,6 +78,36 @@ async def other_scheme(db_session: AsyncSession, other_project: Project) -> Conc
 
 
 @pytest.fixture
+async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
+    """Create an ontology class in the test project (URI: https://example.org/vocab/Finding)."""
+    cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="https://example.org/vocab/Finding",
+    )
+    db_session.add(cls)
+    await db_session.flush()
+    await db_session.refresh(cls)
+    return cls
+
+
+@pytest.fixture
+async def other_ontology_class(db_session: AsyncSession, other_project: Project) -> OntologyClass:
+    """Create an ontology class in the other project (URI: https://other.org/vocab/Finding)."""
+    cls = OntologyClass(
+        project_id=other_project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="https://other.org/vocab/Finding",
+    )
+    db_session.add(cls)
+    await db_session.flush()
+    await db_session.refresh(cls)
+    return cls
+
+
+@pytest.fixture
 def property_service(db_session: AsyncSession) -> PropertyService:
     """Create a PropertyService with all required dependencies."""
     project_service = ProjectService(db_session)
@@ -122,7 +153,7 @@ class TestPropertySchemaValidation:
             PropertyCreate(
                 identifier="testProp",
                 label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class="https://example.org/vocab/Finding",
                 cardinality="single",
                 **range_kwargs,
             )
@@ -139,6 +170,7 @@ class TestPropertySchemaValidation:
 # --- Service tests ---
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestCreateProperty:
     """Tests for PropertyService.create_property."""
 
@@ -152,7 +184,7 @@ class TestCreateProperty:
             identifier="educationLevel",
             label="Education Level",
             description="The level of education",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_scheme_id=scheme.id,
             cardinality="single",
             required=False,
@@ -175,7 +207,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="sampleSize",
             label="Sample Size",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:integer",
             cardinality="single",
             required=True,
@@ -197,7 +229,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_class="https://example.org/ontology/EducationLevel",
             cardinality="single",
         )
@@ -236,7 +268,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_scheme_id=other_scheme.id,
             cardinality="single",
         )
@@ -255,7 +287,7 @@ class TestCreateProperty:
         prop_in1 = PropertyCreate(
             identifier="testProp",
             label="Test 1",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -265,7 +297,7 @@ class TestCreateProperty:
         prop_in2 = PropertyCreate(
             identifier="testProp",
             label="Test 2",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:integer",
             cardinality="single",
         )
@@ -281,7 +313,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_scheme_id=uuid4(),
             cardinality="single",
         )
@@ -289,7 +321,25 @@ class TestCreateProperty:
         with pytest.raises(SchemeNotInProjectError):
             await service.create_property(project.id, prop_in)
 
+    @pytest.mark.asyncio
+    async def test_create_property_domain_class_from_different_project(
+        self, project: Project, other_ontology_class: OntologyClass, property_service: PropertyService
+    ) -> None:
+        """Test that a domain class URI from a different project is rejected."""
+        service = property_service
+        prop_in = PropertyCreate(
+            identifier="testProp",
+            label="Test",
+            domain_class="https://other.org/vocab/Finding",
+            range_datatype="xsd:string",
+            cardinality="single",
+        )
 
+        with pytest.raises(DomainClassNotFoundError):
+            await service.create_property(project.id, prop_in)
+
+
+@pytest.mark.usefixtures("ontology_class")
 class TestListProperties:
     """Tests for PropertyService.list_properties."""
 
@@ -313,14 +363,14 @@ class TestListProperties:
         prop1_in = PropertyCreate(
             identifier="prop1",
             label="Property 1",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
         prop2_in = PropertyCreate(
             identifier="prop2",
             label="Property 2",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:integer",
             cardinality="multiple",
         )
@@ -334,7 +384,7 @@ class TestListProperties:
 
     @pytest.mark.asyncio
     async def test_list_properties_excludes_other_projects(
-        self, db_session: AsyncSession, project: Project, other_project: Project, property_service: PropertyService
+        self, db_session: AsyncSession, project: Project, other_project: Project, other_ontology_class: OntologyClass, property_service: PropertyService
     ) -> None:
         """Test that listing only returns properties for the specified project."""
         service = property_service
@@ -343,14 +393,14 @@ class TestListProperties:
         prop1_in = PropertyCreate(
             identifier="prop1",
             label="Property 1",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
         prop2_in = PropertyCreate(
             identifier="prop2",
             label="Property 2",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://other.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -371,6 +421,7 @@ class TestListProperties:
             await service.list_properties(uuid4())
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestGetProperty:
     """Tests for PropertyService.get_property."""
 
@@ -383,7 +434,7 @@ class TestGetProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test Property",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -404,6 +455,7 @@ class TestGetProperty:
         assert prop is None
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestUpdateProperty:
     """Tests for PropertyService.update_property."""
 
@@ -416,7 +468,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Original Label",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -438,7 +490,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -459,7 +511,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
             required=False,
@@ -501,7 +553,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_scheme_id=scheme.id,
             cardinality="single",
         )
@@ -522,7 +574,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_scheme_id=scheme.id,
             cardinality="single",
         )
@@ -545,7 +597,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -571,7 +623,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -590,7 +642,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -602,6 +654,7 @@ class TestUpdateProperty:
             await service.update_property(created.id, update)
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestDeleteProperty:
     """Tests for PropertyService.delete_property."""
 
@@ -614,7 +667,7 @@ class TestDeleteProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -637,6 +690,7 @@ class TestDeleteProperty:
         assert result is False
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestPropertyURI:
     """Tests for URI behavior on Property create/update."""
 
@@ -648,7 +702,7 @@ class TestPropertyURI:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -664,7 +718,7 @@ class TestPropertyURI:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
             uri="https://external.org/props/educationLevel",
@@ -685,10 +739,17 @@ class TestPropertyURI:
         await db_session.flush()
         await db_session.refresh(project_nn)
 
+        cls = OntologyClass(
+            project_id=project_nn.id, identifier="Finding",
+            label="Finding", uri="https://example.org/vocab/Finding",
+        )
+        db_session.add(cls)
+        await db_session.flush()
+
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -707,10 +768,17 @@ class TestPropertyURI:
         await db_session.flush()
         await db_session.refresh(project_nn)
 
+        cls = OntologyClass(
+            project_id=project_nn.id, identifier="Finding",
+            label="Finding", uri="https://example.org/vocab/Finding",
+        )
+        db_session.add(cls)
+        await db_session.flush()
+
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
             uri="https://external.org/props/testProp",
@@ -726,7 +794,7 @@ class TestPropertyURI:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -741,6 +809,7 @@ class TestPropertyURI:
         assert updated.uri == original_uri
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestURICollision:
     """Tests for URI collision handling."""
 
@@ -752,7 +821,7 @@ class TestURICollision:
         prop_in1 = PropertyCreate(
             identifier="prop1",
             label="Property 1",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:string",
             cardinality="single",
             uri="https://example.org/vocab/sharedUri",
@@ -762,7 +831,7 @@ class TestURICollision:
         prop_in2 = PropertyCreate(
             identifier="prop2",
             label="Property 2",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:integer",
             cardinality="single",
             uri="https://example.org/vocab/sharedUri",

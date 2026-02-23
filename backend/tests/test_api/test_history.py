@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept import ConceptCreate
 from taxonomy_builder.schemas.property import PropertyCreate
@@ -36,6 +37,21 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     await db_session.flush()
     await db_session.refresh(scheme)
     return scheme
+
+
+@pytest.fixture
+async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
+    """Create an ontology class in the test project."""
+    cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="https://example.org/vocab/Finding",
+    )
+    db_session.add(cls)
+    await db_session.flush()
+    await db_session.refresh(cls)
+    return cls
 
 
 @pytest.mark.asyncio
@@ -192,7 +208,10 @@ async def test_get_scheme_history_shows_user_display_name(
 
 @pytest.mark.asyncio
 async def test_get_project_history(
-    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    project: Project,
+    ontology_class: OntologyClass,
 ) -> None:
     """Test getting history for a project returns property change events."""
     service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
@@ -201,7 +220,7 @@ async def test_get_project_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Birth Date",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:date",
             cardinality="single",
         ),
@@ -211,7 +230,7 @@ async def test_get_project_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Date of Birth",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:date",
             cardinality="single",
         ),
@@ -234,7 +253,10 @@ async def test_get_project_history(
 
 @pytest.mark.asyncio
 async def test_get_project_history_with_pagination(
-    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    project: Project,
+    ontology_class: OntologyClass,
 ) -> None:
     """Test pagination for project history."""
     service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
@@ -244,7 +266,7 @@ async def test_get_project_history_with_pagination(
             property_in=PropertyCreate(
                 identifier=f"prop{i}",
                 label=f"Property {i}",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class="https://example.org/vocab/Finding",
                 range_datatype="xsd:string",
                 cardinality="single",
             ),
@@ -268,7 +290,10 @@ async def test_get_project_history_with_pagination(
 
 @pytest.mark.asyncio
 async def test_get_property_history(
-    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    project: Project,
+    ontology_class: OntologyClass,
 ) -> None:
     """Test getting history for a specific property."""
     service = PropertyService(db_session, ProjectService(db_session), ConceptSchemeService(db_session))
@@ -277,7 +302,7 @@ async def test_get_property_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Birth Date",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:date",
             cardinality="single",
         ),
@@ -287,7 +312,7 @@ async def test_get_property_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Date of Birth",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class="https://example.org/vocab/Finding",
             range_datatype="xsd:date",
             cardinality="single",
         ),

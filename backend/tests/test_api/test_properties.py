@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 
@@ -39,6 +40,21 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 
 @pytest.fixture
+async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
+    """Create an ontology class in the test project."""
+    cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="https://example.org/vocab/Finding",
+    )
+    db_session.add(cls)
+    await db_session.flush()
+    await db_session.refresh(cls)
+    return cls
+
+
+@pytest.fixture
 async def property_obj(db_session: AsyncSession, project: Project) -> Property:
     """Create a property for testing."""
     prop = Property(
@@ -46,7 +62,7 @@ async def property_obj(db_session: AsyncSession, project: Project) -> Property:
         identifier="sampleSize",
         label="Sample Size",
         description="The sample size",
-        domain_class="https://evrepo.example.org/vocab/Finding",
+        domain_class="https://example.org/vocab/Finding",
         range_datatype="xsd:integer",
         cardinality="single",
         required=True,
@@ -91,6 +107,7 @@ class TestListProperties:
         assert response.status_code == 404
 
 
+@pytest.mark.usefixtures("ontology_class")
 class TestCreateProperty:
     """Tests for creating properties."""
 
@@ -104,7 +121,7 @@ class TestCreateProperty:
             json={
                 "identifier": "sampleSize",
                 "label": "Sample Size",
-                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "domain_class": "https://example.org/vocab/Finding",
                 "range_datatype": "xsd:integer",
                 "cardinality": "single",
                 "required": True,
@@ -130,7 +147,7 @@ class TestCreateProperty:
             json={
                 "identifier": "educationLevel",
                 "label": "Education Level",
-                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "domain_class": "https://example.org/vocab/Finding",
                 "range_scheme_id": str(scheme.id),
                 "cardinality": "multiple",
                 "required": False,
@@ -170,7 +187,7 @@ class TestCreateProperty:
             json={
                 "identifier": "educationLevel",
                 "label": "Education Level",
-                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "domain_class": "https://example.org/vocab/Finding",
                 "range_class": "https://example.org/ontology/EducationLevel",
                 "cardinality": "single",
             },
@@ -191,7 +208,7 @@ class TestCreateProperty:
             json={
                 "identifier": "testProp",
                 "label": "Test",
-                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "domain_class": "https://example.org/vocab/Finding",
                 "cardinality": "single",
             },
         )
@@ -207,7 +224,7 @@ class TestCreateProperty:
             json={
                 "identifier": "sampleSize",  # Same as property_obj
                 "label": "Another Sample Size",
-                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "domain_class": "https://example.org/vocab/Finding",
                 "range_datatype": "xsd:integer",
                 "cardinality": "single",
             },
@@ -224,7 +241,7 @@ class TestCreateProperty:
             json={
                 "identifier": "testProp",
                 "label": "Test",
-                "domain_class": "https://evrepo.example.org/vocab/Finding",
+                "domain_class": "https://example.org/vocab/Finding",
                 "range_datatype": "xsd:string",
                 "cardinality": "single",
             },

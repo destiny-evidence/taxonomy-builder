@@ -1,6 +1,6 @@
 """Service for building, validating, and diffing immutable project snapshots."""
 
-from uuid import UUID, uuid5
+from uuid import UUID
 
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,11 +25,7 @@ from taxonomy_builder.schemas.snapshot import (
     ValidationResult,
 )
 from taxonomy_builder.services.concept_service import ConceptService
-from taxonomy_builder.services.core_ontology_service import get_core_ontology
 from taxonomy_builder.services.project_service import ProjectService
-
-# Namespace for generating deterministic UUIDs for core ontology classes
-_CORE_ONTOLOGY_UUID_NS = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 
 class SnapshotService:
@@ -115,7 +111,7 @@ class SnapshotService:
         )
 
     def _build_classes(self, ontology_classes: list[OntologyClass]) -> list[SnapshotClass]:
-        project_classes = [
+        return [
             SnapshotClass.model_construct(
                 id=cls.id,
                 identifier=cls.identifier,
@@ -126,27 +122,6 @@ class SnapshotService:
             )
             for cls in ontology_classes
         ]
-
-        # Temporarily include core ontology classes in every snapshot
-        # To be removed (probably) after #66
-        core = get_core_ontology()
-        project_uris = {cls.uri for cls in project_classes}
-        core_classes = [
-            SnapshotClass.model_construct(
-                id=uuid5(_CORE_ONTOLOGY_UUID_NS, c.uri),
-                identifier=c.uri.split("#")[-1]
-                if "#" in c.uri
-                else c.uri.rstrip("/").split("/")[-1],
-                uri=c.uri,
-                label=c.label,
-                description=c.comment,
-                scope_note=None,
-            )
-            for c in core.classes
-            if c.uri not in project_uris
-        ]
-
-        return project_classes + core_classes
 
 
 def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:

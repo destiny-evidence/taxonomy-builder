@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.database import get_constraint_name
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.property import PropertyCreate, PropertyUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
@@ -16,7 +17,6 @@ from taxonomy_builder.services.concept_scheme_service import (
     ConceptSchemeService,
     SchemeNotFoundError,
 )
-from taxonomy_builder.services.core_ontology_service import get_core_ontology
 from taxonomy_builder.services.project_service import ProjectService
 
 
@@ -29,11 +29,11 @@ class PropertyNotFoundError(Exception):
 
 
 class DomainClassNotFoundError(Exception):
-    """Raised when a domain class is not found in the core ontology."""
+    """Raised when a domain class is not found in the project's ontology classes."""
 
     def __init__(self, domain_class: str) -> None:
         self.domain_class = domain_class
-        super().__init__(f"Domain class '{domain_class}' not found in core ontology")
+        super().__init__(f"Domain class '{domain_class}' not found in project classes")
 
 
 class InvalidRangeError(Exception):
@@ -101,11 +101,15 @@ class PropertyService:
         self._scheme_service = scheme_service
         self._tracker = ChangeTracker(db, user_id)
 
-    def _validate_domain_class(self, domain_class: str) -> None:
-        """Validate that domain_class exists in the core ontology."""
-        ontology = get_core_ontology()
-        valid_classes = {c.uri for c in ontology.classes}
-        if domain_class not in valid_classes:
+    async def _validate_domain_class(self, project_id: UUID, domain_class: str) -> None:
+        """Validate that domain_class exists in the project's ontology classes."""
+        result = await self.db.execute(
+            select(OntologyClass.id).where(
+                OntologyClass.project_id == project_id,
+                OntologyClass.uri == domain_class,
+            )
+        )
+        if result.scalar_one_or_none() is None:
             raise DomainClassNotFoundError(domain_class)
 
     async def _validate_range(
@@ -168,7 +172,7 @@ class PropertyService:
 
         Raises:
             ProjectNotFoundError: If the project doesn't exist
-            DomainClassNotFoundError: If the domain class is not in the core ontology
+            DomainClassNotFoundError: If the domain class is not in the project's classes
             InvalidRangeError: If range specification is invalid
             SchemeNotInProjectError: If the scheme doesn't belong to the project
             PropertyIdentifierExistsError: If the identifier already exists
@@ -177,7 +181,7 @@ class PropertyService:
         project = await self._project_service.get_project(project_id)
 
         # Validate domain class
-        self._validate_domain_class(property_in.domain_class)
+        await self._validate_domain_class(project_id, property_in.domain_class)
 
         # Validate range
         await self._validate_range(
