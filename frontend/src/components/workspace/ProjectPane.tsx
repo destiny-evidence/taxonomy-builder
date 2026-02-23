@@ -74,7 +74,7 @@ export function ProjectPane({
                 key={cls.uri}
                 class={`project-pane__item ${isClassSelected(cls.uri) ? "project-pane__item--selected" : ""}`}
                 onClick={() => onClassSelect(cls.uri)}
-                title={cls.comment ?? undefined}
+                title={cls.description ?? undefined}
               >
                 {cls.label}
               </button>

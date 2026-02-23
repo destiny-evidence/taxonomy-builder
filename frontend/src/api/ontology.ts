@@ -1,6 +1,7 @@
 import { api } from "./client";
-import type { CoreOntology } from "../types/models";
+import type { OntologyClass } from "../types/models";
 
 export const ontologyApi = {
-  get: () => api.get<CoreOntology>("/ontology"),
+  listForProject: (projectId: string) =>
+    api.get<OntologyClass[]>(`/projects/${projectId}/classes`),
 };

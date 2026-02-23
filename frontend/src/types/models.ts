@@ -231,23 +231,9 @@ export function datatypeLabel(xsdType: string): string {
 
 // ============ Ontology ============
 export interface OntologyClass {
+  id: string;
   uri: string;
   label: string;
-  comment: string | null;
-}
-
-export interface OntologyProperty {
-  uri: string;
-  label: string;
-  comment: string | null;
-  domain: string[];
-  range: string[];
-  property_type: "object" | "datatype";
-}
-
-export interface CoreOntology {
-  classes: OntologyClass[];
-  object_properties: OntologyProperty[];
-  datatype_properties: OntologyProperty[];
+  description: string | null;
 }
 

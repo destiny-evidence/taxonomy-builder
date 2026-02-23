@@ -65,8 +65,8 @@ vi.mock("../../../src/state/ontology", async () => {
     ...actual,
     ontologyClasses: {
       value: [
-        { uri: "http://example.org/Person", label: "Person", comment: "A human being" },
-        { uri: "http://example.org/Organization", label: "Organization", comment: null },
+        { id: "cls-1", uri: "http://example.org/Person", label: "Person", description: "A human being" },
+        { id: "cls-2", uri: "http://example.org/Organization", label: "Organization", description: null },
       ],
     },
   };

@@ -28,7 +28,7 @@ export function ClassDetailPane({
   const classProperties = properties.value.filter((p) => p.domain_class === classUri);
 
   const classLabel = ontologyClass?.label ?? classUri;
-  const classDescription = ontologyClass?.comment;
+  const classDescription = ontologyClass?.description;
 
   function handleAddProperty() {
     creatingProperty.value = { projectId, domainClassUri: classUri };

@@ -23,7 +23,7 @@ import {
   selectedConcept,
 } from "../state/concepts";
 import { selectionMode, isClassMode, isSchemeMode } from "../state/workspace";
-import { selectedClassUri, selectedClass, ontology } from "../state/ontology";
+import { selectedClassUri, selectedClass, ontologyClasses } from "../state/ontology";
 import { properties, selectedPropertyId } from "../state/properties";
 import { historyVersion } from "../state/history";
 import { projectsApi } from "../api/projects";
@@ -57,7 +57,7 @@ export function SchemeWorkspacePage({
     if (projectId) {
       loadProject(projectId);
       loadSchemes(projectId);
-      loadOntology();
+      loadClasses(projectId);
       loadProperties(projectId);
     }
   }, [projectId]);
@@ -101,11 +101,11 @@ export function SchemeWorkspacePage({
     }
   }
 
-  async function loadOntology() {
+  async function loadClasses(projectId: string) {
     try {
-      ontology.value = await ontologyApi.get();
+      ontologyClasses.value = await ontologyApi.listForProject(projectId);
     } catch (err) {
-      console.error("Failed to load ontology:", err);
+      console.error("Failed to load classes:", err);
     }
   }
 
@@ -247,7 +247,7 @@ export function SchemeWorkspacePage({
 
   async function handleImportSuccess() {
     if (projectId) {
-      await loadSchemes(projectId);
+      await Promise.all([loadSchemes(projectId), loadClasses(projectId)]);
     }
   }
 

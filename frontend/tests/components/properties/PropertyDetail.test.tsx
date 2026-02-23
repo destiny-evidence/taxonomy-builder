@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { PropertyDetail } from "../../../src/components/properties/PropertyDetail";
 import { propertiesApi } from "../../../src/api/properties";
 import { ApiError } from "../../../src/api/client";
-import { ontology } from "../../../src/state/ontology";
+import { ontologyClasses } from "../../../src/state/ontology";
 import { schemes } from "../../../src/state/schemes";
 import type { Property } from "../../../src/types/models";
 
@@ -48,14 +48,10 @@ describe("PropertyDetail", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Set up ontology classes for edit mode dropdowns
-    ontology.value = {
-      classes: [
-        { uri: "http://example.org/Person", label: "Person", comment: null },
-        { uri: "http://example.org/Organization", label: "Organization", comment: null },
-      ],
-      object_properties: [],
-      datatype_properties: [],
-    };
+    ontologyClasses.value = [
+      { id: "cls-1", uri: "http://example.org/Person", label: "Person", description: null },
+      { id: "cls-2", uri: "http://example.org/Organization", label: "Organization", description: null },
+    ];
     // Set up schemes for edit mode dropdowns
     schemes.value = [
       {
@@ -80,7 +76,7 @@ describe("PropertyDetail", () => {
   });
 
   afterEach(() => {
-    ontology.value = null;
+    ontologyClasses.value = [];
     schemes.value = [];
   });
 
