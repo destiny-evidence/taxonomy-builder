@@ -8,6 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from taxonomy_builder.schemas.validators import validate_identifier
 
+_RANGE_FIELDS = ("range_scheme_id", "range_datatype", "range_class")
+
+
+def _count_range_fields(model: BaseModel) -> int:
+    """Count how many of the three range fields are set (non-None)."""
+    return sum(getattr(model, f) is not None for f in _RANGE_FIELDS)
+
+
 # Allowed XSD datatypes for range_datatype
 ALLOWED_DATATYPES = frozenset([
     "xsd:string",
@@ -59,11 +67,7 @@ class PropertyCreate(BaseModel):
     @model_validator(mode="after")
     def check_exactly_one_range(self) -> "PropertyCreate":  # noqa: UP037
         """Enforce exactly one of range_scheme_id, range_datatype, or range_class."""
-        provided = sum(
-            v is not None
-            for v in (self.range_scheme_id, self.range_datatype, self.range_class)
-        )
-        if provided != 1:
+        if _count_range_fields(self) != 1:
             raise ValueError(
                 "Exactly one of range_scheme_id, range_datatype, or range_class "
                 "must be provided"
@@ -110,11 +114,7 @@ class PropertyUpdate(BaseModel):
     @model_validator(mode="after")
     def check_at_most_one_range(self) -> "PropertyUpdate":  # noqa: UP037
         """Reject updates that set multiple range fields simultaneously."""
-        provided = sum(
-            v is not None
-            for v in (self.range_scheme_id, self.range_datatype, self.range_class)
-        )
-        if provided > 1:
+        if _count_range_fields(self) > 1:
             raise ValueError(
                 "At most one of range_scheme_id, range_datatype, or range_class "
                 "may be set in a single update"
