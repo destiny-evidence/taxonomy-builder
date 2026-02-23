@@ -1,5 +1,4 @@
 import { api } from "./client";
-import { API_BASE } from "../config";
 import type {
   ConceptScheme,
   ConceptSchemeCreate,
@@ -62,10 +61,6 @@ export interface ImportResult {
   warnings: string[];
 }
 
-export function getExportUrl(schemeId: string, format: ExportFormat): string {
-  return `${API_BASE}/schemes/${schemeId}/export?format=${format}`;
-}
-
 function importRequest<T>(
   projectId: string,
   file: File,
@@ -89,6 +84,9 @@ export const schemesApi = {
     api.put<ConceptScheme>(`/schemes/${id}`, data),
 
   delete: (id: string) => api.delete(`/schemes/${id}`),
+
+  exportScheme: (schemeId: string, format: ExportFormat) =>
+    api.getBlob(`/schemes/${schemeId}/export?format=${format}`),
 
   previewImport: (projectId: string, file: File): Promise<ImportPreview> =>
     importRequest<ImportPreview>(projectId, file, true),

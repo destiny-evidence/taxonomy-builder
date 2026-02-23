@@ -67,6 +67,32 @@ async function request<T>(
   return response.json();
 }
 
+async function requestBlob(endpoint: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+
+  const token = await getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, { headers });
+
+  if (response.status === 401) {
+    clearAuth();
+    throw new ApiError(401, "Session expired. Please log in again.");
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(
+      response.status,
+      error.detail || `Request failed: ${response.status}`
+    );
+  }
+
+  return response.blob();
+}
+
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),
   post: <T>(endpoint: string, body: unknown) =>
@@ -76,4 +102,5 @@ export const api = {
   put: <T>(endpoint: string, body: unknown) =>
     request<T>(endpoint, { method: "PUT", body }),
   delete: (endpoint: string) => request<void>(endpoint, { method: "DELETE" }),
+  getBlob: (endpoint: string) => requestBlob(endpoint),
 };

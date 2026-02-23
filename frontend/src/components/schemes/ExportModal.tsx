@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { Modal } from "../common/Modal";
 import { Button } from "../common/Button";
-import { getExportUrl, type ExportFormat } from "../../api/schemes";
+import { schemesApi, type ExportFormat } from "../../api/schemes";
 import "./ExportModal.css";
 
 interface ExportModalProps {
@@ -17,13 +17,32 @@ const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string 
   { value: "jsonld", label: "JSON-LD (.jsonld)", description: "Web-friendly JSON" },
 ];
 
+const FORMAT_EXTENSIONS: Record<ExportFormat, string> = {
+  ttl: ".ttl",
+  xml: ".rdf",
+  jsonld: ".jsonld",
+};
+
 export function ExportModal({ isOpen, schemeId, schemeTitle, onClose }: ExportModalProps) {
   const [format, setFormat] = useState<ExportFormat>("ttl");
+  const [downloading, setDownloading] = useState(false);
 
-  function handleDownload() {
-    const url = getExportUrl(schemeId, format);
-    window.open(url, "_blank");
-    onClose();
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const blob = await schemesApi.exportScheme(schemeId, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${schemeTitle}${FORMAT_EXTENSIONS[format]}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      onClose();
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -56,8 +75,8 @@ export function ExportModal({ isOpen, schemeId, schemeTitle, onClose }: ExportMo
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleDownload}>
-            Download
+          <Button onClick={handleDownload} disabled={downloading}>
+            {downloading ? "Downloading…" : "Download"}
           </Button>
         </div>
       </div>
