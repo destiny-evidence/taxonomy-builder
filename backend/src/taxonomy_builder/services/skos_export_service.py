@@ -2,8 +2,8 @@
 
 from uuid import UUID
 
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import DCTERMS, OWL, RDF, SKOS
+from rdflib import Graph, Literal, URIRef
+from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.published_version import PublishedVersion
-from taxonomy_builder.schemas.snapshot import SnapshotScheme, SnapshotVocabulary
+from taxonomy_builder.schemas.snapshot import SnapshotClass, SnapshotScheme, SnapshotVocabulary
 
 
 class SchemeNotFoundError(Exception):
@@ -83,6 +83,7 @@ class SKOSExportService:
         graph.bind("skos", SKOS)
         graph.bind("dct", DCTERMS)
         graph.bind("owl", OWL)
+        graph.bind("rdfs", RDFS)
 
         snapshot_scheme = SnapshotScheme.from_scheme(scheme)
 
@@ -114,9 +115,13 @@ class SKOSExportService:
         g.bind("skos", SKOS)
         g.bind("dct", DCTERMS)
         g.bind("owl", OWL)
+        g.bind("rdfs", RDFS)
 
         for scheme_snapshot in vocabulary.concept_schemes:
             self._add_scheme_to_graph(g, scheme_snapshot)
+
+        for snapshot_class in vocabulary.classes:
+            self._add_class_to_graph(g, snapshot_class)
 
         return g.serialize(format=format)
 
@@ -168,3 +173,15 @@ class SKOSExportService:
 
             if concept.id not in has_broader:
                 g.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
+
+    def _add_class_to_graph(self, g: Graph, snapshot_class: SnapshotClass) -> None:
+        """Add an OWL class to an RDF graph."""
+        class_uri = URIRef(snapshot_class.uri)
+
+        g.add((class_uri, RDF.type, OWL.Class))
+        g.add((class_uri, RDFS.label, Literal(snapshot_class.label)))
+
+        if snapshot_class.description:
+            g.add((class_uri, DCTERMS.description, Literal(snapshot_class.description)))
+        if snapshot_class.scope_note:
+            g.add((class_uri, SKOS.scopeNote, Literal(snapshot_class.scope_note)))

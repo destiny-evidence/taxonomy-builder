@@ -5,7 +5,7 @@ from uuid import uuid4, uuid7
 
 import pytest
 from rdflib import Graph
-from rdflib.namespace import DCTERMS, RDF, SKOS
+from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -15,6 +15,7 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.snapshot import (
+    SnapshotClass,
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotScheme,
@@ -579,6 +580,22 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 ],
             )
         ],
+        classes=[
+            SnapshotClass(
+                id=uuid4(),
+                identifier="Study",
+                label="Study",
+                uri="http://example.org/ontology/Study",
+                description="A research study",
+                scope_note="Use for individual studies",
+            ),
+            SnapshotClass(
+                id=uuid4(),
+                identifier="Outcome",
+                label="Outcome",
+                uri="http://example.org/ontology/Outcome",
+            ),
+        ],
     )
 
 
@@ -694,3 +711,74 @@ async def test_export_published_version_multiple_schemes(
     # Should have two concepts total
     concepts = list(g.subjects(RDF.type, SKOS.Concept))
     assert len(concepts) == 3
+
+
+# Class export tests
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_includes_classes(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that OWL classes from the snapshot are included in the export."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should contain both classes
+    classes = list(g.subjects(RDF.type, OWL.Class))
+    assert len(classes) == 2
+
+    class_uris = {str(c) for c in classes}
+    assert "http://example.org/ontology/Study" in class_uris
+    assert "http://example.org/ontology/Outcome" in class_uris
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_class_metadata(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that class metadata (label, description, scope note) is exported."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    study_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.Class) if "Study" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(study_uri, RDFS.label)) == "Study"
+
+    # Should have description
+    assert str(g.value(study_uri, DCTERMS.description)) == "A research study"
+
+    # Should have scope note
+    assert str(g.value(study_uri, SKOS.scopeNote)) == "Use for individual studies"
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_class_without_optional_fields(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that classes without description/scope_note export cleanly."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    outcome_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.Class) if "Outcome" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(outcome_uri, RDFS.label)) == "Outcome"
+
+    # Should not have description or scope note
+    assert g.value(outcome_uri, DCTERMS.description) is None
+    assert g.value(outcome_uri, SKOS.scopeNote) is None
