@@ -31,9 +31,10 @@ describe("ExportModal", () => {
 
   beforeEach(() => {
     // Default: exportScheme resolves with a blob
-    vi.mocked(schemesApi.exportScheme).mockResolvedValue(
-      new Blob(["content"], { type: "text/turtle" })
-    );
+    vi.mocked(schemesApi.exportScheme).mockResolvedValue({
+      blob: new Blob(["content"], { type: "text/turtle" }),
+      filename: "test-scheme.ttl",
+    });
 
     // Mock URL.createObjectURL / revokeObjectURL
     vi.stubGlobal("URL", {

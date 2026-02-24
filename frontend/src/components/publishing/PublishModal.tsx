@@ -9,6 +9,7 @@ import {
 } from "../../api/publishing";
 import { FEEDBACK_URL } from "../../config";
 import { projectsApi } from "../../api/projects";
+import type { ExportFormat } from "../../api/schemes";
 import "./PublishModal.css";
 
 interface PublishModalProps {
@@ -43,6 +44,7 @@ export function PublishModal({
     useState<PublishedVersionRead | null>(null);
   const [copied, setCopied] = useState(false);
   const [exportingVersionId, setExportingVersionId] = useState<string | null>(null);
+  const [exportPickerVersionId, setExportPickerVersionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -84,17 +86,19 @@ export function PublishModal({
     setSubmitting(false);
     setPublishedVersion(null);
     setExportingVersionId(null);
+    setExportPickerVersionId(null);
     onClose();
   }
 
-  async function handleExportVersion(v: PublishedVersionRead) {
+  async function handleExportVersion(v: PublishedVersionRead, format: ExportFormat) {
     setExportingVersionId(v.id);
+    setExportPickerVersionId(null);
     try {
-      const blob = await projectsApi.exportVersion(projectId, v.version, "ttl");
+      const { blob, filename } = await projectsApi.exportVersion(projectId, v.version, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${v.title}.ttl`;
+      if (filename) a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -391,14 +395,32 @@ export function PublishModal({
                         pre-release
                       </span>
                     )}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleExportVersion(v)}
-                      disabled={exportingVersionId === v.id}
-                    >
-                      {exportingVersionId === v.id ? "Exporting…" : "Export"}
-                    </Button>
+                    {exportingVersionId === v.id ? (
+                      <span class="publish-modal__export-status">Exporting…</span>
+                    ) : exportPickerVersionId === v.id ? (
+                      <div class="publish-modal__export-picker">
+                        <Button size="sm" variant="secondary" onClick={() => handleExportVersion(v, "ttl")}>
+                          Turtle
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleExportVersion(v, "xml")}>
+                          RDF/XML
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleExportVersion(v, "jsonld")}>
+                          JSON-LD
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setExportPickerVersionId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setExportPickerVersionId(v.id)}
+                      >
+                        Export
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

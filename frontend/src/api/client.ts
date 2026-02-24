@@ -67,7 +67,12 @@ async function request<T>(
   return response.json();
 }
 
-async function requestBlob(endpoint: string): Promise<Blob> {
+export interface BlobResponse {
+  blob: Blob;
+  filename: string | null;
+}
+
+async function requestBlob(endpoint: string): Promise<BlobResponse> {
   const headers: Record<string, string> = {};
 
   const token = await getToken();
@@ -90,7 +95,11 @@ async function requestBlob(endpoint: string): Promise<Blob> {
     );
   }
 
-  return response.blob();
+  const disposition = response.headers.get("Content-Disposition");
+  const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+  const filename = filenameMatch ? filenameMatch[1] : null;
+
+  return { blob: await response.blob(), filename };
 }
 
 export const api = {

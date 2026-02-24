@@ -17,12 +17,6 @@ const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string 
   { value: "jsonld", label: "JSON-LD (.jsonld)", description: "Web-friendly JSON" },
 ];
 
-const FORMAT_EXTENSIONS: Record<ExportFormat, string> = {
-  ttl: ".ttl",
-  xml: ".rdf",
-  jsonld: ".jsonld",
-};
-
 export function ExportModal({ isOpen, schemeId, schemeTitle, onClose }: ExportModalProps) {
   const [format, setFormat] = useState<ExportFormat>("ttl");
   const [downloading, setDownloading] = useState(false);
@@ -30,11 +24,11 @@ export function ExportModal({ isOpen, schemeId, schemeTitle, onClose }: ExportMo
   async function handleDownload() {
     setDownloading(true);
     try {
-      const blob = await schemesApi.exportScheme(schemeId, format);
+      const { blob, filename } = await schemesApi.exportScheme(schemeId, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${schemeTitle}${FORMAT_EXTENSIONS[format]}`;
+      if (filename) a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

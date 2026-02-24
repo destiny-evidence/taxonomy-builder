@@ -34,6 +34,7 @@ describe("schemesApi.exportScheme", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       blob: () => Promise.resolve(mockBlob),
+      headers: new Headers({ "Content-Disposition": 'attachment; filename="test.ttl"' }),
     });
 
     const result = await schemesApi.exportScheme("abc-123", "ttl");
@@ -42,7 +43,8 @@ describe("schemesApi.exportScheme", () => {
     const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe("/api/schemes/abc-123/export?format=ttl");
     expect(options.headers?.Authorization).toBe("Bearer test-token");
-    expect(result).toBe(mockBlob);
+    expect(result.blob).toBe(mockBlob);
+    expect(result.filename).toBe("test.ttl");
   });
 });
 

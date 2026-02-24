@@ -429,3 +429,16 @@
 .publish-modal__status-badge--pre-release {
   color: var(--color-warning, #d97706);
 }
+
+/* Export format picker */
+.publish-modal__export-picker {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.publish-modal__export-status {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
