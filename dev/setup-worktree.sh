@@ -54,6 +54,7 @@ HASH=$(echo "$BRANCH" | md5sum | cut -c1-4)
 PORT_OFFSET=$((16#$HASH % 100))
 BACKEND_PORT=$((8000 + PORT_OFFSET))
 FRONTEND_PORT=$((3000 + PORT_OFFSET))
+FEEDBACK_PORT=$((4000 + PORT_OFFSET))
 
 # Set Keycloak URL based on DEV_DOMAIN
 if [ -n "$DEV_DOMAIN" ]; then
@@ -67,6 +68,7 @@ echo "  Worktree path: $WORKTREE_PATH"
 echo "  Database: $DB_NAME"
 echo "  Backend port: $BACKEND_PORT"
 echo "  Frontend port: $FRONTEND_PORT"
+echo "  Feedback UI port: $FEEDBACK_PORT"
 echo "  Keycloak: $KEYCLOAK_URL"
 if [ -n "$DEV_DOMAIN" ]; then
     echo "  URL: https://${SAFE_NAME}.${DEV_DOMAIN}"
@@ -99,9 +101,10 @@ cd "$WORKTREE_PATH/backend"
 TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB_NAME" \
     uv run alembic upgrade head
 
-# 4. Seed data
+# 4. Seed data (writes published files to shared blob storage at repo root)
 echo "Seeding database..."
 TAXONOMY_DATABASE_URL="postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/$DB_NAME" \
+TAXONOMY_BLOB_FILESYSTEM_ROOT="$REPO_ROOT/.blob-storage" \
     uv run seed-db
 
 # 5. Create Caddy config (only if DEV_DOMAIN is set)
@@ -112,6 +115,7 @@ if [ -n "$DEV_DOMAIN" ]; then
 https://${SAFE_NAME}.${DEV_DOMAIN} {
 	import published
 	reverse_proxy /api/* host.docker.internal:${BACKEND_PORT}
+	reverse_proxy /feedback/* host.docker.internal:${FEEDBACK_PORT}
 	reverse_proxy host.docker.internal:${FRONTEND_PORT}
 }
 EOF
@@ -178,8 +182,36 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
       }
     },
     {
+      "label": "Feedback UI: Install",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "\${workspaceFolder}/feedback-ui"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Feedback UI",
+      "type": "shell",
+      "command": "npm run dev -- --port ${FEEDBACK_PORT}",
+      "dependsOn": ["Feedback UI: Install"],
+      "options": {
+        "cwd": "\${workspaceFolder}/feedback-ui",
+        "env": {
+          "VITE_KEYCLOAK_URL": "${KEYCLOAK_URL}",
+          "VITE_API_TARGET": "http://localhost:${BACKEND_PORT}"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "group": "dev",
+        "reveal": "always"
+      }
+    },
+    {
       "label": "Dev Servers",
-      "dependsOn": ["Backend", "Frontend"],
+      "dependsOn": ["Backend", "Frontend", "Feedback UI"],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -218,10 +250,12 @@ echo ""
 echo "Open in VS Code:"
 echo "  code $WORKTREE_PATH"
 echo ""
-echo "Then run 'Tasks: Run Build Task' (Cmd+Shift+B) to start both servers."
+echo "Then run 'Tasks: Run Build Task' (Cmd+Shift+B) to start all servers."
 echo ""
 if [ -n "$DEV_DOMAIN" ]; then
     echo "Visit: https://${SAFE_NAME}.${DEV_DOMAIN}"
+    echo "  Feedback UI: https://${SAFE_NAME}.${DEV_DOMAIN}/feedback/"
 else
     echo "Visit: http://localhost:${FRONTEND_PORT}"
+    echo "  Feedback UI: http://localhost:${FEEDBACK_PORT}/feedback/"
 fi
