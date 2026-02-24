@@ -12,12 +12,35 @@ on:
         description: environment to deploy to
         required: true
   workflow_dispatch:
+    inputs:
+      force_feedback_ui:
+        type: boolean
+        description: Deploy feedback UI even if unchanged
+        default: false
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
+  detect-feedback-ui-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for feedback-ui changes
+        id: check
+        run: |
+          if git diff --name-only HEAD~1 | grep -q '^feedback-ui/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
   build-api:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'staging' }}
@@ -81,7 +104,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -105,6 +128,9 @@ jobs:
           retention-days: 1
 
   build-feedback-ui:
+    # Detect changes so we don't purge the cached application if it hasn't changed
+    needs: detect-feedback-ui-changes
+    if: needs.detect-feedback-ui-changes.outputs.changed == 'true' || inputs.force_feedback_ui == true
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'staging' }}
     steps:
@@ -116,7 +142,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: feedback-ui/package-lock.json
 
       - name: Install dependencies
