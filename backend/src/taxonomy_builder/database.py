@@ -87,11 +87,11 @@ async def get_db() -> AsyncIterator[AsyncSession]:
         yield session
 
 
-def get_constraint_name(exc: Exception) -> str | None:
+def get_constraint_name(exc: Exception) -> str:
     """Extract the violated constraint name from an IntegrityError.
 
     Tries DBAPI-specific attributes first (asyncpg, psycopg2),
-    falls back to string matching against the error message.
+    falls back to the stringified exception for callers to match against.
     """
     orig = getattr(exc, "orig", None)
     if orig is not None:
@@ -105,14 +105,5 @@ def get_constraint_name(exc: Exception) -> str | None:
             name = getattr(diag, "constraint_name", None)
             if name:
                 return str(name)
-    # Fallback: search the error message for known constraint names
-    msg = str(exc)
-    for candidate in (
-        "uq_properties_project_uri",
-        "uq_ontology_classes_project_uri",
-        "uq_property_identifier_per_project",
-        "uq_ontology_class_identifier_per_project",
-    ):
-        if candidate in msg:
-            return candidate
-    return None
+    # Fallback: return stringified exception for caller to match against
+    return str(exc)

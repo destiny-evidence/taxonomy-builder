@@ -8,6 +8,7 @@ from taxonomy_builder.schemas.ontology_class import OntologyClassCreate, Ontolog
 from taxonomy_builder.services.ontology_class_service import (
     OntologyClassService,
     OntologyClassURIExistsError,
+    ProjectNamespaceRequiredError,
 )
 from taxonomy_builder.services.project_service import ProjectService
 
@@ -77,11 +78,11 @@ class TestCreateOntologyClassURI:
         project_no_namespace: Project,
         ontology_class_service: OntologyClassService,
     ) -> None:
-        """Create without namespace and no explicit URI raises ValueError."""
+        """Create without namespace and no explicit URI raises ProjectNamespaceRequiredError."""
         cls_in = OntologyClassCreate(
             identifier="Finding", label="Finding"
         )
-        with pytest.raises(ValueError, match="namespace"):
+        with pytest.raises(ProjectNamespaceRequiredError):
             await ontology_class_service.create_ontology_class(
                 project_no_namespace.id, cls_in
             )

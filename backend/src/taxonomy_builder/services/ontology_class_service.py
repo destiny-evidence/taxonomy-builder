@@ -45,6 +45,16 @@ class OntologyClassURIExistsError(Exception):
         )
 
 
+class ProjectNamespaceRequiredError(Exception):
+    """Raised when a project namespace is needed but not set."""
+
+    def __init__(self, project_id: UUID) -> None:
+        self.project_id = project_id
+        super().__init__(
+            "Project namespace required to create ontology classes without explicit URI"
+        )
+
+
 class OntologyClassService:
     """Service for managing ontology classes."""
 
@@ -91,11 +101,9 @@ class OntologyClassService:
         if ontology_class_in.uri:
             uri = ontology_class_in.uri
         elif project.namespace:
-            uri = project.namespace.rstrip("/") + "/" + ontology_class_in.identifier
+            uri = project.namespace.strip().rstrip("/") + "/" + ontology_class_in.identifier
         else:
-            raise ValueError(
-                "Project namespace required to create ontology classes without explicit URI"
-            )
+            raise ProjectNamespaceRequiredError(project_id)
 
         ontology_class = OntologyClass(
             project_id=project_id,
@@ -113,11 +121,13 @@ class OntologyClassService:
         except IntegrityError as e:
             await self.db.rollback()
             constraint = get_constraint_name(e)
-            if constraint == "uq_ontology_classes_project_uri":
+            if "uq_ontology_classes_project_uri" in constraint:
                 raise OntologyClassURIExistsError(uri, project_id)
-            raise OntologyClassIdentifierExistsError(
-                ontology_class_in.identifier, project_id
-            )
+            if "uq_ontology_class_identifier_per_project" in constraint:
+                raise OntologyClassIdentifierExistsError(
+                    ontology_class_in.identifier, project_id
+                )
+            raise
 
         await self._tracker.record(
             project_id=project_id,
@@ -190,12 +200,19 @@ class OntologyClassService:
         try:
             await self.db.flush()
             await self.db.refresh(ontology_class)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
-            identifier = update_data.get("identifier", ontology_class.identifier)
-            raise OntologyClassIdentifierExistsError(
-                identifier, ontology_class.project_id
-            )
+            constraint = get_constraint_name(e)
+            if "uq_ontology_classes_project_uri" in constraint:
+                raise OntologyClassURIExistsError(
+                    ontology_class.uri, ontology_class.project_id
+                )
+            if "uq_ontology_class_identifier_per_project" in constraint:
+                identifier = update_data.get("identifier", ontology_class.identifier)
+                raise OntologyClassIdentifierExistsError(
+                    identifier, ontology_class.project_id
+                )
+            raise
 
         await self._tracker.record(
             project_id=ontology_class.project_id,

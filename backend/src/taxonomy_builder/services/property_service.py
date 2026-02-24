@@ -76,6 +76,16 @@ class PropertyURIExistsError(Exception):
         )
 
 
+class ProjectNamespaceRequiredError(Exception):
+    """Raised when a project namespace is needed but not set."""
+
+    def __init__(self, project_id: UUID) -> None:
+        self.project_id = project_id
+        super().__init__(
+            "Project namespace required to create properties without explicit URI"
+        )
+
+
 class PropertyService:
     """Service for managing properties."""
 
@@ -181,11 +191,9 @@ class PropertyService:
         if property_in.uri:
             uri = property_in.uri
         elif project.namespace:
-            uri = project.namespace.rstrip("/") + "/" + property_in.identifier
+            uri = project.namespace.strip().rstrip("/") + "/" + property_in.identifier
         else:
-            raise ValueError(
-                "Project namespace required to create properties without explicit URI"
-            )
+            raise ProjectNamespaceRequiredError(project_id)
 
         # Create property
         prop = Property(
@@ -209,9 +217,11 @@ class PropertyService:
         except IntegrityError as e:
             await self.db.rollback()
             constraint = get_constraint_name(e)
-            if constraint == "uq_properties_project_uri":
+            if "uq_properties_project_uri" in constraint:
                 raise PropertyURIExistsError(uri, project_id)
-            raise PropertyIdentifierExistsError(property_in.identifier, project_id)
+            if "uq_property_identifier_per_project" in constraint:
+                raise PropertyIdentifierExistsError(property_in.identifier, project_id)
+            raise
 
         # Record change event
         await self._tracker.record(
