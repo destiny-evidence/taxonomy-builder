@@ -4,7 +4,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix destiny: <https://destiny.example.org/vocab/> .
+@prefix evrepo: <https://evrepo.example.org/vocab/> .
 @prefix esea: <https://esea.example.org/vocab/> .
 
 # =============================================================================
@@ -27,7 +27,7 @@ esea: a owl:Ontology ;
     rdfs:comment """Education Sector Evidence Architecture vocabulary for 
     coding education research. Extends DESTINY Core with education-specific 
     properties and controlled vocabularies.""" ;
-    owl:imports destiny: ;
+    owl:imports evrepo: ;
     dcterms:created "2025-01-01"^^xsd:date ;
     owl:versionInfo "0.1.0" .
 
@@ -99,61 +99,61 @@ esea:EffectSizeType a owl:Class ;
 esea:educationLevel a owl:ObjectProperty ;
     rdfs:label "education level" ;
     rdfs:comment "The ISCED education level of the target population." ;
-    rdfs:domain destiny:Finding ;
+    rdfs:domain evrepo:Finding ;
     rdfs:range esea:EducationLevel .
 
 esea:educationSetting a owl:ObjectProperty ;
     rdfs:label "education setting" ;
     rdfs:comment "The type of educational institution or delivery context." ;
-    rdfs:domain destiny:Context ;
+    rdfs:domain evrepo:Context ;
     rdfs:range esea:EducationSetting .
 
 esea:educationTheme a owl:ObjectProperty ;
     rdfs:label "education theme" ;
     rdfs:comment "Strategic domain of focus within education systems." ;
-    rdfs:domain destiny:Intervention ;
+    rdfs:domain evrepo:Intervention ;
     rdfs:range esea:EducationTheme .
 
 esea:educationOutcome a owl:ObjectProperty ;
     rdfs:label "education outcome" ;
     rdfs:comment "Education-specific outcome type classification." ;
-    rdfs:domain destiny:Outcome ;
+    rdfs:domain evrepo:Outcome ;
     rdfs:range esea:EducationOutcome .
 
 esea:studyDesign a owl:ObjectProperty ;
     rdfs:label "study design" ;
     rdfs:comment "Research methodology used in the investigation." ;
-    rdfs:domain destiny:Investigation ;
+    rdfs:domain evrepo:Investigation ;
     rdfs:range esea:StudyDesign .
 
 esea:implementerType a owl:ObjectProperty ;
     rdfs:label "implementer type" ;
     rdfs:comment "Category of implementing organisation." ;
-    rdfs:domain destiny:Intervention ;
+    rdfs:domain evrepo:Intervention ;
     rdfs:range esea:ImplementerType .
 
 esea:implementationComponent a owl:ObjectProperty ;
     rdfs:label "implementation component" ;
     rdfs:comment "Elements included in delivery (training, materials, etc.). Multiple values allowed." ;
-    rdfs:domain destiny:Intervention ;
+    rdfs:domain evrepo:Intervention ;
     rdfs:range esea:ImplementationComponent .
 
 esea:implementationFidelity a owl:ObjectProperty ;
     rdfs:label "implementation fidelity" ;
     rdfs:comment "Type of fidelity information provided." ;
-    rdfs:domain destiny:Intervention ;
+    rdfs:domain evrepo:Intervention ;
     rdfs:range esea:FidelityType .
 
 esea:sampleFeature a owl:ObjectProperty ;
     rdfs:label "sample feature" ;
     rdfs:comment "Key demographic or equity characteristic of the sample. Multiple values allowed." ;
-    rdfs:domain destiny:Finding ;
+    rdfs:domain evrepo:Finding ;
     rdfs:range esea:SampleFeature .
 
 esea:participantType a owl:ObjectProperty ;
     rdfs:label "participant type" ;
     rdfs:comment "Type of participants (students, teachers, etc.)." ;
-    rdfs:domain destiny:Finding ;
+    rdfs:domain evrepo:Finding ;
     rdfs:range esea:ParticipantType .
 
 
@@ -165,13 +165,13 @@ esea:hasBaselineDifferences a owl:DatatypeProperty ;
     rdfs:label "has baseline differences" ;
     rdfs:comment """Whether the study reports group differences at baseline.
     Relevant for RCTs and QEDs where group comparisons are made.""" ;
-    rdfs:domain destiny:Investigation ;
+    rdfs:domain evrepo:Investigation ;
     rdfs:range xsd:boolean .
 
 esea:hasCostData a owl:DatatypeProperty ;
     rdfs:label "has cost data" ;
     rdfs:comment "Whether the study contains quantitative costing information." ;
-    rdfs:domain destiny:Investigation ;
+    rdfs:domain evrepo:Investigation ;
     rdfs:range xsd:boolean .
 
 

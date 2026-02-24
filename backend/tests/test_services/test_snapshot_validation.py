@@ -14,7 +14,7 @@ from taxonomy_builder.services.snapshot_service import validate_snapshot
 
 
 def _project_meta() -> SnapshotProjectMetadata:
-    return SnapshotProjectMetadata(id=uuid4(), name="Test")
+    return SnapshotProjectMetadata(id=uuid4(), name="Test", namespace="http://example.org/")
 
 
 def _vocab(

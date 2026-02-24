@@ -15,7 +15,7 @@ from taxonomy_builder.services.snapshot_service import compute_diff
 
 
 def _project_meta() -> SnapshotProjectMetadata:
-    return SnapshotProjectMetadata.model_construct(id=uuid4(), name="Test")
+    return SnapshotProjectMetadata.model_construct(id=uuid4(), name="Test", namespace="http://example.org/")
 
 
 def _vocab(
