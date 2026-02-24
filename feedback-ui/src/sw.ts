@@ -9,6 +9,8 @@ import {
   API_CACHE_MAX_AGE_SECONDS,
   API_CACHE_MAX_ENTRIES,
   ASSETS_CACHE_MAX_AGE_SECONDS,
+  PUBLISHED_INDEX_MAX_AGE_SECONDS,
+  PUBLISHED_VOCAB_MAX_AGE_SECONDS,
 } from "./sw-config";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -17,7 +19,11 @@ declare const self: ServiceWorkerGlobalScope;
 // Falls back to empty array when no injection step is configured.
 precacheAndRoute(self.__WB_MANIFEST ?? []);
 
-// API responses: network-first with cache fallback
+// ---------------------------------------------------------------------------
+// Feedback API
+// ---------------------------------------------------------------------------
+
+// GET: network-first with cache fallback
 registerRoute(
   ({ url }) => url.pathname.startsWith("/api/feedback/"),
   new NetworkFirst({
@@ -31,7 +37,69 @@ registerRoute(
   })
 );
 
-// Static assets: cache-first (hashed filenames make them immutable)
+// POST / DELETE: forward to network, then refresh the GET cache so the UI
+// has fresh data immediately (even if the user goes offline right after).
+for (const method of ["POST", "DELETE"] as const) {
+  registerRoute(
+    ({ url }) => url.pathname.startsWith("/api/feedback/"),
+    {
+      handle: async ({ request, url }) => {
+        const response = await fetch(request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAMES.api);
+          try {
+            const fresh = await fetch(url.href);
+            if (fresh.ok) await cache.put(url.href, fresh);
+          } catch {
+            // offline — GET cache will refresh next time
+          }
+        }
+        return response;
+      },
+    },
+    method
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Published taxonomy files (blob storage served via /published/*)
+// ---------------------------------------------------------------------------
+
+// Vocabulary files are immutable (versioned URL) — cache aggressively
+registerRoute(
+  ({ url }) =>
+    url.pathname.startsWith("/published/") &&
+    url.pathname.endsWith("/vocabulary.json"),
+  new CacheFirst({
+    cacheName: CACHE_NAMES.published,
+    plugins: [
+      new ExpirationPlugin({
+        maxAgeSeconds: PUBLISHED_VOCAB_MAX_AGE_SECONDS,
+      }),
+    ],
+  })
+);
+
+// Index files are mutable (regenerated on publish) — network-first
+registerRoute(
+  ({ url }) =>
+    url.pathname.startsWith("/published/") &&
+    url.pathname.endsWith("/index.json"),
+  new NetworkFirst({
+    cacheName: CACHE_NAMES.published,
+    plugins: [
+      new ExpirationPlugin({
+        maxAgeSeconds: PUBLISHED_INDEX_MAX_AGE_SECONDS,
+      }),
+    ],
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Static assets
+// ---------------------------------------------------------------------------
+
+// Cache-first (hashed filenames make them immutable)
 registerRoute(
   ({ request }) =>
     request.destination === "script" ||

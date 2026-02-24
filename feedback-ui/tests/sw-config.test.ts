@@ -4,6 +4,8 @@ import {
   API_CACHE_MAX_AGE_SECONDS,
   API_CACHE_MAX_ENTRIES,
   ASSETS_CACHE_MAX_AGE_SECONDS,
+  PUBLISHED_INDEX_MAX_AGE_SECONDS,
+  PUBLISHED_VOCAB_MAX_AGE_SECONDS,
 } from "../src/sw-config";
 
 describe("sw-config", () => {
@@ -28,5 +30,13 @@ describe("sw-config", () => {
 
   it("assets cache max age is at least 1 day", () => {
     expect(ASSETS_CACHE_MAX_AGE_SECONDS).toBeGreaterThanOrEqual(86400);
+  });
+
+  it("published index max age is positive", () => {
+    expect(PUBLISHED_INDEX_MAX_AGE_SECONDS).toBeGreaterThan(0);
+  });
+
+  it("published vocab max age is at least 1 day", () => {
+    expect(PUBLISHED_VOCAB_MAX_AGE_SECONDS).toBeGreaterThanOrEqual(86400);
   });
 });

@@ -10,6 +10,8 @@ export const CACHE_NAMES = {
   api: "feedback-api-v1",
   /** Immutable static assets (JS, CSS, fonts) */
   assets: "static-assets-v1",
+  /** Published vocabulary files from blob storage */
+  published: "published-v1",
 } as const;
 
 /** Max age in seconds for API cache entries */
@@ -20,3 +22,9 @@ export const API_CACHE_MAX_ENTRIES = 50;
 
 /** Max age in seconds for static asset cache entries */
 export const ASSETS_CACHE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
+/** Max age in seconds for published index files (mutable) */
+export const PUBLISHED_INDEX_MAX_AGE_SECONDS = 300;
+
+/** Max age in seconds for published vocabulary files (immutable, versioned URL) */
+export const PUBLISHED_VOCAB_MAX_AGE_SECONDS = 365 * 24 * 60 * 60; // 1 year
