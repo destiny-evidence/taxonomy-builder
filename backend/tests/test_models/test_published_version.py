@@ -77,6 +77,7 @@ async def test_unique_version_per_project(
         project_id=project.id,
         version="1.0",
         title="First",
+        published_at=datetime.now(),
         snapshot={},
     )
     db_session.add(v1)
@@ -86,6 +87,7 @@ async def test_unique_version_per_project(
         project_id=project.id,
         version="1.0",
         title="Duplicate",
+        published_at=datetime.now(),
         snapshot={},
     )
     db_session.add(v2)
@@ -103,12 +105,14 @@ async def test_same_version_different_projects(
         project_id=project.id,
         version="1.0",
         title="Project 1 Release",
+        published_at=datetime.now(),
         snapshot={},
     )
     v2 = PublishedVersion(
         project_id=other_project.id,
         version="1.0",
         title="Project 2 Release",
+        published_at=datetime.now(),
         snapshot={},
     )
     db_session.add_all([v1, v2])
@@ -188,6 +192,7 @@ async def test_cascade_delete_with_project(
         project_id=project.id,
         version="1.0",
         title="Release",
+        published_at=datetime.now(),
         snapshot={"concept_schemes": []},
     )
     db_session.add(version)
@@ -254,6 +259,7 @@ async def test_jsonb_round_trip(db_session: AsyncSession, project: Project) -> N
         project_id=project.id,
         version="1.0",
         title="Full Snapshot",
+        published_at=datetime.now(),
         snapshot=snapshot,
     )
     db_session.add(version)
@@ -277,6 +283,7 @@ async def test_version_sort_key(
         version="1.2.3",
         title="Three-part",
         finalized=True,
+        published_at=datetime.now(),
         snapshot={},
     )
     v2 = PublishedVersion(
@@ -284,6 +291,7 @@ async def test_version_sort_key(
         version="2.0",
         title="Two-part",
         finalized=True,
+        published_at=datetime.now(),
         snapshot={},
     )
     db_session.add_all([v3, v2])
@@ -305,6 +313,7 @@ async def test_version_sort_key_pre_release(
         version="1.0-pre1",
         title="Pre 1",
         finalized=False,
+        published_at=datetime.now(),
         snapshot={},
     )
     pre2 = PublishedVersion(
@@ -312,6 +321,7 @@ async def test_version_sort_key_pre_release(
         version="1.0-pre2",
         title="Pre 2",
         finalized=False,
+        published_at=datetime.now(),
         snapshot={},
     )
     release = PublishedVersion(
@@ -319,6 +329,7 @@ async def test_version_sort_key_pre_release(
         version="1.0",
         title="Release",
         finalized=True,
+        published_at=datetime.now(),
         snapshot={},
     )
     db_session.add_all([pre1, pre2, release])
@@ -344,6 +355,7 @@ async def test_pre_release_sorts_before_release(
                 version=v,
                 title=f"V{v}",
                 finalized=not v.endswith(("-pre1", "-pre2")),
+                published_at=datetime.now(),
                 snapshot={},
             )
         )

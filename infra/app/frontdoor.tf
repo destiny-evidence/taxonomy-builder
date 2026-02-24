@@ -170,7 +170,7 @@ resource "azurerm_cdn_frontdoor_route" "published" {
   }
 }
 
-# Cache rule set for published content — 365-day TTL, purged on publish
+# Cache rule set for published content — CDN caches aggressively, purged on publish
 resource "azurerm_cdn_frontdoor_rule_set" "published_cache" {
   name                     = "publishedcache"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
@@ -188,14 +188,27 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
       compression_enabled           = true
       query_string_caching_behavior = "IgnoreQueryString"
     }
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Cache-Control"
+      # Browser caches content but checks with FrontDoor each time.
+      # In the future we may consider a TTL here for local caching.
+      value = "no-cache"
+    }
   }
 }
 
 # API identity needs permission to purge cached content on publish
+# Role "CDN Front Door Purge" is created manually at the subscription level
+data "azurerm_role_definition" "cdn_purge" {
+  name  = "CDN Front Door Purge"
+  scope = data.azurerm_subscription.current.id
+}
+
 resource "azurerm_role_assignment" "api_cdn_purger" {
-  role_definition_name = "CDN Endpoint Contributor"
-  scope                = azurerm_cdn_frontdoor_profile.this.id
-  principal_id         = azurerm_user_assigned_identity.api.principal_id
+  role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
+  scope              = azurerm_cdn_frontdoor_profile.this.id
+  principal_id       = azurerm_user_assigned_identity.api.principal_id
 }
 
 resource "azurerm_cdn_frontdoor_route" "keycloak" {

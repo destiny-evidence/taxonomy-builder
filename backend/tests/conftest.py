@@ -6,7 +6,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+import taxonomy_builder.blob_store as blob_store_module
 from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
+from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import Base, db_manager, get_db
 from taxonomy_builder.main import app
@@ -18,8 +20,6 @@ from taxonomy_builder.services.core_ontology_service import get_core_ontology
 async def _init_db() -> AsyncGenerator[None, None]:
     """Initialize database manager for test session."""
     db_manager.init(settings.test_database_url)
-    # Warm the core ontology cache (normally done in app lifespan, but test
-    # client doesn't trigger lifespan)
     get_core_ontology()
     async with db_manager.engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -27,6 +27,26 @@ async def _init_db() -> AsyncGenerator[None, None]:
     async with db_manager.engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await db_manager.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _init_blob_store(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Initialise blob store and CDN purger singletons for the test session.
+
+    The app lifespan (which normally does this) is not triggered by test
+    clients, so we do it here instead.
+    """
+    root = tmp_path_factory.mktemp("blob-storage")
+    blob_store_module._blob_store = FilesystemBlobStore(root=root)
+    blob_store_module._cdn_purger = NoOpPurger()
+
+
+@pytest.fixture
+def blob_store() -> FilesystemBlobStore:
+    """Access the test blob store singleton for assertions."""
+    store = blob_store_module._blob_store
+    assert isinstance(store, FilesystemBlobStore)
+    return store
 
 
 @pytest.fixture

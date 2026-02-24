@@ -1,5 +1,6 @@
 """Integration tests for the publishing API endpoints."""
 
+import json
 from uuid import uuid4
 
 import pytest
@@ -7,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.blob_store import FilesystemBlobStore
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
@@ -136,15 +138,14 @@ class TestPreview:
         assert data["latest_pre_release_version"] == "1.0-pre1"
 
     @pytest.mark.asyncio
-    async def test_preview_pre_release_always_major_bump(
+    async def test_preview_suggestions_continue_fresh_pre_release(
         self, authenticated_client: AsyncClient, publishable_project: Project
     ) -> None:
-        """Pre-release suggestion always uses major bump even for minor diffs."""
+        """When a pre-release is fresher than finalized, both suggestions use its base."""
         await authenticated_client.post(
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "1.0", "title": "V1"},
         )
-        # Publish a pre-release at the major bump version
         await authenticated_client.post(
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "2.0-pre1", "title": "Pre 1", "pre_release": True},
@@ -153,10 +154,50 @@ class TestPreview:
             f"/api/projects/{publishable_project.id}/publish/preview"
         )
         data = resp.json()
-        # Release uses diff-based minor bump, pre-release uses major bump
-        assert data["suggested_version"] == "1.1"
+        assert data["suggested_version"] == "2.0"
         assert data["suggested_pre_release_version"] == "2.0-pre2"
         assert data["latest_version"] == "1.0"
+        assert data["latest_pre_release_version"] == "2.0-pre1"
+
+    @pytest.mark.asyncio
+    async def test_preview_suggestions_follow_fresh_pre_release(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        """When a pre-release is fresher than the latest finalized, both suggestions
+        derive from its base version instead of recomputing from scratch."""
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        # User chose a minor-bump pre-release, not the suggested major bump
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.1-pre1", "title": "Pre", "pre_release": True},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        data = resp.json()
+        assert data["suggested_version"] == "1.1"
+        assert data["suggested_pre_release_version"] == "1.1-pre2"
+        assert data["latest_pre_release_version"] == "1.1-pre1"
+
+    @pytest.mark.asyncio
+    async def test_preview_suggestions_follow_fresh_pre_release_no_finalized(
+        self, authenticated_client: AsyncClient, publishable_project: Project
+    ) -> None:
+        """When no finalized version exists, suggestions derive from the pre-release base."""
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "2.0-pre1", "title": "Pre", "pre_release": True},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        data = resp.json()
+        assert data["suggested_version"] == "2.0"
+        assert data["suggested_pre_release_version"] == "2.0-pre2"
+        assert data["latest_version"] is None
         assert data["latest_pre_release_version"] == "2.0-pre1"
 
     @pytest.mark.asyncio
@@ -406,3 +447,50 @@ class TestListVersions:
         assert data[0]["finalized"] is False
         assert data[1]["version"] == "1.0"
         assert data[1]["finalized"] is True
+
+
+class TestReaderFiles:
+    """Verify that publishing writes reader files to blob storage."""
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_vocabulary_file(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        assert resp.status_code == 201
+        path = f"{publishable_project.id}/1.0/vocabulary.json"
+        assert await blob_store.exists(path)
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_project_index(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        path = f"{publishable_project.id}/index.json"
+        assert await blob_store.exists(path)
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_root_index(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        data = json.loads((blob_store._root / "index.json").read_bytes())
+        assert any(p["id"] == str(publishable_project.id) for p in data["projects"])

@@ -66,7 +66,7 @@ class PublishedVersionRead(BaseModel):
     title: str
     notes: str | None = None
     finalized: bool
-    published_at: datetime | None = None
+    published_at: datetime
     publisher: str | None = None
     latest: bool = False
 
