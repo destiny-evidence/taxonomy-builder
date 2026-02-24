@@ -318,6 +318,7 @@
         }
       ],
       "taxonomy-builder-ui": [],
+      "taxonomy-feedback-ui": [],
       "broker": [
         {
           "id": "4b6dcc65-0618-4296-8802-b4a58226f325",
@@ -885,6 +886,53 @@
         "acr",
         "roles",
         "taxonomy-builder-api-scope",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "organization",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "id": "f4a2b8c1-6d3e-4f5a-9b1c-7e8d2f4a6b3c",
+      "clientId": "taxonomy-feedback-ui",
+      "name": "Taxonomy Feedback UI",
+      "description": "",
+      "rootUrl": "",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "post.logout.redirect.uris": "+"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": false,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
         "feedback-api-scope",
         "profile",
         "basic",

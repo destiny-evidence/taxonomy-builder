@@ -112,7 +112,23 @@ resource "keycloak_generic_role_mapper" "feedback_scope_role" {
   role_id         = keycloak_role.feedback_user.id
 }
 
-# --- UI client scopes ---
+# Feedback UI Client (public, standard flow for browser authentication)
+resource "keycloak_openid_client" "feedback_ui" {
+  realm_id  = local.keycloak_realm_id
+  client_id = "taxonomy-feedback-ui"
+  name      = "Taxonomy Feedback UI"
+  enabled   = true
+
+  access_type                  = "PUBLIC"
+  standard_flow_enabled        = true
+  direct_access_grants_enabled = false
+  full_scope_allowed           = false
+
+  valid_redirect_uris = ["https://${var.custom_domain}/feedback/*"]
+  web_origins         = ["https://${var.custom_domain}"]
+}
+
+# --- Client scopes ---
 
 resource "keycloak_openid_client_default_scopes" "ui" {
   realm_id  = local.keycloak_realm_id
@@ -127,6 +143,21 @@ resource "keycloak_openid_client_default_scopes" "ui" {
     "web-origins",
     "acr",
     keycloak_openid_client_scope.api.name,
+  ]
+}
+
+resource "keycloak_openid_client_default_scopes" "feedback_ui" {
+  realm_id  = local.keycloak_realm_id
+  client_id = keycloak_openid_client.feedback_ui.id
+
+  default_scopes = [
+    "openid",
+    "profile",
+    "email",
+    "basic",
+    "roles",
+    "web-origins",
+    "acr",
     keycloak_openid_client_scope.feedback_api.name,
   ]
 }

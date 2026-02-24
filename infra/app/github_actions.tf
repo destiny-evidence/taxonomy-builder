@@ -209,6 +209,13 @@ resource "github_actions_environment_variable" "keycloak_client_id" {
   value         = "taxonomy-builder-ui"
 }
 
+resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "KEYCLOAK_FEEDBACK_CLIENT_ID"
+  value         = "taxonomy-feedback-ui"
+}
+
 # Feedback UI deployment variables
 
 resource "github_actions_environment_variable" "feedback_storage_account_name" {
