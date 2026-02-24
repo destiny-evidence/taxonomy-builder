@@ -8,6 +8,8 @@ from taxonomy_builder.api.dependencies import CurrentUser, OptionalUser
 
 feedback_router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
+FEEDBACK_CACHE_CONTROL = "public, max-age=5, stale-while-revalidate=300"
+
 
 @feedback_router.get("/ui/{project_id}")
 async def get_feedback(
@@ -18,8 +20,7 @@ async def get_feedback(
     return Response(
         content="[]",
         media_type="application/json",
-        # Cache for 5 seconds, allow stale data for 5 minutes while revalidating
-        headers={"Cache-Control": "public, max-age=5, stale-while-revalidate=300"},
+        headers={"Cache-Control": FEEDBACK_CACHE_CONTROL},
     )
 
 

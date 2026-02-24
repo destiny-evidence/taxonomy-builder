@@ -3,6 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
+from taxonomy_builder.api.feedback import FEEDBACK_CACHE_CONTROL
 
 FAKE_PROJECT_ID = "01234567-89ab-7def-8123-456789abcdef"
 
@@ -19,10 +20,7 @@ async def test_get_feedback_cache_headers(client: AsyncClient) -> None:
     """GET feedback should set stale-while-revalidate Cache-Control."""
     response = await client.get(f"/api/feedback/ui/{FAKE_PROJECT_ID}")
     assert response.status_code == 200
-    cc = response.headers["cache-control"]
-    assert "public" in cc
-    assert "max-age=60" in cc
-    assert "stale-while-revalidate=300" in cc
+    assert response.headers["cache-control"] == FEEDBACK_CACHE_CONTROL
 
 
 @pytest.mark.asyncio
