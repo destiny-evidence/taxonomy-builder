@@ -161,8 +161,20 @@ variable "project" {
 
 # Front Door
 variable "custom_domain" {
-  description = "Custom domain for Front Door (e.g., taxonomy.example.com)"
+  description = "Base domain (e.g., evidence-repository.org)"
   type        = string
+}
+
+variable "builder_subdomain" {
+  description = "Subdomain prefix for the builder UI (e.g., taxonomy-beta)"
+  type        = string
+  default     = "taxonomy-beta"
+}
+
+variable "feedback_subdomain" {
+  description = "Subdomain prefix for the reader UI (e.g., taxonomy-reader-beta)"
+  type        = string
+  default     = "taxonomy-reader-beta"
 }
 
 variable "cache_feedback_ui_at_edge" {

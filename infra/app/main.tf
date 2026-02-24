@@ -78,7 +78,7 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = "https://${var.custom_domain}"
+      value = "https://${local.builder_custom_domain}"
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"

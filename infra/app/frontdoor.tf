@@ -441,9 +441,9 @@ resource "azurerm_cdn_frontdoor_route" "keycloak" {
 
 # Custom domain
 resource "azurerm_cdn_frontdoor_custom_domain" "this" {
-  name                     = replace(var.custom_domain, ".", "-")
+  name                     = replace(local.builder_custom_domain, ".", "-")
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
-  host_name                = var.custom_domain
+  host_name                = local.builder_custom_domain
 
   tls {
     certificate_type    = "ManagedCertificate"

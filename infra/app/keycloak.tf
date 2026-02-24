@@ -76,8 +76,8 @@ resource "keycloak_openid_client" "ui" {
   direct_access_grants_enabled = false
   full_scope_allowed           = false
 
-  valid_redirect_uris = ["https://${var.custom_domain}/*"]
-  web_origins         = ["https://${var.custom_domain}"]
+  valid_redirect_uris = ["https://${local.builder_custom_domain}/*"]
+  web_origins         = ["https://${local.builder_custom_domain}"]
 }
 
 # --- Feedback ---

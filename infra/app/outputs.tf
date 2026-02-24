@@ -20,7 +20,7 @@ output "frontdoor_endpoint_hostname" {
 
 output "frontdoor_custom_domain_validation_token" {
   description = "DNS TXT record value for custom domain validation (add as _dnsauth.yourdomain)"
-  value       = var.custom_domain != null ? azurerm_cdn_frontdoor_custom_domain.this.validation_token : null
+  value       = azurerm_cdn_frontdoor_custom_domain.this.validation_token
 }
 
 output "postgresql_server_fqdn" {
@@ -61,5 +61,5 @@ output "feedback_frontdoor_custom_domain_validation_token" {
 
 output "keycloak_issuer_url" {
   description = "Keycloak issuer URL for OIDC configuration"
-  value       = "https://${var.custom_domain}/realms/${var.keycloak_realm_name}"
+  value       = "https://${local.builder_custom_domain}/realms/${var.keycloak_realm_name}"
 }
