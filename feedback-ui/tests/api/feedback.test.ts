@@ -14,7 +14,7 @@ describe("feedback api", () => {
   });
 
   describe("postFeedback", () => {
-    it("calls POST /feedback/ui/{projectId} with body", async () => {
+    it("calls POST /feedback/{projectId} with body", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -24,7 +24,7 @@ describe("feedback api", () => {
       const result = await postFeedback("proj-123", "Looks good!");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "/api/feedback/ui/proj-123",
+        "/api/feedback/proj-123",
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ body: "Looks good!" }),
