@@ -52,6 +52,16 @@ resource "azurerm_cdn_frontdoor_origin_group" "published" {
   }
 }
 
+resource "azurerm_cdn_frontdoor_origin_group" "feedback" {
+  name                     = "feedback-origin-group"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+
+  load_balancing {
+    sample_size                 = 4
+    successful_samples_required = 3
+  }
+}
+
 resource "azurerm_cdn_frontdoor_origin_group" "keycloak" {
   name                     = "keycloak-origin-group"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
@@ -102,6 +112,18 @@ resource "azurerm_cdn_frontdoor_origin" "published" {
   http_port                      = 80
   https_port                     = 443
   origin_host_header             = azurerm_storage_account.published.primary_blob_host
+  certificate_name_check_enabled = true
+}
+
+resource "azurerm_cdn_frontdoor_origin" "feedback" {
+  name                          = "feedback-origin"
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.feedback.id
+
+  enabled                        = true
+  host_name                      = azurerm_storage_account.feedback.primary_web_host
+  http_port                      = 80
+  https_port                     = 443
+  origin_host_header             = azurerm_storage_account.feedback.primary_web_host
   certificate_name_check_enabled = true
 }
 
@@ -198,6 +220,119 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
   }
 }
 
+# --- Feedback UI ---
+
+# Feedback UI route — serves the feedback SPA from blob storage
+resource "azurerm_cdn_frontdoor_route" "feedback" {
+  name                          = "feedback-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.feedback.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.feedback.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/feedback/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = true
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+  cdn_frontdoor_rule_set_ids      = [azurerm_cdn_frontdoor_rule_set.feedback_cache.id]
+
+  cache {
+    query_string_caching_behavior = "IgnoreQueryString"
+    compression_enabled           = true
+    content_types_to_compress     = ["text/html", "application/javascript", "text/css", "application/json"]
+  }
+}
+
+# Feedback API route — caching enabled so Front Door honors Cache-Control headers
+resource "azurerm_cdn_frontdoor_route" "feedback_api" {
+  name                          = "feedback-api-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/api/feedback/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = true
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+
+  cache {
+    query_string_caching_behavior = "UseQueryString"
+    compression_enabled           = true
+    content_types_to_compress     = ["application/json"]
+  }
+}
+
+# Cache rule set for feedback UI static assets — purged on deploy
+resource "azurerm_cdn_frontdoor_rule_set" "feedback_cache" {
+  name                     = "feedbackcache"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+}
+
+# Rewrite /feedback/* → /* so blob storage serves files from root
+resource "azurerm_cdn_frontdoor_rule" "feedback_rewrite" {
+  name                      = "FeedbackRewrite"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
+  order                     = 1
+
+  actions {
+    url_rewrite_action {
+      source_pattern          = "/feedback/"
+      destination             = "/"
+      preserve_unmatched_path = true
+    }
+  }
+}
+
+# Cache hashed static assets aggressively (JS, CSS, fonts, images)
+resource "azurerm_cdn_frontdoor_rule" "feedback_cache_assets" {
+  name                      = "FeedbackCacheAssets"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
+  order                     = 2
+
+  conditions {
+    url_file_extension_condition {
+      operator     = "Equal"
+      match_values = ["js", "css", "woff", "woff2", "png", "jpg", "svg", "ico"]
+    }
+  }
+
+  actions {
+    route_configuration_override_action {
+      cache_behavior                = "OverrideAlways"
+      cache_duration                = "30.00:00:00"
+      compression_enabled           = true
+      query_string_caching_behavior = "IgnoreQueryString"
+    }
+  }
+}
+
+# HTML files: browser revalidates with Front Door each time
+resource "azurerm_cdn_frontdoor_rule" "feedback_html_no_cache" {
+  name                      = "FeedbackHtmlNoCache"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
+  order                     = 3
+
+  conditions {
+    url_file_extension_condition {
+      operator     = "Equal"
+      match_values = ["html"]
+    }
+  }
+
+  actions {
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Cache-Control"
+      value         = "no-cache"
+    }
+  }
+}
+
 # API identity needs permission to purge cached content on publish
 # Role "CDN Front Door Purge" is created manually at the subscription level
 data "azurerm_role_definition" "cdn_purge" {
@@ -209,6 +344,13 @@ resource "azurerm_role_assignment" "api_cdn_purger" {
   role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
   scope              = azurerm_cdn_frontdoor_profile.this.id
   principal_id       = azurerm_user_assigned_identity.api.principal_id
+}
+
+# GitHub Actions needs permission to purge feedback UI cache on deploy
+resource "azurerm_role_assignment" "gha_cdn_purger" {
+  role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
+  scope              = azurerm_cdn_frontdoor_profile.this.id
+  principal_id       = azuread_service_principal.github_actions.object_id
 }
 
 resource "azurerm_cdn_frontdoor_route" "keycloak" {
@@ -244,6 +386,8 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.frontend.id,
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
+    azurerm_cdn_frontdoor_route.feedback.id,
+    azurerm_cdn_frontdoor_route.feedback_api.id,
     azurerm_cdn_frontdoor_route.keycloak.id,
   ]
 }

@@ -31,6 +31,26 @@ output "frontend_static_website_host" {
   value       = azurerm_storage_account.frontend.primary_web_host
 }
 
+# Storage account for feedback UI static files
+resource "azurerm_storage_account" "feedback" {
+  name                     = "${local.name_short}fb"
+  resource_group_name      = azurerm_resource_group.this.name
+  location                 = azurerm_resource_group.this.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  account_kind             = "StorageV2"
+
+  allow_nested_items_to_be_public = true
+
+  tags = local.minimum_resource_tags
+}
+
+resource "azurerm_storage_account_static_website" "feedback" {
+  storage_account_id = azurerm_storage_account.feedback.id
+  error_404_document = "index.html"
+  index_document     = "index.html"
+}
+
 # Storage account for published taxonomy documents (served via Front Door)
 resource "azurerm_storage_account" "published" {
   name                     = "${local.name_short}pub"
