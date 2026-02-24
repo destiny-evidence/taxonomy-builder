@@ -604,6 +604,16 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 cardinality="single",
                 required=False,
             ),
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="primaryOutcome",
+                label="Primary Outcome",
+                uri="http://example.org/ontology/primaryOutcome",
+                domain_class="http://example.org/ontology/Study",
+                range_class="http://example.org/ontology/Outcome",
+                cardinality="single",
+                required=False,
+            ),
         ],
         classes=[
             SnapshotClass(

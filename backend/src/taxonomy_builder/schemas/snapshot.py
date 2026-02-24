@@ -215,8 +215,8 @@ class SnapshotProperty(BaseModel):
             domain_class=property.domain_class,
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
-            range_datatype=property.range_datatype,
             range_class=property.range_class,
+            range_datatype=property.range_datatype,
             cardinality=property.cardinality,
             required=property.required,
         )
