@@ -14,6 +14,7 @@ from taxonomy_builder.services.project_service import ProjectNotFoundError, Proj
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
+    ProjectNamespaceRequiredError,
     PropertyIdentifierExistsError,
     PropertyService,
     PropertyURIExistsError,
@@ -678,7 +679,7 @@ class TestPropertyURI:
         db_session: AsyncSession,
         property_service: PropertyService,
     ) -> None:
-        """Create without namespace and no explicit URI raises ValueError."""
+        """Create without namespace and no explicit URI raises ProjectNamespaceRequiredError."""
         project_nn = Project(name="No Namespace")
         db_session.add(project_nn)
         await db_session.flush()
@@ -691,7 +692,7 @@ class TestPropertyURI:
             range_datatype="xsd:string",
             cardinality="single",
         )
-        with pytest.raises(ValueError, match="namespace"):
+        with pytest.raises(ProjectNamespaceRequiredError):
             await property_service.create_property(project_nn.id, prop_in)
 
     @pytest.mark.asyncio
