@@ -68,18 +68,22 @@ export function ProjectPane({
         {/* Classes section */}
         <div class="project-pane__section">
           <h3 class="project-pane__section-title">Classes</h3>
-          <div class="project-pane__list">
-            {classes.map((cls) => (
-              <button
-                key={cls.uri}
-                class={`project-pane__item ${isClassSelected(cls.uri) ? "project-pane__item--selected" : ""}`}
-                onClick={() => onClassSelect(cls.uri)}
-                title={cls.description ?? undefined}
-              >
-                {cls.label}
-              </button>
-            ))}
-          </div>
+          {classes.length === 0 ? (
+            <div class="project-pane__empty">No classes in this project</div>
+          ) : (
+            <div class="project-pane__list">
+              {classes.map((cls) => (
+                <button
+                  key={cls.uri}
+                  class={`project-pane__item ${isClassSelected(cls.uri) ? "project-pane__item--selected" : ""}`}
+                  onClick={() => onClassSelect(cls.uri)}
+                  title={cls.description ?? undefined}
+                >
+                  {cls.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Schemes section */}

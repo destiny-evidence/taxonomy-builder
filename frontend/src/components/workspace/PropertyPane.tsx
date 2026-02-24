@@ -1,6 +1,7 @@
 import { PropertyDetail } from "../properties/PropertyDetail";
 import { SchemePreview } from "../properties/SchemePreview";
 import { selectedProperty, selectedPropertyId, creatingProperty } from "../../state/properties";
+import { ontologyClasses } from "../../state/ontology";
 import { datatypeLabel } from "../../types/models";
 import "./PropertyPane.css";
 
@@ -77,6 +78,10 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate 
             </div>
             <SchemePreview schemeId={property.range_scheme.id} />
           </>
+        ) : property.range_class ? (
+          <span class="property-pane__scheme-name">
+            {ontologyClasses.value.find((c) => c.uri === property.range_class)?.label ?? property.range_class}
+          </span>
         ) : null}
       </div>
     </div>

@@ -19,6 +19,7 @@ const mockProperty: Property = {
   range_scheme_id: null,
   range_scheme: null,
   range_datatype: "xsd:date",
+  range_class: null,
   cardinality: "single",
   required: false,
   uri: "http://example.org/birthDate",
@@ -405,6 +406,7 @@ describe("PropertyDetail", () => {
           domain_class: "http://example.org/Person",
           range_scheme_id: null,
           range_datatype: "xsd:date",
+          range_class: null,
           cardinality: "single",
           required: false,
         });
@@ -440,6 +442,7 @@ describe("PropertyDetail", () => {
           domain_class: "http://example.org/Person",
           range_scheme_id: null,
           range_datatype: "xsd:date",
+          range_class: null,
           cardinality: "multiple",
           required: true,
         });
@@ -468,6 +471,7 @@ describe("PropertyDetail", () => {
           domain_class: "http://example.org/Person",
           range_scheme_id: "scheme-1",
           range_datatype: null,
+          range_class: null,
           cardinality: "multiple",
           required: true,
         });
@@ -589,11 +593,11 @@ describe("PropertyDetail", () => {
       expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/identifier/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-      expect(screen.getByText("Class")).toBeInTheDocument();
       expect(screen.getByText("Person")).toBeInTheDocument();
       expect(screen.queryByRole("combobox", { name: /class/i })).not.toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /scheme/i })).toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /datatype/i })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /^class$/i })).toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /single value/i })).toBeInTheDocument();
       expect(screen.getByRole("radio", { name: /multiple values/i })).toBeInTheDocument();
       expect(screen.getByRole("checkbox", { name: /required/i })).toBeInTheDocument();
@@ -687,6 +691,7 @@ describe("PropertyDetail", () => {
         range_scheme_id: null,
         range_scheme: null,
         range_datatype: "xsd:string",
+        range_class: null,
         cardinality: "single",
         required: false,
         uri: null,
@@ -726,6 +731,7 @@ describe("PropertyDetail", () => {
         range_scheme_id: null,
         range_scheme: null,
         range_datatype: "xsd:string",
+        range_class: null,
         cardinality: "single",
         required: false,
         uri: null,
@@ -803,7 +809,9 @@ describe("PropertyDetail", () => {
     it("shows class as read-only text when domainClassUri provided", () => {
       renderCreate({ domainClassUri: "http://example.org/Person" });
 
-      expect(screen.getByText("Class")).toBeInTheDocument();
+      // "Class" appears both as a domain label and a range radio — check the label specifically
+      const classLabels = screen.getAllByText("Class");
+      expect(classLabels.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("Person")).toBeInTheDocument();
       expect(screen.queryByRole("combobox", { name: /class/i })).not.toBeInTheDocument();
     });

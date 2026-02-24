@@ -186,6 +186,7 @@ export interface Property {
   range_scheme_id: string | null;
   range_scheme: ConceptSchemeBrief | null;
   range_datatype: string | null;
+  range_class: string | null;
   cardinality: "single" | "multiple";
   required: boolean;
   uri: string | null;
@@ -200,6 +201,7 @@ export interface PropertyCreate {
   domain_class: string;
   range_scheme_id?: string | null;
   range_datatype?: string | null;
+  range_class?: string | null;
   cardinality: "single" | "multiple";
   required?: boolean;
 }
@@ -211,6 +213,7 @@ export interface PropertyUpdate {
   domain_class?: string;
   range_scheme_id?: string | null;
   range_datatype?: string | null;
+  range_class?: string | null;
   cardinality?: "single" | "multiple";
   required?: boolean;
 }
