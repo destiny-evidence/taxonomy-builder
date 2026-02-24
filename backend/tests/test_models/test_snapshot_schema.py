@@ -53,6 +53,7 @@ def _snapshot(**overrides) -> dict:
         "project": {
             "id": "00000000-0000-0000-0000-000000000099",
             "name": "Test Project",
+            "namespace": "http://example.org/",
         },
     }
     return {**defaults, **overrides}
@@ -159,7 +160,9 @@ class TestSnapshotClass:
 class TestSnapshotProjectMetadata:
     def test_valid(self) -> None:
         p = SnapshotProjectMetadata(
-            id="00000000-0000-0000-0000-000000000099", name="Test"
+            id="00000000-0000-0000-0000-000000000099",
+            name="Test",
+            namespace="http://example.org/",
         )
         assert p.id == UUID("00000000-0000-0000-0000-000000000099")
         assert p.name == "Test"

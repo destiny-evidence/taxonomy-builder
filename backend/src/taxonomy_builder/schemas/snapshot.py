@@ -113,8 +113,8 @@ class SnapshotProperty(BaseModel):
 
     id: UUID
     identifier: str
-    uri: str
     label: str
+    uri: str
     description: str | None = None
     domain_class: str
     range_scheme_id: UUID | None = None
@@ -123,6 +123,23 @@ class SnapshotProperty(BaseModel):
     range_class: str | None = None
     cardinality: str
     required: bool
+
+    @field_validator("uri", mode="before")
+    @classmethod
+    def require_uri(cls, v: str | None, info: ValidationInfo) -> str:
+        if v is None:
+            label = info.data.get("label", "?")
+            raise PydanticCustomError(
+                "property_missing_uri",
+                "Property '{label}' has no URI.",
+                {
+                    "label": label,
+                    "entity_type": "property",
+                    "entity_id": str(info.data.get("id", "")),
+                    "entity_label": label,
+                },
+            )
+        return v
 
     @model_validator(mode="after")
     def require_exactly_one_range(self) -> SnapshotProperty:
@@ -143,8 +160,7 @@ class SnapshotProperty(BaseModel):
         if has_scheme and self.range_scheme_uri is None:
             raise PydanticCustomError(
                 "property_missing_range_scheme_uri",
-                "Property '{label}' has a range scheme ID"
-                " but no range scheme URI.",
+                "Property '{label}' has a range scheme ID but no range scheme URI.",
                 {
                     "label": self.label,
                     "entity_type": "property",
@@ -204,7 +220,22 @@ class SnapshotProjectMetadata(BaseModel):
     id: UUID
     name: str
     description: str | None = None
-    namespace: str | None = None
+    namespace: str
+
+    @field_validator("namespace", mode="before")
+    @classmethod
+    def require_namespace(cls, v: str | None, info: ValidationInfo) -> str:
+        if v is None or not str(v).strip():
+            raise PydanticCustomError(
+                "project_missing_namespace",
+                "Project has no namespace.",
+                {
+                    "entity_type": "project",
+                    "entity_id": str(info.data.get("id", "")),
+                    "entity_label": info.data.get("name", "?"),
+                },
+            )
+        return v
 
 
 class SnapshotVocabulary(BaseModel):
