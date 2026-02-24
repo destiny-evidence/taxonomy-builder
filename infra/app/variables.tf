@@ -164,3 +164,8 @@ variable "custom_domain" {
   description = "Custom domain for Front Door (e.g., taxonomy.example.com)"
   type        = string
 }
+
+variable "feedback_custom_domain" {
+  description = "Custom domain for the Feedback UI (e.g., feedback.taxonomy.example.com)"
+  type        = string
+}

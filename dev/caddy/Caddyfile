@@ -28,11 +28,17 @@ https://keycloak.fef.dev {
 	reverse_proxy keycloak:8080
 }
 
+# Feedback UI on its own subdomain
+https://feedback.fef.dev {
+	import published
+	reverse_proxy /api/* host.docker.internal:8000
+	reverse_proxy host.docker.internal:3001
+}
+
 # Catch-all for any subdomain not explicitly configured
 # Routes to main worktree (default ports)
 https://*.fef.dev {
 	import published
 	reverse_proxy /api/* host.docker.internal:8000
-	reverse_proxy /feedback/* host.docker.internal:3001
 	reverse_proxy host.docker.internal:3000
 }

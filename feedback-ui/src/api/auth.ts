@@ -19,7 +19,7 @@ export async function initAuth(): Promise<boolean> {
     const authenticated = await keycloak.init({
       onLoad: "check-sso",
       silentCheckSsoRedirectUri:
-        window.location.origin + "/feedback/silent-check-sso.html",
+        window.location.origin + import.meta.env.BASE_URL + "silent-check-sso.html",
       pkceMethod: "S256",
     });
 
@@ -51,7 +51,7 @@ export function login(): void {
  */
 export function logout(): void {
   clearAuth();
-  keycloak.logout({ redirectUri: window.location.origin + "/feedback/" });
+  keycloak.logout({ redirectUri: window.location.origin + import.meta.env.BASE_URL });
 }
 
 /**

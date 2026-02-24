@@ -156,7 +156,7 @@ jobs:
           VITE_KEYCLOAK_URL: ${{ vars.KEYCLOAK_URL }}
           VITE_KEYCLOAK_REALM: ${{ vars.KEYCLOAK_REALM }}
           VITE_KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_FEEDBACK_CLIENT_ID }}
-          VITE_BASE: /feedback/
+          VITE_BASE: /
         run: npm run build
 
       - name: Upload feedback UI artifacts
@@ -251,7 +251,8 @@ jobs:
               --resource-group ${{ vars.RESOURCE_GROUP }} \
               --profile-name ${{ vars.FRONTDOOR_PROFILE_NAME }} \
               --endpoint-name ${{ vars.FRONTDOOR_ENDPOINT_NAME }} \
-              --content-paths "/feedback/*"
+              --domains ${{ vars.FEEDBACK_CUSTOM_DOMAIN }} \
+              --content-paths "/*"
 
   migrate-database:
     runs-on: ubuntu-latest

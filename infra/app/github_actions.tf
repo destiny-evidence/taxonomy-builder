@@ -209,6 +209,13 @@ resource "github_actions_environment_variable" "keycloak_client_id" {
   value         = "taxonomy-builder-ui"
 }
 
+resource "github_actions_environment_variable" "feedback_custom_domain" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FEEDBACK_CUSTOM_DOMAIN"
+  value         = var.feedback_custom_domain
+}
+
 resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment

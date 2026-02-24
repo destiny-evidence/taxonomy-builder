@@ -54,6 +54,11 @@ output "keycloak_ui_client_id" {
   value       = keycloak_openid_client.ui.client_id
 }
 
+output "feedback_frontdoor_custom_domain_validation_token" {
+  description = "DNS TXT record value for feedback custom domain validation (add as _dnsauth.{feedback_domain})"
+  value       = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
+}
+
 output "keycloak_issuer_url" {
   description = "Keycloak issuer URL for OIDC configuration"
   value       = "https://${var.custom_domain}/realms/${var.keycloak_realm_name}"

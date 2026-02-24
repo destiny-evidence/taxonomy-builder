@@ -220,9 +220,21 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
   }
 }
 
-# --- Feedback UI ---
+# --- Feedback UI (subdomain) ---
 
-# Feedback UI route — serves the feedback SPA from blob storage
+# Custom domain for feedback UI
+resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
+  name                     = replace(var.feedback_custom_domain, ".", "-")
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  host_name                = var.feedback_custom_domain
+
+  tls {
+    certificate_type    = "ManagedCertificate"
+    minimum_tls_version = "TLS12"
+  }
+}
+
+# Feedback UI SPA — catch-all route on the feedback subdomain
 resource "azurerm_cdn_frontdoor_route" "feedback" {
   name                          = "feedback-route"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
@@ -230,12 +242,12 @@ resource "azurerm_cdn_frontdoor_route" "feedback" {
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.feedback.id]
 
   supported_protocols    = ["Http", "Https"]
-  patterns_to_match      = ["/feedback/*"]
+  patterns_to_match      = ["/*"]
   forwarding_protocol    = "HttpsOnly"
-  link_to_default_domain = true
+  link_to_default_domain = false
   https_redirect_enabled = true
 
-  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.feedback.id]
   cdn_frontdoor_rule_set_ids      = [azurerm_cdn_frontdoor_rule_set.feedback_cache.id]
 
   cache {
@@ -245,38 +257,71 @@ resource "azurerm_cdn_frontdoor_route" "feedback" {
   }
 }
 
+# API proxy on the feedback subdomain — avoids CORS by keeping requests same-origin
+resource "azurerm_cdn_frontdoor_route" "feedback_api" {
+  name                          = "feedback-api-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/api/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = false
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.feedback.id]
+}
+
+# Published data on the feedback subdomain
+resource "azurerm_cdn_frontdoor_route" "feedback_published" {
+  name                          = "feedback-published-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.published.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/${azurerm_storage_container.published.name}/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = false
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.feedback.id]
+  cdn_frontdoor_rule_set_ids      = [azurerm_cdn_frontdoor_rule_set.published_cache.id]
+
+  cache {
+    query_string_caching_behavior = "IgnoreQueryString"
+    compression_enabled           = true
+    content_types_to_compress     = ["application/json"]
+  }
+}
+
+resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
+  cdn_frontdoor_custom_domain_id = azurerm_cdn_frontdoor_custom_domain.feedback.id
+  cdn_frontdoor_route_ids = [
+    azurerm_cdn_frontdoor_route.feedback.id,
+    azurerm_cdn_frontdoor_route.feedback_api.id,
+    azurerm_cdn_frontdoor_route.feedback_published.id,
+  ]
+}
+
 # Cache rule set for feedback UI static assets — purged on deploy
 resource "azurerm_cdn_frontdoor_rule_set" "feedback_cache" {
   name                     = "feedbackcache"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
 }
 
-# Rewrite /feedback/* → /* so blob storage serves files from root
-resource "azurerm_cdn_frontdoor_rule" "feedback_rewrite" {
-  name                      = "FeedbackRewrite"
-  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 1
-
-  actions {
-    url_rewrite_action {
-      source_pattern          = "/feedback/"
-      destination             = "/"
-      preserve_unmatched_path = true
-    }
-  }
-}
-
 # Service worker must always revalidate (browsers cap at 24h, but CDN must not cache it)
 resource "azurerm_cdn_frontdoor_rule" "feedback_sw_no_cache" {
   name                      = "FeedbackSwNoCache"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 2
+  order                     = 1
   behavior_on_match         = "Stop"
 
   conditions {
     url_path_condition {
       operator     = "Equal"
-      match_values = ["/feedback/sw.js"]
+      match_values = ["/sw.js"]
     }
   }
 
@@ -293,7 +338,7 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_sw_no_cache" {
 resource "azurerm_cdn_frontdoor_rule" "feedback_cache_assets" {
   name                      = "FeedbackCacheAssets"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 3
+  order                     = 2
   behavior_on_match         = "Stop"
 
   conditions {
@@ -322,7 +367,7 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_cache_assets" {
 resource "azurerm_cdn_frontdoor_rule" "feedback_html_no_cache" {
   name                      = "FeedbackHtmlNoCache"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 4
+  order                     = 3
   behavior_on_match         = "Stop"
 
   conditions {
@@ -345,7 +390,7 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_html_no_cache" {
 resource "azurerm_cdn_frontdoor_rule" "feedback_default_no_cache" {
   name                      = "FeedbackDefaultNoCache"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 5
+  order                     = 4
 
   actions {
     response_header_action {
@@ -409,7 +454,6 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.frontend.id,
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
-    azurerm_cdn_frontdoor_route.feedback.id,
     azurerm_cdn_frontdoor_route.keycloak.id,
   ]
 }
