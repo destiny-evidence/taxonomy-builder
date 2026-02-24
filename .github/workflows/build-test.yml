@@ -49,3 +49,25 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+
+  build-feedback-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            feedback-ui
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: feedback-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./feedback-ui
+        run: npm ci
+
+      - name: Build feedback UI
+        working-directory: ./feedback-ui
+        run: npm run build
