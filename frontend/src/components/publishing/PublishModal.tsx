@@ -8,6 +8,7 @@ import {
   type PublishedVersionRead,
 } from "../../api/publishing";
 import { FEEDBACK_URL } from "../../config";
+import { projectsApi } from "../../api/projects";
 import "./PublishModal.css";
 
 interface PublishModalProps {
@@ -41,6 +42,7 @@ export function PublishModal({
   const [publishedVersion, setPublishedVersion] =
     useState<PublishedVersionRead | null>(null);
   const [copied, setCopied] = useState(false);
+  const [exportingVersionId, setExportingVersionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -81,7 +83,25 @@ export function PublishModal({
     setNotes("");
     setSubmitting(false);
     setPublishedVersion(null);
+    setExportingVersionId(null);
     onClose();
+  }
+
+  async function handleExportVersion(v: PublishedVersionRead) {
+    setExportingVersionId(v.id);
+    try {
+      const blob = await projectsApi.exportVersion(projectId, v.version, "ttl");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${v.title}.ttl`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingVersionId(null);
+    }
   }
 
   async function handlePublish() {
@@ -371,6 +391,14 @@ export function PublishModal({
                         pre-release
                       </span>
                     )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleExportVersion(v)}
+                      disabled={exportingVersionId === v.id}
+                    >
+                      {exportingVersionId === v.id ? "Exporting…" : "Export"}
+                    </Button>
                   </div>
                 ))}
               </div>
