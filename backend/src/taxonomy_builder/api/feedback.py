@@ -9,7 +9,7 @@ from taxonomy_builder.api.dependencies import CurrentUser
 feedback_router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
 
-@feedback_router.post("/ui/{project_id}")
+@feedback_router.post("/{project_id}")
 async def post_feedback(
     project_id: UUID,
     _user: CurrentUser,
