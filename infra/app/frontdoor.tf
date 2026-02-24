@@ -266,11 +266,35 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_rewrite" {
   }
 }
 
+# Service worker must always revalidate (browsers cap at 24h, but CDN must not cache it)
+resource "azurerm_cdn_frontdoor_rule" "feedback_sw_no_cache" {
+  name                      = "FeedbackSwNoCache"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
+  order                     = 2
+  behavior_on_match         = "Stop"
+
+  conditions {
+    url_path_condition {
+      operator     = "Equal"
+      match_values = ["/feedback/sw.js"]
+    }
+  }
+
+  actions {
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Cache-Control"
+      value         = "no-cache"
+    }
+  }
+}
+
 # Cache hashed static assets aggressively (JS, CSS, fonts, images)
 resource "azurerm_cdn_frontdoor_rule" "feedback_cache_assets" {
   name                      = "FeedbackCacheAssets"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 2
+  order                     = 3
+  behavior_on_match         = "Stop"
 
   conditions {
     url_file_extension_condition {
@@ -298,7 +322,8 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_cache_assets" {
 resource "azurerm_cdn_frontdoor_rule" "feedback_html_no_cache" {
   name                      = "FeedbackHtmlNoCache"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 3
+  order                     = 4
+  behavior_on_match         = "Stop"
 
   conditions {
     url_file_extension_condition {
@@ -320,7 +345,7 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_html_no_cache" {
 resource "azurerm_cdn_frontdoor_rule" "feedback_default_no_cache" {
   name                      = "FeedbackDefaultNoCache"
   cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
-  order                     = 4
+  order                     = 5
 
   actions {
     response_header_action {
