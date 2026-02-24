@@ -9,8 +9,6 @@ import {
   API_CACHE_MAX_AGE_SECONDS,
   API_CACHE_MAX_ENTRIES,
   ASSETS_CACHE_MAX_AGE_SECONDS,
-  PUBLISHED_INDEX_MAX_AGE_SECONDS,
-  PUBLISHED_VOCAB_MAX_AGE_SECONDS,
 } from "./sw-config";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -65,33 +63,24 @@ for (const method of ["POST", "DELETE"] as const) {
 // Published taxonomy files (blob storage served via /published/*)
 // ---------------------------------------------------------------------------
 
-// Vocabulary files are immutable (versioned URL) — cache aggressively
+// Vocabulary files are immutable (versioned URL) — cache indefinitely
 registerRoute(
   ({ url }) =>
     url.pathname.startsWith("/published/") &&
     url.pathname.endsWith("/vocabulary.json"),
   new CacheFirst({
     cacheName: CACHE_NAMES.published,
-    plugins: [
-      new ExpirationPlugin({
-        maxAgeSeconds: PUBLISHED_VOCAB_MAX_AGE_SECONDS,
-      }),
-    ],
   })
 );
 
-// Index files are mutable (regenerated on publish) — network-first
+// Index files are mutable (regenerated on publish) — network-first, no expiry
+// so offline browsing works indefinitely after first load
 registerRoute(
   ({ url }) =>
     url.pathname.startsWith("/published/") &&
     url.pathname.endsWith("/index.json"),
   new NetworkFirst({
     cacheName: CACHE_NAMES.published,
-    plugins: [
-      new ExpirationPlugin({
-        maxAgeSeconds: PUBLISHED_INDEX_MAX_AGE_SECONDS,
-      }),
-    ],
   })
 );
 
