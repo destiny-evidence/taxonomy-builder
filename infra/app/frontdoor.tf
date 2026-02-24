@@ -232,10 +232,6 @@ resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
     certificate_type    = "ManagedCertificate"
     minimum_tls_version = "TLS12"
   }
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # Feedback UI SPA — catch-all route on the feedback subdomain
@@ -310,10 +306,6 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
     azurerm_cdn_frontdoor_route.feedback_api.id,
     azurerm_cdn_frontdoor_route.feedback_published.id,
   ]
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # Cache rule set for feedback UI static assets — purged on deploy
