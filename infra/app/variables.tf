@@ -164,3 +164,9 @@ variable "custom_domain" {
   description = "Custom domain for Front Door (e.g., taxonomy.example.com)"
   type        = string
 }
+
+variable "cache_feedback_ui_at_edge" {
+  description = "Enable Front Door edge caching for the feedback UI (disable for testing)"
+  type        = bool
+  default     = false
+}

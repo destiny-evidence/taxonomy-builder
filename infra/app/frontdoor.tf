@@ -248,12 +248,15 @@ resource "azurerm_cdn_frontdoor_route" "feedback" {
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.feedback.id]
-  cdn_frontdoor_rule_set_ids      = [azurerm_cdn_frontdoor_rule_set.feedback_cache.id]
+  cdn_frontdoor_rule_set_ids      = var.cache_feedback_ui_at_edge ? [azurerm_cdn_frontdoor_rule_set.feedback_cache.id] : []
 
-  cache {
-    query_string_caching_behavior = "IgnoreQueryString"
-    compression_enabled           = true
-    content_types_to_compress     = ["text/html", "application/javascript", "text/css", "application/json"]
+  dynamic "cache" {
+    for_each = var.cache_feedback_ui_at_edge ? [1] : []
+    content {
+      query_string_caching_behavior = "IgnoreQueryString"
+      compression_enabled           = true
+      content_types_to_compress     = ["text/html", "application/javascript", "text/css", "application/json"]
+    }
   }
 }
 
