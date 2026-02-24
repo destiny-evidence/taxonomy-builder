@@ -1,6 +1,6 @@
 """SKOS Export service for generating RDF output."""
 
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
@@ -20,7 +20,7 @@ from taxonomy_builder.schemas.snapshot import (
 )
 
 
-class ExportFormat(str, Enum):
+class ExportFormat(StrEnum):
     """Supported export formats."""
 
     TTL = "ttl"
