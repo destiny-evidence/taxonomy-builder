@@ -679,16 +679,34 @@ async def test_export_published_version_basic(
 
 
 @pytest.mark.asyncio
-async def test_export_published_version_respects_format(
+async def test_export_published_version_xml(
     export_service: SKOSExportService,
     published_version: PublishedVersion,
 ) -> None:
-    """Test that export_published_version serializes in the requested format."""
+    """Test that export_published_version serializes as RDF/XML."""
     result = await export_service.export_published_version(published_version, "xml")
 
     g = Graph()
     g.parse(data=result, format="xml")
     assert len(list(g.subjects(RDF.type, SKOS.Concept))) == 2
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_jsonld(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that export_published_version serializes as JSON-LD."""
+    import json
+
+    result = await export_service.export_published_version(published_version, "json-ld")
+
+    g = Graph()
+    g.parse(data=result, format="json-ld")
+    assert len(list(g.subjects(RDF.type, SKOS.Concept))) == 2
+
+    parsed = json.loads(result)
+    assert isinstance(parsed, (dict, list))
 
 
 @pytest.mark.asyncio

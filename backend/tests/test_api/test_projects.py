@@ -473,6 +473,44 @@ async def test_export_version_filename(
 
 
 @pytest.mark.asyncio
+async def test_export_version_xml(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test exporting a published version as RDF/XML."""
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export?format=xml"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/rdf+xml; charset=utf-8"
+    assert ".rdf" in response.headers["content-disposition"]
+
+    content = response.text
+    assert "<?xml" in content or "<rdf:RDF" in content
+
+
+@pytest.mark.asyncio
+async def test_export_version_jsonld(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test exporting a published version as JSON-LD."""
+    import json
+
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export?format=jsonld"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/ld+json; charset=utf-8"
+    assert ".jsonld" in response.headers["content-disposition"]
+
+    data = json.loads(response.text)
+    assert isinstance(data, (dict, list))
+
+
+@pytest.mark.asyncio
 async def test_export_version_not_found(
     authenticated_client: AsyncClient, published_version: PublishedVersion
 ) -> None:
