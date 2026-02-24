@@ -245,28 +245,6 @@ resource "azurerm_cdn_frontdoor_route" "feedback" {
   }
 }
 
-# Feedback API route — caching enabled so Front Door honors Cache-Control headers
-resource "azurerm_cdn_frontdoor_route" "feedback_api" {
-  name                          = "feedback-api-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
-
-  supported_protocols    = ["Http", "Https"]
-  patterns_to_match      = ["/api/feedback/ui/*"]
-  forwarding_protocol    = "HttpsOnly"
-  link_to_default_domain = true
-  https_redirect_enabled = true
-
-  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
-
-  cache {
-    query_string_caching_behavior = "UseQueryString"
-    compression_enabled           = true
-    content_types_to_compress     = ["application/json"]
-  }
-}
-
 # Cache rule set for feedback UI static assets — purged on deploy
 resource "azurerm_cdn_frontdoor_rule_set" "feedback_cache" {
   name                     = "feedbackcache"
@@ -392,7 +370,6 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
     azurerm_cdn_frontdoor_route.feedback.id,
-    azurerm_cdn_frontdoor_route.feedback_api.id,
     azurerm_cdn_frontdoor_route.keycloak.id,
   ]
 }
