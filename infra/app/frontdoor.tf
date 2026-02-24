@@ -316,6 +316,21 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_html_no_cache" {
   }
 }
 
+# Catch-all: everything not matched above revalidates on every request
+resource "azurerm_cdn_frontdoor_rule" "feedback_default_no_cache" {
+  name                      = "FeedbackDefaultNoCache"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.feedback_cache.id
+  order                     = 4
+
+  actions {
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Cache-Control"
+      value         = "no-cache"
+    }
+  }
+}
+
 # API identity needs permission to purge cached content on publish
 # Role "CDN Front Door Purge" is created manually at the subscription level
 data "azurerm_role_definition" "cdn_purge" {

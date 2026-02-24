@@ -46,7 +46,8 @@ registerRoute(
   ({ request }) =>
     request.destination === "script" ||
     request.destination === "style" ||
-    request.destination === "font",
+    request.destination === "font" ||
+    request.destination === "image",
   new CacheFirst({
     cacheName: CACHE_NAMES.assets,
     plugins: [
