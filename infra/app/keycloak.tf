@@ -124,8 +124,8 @@ resource "keycloak_openid_client" "feedback_ui" {
   direct_access_grants_enabled = false
   full_scope_allowed           = false
 
-  valid_redirect_uris = ["https://${var.feedback_custom_domain}/*"]
-  web_origins         = ["https://${var.feedback_custom_domain}"]
+  valid_redirect_uris = ["https://${local.feedback_custom_domain}/*"]
+  web_origins         = ["https://${local.feedback_custom_domain}"]
 }
 
 # --- Client scopes ---

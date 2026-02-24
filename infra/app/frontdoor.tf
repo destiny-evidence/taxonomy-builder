@@ -224,9 +224,9 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
 
 # Custom domain for feedback UI
 resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
-  name                     = replace(var.feedback_custom_domain, ".", "-")
+  name                     = replace(local.feedback_custom_domain, ".", "-")
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
-  host_name                = var.feedback_custom_domain
+  host_name                = local.feedback_custom_domain
 
   tls {
     certificate_type    = "ManagedCertificate"
