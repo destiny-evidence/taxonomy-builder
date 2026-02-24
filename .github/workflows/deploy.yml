@@ -129,7 +129,7 @@ jobs:
           VITE_API_BASE: ${{ vars.API_BASE_URL }}
           VITE_KEYCLOAK_URL: ${{ vars.KEYCLOAK_URL }}
           VITE_KEYCLOAK_REALM: ${{ vars.KEYCLOAK_REALM }}
-          VITE_KEYCLOAK_CLIENT_ID: ${{ vars.FEEDBACK_KEYCLOAK_CLIENT_ID }}
+          VITE_KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_CLIENT_ID }}
           VITE_BASE: /feedback/
         run: npm run build
 

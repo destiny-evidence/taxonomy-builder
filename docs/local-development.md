@@ -171,7 +171,7 @@ The seed command also publishes each project as v1.0 and writes reader JSON file
 | `VITE_API_BASE`           | API base URL               | `/api` (proxied)        |
 | `VITE_KEYCLOAK_URL`       | Keycloak server URL        | `http://localhost:8080` |
 | `VITE_KEYCLOAK_REALM`     | Keycloak realm             | `taxonomy-builder`      |
-| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID         | `feedback-ui`           |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID         | `taxonomy-builder-ui`   |
 | `VITE_BASE`               | Base path                  | `/feedback/`            |
 | `VITE_API_TARGET`         | Backend proxy target (dev) | `http://localhost:8000` |
 

@@ -218,13 +218,6 @@ resource "github_actions_environment_variable" "feedback_storage_account_name" {
   value         = azurerm_storage_account.feedback.name
 }
 
-resource "github_actions_environment_variable" "feedback_keycloak_client_id" {
-  repository    = github_repository_environment.environment.repository
-  environment   = github_repository_environment.environment.environment
-  variable_name = "FEEDBACK_KEYCLOAK_CLIENT_ID"
-  value         = "feedback-ui"
-}
-
 resource "github_actions_environment_variable" "frontdoor_profile_name" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
