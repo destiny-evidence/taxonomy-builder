@@ -10,7 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import DatabaseSessionManager
-from taxonomy_builder.models import Concept, ConceptBroader, ConceptScheme, Project, User
+from taxonomy_builder.models import (
+    Concept,
+    ConceptBroader,
+    ConceptScheme,
+    OntologyClass,
+    Project,
+    Property,
+    User,
+)
 from taxonomy_builder.schemas.publishing import PublishRequest
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
@@ -24,7 +32,10 @@ async def create_seed_data(session: AsyncSession) -> dict:
 
     Returns a summary of created objects.
     """
-    created = {"users": 0, "projects": 0, "schemes": 0, "concepts": 0}
+    created = {
+        "users": 0, "projects": 0, "schemes": 0,
+        "concepts": 0, "classes": 0, "properties": 0,
+    }
 
     # Create a dev user
     existing_user = await session.execute(select(User).where(User.email == "dev@example.com"))
@@ -49,6 +60,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
     project = Project(
         name="Evidence Synthesis Taxonomy",
         description="A taxonomy for categorizing systematic review methods and approaches.",
+        namespace="https://evrepo.example.org/vocab",
     )
     session.add(project)
     await session.flush()
@@ -219,6 +231,123 @@ async def create_seed_data(session: AsyncSession) -> dict:
     )
     await session.flush()
     created["concepts"] += 5
+
+    # Ontology classes from evrepo-core
+    ns = project.namespace
+    class_data = [
+        ("Investigation", "Investigation", "A research investigation or study."),
+        ("Finding", "Finding", "A finding or result reported by an investigation."),
+        ("Intervention", "Intervention", "An intervention evaluated in a study."),
+        ("Outcome", "Outcome", "A measured outcome of an intervention."),
+        ("EffectEstimate", "Effect Estimate",
+         "A quantitative estimate of an intervention's effect."),
+        ("Context", "Context", "The context in which a study was conducted."),
+        ("Funder", "Funder", "An entity that funded a study."),
+        ("Implementer", "Implementer", "An entity that implemented an intervention."),
+    ]
+    classes = {}
+    for identifier, label, description in class_data:
+        cls = OntologyClass(
+            project_id=project.id,
+            identifier=identifier,
+            label=label,
+            description=description,
+            uri=f"{ns}/{identifier}",
+        )
+        session.add(cls)
+        classes[identifier] = cls
+    await session.flush()
+    created["classes"] += len(class_data)
+
+    # Properties from evrepo-core — exercising all three range types
+    property_records = [
+        # class-to-class (range_class)
+        Property(
+            project_id=project.id,
+            identifier="hasFinding",
+            label="has finding",
+            description="Links an investigation to one of its findings.",
+            domain_class=f"{ns}/Investigation",
+            range_class=f"{ns}/Finding",
+            cardinality="multiple",
+            uri=f"{ns}/hasFinding",
+        ),
+        Property(
+            project_id=project.id,
+            identifier="evaluates",
+            label="evaluates",
+            description="Links a finding to the intervention it evaluates.",
+            domain_class=f"{ns}/Finding",
+            range_class=f"{ns}/Intervention",
+            cardinality="single",
+            uri=f"{ns}/evaluates",
+        ),
+        Property(
+            project_id=project.id,
+            identifier="hasContext",
+            label="has context",
+            description="Links a finding to its study context.",
+            domain_class=f"{ns}/Finding",
+            range_class=f"{ns}/Context",
+            cardinality="single",
+            uri=f"{ns}/hasContext",
+        ),
+        Property(
+            project_id=project.id,
+            identifier="hasEffectEstimate",
+            label="has effect estimate",
+            description="Links a finding to a quantitative effect estimate.",
+            domain_class=f"{ns}/Finding",
+            range_class=f"{ns}/EffectEstimate",
+            cardinality="multiple",
+            uri=f"{ns}/hasEffectEstimate",
+        ),
+        Property(
+            project_id=project.id,
+            identifier="implementedBy",
+            label="implemented by",
+            description="Links an intervention to its implementing entity.",
+            domain_class=f"{ns}/Intervention",
+            range_class=f"{ns}/Implementer",
+            cardinality="multiple",
+            uri=f"{ns}/implementedBy",
+        ),
+        # class-to-scheme (range_scheme_id)
+        Property(
+            project_id=project.id,
+            identifier="studyDesign",
+            label="study design",
+            description="The study design used by an investigation.",
+            domain_class=f"{ns}/Investigation",
+            range_scheme_id=study_designs.id,
+            cardinality="single",
+            uri=f"{ns}/studyDesign",
+        ),
+        # class-to-datatype (range_datatype)
+        Property(
+            project_id=project.id,
+            identifier="effectSize",
+            label="effect size",
+            description="The numeric effect size of an effect estimate.",
+            domain_class=f"{ns}/EffectEstimate",
+            range_datatype="xsd:decimal",
+            cardinality="single",
+            uri=f"{ns}/effectSize",
+        ),
+        Property(
+            project_id=project.id,
+            identifier="outcomeDescription",
+            label="outcome description",
+            description="A textual description of an outcome.",
+            domain_class=f"{ns}/Outcome",
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri=f"{ns}/outcomeDescription",
+        ),
+    ]
+    session.add_all(property_records)
+    await session.flush()
+    created["properties"] += len(property_records)
 
     # Create another project with a simpler structure
     demo_project = Project(
