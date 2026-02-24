@@ -78,6 +78,73 @@ resource "keycloak_openid_client" "ui" {
   web_origins         = ["https://${var.custom_domain}"]
 }
 
+# --- Feedback UI ---
+
+# Feedback User role on the API client (limited permissions)
+resource "keycloak_role" "feedback_user" {
+  realm_id    = local.keycloak_realm_id
+  client_id   = keycloak_openid_client.api.id
+  name        = "feedback-user"
+  description = "User with access to submit feedback only"
+}
+
+# Client scope for feedback API access
+resource "keycloak_openid_client_scope" "feedback_api" {
+  realm_id               = local.keycloak_realm_id
+  name                   = "feedback-api-scope"
+  description            = "Scope for accessing the feedback API"
+  include_in_token_scope = true
+}
+
+# Audience Resolve protocol mapper on the feedback scope
+resource "keycloak_openid_audience_resolve_protocol_mapper" "feedback_api" {
+  realm_id        = local.keycloak_realm_id
+  client_scope_id = keycloak_openid_client_scope.feedback_api.id
+  name            = "audience-resolve"
+}
+
+# Role scope mapping - link feedback-user role to the feedback client scope
+resource "keycloak_generic_role_mapper" "feedback_scope_role" {
+  realm_id        = local.keycloak_realm_id
+  client_scope_id = keycloak_openid_client_scope.feedback_api.id
+  role_id         = keycloak_role.feedback_user.id
+}
+
+# Feedback UI Client (public, standard flow for browser authentication)
+resource "keycloak_openid_client" "feedback_ui" {
+  realm_id  = local.keycloak_realm_id
+  client_id = "feedback-ui"
+  name      = "Feedback UI"
+  enabled   = true
+
+  access_type                  = "PUBLIC"
+  standard_flow_enabled        = true
+  direct_access_grants_enabled = false
+  full_scope_allowed           = false
+
+  valid_redirect_uris = ["https://${var.custom_domain}/feedback/*"]
+  web_origins         = ["https://${var.custom_domain}"]
+}
+
+# Link feedback scope to Feedback UI client as default scope
+resource "keycloak_openid_client_default_scopes" "feedback_ui" {
+  realm_id  = local.keycloak_realm_id
+  client_id = keycloak_openid_client.feedback_ui.id
+
+  default_scopes = [
+    "openid",
+    "profile",
+    "email",
+    "basic",
+    "roles",
+    "web-origins",
+    "acr",
+    keycloak_openid_client_scope.feedback_api.name,
+  ]
+}
+
+# --- Main UI ---
+
 # Link API scope to UI client as default scope
 resource "keycloak_openid_client_default_scopes" "ui" {
   realm_id  = local.keycloak_realm_id
