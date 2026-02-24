@@ -18,7 +18,8 @@ async def get_feedback(
     return Response(
         content="[]",
         media_type="application/json",
-        headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"},
+        # Cache for 5 seconds, allow stale data for 5 minutes while revalidating
+        headers={"Cache-Control": "public, max-age=5, stale-while-revalidate=300"},
     )
 
 

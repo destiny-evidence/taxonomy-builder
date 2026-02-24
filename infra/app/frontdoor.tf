@@ -308,6 +308,11 @@ resource "azurerm_cdn_frontdoor_rule" "feedback_cache_assets" {
       compression_enabled           = true
       query_string_caching_behavior = "IgnoreQueryString"
     }
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Cache-Control"
+      value         = "public, max-age=2592000, immutable"
+    }
   }
 }
 
