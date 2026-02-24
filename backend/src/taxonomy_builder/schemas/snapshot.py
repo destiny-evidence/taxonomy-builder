@@ -330,6 +330,15 @@ class SnapshotVocabulary(BaseModel):
             )
         return v
 
+    @classmethod
+    def from_project(cls, project: Project) -> Self:
+        return cls.model_construct(
+            project=SnapshotProjectMetadata.from_project(project),
+            concept_schemes=[SnapshotScheme.from_scheme(s) for s in project.schemes],
+            properties=[SnapshotProperty.from_property(p) for p in project.properties],
+            classes=[SnapshotClass.from_class(c) for c in project.ontology_classes],
+        )
+
 
 class ValidationError(BaseModel):
     """A single validation error that blocks publishing."""
