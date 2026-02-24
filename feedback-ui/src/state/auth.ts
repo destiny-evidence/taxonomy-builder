@@ -15,7 +15,7 @@ export const authError = signal<string | null>(null);
 export const currentUser = signal<KeycloakUser | null>(null);
 
 export const isAuthenticated = computed(
-  () => authInitialized.value && keycloak.authenticated === true
+  () => authInitialized.value && currentUser.value !== null
 );
 
 export const userDisplayName = computed(() => {
