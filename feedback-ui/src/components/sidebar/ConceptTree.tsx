@@ -1,6 +1,8 @@
 import { useSignal } from "@preact/signals";
 import { navigate, route } from "../../router";
 import { selectedVersion } from "../../state/vocabulary";
+import { isAuthenticated } from "../../state/auth";
+import { feedbackCountForEntity } from "../../state/feedback";
 import type { ConceptTreeNode } from "../../state/vocabulary";
 
 interface ConceptTreeNodeProps {
@@ -40,6 +42,10 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
           <span class="concept-tree__toggle" />
         )}
         <span class="concept-tree__label">{node.label}</span>
+        {isAuthenticated.value && (() => {
+          const count = feedbackCountForEntity(node.id, selectedVersion.value ?? "");
+          return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
+        })()}
       </div>
       {hasChildren && expanded.value && (
         <div class="concept-tree__children">

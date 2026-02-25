@@ -1,6 +1,8 @@
 import { useSignal } from "@preact/signals";
 import { navigate, route } from "../../router";
 import { selectedVersion, conceptTrees } from "../../state/vocabulary";
+import { isAuthenticated } from "../../state/auth";
+import { feedbackCountForEntity } from "../../state/feedback";
 import { ConceptTree } from "./ConceptTree";
 import type { VocabScheme } from "../../api/published";
 
@@ -34,6 +36,10 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
           style="cursor: pointer"
         >
           {scheme.title}
+          {isAuthenticated.value && (() => {
+            const count = feedbackCountForEntity(scheme.id, selectedVersion.value ?? "");
+            return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
+          })()}
         </span>
         <span class={`sidebar__toggle${expanded.value ? " sidebar__toggle--open" : ""}`}>
           ▸
