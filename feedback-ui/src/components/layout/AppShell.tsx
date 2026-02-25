@@ -1,6 +1,5 @@
 import { useEffect } from "preact/hooks";
-import { useSignal } from "@preact/signals";
-import { initRouter, destroyRouter, route, navigateHome, navigateToProject } from "../../router";
+import { initRouter, destroyRouter, route, navigateHome, navigateToProject, goBack, mobileView } from "../../router";
 import { loadProjects, selectProject, projectName, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { AuthStatus } from "./AuthStatus";
 import { Sidebar } from "../sidebar/Sidebar";
@@ -9,8 +8,6 @@ import { ProjectListPage } from "../projects/ProjectListPage";
 import "./AppShell.css";
 
 export function AppShell() {
-  const mobileShowDetail = useSignal(false);
-
   useEffect(() => {
     initRouter();
     loadProjects();
@@ -26,22 +23,27 @@ export function AppShell() {
     }
   }, [routedProjectId, routedVersion]);
 
-  // On mobile, show detail panel when a route has an entity
-  useEffect(() => {
-    if (route.value.entityId) {
-      mobileShowDetail.value = true;
-    }
-  }, [route.value.entityId]);
-
   function handleBack() {
-    mobileShowDetail.value = false;
-    navigateHome();
+    if (!goBack()) {
+      mobileView.value = "sidebar";
+      const pid = route.value.projectId;
+      const ver = route.value.version;
+      if (pid && ver) navigateToProject(pid, ver);
+      else navigateHome();
+    }
+  }
+
+  function handleProjectNameClick() {
+    const pid = route.value.projectId;
+    const ver = route.value.version;
+    if (pid && ver) {
+      navigateToProject(pid, ver);
+      mobileView.value = "detail";
+    }
   }
 
   const isProjectView = route.value.projectId !== null;
-  const hasEntity = route.value.entityId !== null;
-  const sidebarHidden = mobileShowDetail.value && hasEntity;
-  const detailHidden = !hasEntity && !mobileShowDetail.value;
+  const isMobileDetail = mobileView.value === "detail";
 
   return (
     <div class="app-shell">
@@ -57,11 +59,7 @@ export function AppShell() {
               </svg>
               <span
                 class="app-shell__title app-shell__title--link"
-                onClick={() => {
-                  const pid = route.value.projectId;
-                  const ver = route.value.version;
-                  if (pid && ver) navigateToProject(pid, ver);
-                }}
+                onClick={handleProjectNameClick}
               >
                 {projectName.value || "Taxonomy Reader"}
                 {selectedVersion.value && (
@@ -77,11 +75,11 @@ export function AppShell() {
       </header>
       {isProjectView ? (
         <div class="app-shell__body">
-          <div class={`app-shell__sidebar${sidebarHidden ? " app-shell__sidebar--hidden" : ""}`}>
+          <div class={`app-shell__sidebar${isMobileDetail ? " app-shell__sidebar--hidden" : ""}`}>
             <Sidebar />
           </div>
-          <div class={`app-shell__detail${detailHidden ? " app-shell__detail--hidden" : ""}`}>
-            {hasEntity && (
+          <div class={`app-shell__detail${isMobileDetail ? "" : " app-shell__detail--hidden"}`}>
+            {isMobileDetail && (
               <button class="app-shell__back-btn" onClick={handleBack}>
                 ← Back
               </button>

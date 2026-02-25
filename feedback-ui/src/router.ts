@@ -40,32 +40,63 @@ function parsePath(p: string): Route {
 /** Current parsed route, derived from pathname. */
 export const route = computed(() => parsePath(pathname.value));
 
+/**
+ * On mobile, only one pane is visible at a time.
+ * "sidebar" = navigation list, "detail" = entity/welcome panel.
+ * On desktop this signal is ignored (both panes always visible).
+ */
+export const mobileView = signal<"sidebar" | "detail">("sidebar");
+
+function syncMobileView(r: Route): void {
+  mobileView.value = r.entityId ? "detail" : "sidebar";
+}
+
 /** Navigate to an entity. */
 export function navigate(projectId: string, version: string, entityKind: EntityKind, entityId: string): void {
   const path = `/${projectId}/${version}/${entityKind}/${entityId}`;
+  navDepth++;
   history.pushState({}, "", path);
   pathname.value = path;
+  mobileView.value = "detail";
 }
 
 /** Navigate to a project version (no entity selected). */
 export function navigateToProject(projectId: string, version: string): void {
   const path = `/${projectId}/${version}/`;
+  navDepth++;
   history.pushState({}, "", path);
   pathname.value = path;
 }
 
 /** Navigate to root (clears entity selection, shows project list). */
 export function navigateHome(): void {
+  navDepth++;
   history.pushState({}, "", "/");
   pathname.value = "/";
 }
 
+/** Track in-app navigation depth so we know if history.back() is safe. */
+let navDepth = 0;
+
+/** Go back one step in browser history, or return false if there's no in-app history. */
+export function goBack(): boolean {
+  if (navDepth > 0) {
+    navDepth--;
+    history.back();
+    return true;
+  }
+  return false;
+}
+
 function onPopState() {
   pathname.value = window.location.pathname;
+  syncMobileView(parsePath(pathname.value));
 }
 
 export function initRouter(): void {
+  navDepth = 0;
   pathname.value = window.location.pathname;
+  syncMobileView(parsePath(pathname.value));
   window.addEventListener("popstate", onPopState);
 }
 

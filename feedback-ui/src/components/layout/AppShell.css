@@ -76,20 +76,22 @@
   padding: var(--spacing-lg);
 }
 
-/* Mobile: stack layout */
+/* Mobile: single-pane layout (sidebar OR detail, never both) */
 @media (max-width: 768px) {
-  .app-shell__body {
-    flex-direction: column;
-  }
-
   .app-shell__sidebar {
     width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
     border-right: none;
-    border-bottom: 1px solid var(--color-border);
   }
 
   .app-shell__sidebar--hidden {
     display: none;
+  }
+
+  .app-shell__detail {
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .app-shell__detail--hidden {
