@@ -1,5 +1,6 @@
 import { vocabulary, selectedVersion } from "../../state/vocabulary";
 import { navigate } from "../../router";
+import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabProperty } from "../../api/published";
 
 interface PropertyDetailProps {
@@ -90,6 +91,12 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
           </div>
         </div>
       </div>
+
+      <FeedbackSection
+        entityType="property"
+        entityId={propertyId}
+        entityLabel={prop.label}
+      />
     </div>
   );
 }

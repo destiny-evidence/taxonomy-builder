@@ -1,5 +1,7 @@
 import { vocabulary, loading, error } from "../../state/vocabulary";
+import { searchQuery } from "../../state/search";
 import { VersionSelector } from "./VersionSelector";
+import { SearchBar } from "./SearchBar";
 import { SchemeSection } from "./SchemeSection";
 import { DataModelSection } from "./DataModelSection";
 import "./Sidebar.css";
@@ -24,13 +26,20 @@ export function Sidebar() {
     return <div class="sidebar"><p class="sidebar__empty">No content published yet</p></div>;
   }
 
+  const hasSearchQuery = searchQuery.value.trim().length > 0;
+
   return (
     <div class="sidebar">
       <VersionSelector />
-      {vocab.schemes.map((scheme) => (
-        <SchemeSection key={scheme.id} scheme={scheme} />
-      ))}
-      <DataModelSection />
+      <SearchBar />
+      {!hasSearchQuery && (
+        <>
+          {vocab.schemes.map((scheme) => (
+            <SchemeSection key={scheme.id} scheme={scheme} />
+          ))}
+          <DataModelSection />
+        </>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { vocabulary } from "../../state/vocabulary";
+import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabClass } from "../../api/published";
 
 interface ClassDetailProps {
@@ -56,6 +57,12 @@ export function ClassDetail({ classId }: ClassDetailProps) {
           </div>
         </div>
       )}
+
+      <FeedbackSection
+        entityType="class"
+        entityId={classId}
+        entityLabel={cls.label}
+      />
     </div>
   );
 }
