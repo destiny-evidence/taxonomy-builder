@@ -1,10 +1,14 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
+import { signal } from "@preact/signals";
 import { projects, projectsLoading, projectsError } from "../../state/projects";
 import { projectsApi } from "../../api/projects";
+import { feedbackManagerApi } from "../../api/feedback";
 import { Button } from "../common/Button";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import type { Project } from "../../types/models";
 import "./ProjectList.css";
+
+const feedbackCounts = signal<Record<string, number>>({});
 
 interface ProjectListProps {
   onEdit: (project: Project) => void;
@@ -14,6 +18,16 @@ interface ProjectListProps {
 export function ProjectList({ onEdit, onDeleted }: ProjectListProps) {
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    const ids = projects.value.map((p) => p.id);
+    if (ids.length === 0) return;
+    feedbackManagerApi.counts(ids).then((counts) => {
+      feedbackCounts.value = counts;
+    }).catch(() => {
+      // Badge just won't show
+    });
+  }, [projects.value]);
 
   async function handleDelete() {
     if (!deletingProject) return;
@@ -56,7 +70,14 @@ export function ProjectList({ onEdit, onDeleted }: ProjectListProps) {
             class="project-card"
           >
             <div class="project-card__content">
-              <h3 class="project-card__name">{project.name}</h3>
+              <div class="project-card__name-row">
+                <h3 class="project-card__name">{project.name}</h3>
+                {(feedbackCounts.value[project.id] ?? 0) > 0 && (
+                  <span class="project-card__feedback-badge">
+                    {feedbackCounts.value[project.id]}
+                  </span>
+                )}
+              </div>
               {project.namespace && (
                 <p class="project-card__namespace">{project.namespace}</p>
               )}

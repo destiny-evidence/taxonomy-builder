@@ -38,10 +38,30 @@
   margin-bottom: var(--spacing-md);
 }
 
+.project-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
 .project-card__name {
   font-size: var(--font-size-lg);
   font-weight: 600;
   margin: 0;
+}
+
+.project-card__feedback-badge {
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  padding: 0 5px;
 }
 
 .project-card__namespace {

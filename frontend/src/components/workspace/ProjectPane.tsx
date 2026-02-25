@@ -62,6 +62,12 @@ export function ProjectPane({
             History
           </button>
         </div>
+        <a
+          href={`/projects/${projectId}/feedback`}
+          class="project-pane__feedback-btn"
+        >
+          Feedback
+        </a>
       </div>
 
       <div class="project-pane__content">
