@@ -3,8 +3,9 @@ locals {
   name_short       = "${replace(var.app_name, "-", "")}${substr(var.environment, 0, 4)}"
   is_production    = var.environment == "production"
   is_development   = var.environment != "production" && var.environment != "staging"
-  db_migrator_name = "db-migrator-${var.environment}"
-
+  db_migrator_name        = "db-migrator-${var.environment}"
+  builder_custom_domain   = "${var.builder_subdomain}.${var.custom_domain}"
+  feedback_custom_domain  = "${var.feedback_subdomain}.${var.custom_domain}"
 
   minimum_resource_tags = {
     "Created by"  = var.created_by

@@ -297,6 +297,20 @@
           "id": "c2ae3ea0-b4c1-462c-877d-c97ea5c60196",
           "name": "api-user",
           "description": "User with access to the Taxonomy Builder API",
+          "composite": true,
+          "composites": {
+            "client": {
+              "taxonomy-builder-api": ["feedback-user"]
+            }
+          },
+          "clientRole": true,
+          "containerId": "e3b0e508-5056-4744-87f6-617ba399880d",
+          "attributes": {}
+        },
+        {
+          "id": "d1bf4b90-2a3c-4e5f-9a8b-1c7d3e5f7a9b",
+          "name": "feedback-user",
+          "description": "User with access to submit feedback only",
           "composite": false,
           "clientRole": true,
           "containerId": "e3b0e508-5056-4744-87f6-617ba399880d",
@@ -304,6 +318,7 @@
         }
       ],
       "taxonomy-builder-ui": [],
+      "taxonomy-feedback-ui": [],
       "broker": [
         {
           "id": "4b6dcc65-0618-4296-8802-b4a58226f325",
@@ -457,6 +472,10 @@
       {
         "clientScope": "taxonomy-builder-api-scope",
         "roles": ["api-user"]
+      },
+      {
+        "clientScope": "feedback-api-scope",
+        "roles": ["feedback-user"]
       }
     ],
     "account": [
@@ -878,6 +897,54 @@
         "organization",
         "microprofile-jwt"
       ]
+    },
+    {
+      "id": "f4a2b8c1-6d3e-4f5a-9b1c-7e8d2f4a6b3c",
+      "clientId": "taxonomy-feedback-ui",
+      "name": "Taxonomy Feedback UI",
+      "description": "",
+      "rootUrl": "",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "post.logout.redirect.uris": "+"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": false,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "feedback-api-scope",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "organization",
+        "microprofile-jwt"
+      ]
     }
   ],
   "clientScopes": [
@@ -927,6 +994,28 @@
       "protocolMappers": [
         {
           "id": "574b13ea-3a3c-454d-8b3a-720ae60744ad",
+          "name": "audience-resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false,
+          "config": {}
+        }
+      ]
+    },
+    {
+      "id": "a7c2d4e6-1b3f-4a5c-8d9e-2f4b6c8d0e1a",
+      "name": "feedback-api-scope",
+      "description": "Scope for accessing the feedback API",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "gui.order": "",
+        "consent.screen.text": ""
+      },
+      "protocolMappers": [
+        {
+          "id": "b8d3e5f7-2c4a-4b6d-9e1f-3a5c7d9e1b3f",
           "name": "audience-resolve",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-resolve-mapper",

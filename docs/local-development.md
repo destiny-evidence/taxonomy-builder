@@ -12,16 +12,22 @@ docker compose up -d
 cd backend
 uv sync --all-extras
 uv run alembic upgrade head
-uv run seed-db  # Optional: populate with sample data
+uv run seed-db  # Optional: populate with sample data + published files
 uv run uvicorn taxonomy_builder.main:app --reload
 
 # Frontend (in another terminal)
 cd frontend
 npm install
 npm run dev
+
+# Feedback UI (in another terminal, optional)
+cd feedback-ui
+npm install
+npm run dev
 ```
 
 The app will be available at <http://localhost:3000>.
+The feedback UI will be at <http://localhost:3001/feedback/>.
 
 ## Internal Setup (fef.dev)
 
@@ -46,6 +52,8 @@ This requires:
 
 This will create a user with username `user` and password `user` for development.
 
+With Caddy running, the feedback UI is accessible at `https://<branch>.fef.dev/feedback/` alongside the main app. Caddy routes `/feedback/*` to the feedback UI dev server, `/api/*` to the backend, and `/published/*` to the local blob storage.
+
 ## Working with Multiple Worktrees
 
 When working on multiple features in parallel, use the provided scripts to set up isolated environments for each branch.
@@ -68,7 +76,7 @@ The setup script will:
 
 1. Create a git worktree at `../taxonomy-<branch>`
 2. Create a dedicated database
-3. Run migrations and seed data
+3. Run migrations and seed data (including published reader files)
 4. Create VS Code tasks.json and launch.json
 5. (Internal only) Configure Caddy routing if `DEV_DOMAIN` is set
 
@@ -79,6 +87,7 @@ Each worktree runs on different ports. Access via `localhost:PORT`:
 ```bash
 ./dev/setup-worktree.sh feature-x
 # Output shows: Visit: http://localhost:3042 (port varies by branch)
+#               Feedback UI: http://localhost:4042/feedback/
 ```
 
 ### Internal Contributors
@@ -88,6 +97,7 @@ With `DEV_DOMAIN` configured in `dev/config.local`, each worktree gets its own s
 ```bash
 ./dev/setup-worktree.sh feature-x
 # Output shows: Visit: https://feature-x.fef.dev
+#               Feedback UI: https://feature-x.fef.dev/feedback/
 ```
 
 ### Branch Indicator
@@ -127,20 +137,23 @@ The seed data includes:
 - **Demo Taxonomy** project with:
   - Colors scheme (simple warm/cool color hierarchy)
 
+The seed command also publishes each project as v1.0 and writes reader JSON files to the blob storage directory (`.blob-storage/` by default). Set `TAXONOMY_BLOB_FILESYSTEM_ROOT` to control where files are written. The worktree setup script points this to the shared `<repo-root>/.blob-storage/` so Caddy can serve them at `/published/*`.
+
 ## Environment Variables
 
 ### Backend
 
-| Variable                      | Description                          | Default                                                                  |
-| ----------------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
-| `TAXONOMY_DATABASE_URL`       | Full database URL                    | `postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder` |
-| `TAXONOMY_DB_HOST`            | Database host (if not using URL)     | -                                                                        |
-| `TAXONOMY_DB_NAME`            | Database name (if not using URL)     | -                                                                        |
-| `TAXONOMY_DB_USER`            | Database user (if not using URL)     | -                                                                        |
-| `TAXONOMY_DB_PASSWORD`        | Database password (if not using URL) | -                                                                        |
-| `TAXONOMY_KEYCLOAK_URL`       | Keycloak server URL                  | `http://localhost:8080`                                                  |
-| `TAXONOMY_KEYCLOAK_REALM`     | Keycloak realm                       | `taxonomy-builder`                                                       |
-| `TAXONOMY_KEYCLOAK_CLIENT_ID` | Keycloak client ID                   | `taxonomy-builder-api`                                                   |
+| Variable                         | Description                            | Default                                                                  |
+| -------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| `TAXONOMY_DATABASE_URL`          | Full database URL                      | `postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder` |
+| `TAXONOMY_DB_HOST`               | Database host (if not using URL)       | -                                                                        |
+| `TAXONOMY_DB_NAME`               | Database name (if not using URL)       | -                                                                        |
+| `TAXONOMY_DB_USER`               | Database user (if not using URL)       | -                                                                        |
+| `TAXONOMY_DB_PASSWORD`           | Database password (if not using URL)   | -                                                                        |
+| `TAXONOMY_KEYCLOAK_URL`          | Keycloak server URL                    | `http://localhost:8080`                                                  |
+| `TAXONOMY_KEYCLOAK_REALM`        | Keycloak realm                         | `taxonomy-builder`                                                       |
+| `TAXONOMY_KEYCLOAK_CLIENT_ID`    | Keycloak client ID                     | `taxonomy-builder-api`                                                   |
+| `TAXONOMY_BLOB_FILESYSTEM_ROOT`  | Directory for published reader files   | `./.blob-storage`                                                        |
 
 ### Frontend
 
@@ -151,6 +164,16 @@ The seed data includes:
 | `VITE_KEYCLOAK_REALM`     | Keycloak realm      | `taxonomy-builder`      |
 | `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID  | `taxonomy-builder-app`  |
 
+### Feedback UI
+
+| Variable                  | Description                | Default                 |
+| ------------------------- | -------------------------- | ----------------------- |
+| `VITE_API_BASE`           | API base URL               | `/api` (proxied)        |
+| `VITE_KEYCLOAK_URL`       | Keycloak server URL        | `http://localhost:8080` |
+| `VITE_KEYCLOAK_REALM`     | Keycloak realm             | `taxonomy-builder`      |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak client ID         | `taxonomy-builder-ui`   |
+| `VITE_API_TARGET`         | Backend proxy target (dev) | `http://localhost:8000` |
+
 ### Scripts (dev/config.local)
 
 | Variable        | Description                                | Default                       |
@@ -160,7 +183,7 @@ The seed data includes:
 
 ## Tips
 
-1. **Use VS Code tasks** - The setup script creates `.vscode/tasks.json` with pre-configured tasks. Press `Cmd+Shift+B` to start both servers.
+1. **Use VS Code tasks** - The setup script creates `.vscode/tasks.json` with pre-configured tasks. Press `Cmd+Shift+B` to start all servers (backend, frontend, feedback UI).
 
 2. **Database cleanup** - List and clean up databases from old branches:
 
