@@ -13,11 +13,15 @@ from taxonomy_builder.models.user import User
 from taxonomy_builder.services.auth_service import AuthenticationError, AuthService
 
 if TYPE_CHECKING:
+    from taxonomy_builder.services.comment_service import CommentService
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
     from taxonomy_builder.services.concept_service import ConceptService
+    from taxonomy_builder.services.feedback_service import FeedbackService
     from taxonomy_builder.services.history_service import HistoryService
     from taxonomy_builder.services.ontology_class_service import OntologyClassService
+    from taxonomy_builder.services.project_service import ProjectService
     from taxonomy_builder.services.property_service import PropertyService
+    from taxonomy_builder.services.skos_export_service import SKOSExportService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
 
 
@@ -34,6 +38,7 @@ class AuthenticatedUser:
     org_id: str | None
     org_name: str | None
     org_roles: list[str]
+    client_roles: list[str]
 
 
 async def get_current_user(
@@ -76,6 +81,7 @@ async def get_current_user(
             org_id=org_claims["org_id"],
             org_name=org_claims["org_name"],
             org_roles=org_claims["roles"],
+            client_roles=auth_service.extract_client_roles(claims),
         )
     except AuthenticationError as e:
         raise HTTPException(
@@ -99,18 +105,49 @@ async def get_optional_user(
         return None
 
 
-# Type alias for use in route function signatures
-CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
+def require_role(role: str):
+    """Dependency factory that checks for a Keycloak client role.
+
+    Wraps get_current_user — authenticates first, then checks authorization.
+    Returns 403 if the user lacks the required role.
+    """
+
+    async def check(
+        user: AuthenticatedUser = Depends(get_current_user),
+    ) -> AuthenticatedUser:
+        if role not in user.client_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{role}' required",
+            )
+        return user
+
+    return check
+
+
+# Type aliases for use in route function signatures
+CurrentUser = Annotated[AuthenticatedUser, Depends(require_role("api-user"))]
 OptionalUser = Annotated[AuthenticatedUser | None, Depends(get_optional_user)]
+FeedbackUser = Annotated[AuthenticatedUser, Depends(require_role("feedback-user"))]
 
 
 # Service factory functions that inject user_id from the current user
 # These are used by routes that need to track changes with user attribution
 
 
+def get_comment_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
+) -> CommentService:
+    """Dependency that provides a CommentService with user context."""
+    from taxonomy_builder.services.comment_service import CommentService
+
+    return CommentService(db, user_id=current_user.user.id)
+
+
 def get_concept_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
 ) -> ConceptService:
     """Dependency that provides a ConceptService with user context."""
     from taxonomy_builder.services.concept_service import ConceptService
@@ -120,7 +157,7 @@ def get_concept_service(
 
 def get_scheme_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
 ) -> ConceptSchemeService:
     """Dependency that provides a ConceptSchemeService with user context."""
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
@@ -130,7 +167,7 @@ def get_scheme_service(
 
 def get_import_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
 ) -> SKOSImportService:
     """Dependency that provides a SKOSImportService with user context."""
     from taxonomy_builder.services.skos_import_service import SKOSImportService
@@ -147,7 +184,7 @@ def get_history_service(db: AsyncSession = Depends(get_db)) -> HistoryService:
 
 def get_ontology_class_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
 ) -> OntologyClassService:
     """Dependency that provides an OntologyClassService with user context."""
     from taxonomy_builder.services.ontology_class_service import OntologyClassService
@@ -157,9 +194,19 @@ def get_ontology_class_service(
     return OntologyClassService(db, project_service, user_id=current_user.user.id)
 
 
+def get_project_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
+) -> ProjectService:
+    """Dependency that provides a ProjectService with user context."""
+    from taxonomy_builder.services.project_service import ProjectService
+
+    return ProjectService(db, user_id=current_user.user.id)
+
+
 def get_property_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
 ) -> PropertyService:
     """Dependency that provides a PropertyService with user context."""
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
@@ -169,3 +216,25 @@ def get_property_service(
     project_service = ProjectService(db, user_id=current_user.user.id)
     scheme_service = ConceptSchemeService(db, user_id=current_user.user.id)
     return PropertyService(db, project_service, scheme_service, user_id=current_user.user.id)
+
+
+def get_export_service(db: AsyncSession = Depends(get_db)) -> SKOSExportService:
+    """Dependency that provides a SKOSExportService instance."""
+    from taxonomy_builder.services.skos_export_service import SKOSExportService
+
+    return SKOSExportService(db)
+
+
+def get_feedback_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_role("feedback-user")),
+) -> FeedbackService:
+    """Dependency that provides a FeedbackService with user context."""
+    from taxonomy_builder.services.feedback_service import FeedbackService
+
+    return FeedbackService(
+        db,
+        user_id=current_user.user.id,
+        user_display_name=current_user.user.display_name,
+        user_email=current_user.user.email,
+    )

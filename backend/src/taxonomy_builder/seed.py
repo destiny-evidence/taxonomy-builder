@@ -49,6 +49,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
     project = Project(
         name="Evidence Synthesis Taxonomy",
         description="A taxonomy for categorizing systematic review methods and approaches.",
+        namespace="http://example.org/taxonomies/evidence-synthesis",
     )
     session.add(project)
     await session.flush()

@@ -3,10 +3,8 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
-from taxonomy_builder.database import get_db
+from taxonomy_builder.api.dependencies import get_feedback_service
 from taxonomy_builder.schemas.feedback import FeedbackCreate, FeedbackRead
 from taxonomy_builder.services.feedback_service import (
     EntityNotInSnapshotError,
@@ -17,18 +15,6 @@ from taxonomy_builder.services.feedback_service import (
 )
 
 feedback_router = APIRouter(prefix="/api/feedback", tags=["feedback"])
-
-
-def get_feedback_service(
-    db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
-) -> FeedbackService:
-    return FeedbackService(
-        db,
-        user_id=current_user.user.id,
-        user_display_name=current_user.user.display_name,
-        user_email=current_user.user.email,
-    )
 
 
 @feedback_router.post(

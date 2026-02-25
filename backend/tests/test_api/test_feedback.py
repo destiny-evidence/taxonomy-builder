@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
+from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user, require_role
 from taxonomy_builder.main import app
 from taxonomy_builder.models.feedback import Feedback
 from taxonomy_builder.models.project import Project
@@ -155,7 +155,11 @@ async def auth_client(
 
     async def override_current_user() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=user, org_id=None, org_name=None, org_roles=[]
+            user=user,
+            org_id=None,
+            org_name=None,
+            org_roles=[],
+            client_roles=["feedback-user"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -171,7 +175,11 @@ async def other_auth_client(
 
     async def override_current_user() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=other_user, org_id=None, org_name=None, org_roles=[]
+            user=other_user,
+            org_id=None,
+            org_name=None,
+            org_roles=[],
+            client_roles=["feedback-user"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -526,3 +534,29 @@ async def test_delete_requires_auth(
 
     response = await client.delete(f"/api/feedback/{fb.id}")
     assert response.status_code == 401
+
+
+# ============ Role-Based Authorization Tests ============
+
+
+@pytest.mark.asyncio
+async def test_feedback_user_cannot_access_projects(
+    auth_client: AsyncClient,
+) -> None:
+    """A feedback-only user gets 403 on non-feedback endpoints."""
+    response = await auth_client.get("/api/projects")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_feedback_user_can_create_feedback(
+    auth_client: AsyncClient,
+    project: Project,
+    published_version: PublishedVersion,
+) -> None:
+    """A feedback-only user can submit feedback."""
+    body = _valid_feedback_body()
+    response = await auth_client.post(
+        f"/api/feedback/{project.id}", json=body
+    )
+    assert response.status_code == 201
