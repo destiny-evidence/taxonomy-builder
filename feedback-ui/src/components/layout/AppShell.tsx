@@ -1,6 +1,6 @@
 import { useEffect } from "preact/hooks";
 import { useSignal } from "@preact/signals";
-import { initRouter, destroyRouter, route, navigateHome } from "../../router";
+import { initRouter, destroyRouter, route, navigateHome, navigateToProject } from "../../router";
 import { loadProjects, selectProject, projectName, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { AuthStatus } from "./AuthStatus";
 import { Sidebar } from "../sidebar/Sidebar";
@@ -52,13 +52,22 @@ export function AppShell() {
               <span class="app-shell__breadcrumb-link" onClick={navigateHome}>
                 Vocabularies
               </span>
-              <span class="app-shell__breadcrumb-sep" aria-hidden="true">›</span>
-              <span class="app-shell__title">
+              <svg class="app-shell__breadcrumb-sep" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span
+                class="app-shell__title app-shell__title--link"
+                onClick={() => {
+                  const pid = route.value.projectId;
+                  const ver = route.value.version;
+                  if (pid && ver) navigateToProject(pid, ver);
+                }}
+              >
                 {projectName.value || "Taxonomy Reader"}
+                {selectedVersion.value && (
+                  <span class="app-shell__version">v{selectedVersion.value}</span>
+                )}
               </span>
-              {selectedVersion.value && (
-                <span class="app-shell__version">v{selectedVersion.value}</span>
-              )}
             </>
           ) : (
             <span class="app-shell__title">Taxonomy Reader</span>

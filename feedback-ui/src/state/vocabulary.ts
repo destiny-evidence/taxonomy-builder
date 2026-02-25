@@ -1,12 +1,15 @@
 import { computed, signal } from "@preact/signals";
 import {
   getRootIndex,
+  getProjectIndex,
   getVocabulary,
+  type ProjectIndex,
   type RootIndexProject,
   type Vocabulary,
   type VocabConcept,
   type VocabScheme,
 } from "../api/published";
+import { route, navigate, navigateToProject, type EntityKind } from "../router";
 import { isAuthenticated } from "./auth";
 import { loadOwnFeedback } from "./feedback";
 
@@ -19,6 +22,8 @@ export const projects = signal<RootIndexProject[]>([]);
 export const currentProjectId = signal<string | null>(null);
 export const vocabulary = signal<Vocabulary | null>(null);
 export const selectedVersion = signal<string | null>(null);
+export const projectIndex = signal<ProjectIndex | null>(null);
+export const projectIndexLoading = signal(false);
 
 // --- Derived ---
 
@@ -116,6 +121,7 @@ export async function selectProject(projectId: string, version: string): Promise
     loading.value = true;
     error.value = null;
     currentProjectId.value = projectId;
+    loadProjectIndex(projectId);
     await loadVersion(projectId, version);
     if (isAuthenticated.value) {
       loadOwnFeedback();
@@ -140,5 +146,51 @@ export async function loadVersion(
     error.value = e instanceof Error ? e.message : "Failed to load vocabulary";
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadProjectIndex(projectId: string): Promise<void> {
+  if (projectIndex.value?.project.id === projectId) return;
+  projectIndex.value = null;
+  projectIndexLoading.value = true;
+  try {
+    projectIndex.value = await getProjectIndex(projectId);
+  } catch {
+    // Non-critical — version selector just won't have the full list
+  } finally {
+    projectIndexLoading.value = false;
+  }
+}
+
+function entityExistsInVocabulary(
+  vocab: Vocabulary,
+  entityKind: EntityKind,
+  entityId: string
+): boolean {
+  switch (entityKind) {
+    case "scheme":
+      return vocab.schemes.some((s) => s.id === entityId);
+    case "concept":
+      return vocab.schemes.some((s) => entityId in s.concepts);
+    case "class":
+      return vocab.classes.some((c) => c.id === entityId);
+    case "property":
+      return vocab.properties.some((p) => p.id === entityId);
+  }
+}
+
+export async function switchVersion(version: string): Promise<void> {
+  const projectId = currentProjectId.value;
+  if (!projectId || version === selectedVersion.value) return;
+
+  const { entityKind, entityId } = route.value;
+
+  await loadVersion(projectId, version);
+
+  const vocab = vocabulary.value;
+  if (entityKind && entityId && vocab && entityExistsInVocabulary(vocab, entityKind, entityId)) {
+    navigate(projectId, version, entityKind, entityId);
+  } else {
+    navigateToProject(projectId, version);
   }
 }

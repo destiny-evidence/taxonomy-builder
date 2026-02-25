@@ -94,3 +94,111 @@
 .welcome__subtitle {
   font-size: var(--font-size-sm);
 }
+
+/* About vocabulary panel */
+.about__summary {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.about__summary-item {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.about__summary-count {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-right: var(--spacing-xs);
+}
+
+.about__pre-release {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  padding: 1px var(--spacing-xs);
+  margin-left: var(--spacing-sm);
+  background: var(--color-warning);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+/* Version list */
+.about__version-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.about__versions-loading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.about__version-card {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.about__version-card:not(.about__version-card--current):hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-secondary);
+}
+
+.about__version-card--current {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  cursor: default;
+}
+
+.about__version-header {
+  display: flex;
+  align-items: center;
+}
+
+.about__version-number {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.about__current-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  padding: 1px var(--spacing-xs);
+  margin-left: var(--spacing-sm);
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.about__latest-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  padding: 1px var(--spacing-xs);
+  margin-left: var(--spacing-sm);
+  background: var(--color-success);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.about__version-title {
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.about__version-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.about__version-notes {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-sm);
+  white-space: pre-wrap;
+}

@@ -37,13 +37,23 @@
 }
 
 .app-shell__breadcrumb-sep {
-  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.app-shell__title--link {
+  cursor: pointer;
+}
+
+.app-shell__title--link:hover {
+  color: var(--color-primary);
 }
 
 .app-shell__version {
   font-size: var(--font-size-sm);
+  font-weight: 400;
   color: var(--color-text-secondary);
+  margin-left: var(--spacing-sm);
 }
 
 .app-shell__body {
