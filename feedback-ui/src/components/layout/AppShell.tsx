@@ -2,6 +2,7 @@ import { useEffect } from "preact/hooks";
 import { initRouter, destroyRouter, route, navigateHome, navigateToProject, goBack, mobileView } from "../../router";
 import { loadProjects, selectProject, projectName, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { AuthStatus } from "./AuthStatus";
+import { isOffline } from "../../state/network";
 import { Sidebar } from "../sidebar/Sidebar";
 import { DetailPanel } from "../detail/DetailPanel";
 import { ProjectListPage } from "../projects/ProjectListPage";
@@ -71,6 +72,9 @@ export function AppShell() {
             <span class="app-shell__title">Taxonomy Reader</span>
           )}
         </div>
+        {isOffline.value && (
+          <span class="app-shell__offline">Offline</span>
+        )}
         <AuthStatus />
       </header>
       {isProjectView ? (

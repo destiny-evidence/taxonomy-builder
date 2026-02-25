@@ -49,6 +49,16 @@
   color: var(--color-primary);
 }
 
+.app-shell__offline {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-warning);
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
 .app-shell__version {
   font-size: var(--font-size-sm);
   font-weight: 400;
