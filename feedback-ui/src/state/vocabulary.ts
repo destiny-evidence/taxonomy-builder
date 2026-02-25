@@ -10,6 +10,8 @@ import {
   type VocabScheme,
   type VersionEntry,
 } from "../api/published";
+import { isAuthenticated } from "./auth";
+import { loadOwnFeedback } from "./feedback";
 
 // --- Signals ---
 
@@ -132,6 +134,10 @@ export async function selectProject(projectId: string): Promise<void> {
     const version = idx.latest_version ?? idx.versions[0]?.version;
     if (version) {
       await loadVersion(projectId, version);
+    }
+    // Load own feedback now that project is known
+    if (isAuthenticated.value) {
+      loadOwnFeedback();
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to load project";

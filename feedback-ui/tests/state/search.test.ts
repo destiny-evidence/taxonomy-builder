@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { makeVocabulary, makeConcept } from "../fixtures";
 
 describe("search state", () => {
   it("returns empty results for empty query", async () => {
@@ -11,15 +12,7 @@ describe("search state", () => {
     const vocabMod = await import("../../src/state/vocabulary");
     const searchMod = await import("../../src/state/search");
 
-    vocabMod.vocabulary.value = {
-      format_version: "1",
-      version: "1.0",
-      title: "Test",
-      published_at: "2024-01-01",
-      publisher: null,
-      pre_release: false,
-      previous_version_id: null,
-      project: { id: "p1", name: "Test", description: null, namespace: null },
+    vocabMod.vocabulary.value = makeVocabulary({
       schemes: [
         {
           id: "s1",
@@ -28,16 +21,11 @@ describe("search state", () => {
           uri: "http://example.org/s1",
           top_concepts: [],
           concepts: {
-            c1: {
+            c1: makeConcept({
               pref_label: "Red",
               identifier: "red",
-              uri: "http://example.org/red",
-              definition: null,
-              scope_note: null,
               alt_labels: ["Crimson"],
-              broader: [],
-              related: [],
-            },
+            }),
           },
         },
       ],
@@ -51,8 +39,7 @@ describe("search state", () => {
           scope_note: null,
         },
       ],
-      properties: [],
-    };
+    });
 
     searchMod.searchQuery.value = "red";
     const results = searchMod.searchResults.value;
