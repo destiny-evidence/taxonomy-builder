@@ -5,8 +5,8 @@ import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 
 export function DataModelSection() {
-  const classesExpanded = useSignal(true);
-  const propsExpanded = useSignal(true);
+  const classesExpanded = useSignal(false);
+  const propsExpanded = useSignal(false);
   const vocab = vocabulary.value;
   if (!vocab) return null;
 

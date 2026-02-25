@@ -11,7 +11,7 @@ interface SchemeSectionProps {
 }
 
 export function SchemeSection({ scheme }: SchemeSectionProps) {
-  const expanded = useSignal(true);
+  const expanded = useSignal(false);
   const isActive =
     route.value.entityKind === "scheme" && route.value.entityId === scheme.id;
 
