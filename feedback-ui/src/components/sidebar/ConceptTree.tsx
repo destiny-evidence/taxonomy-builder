@@ -44,7 +44,7 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
         )}
         <span class="concept-tree__label">{node.label}</span>
         {isAuthenticated.value && (() => {
-          const count = feedbackCountForEntity(node.id, selectedVersion.value ?? "", "concept");
+          const count = feedbackCountForEntity(node.id, "concept");
           return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
         })()}
       </div>

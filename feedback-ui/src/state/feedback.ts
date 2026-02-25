@@ -9,30 +9,22 @@ export const ownFeedback = signal<FeedbackRead[]>([]);
 export const feedbackLoading = signal(false);
 export const feedbackError = signal<string | null>(null);
 
-/** Feedback for the currently routed entity + version + type. */
+/** Feedback for the currently routed entity + type (all versions). */
 export const currentEntityFeedback = computed(() => {
   const { entityId, entityKind } = route.value;
-  const version = selectedVersion.value;
-  if (!entityId || !version || !entityKind) return [];
+  if (!entityId || !entityKind) return [];
   return ownFeedback.value.filter(
-    (fb) =>
-      fb.entity_id === entityId &&
-      fb.snapshot_version === version &&
-      fb.entity_type === entityKind
+    (fb) => fb.entity_id === entityId && fb.entity_type === entityKind
   );
 });
 
-/** Count of own feedback for a given entity + version + type. */
+/** Count of own feedback for a given entity + type (all versions). */
 export function feedbackCountForEntity(
   entityId: string,
-  version: string,
   entityType: string
 ): number {
   return ownFeedback.value.filter(
-    (fb) =>
-      fb.entity_id === entityId &&
-      fb.snapshot_version === version &&
-      fb.entity_type === entityType
+    (fb) => fb.entity_id === entityId && fb.entity_type === entityType
   ).length;
 }
 

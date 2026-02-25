@@ -35,6 +35,7 @@ export function FeedbackCard({ feedback }: FeedbackCardProps) {
     <div class="feedback-card">
       <div class="feedback-card__header">
         <span class="feedback-card__date">{date}</span>
+        <span class="feedback-card__version">v{feedback.snapshot_version}</span>
         <Badge label={feedbackTypeLabel(feedback.feedback_type)} />
         <Badge
           label={feedback.status}

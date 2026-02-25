@@ -19,6 +19,12 @@
   color: var(--color-text-muted);
 }
 
+.feedback-card__version {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono, monospace);
+}
+
 .feedback-card__content {
   font-size: var(--font-size-sm);
   line-height: 1.6;

@@ -1,6 +1,7 @@
 import { useSignal } from "@preact/signals";
 import { isAuthenticated } from "../../state/auth";
 import { currentEntityFeedback } from "../../state/feedback";
+import { selectedVersion } from "../../state/vocabulary";
 import { login } from "../../api/auth";
 import { FeedbackCard } from "./FeedbackCard";
 import { FeedbackForm } from "./FeedbackForm";
@@ -19,7 +20,8 @@ export function FeedbackSection({
   entityId,
   entityLabel,
 }: FeedbackSectionProps) {
-  const filter = useSignal<StatusFilter>("all");
+  const statusFilter = useSignal<StatusFilter>("all");
+  const versionOnly = useSignal(false);
 
   if (!isAuthenticated.value) {
     return (
@@ -38,16 +40,21 @@ export function FeedbackSection({
   }
 
   const allFeedback = currentEntityFeedback.value;
-  const filtered =
-    filter.value === "all"
-      ? allFeedback
-      : allFeedback.filter((fb) =>
-          filter.value === "open"
-            ? fb.status === "open"
-            : fb.status === "resolved" || fb.status === "declined"
-        );
+  const version = selectedVersion.value;
 
-  const filters: { key: StatusFilter; label: string }[] = [
+  let filtered = allFeedback;
+  if (versionOnly.value && version) {
+    filtered = filtered.filter((fb) => fb.snapshot_version === version);
+  }
+  if (statusFilter.value !== "all") {
+    filtered = filtered.filter((fb) =>
+      statusFilter.value === "open"
+        ? fb.status === "open"
+        : fb.status === "resolved" || fb.status === "declined"
+    );
+  }
+
+  const statusFilters: { key: StatusFilter; label: string }[] = [
     { key: "all", label: "All" },
     { key: "open", label: "Open" },
     { key: "resolved", label: "Resolved" },
@@ -64,19 +71,28 @@ export function FeedbackSection({
 
       {allFeedback.length > 0 && (
         <div class="feedback-section__filters">
-          {filters.map((f) => (
+          {statusFilters.map((f) => (
             <button
               key={f.key}
               class={`feedback-section__filter-btn${
-                filter.value === f.key
+                statusFilter.value === f.key
                   ? " feedback-section__filter-btn--active"
                   : ""
               }`}
-              onClick={() => (filter.value = f.key)}
+              onClick={() => (statusFilter.value = f.key)}
             >
               {f.label}
             </button>
           ))}
+          <span class="feedback-section__filter-divider" />
+          <button
+            class={`feedback-section__filter-btn${
+              versionOnly.value ? " feedback-section__filter-btn--active" : ""
+            }`}
+            onClick={() => (versionOnly.value = !versionOnly.value)}
+          >
+            This version only
+          </button>
         </div>
       )}
 
@@ -84,11 +100,11 @@ export function FeedbackSection({
         filtered.map((fb) => <FeedbackCard key={fb.id} feedback={fb} />)
       ) : allFeedback.length > 0 ? (
         <div class="feedback-section__empty">
-          No {filter.value} feedback
+          No matching feedback
         </div>
       ) : (
         <div class="feedback-section__empty">
-          No feedback yet on this entity
+          You have not provided feedback yet on this entity.
         </div>
       )}
 

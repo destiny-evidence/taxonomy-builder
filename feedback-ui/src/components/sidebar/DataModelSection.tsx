@@ -29,8 +29,8 @@ export function DataModelSection() {
             {classesExpanded.value && (
               <div class="sidebar__section-body">
                 {classes.map((cls) => {
-                  const version = selectedVersion.value ?? "";
-                  const count = isAuthenticated.value ? feedbackCountForEntity(cls.id, version, "class") : 0;
+                  const count = isAuthenticated.value ? feedbackCountForEntity(cls.id, "class") : 0;
+                  const version = selectedVersion.value;
                   return (
                     <div
                       key={cls.id}
@@ -57,8 +57,8 @@ export function DataModelSection() {
             {propsExpanded.value && (
               <div class="sidebar__section-body">
                 {properties.map((prop) => {
-                  const version = selectedVersion.value ?? "";
-                  const count = isAuthenticated.value ? feedbackCountForEntity(prop.id, version, "property") : 0;
+                  const count = isAuthenticated.value ? feedbackCountForEntity(prop.id, "property") : 0;
+                  const version = selectedVersion.value;
                   return (
                     <div
                       key={prop.id}
