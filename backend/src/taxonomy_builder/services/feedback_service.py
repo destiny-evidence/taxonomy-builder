@@ -54,14 +54,14 @@ def _find_entity_label(
     if entity_type == EntityType.concept:
         for scheme in snapshot.get("concept_schemes", []):
             for concept in scheme.get("concepts", []):
-                if str(concept["id"]) == entity_id:
-                    return concept["pref_label"]
+                if str(concept.get("id", "")) == entity_id:
+                    return concept.get("pref_label")
         return None
 
     collection_key, label_field = _ENTITY_LOOKUP[entity_type]
     for entity in snapshot.get(collection_key, []):
-        if str(entity["id"]) == entity_id:
-            return entity[label_field]
+        if str(entity.get("id", "")) == entity_id:
+            return entity.get(label_field)
     return None
 
 
@@ -153,14 +153,13 @@ class FeedbackService:
         result = await self.db.execute(
             select(Feedback).where(
                 Feedback.id == feedback_id,
+                Feedback.user_id == self.user_id,
                 Feedback.deleted_at.is_(None),
             )
         )
         feedback = result.scalar_one_or_none()
         if feedback is None:
             raise FeedbackNotFoundError(feedback_id)
-        if feedback.user_id != self.user_id:
-            raise NotFeedbackOwnerError(feedback_id, self.user_id)
 
         feedback.deleted_at = datetime.now()
         await self.db.flush()

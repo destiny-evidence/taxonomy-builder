@@ -12,7 +12,6 @@ from taxonomy_builder.services.feedback_service import (
     EntityNotInSnapshotError,
     FeedbackNotFoundError,
     FeedbackService,
-    NotFeedbackOwnerError,
     VersionNotFoundError,
 )
 
@@ -83,8 +82,6 @@ async def delete_feedback(
         await service.delete(feedback_id)
     except FeedbackNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except NotFeedbackOwnerError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 def _to_response(feedback, *, can_delete: bool) -> dict:

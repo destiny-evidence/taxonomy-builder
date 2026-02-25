@@ -290,6 +290,41 @@ async def test_create_feedback_invalid_entity_id(
 
 
 @pytest.mark.asyncio
+async def test_create_feedback_malformed_snapshot(
+    auth_client: AsyncClient,
+    project: Project,
+    db_session: AsyncSession,
+) -> None:
+    """POST against a snapshot with missing keys returns 422, not 500."""
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="9.0",
+        title="bad snapshot",
+        finalized=True,
+        published_at=datetime.now(UTC),
+        snapshot={
+            "concept_schemes": [
+                {
+                    "title": "No IDs",
+                    "concepts": [{"pref_label": "Missing id field"}],
+                }
+            ],
+            "classes": [],
+            "properties": [],
+        },
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    body = _valid_feedback_body()
+    body["snapshot_version"] = "9.0"
+    response = await auth_client.post(
+        f"/api/feedback/{project.id}", json=body
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_create_feedback_invalid_version(
     auth_client: AsyncClient,
     project: Project,
@@ -493,7 +528,7 @@ async def test_delete_other_user(
     user: User,
     db_session: AsyncSession,
 ) -> None:
-    """DELETE another user's feedback returns 403."""
+    """DELETE another user's feedback returns 404 (no existence leak)."""
     fb = _make_feedback(
         user, project_id=project.id, content="Owned by user, not other_user"
     )
@@ -501,7 +536,7 @@ async def test_delete_other_user(
     await db_session.flush()
 
     response = await other_auth_client.delete(f"/api/feedback/{fb.id}")
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

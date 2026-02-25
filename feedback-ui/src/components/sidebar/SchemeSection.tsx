@@ -37,7 +37,7 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
         >
           {scheme.title}
           {isAuthenticated.value && (() => {
-            const count = feedbackCountForEntity(scheme.id, selectedVersion.value ?? "");
+            const count = feedbackCountForEntity(scheme.id, selectedVersion.value ?? "", "scheme");
             return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
           })()}
         </span>

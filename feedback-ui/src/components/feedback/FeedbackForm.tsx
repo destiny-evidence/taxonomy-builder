@@ -1,4 +1,5 @@
 import { useSignal } from "@preact/signals";
+import { useEffect } from "preact/hooks";
 import { getFeedbackTypes } from "../../constants/feedback-types";
 import { submitFeedback } from "../../state/feedback";
 import "./FeedbackForm.css";
@@ -17,6 +18,12 @@ export function FeedbackForm({
   const types = getFeedbackTypes(entityType);
   const selectedType = useSignal(types[0]?.value ?? "");
   const content = useSignal("");
+
+  // Reset selected type when entity type changes (e.g. concept → class)
+  useEffect(() => {
+    const newTypes = getFeedbackTypes(entityType);
+    selectedType.value = newTypes[0]?.value ?? "";
+  }, [entityType]);
   const submitting = useSignal(false);
   const success = useSignal(false);
   const error = useSignal<string | null>(null);

@@ -30,7 +30,7 @@ export function DataModelSection() {
               </div>
               {classes.map((cls) => {
                 const version = selectedVersion.value ?? "";
-                const count = isAuthenticated.value ? feedbackCountForEntity(cls.id, version) : 0;
+                const count = isAuthenticated.value ? feedbackCountForEntity(cls.id, version, "class") : 0;
                 return (
                   <div
                     key={cls.id}
@@ -51,7 +51,7 @@ export function DataModelSection() {
               </div>
               {properties.map((prop) => {
                 const version = selectedVersion.value ?? "";
-                const count = isAuthenticated.value ? feedbackCountForEntity(prop.id, version) : 0;
+                const count = isAuthenticated.value ? feedbackCountForEntity(prop.id, version, "property") : 0;
                 return (
                   <div
                     key={prop.id}
