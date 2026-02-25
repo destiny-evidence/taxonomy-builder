@@ -223,6 +223,7 @@ class FeedbackService:
                     Feedback.content.ilike(pattern),
                     Feedback.entity_label.ilike(pattern),
                     Feedback.author_name.ilike(pattern),
+                    Feedback.response_content.ilike(pattern),
                 )
             )
 

@@ -45,6 +45,7 @@ class FeedbackCreate(BaseModel):
 class FeedbackResponse(BaseModel):
     """Nested response info shown to readers (no manager identity)."""
 
+    author: str
     content: str
     created_at: datetime
 
@@ -91,3 +92,11 @@ class TriageRequest(BaseModel):
     """Body for POST /resolve and POST /decline."""
 
     content: str | None = Field(default=None, max_length=10000)
+
+    @field_validator("content")
+    @classmethod
+    def strip_or_none(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        stripped = v.strip()
+        return stripped or None

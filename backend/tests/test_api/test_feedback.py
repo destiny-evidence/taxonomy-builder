@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user, require_role
+from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
 from taxonomy_builder.main import app
 from taxonomy_builder.models.feedback import Feedback
 from taxonomy_builder.models.project import Project
@@ -180,6 +180,26 @@ async def other_auth_client(
             org_name=None,
             org_roles=[],
             client_roles=["feedback-user"],
+        )
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    yield client
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+async def manager_client(
+    client: AsyncClient, user: User
+) -> AsyncGenerator[AsyncClient]:
+    """Client authenticated as a manager (api-user role)."""
+
+    async def override_current_user() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            user=user,
+            org_id=None,
+            org_name=None,
+            org_roles=[],
+            client_roles=["api-user", "feedback-user"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -602,7 +622,7 @@ async def test_feedback_user_can_create_feedback(
 
 @pytest.mark.asyncio
 async def test_list_all(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     other_user: User,
@@ -614,7 +634,7 @@ async def test_list_all(
     db_session.add_all([fb1, fb2])
     await db_session.flush()
 
-    response = await auth_client.get(f"/api/feedback/{project.id}/all")
+    response = await manager_client.get(f"/api/feedback/{project.id}/all")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
@@ -625,7 +645,7 @@ async def test_list_all(
 
 @pytest.mark.asyncio
 async def test_list_all_filter_status(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -638,7 +658,7 @@ async def test_list_all_filter_status(
     db_session.add_all([fb_open, fb_resolved])
     await db_session.flush()
 
-    response = await auth_client.get(f"/api/feedback/{project.id}/all?status=open")
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?status=open")
     data = response.json()
     assert len(data) == 1
     assert data[0]["content"] == "Open"
@@ -646,7 +666,7 @@ async def test_list_all_filter_status(
 
 @pytest.mark.asyncio
 async def test_list_all_filter_entity_type(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -665,7 +685,7 @@ async def test_list_all_filter_entity_type(
     db_session.add_all([fb_concept, fb_class])
     await db_session.flush()
 
-    response = await auth_client.get(
+    response = await manager_client.get(
         f"/api/feedback/{project.id}/all?entity_type=concept"
     )
     data = response.json()
@@ -675,7 +695,7 @@ async def test_list_all_filter_entity_type(
 
 @pytest.mark.asyncio
 async def test_list_all_filter_feedback_type(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -688,7 +708,7 @@ async def test_list_all_filter_feedback_type(
     db_session.add_all([fb_unclear, fb_missing])
     await db_session.flush()
 
-    response = await auth_client.get(
+    response = await manager_client.get(
         f"/api/feedback/{project.id}/all?feedback_type=unclear_definition"
     )
     data = response.json()
@@ -698,7 +718,7 @@ async def test_list_all_filter_feedback_type(
 
 @pytest.mark.asyncio
 async def test_list_all_search(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -711,7 +731,7 @@ async def test_list_all_search(
     db_session.add_all([fb1, fb2])
     await db_session.flush()
 
-    response = await auth_client.get(f"/api/feedback/{project.id}/all?q=VAGUE")
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?q=VAGUE")
     data = response.json()
     assert len(data) == 1
     assert data[0]["content"] == "The definition is vague"
@@ -719,7 +739,7 @@ async def test_list_all_search(
 
 @pytest.mark.asyncio
 async def test_list_all_excludes_deleted(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -734,13 +754,13 @@ async def test_list_all_excludes_deleted(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.get(f"/api/feedback/{project.id}/all")
+    response = await manager_client.get(f"/api/feedback/{project.id}/all")
     assert response.json() == []
 
 
 @pytest.mark.asyncio
 async def test_list_all_capped(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -752,7 +772,7 @@ async def test_list_all_capped(
         )
     await db_session.flush()
 
-    response = await auth_client.get(f"/api/feedback/{project.id}/all?limit=2")
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?limit=2")
     data = response.json()
     assert len(data) == 2
 
@@ -771,7 +791,7 @@ async def test_list_all_requires_auth(
 
 @pytest.mark.asyncio
 async def test_respond(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     user: User,
@@ -782,7 +802,7 @@ async def test_respond(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(
+    response = await manager_client.post(
         f"/api/feedback/{fb.id}/respond", json={"content": "Here's help"}
     )
     assert response.status_code == 200
@@ -796,7 +816,7 @@ async def test_respond(
 
 @pytest.mark.asyncio
 async def test_respond_overwrites(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
@@ -806,10 +826,10 @@ async def test_respond_overwrites(
     db_session.add(fb)
     await db_session.flush()
 
-    await auth_client.post(
+    await manager_client.post(
         f"/api/feedback/{fb.id}/respond", json={"content": "First answer"}
     )
-    response = await auth_client.post(
+    response = await manager_client.post(
         f"/api/feedback/{fb.id}/respond", json={"content": "Updated answer"}
     )
     assert response.status_code == 200
@@ -818,7 +838,7 @@ async def test_respond_overwrites(
 
 @pytest.mark.asyncio
 async def test_respond_empty_content(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
@@ -828,7 +848,7 @@ async def test_respond_empty_content(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(
+    response = await manager_client.post(
         f"/api/feedback/{fb.id}/respond", json={"content": ""}
     )
     assert response.status_code == 422
@@ -837,7 +857,7 @@ async def test_respond_empty_content(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("status", ["resolved", "declined"])
 async def test_respond_to_terminal_status(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
@@ -850,7 +870,7 @@ async def test_respond_to_terminal_status(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(
+    response = await manager_client.post(
         f"/api/feedback/{fb.id}/respond", json={"content": "Late response"}
     )
     assert response.status_code == 409
@@ -865,7 +885,7 @@ async def test_respond_to_terminal_status(
     [("resolve", "resolved"), ("decline", "declined")],
 )
 async def test_triage(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
@@ -877,7 +897,7 @@ async def test_triage(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(f"/api/feedback/{fb.id}/{action}", json={})
+    response = await manager_client.post(f"/api/feedback/{fb.id}/{action}", json={})
     assert response.status_code == 200
     assert response.json()["status"] == expected_status
 
@@ -888,7 +908,7 @@ async def test_triage(
     [("resolve", "resolved"), ("decline", "declined")],
 )
 async def test_triage_with_content(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     user: User,
@@ -901,7 +921,7 @@ async def test_triage_with_content(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(
+    response = await manager_client.post(
         f"/api/feedback/{fb.id}/{action}", json={"content": "Manager note"}
     )
     assert response.status_code == 200
@@ -921,7 +941,7 @@ async def test_triage_with_content(
     ids=["declined_to_resolved", "resolved_to_declined"],
 )
 async def test_retriage(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
@@ -936,14 +956,14 @@ async def test_retriage(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(f"/api/feedback/{fb.id}/{action}", json={})
+    response = await manager_client.post(f"/api/feedback/{fb.id}/{action}", json={})
     assert response.status_code == 200
     assert response.json()["status"] == expected_status
 
 
 @pytest.mark.asyncio
 async def test_resolve_idempotent(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
@@ -958,7 +978,7 @@ async def test_resolve_idempotent(
     db_session.add(fb)
     await db_session.flush()
 
-    response = await auth_client.post(f"/api/feedback/{fb.id}/resolve", json={})
+    response = await manager_client.post(f"/api/feedback/{fb.id}/resolve", json={})
     assert response.status_code == 200
     assert response.json()["status"] == "resolved"
 
@@ -968,7 +988,7 @@ async def test_resolve_idempotent(
 
 @pytest.mark.asyncio
 async def test_open_counts(
-    auth_client: AsyncClient,
+    manager_client: AsyncClient,
     project: Project,
     user: User,
     db_session: AsyncSession,
@@ -984,7 +1004,7 @@ async def test_open_counts(
     db_session.add_all([fb_open, fb_responded, fb_resolved])
     await db_session.flush()
 
-    response = await auth_client.get(
+    response = await manager_client.get(
         f"/api/feedback/counts?project_ids={project.id}"
     )
     assert response.status_code == 200
@@ -1028,6 +1048,39 @@ async def test_manager_requires_auth(
     assert response.status_code == 401
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "url_tpl", "body"),
+    [
+        ("get", "/api/feedback/{project_id}/all", None),
+        ("post", "/api/feedback/{feedback_id}/respond", {"content": "Hi"}),
+        ("post", "/api/feedback/{feedback_id}/resolve", {}),
+        ("post", "/api/feedback/{feedback_id}/decline", {}),
+        ("get", "/api/feedback/counts?project_ids={project_id}", None),
+    ],
+    ids=["list_all", "respond", "resolve", "decline", "counts"],
+)
+async def test_feedback_user_cannot_access_manager_endpoints(
+    auth_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+    method: str,
+    url_tpl: str,
+    body: dict | None,
+) -> None:
+    """feedback-user role alone gets 403 on manager endpoints."""
+    fb = _make_feedback(user, project_id=project.id, content="Auth test")
+    db_session.add(fb)
+    await db_session.flush()
+
+    url = url_tpl.format(project_id=project.id, feedback_id=fb.id)
+    call = auth_client.get if method == "get" else auth_client.post
+    kwargs: dict = {"json": body} if body is not None else {}
+    response = await call(url, **kwargs)
+    assert response.status_code == 403
+
+
 # ============ Reader: Privacy Tests ============
 
 
@@ -1049,7 +1102,7 @@ async def test_reader_response_hides_manager_name(
     async def manager_override() -> AuthenticatedUser:
         return AuthenticatedUser(
             user=other_user, org_id=None, org_name=None, org_roles=[],
-            client_roles=["feedback-user"],
+            client_roles=["api-user", "feedback-user"],
         )
 
     app.dependency_overrides[get_current_user] = manager_override
@@ -1075,6 +1128,7 @@ async def test_reader_response_hides_manager_name(
     item = data[0]
     assert item["response"] is not None
     assert item["response"]["content"] == "Here's the fix"
+    assert item["response"]["author"] == "Vocabulary manager"
     assert "created_at" in item["response"]
     # Manager identity must NOT leak to reader
     assert "responded_by" not in item["response"]

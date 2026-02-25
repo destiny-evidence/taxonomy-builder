@@ -4,7 +4,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from taxonomy_builder.api.dependencies import get_feedback_service
+from taxonomy_builder.api.dependencies import (
+    get_feedback_service,
+    get_manager_feedback_service,
+)
 from taxonomy_builder.schemas.feedback import (
     FeedbackCreate,
     FeedbackManagerRead,
@@ -28,6 +31,7 @@ def _to_response(feedback, *, can_delete: bool) -> dict:
     response_dict = None
     if feedback.response_content:
         response_dict = {
+            "author": "Vocabulary manager",
             "content": feedback.response_content,
             "created_at": feedback.responded_at,
         }
@@ -63,7 +67,7 @@ def _to_manager_response(feedback) -> dict:
 )
 async def get_open_counts(
     project_ids: list[UUID] = Query(...),
-    service: FeedbackService = Depends(get_feedback_service),
+    service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> dict[str, int]:
     """Open + responded feedback counts per project for badge display."""
     counts = await service.get_open_counts(project_ids)
@@ -143,7 +147,7 @@ async def list_all_feedback(
     feedback_type: str | None = None,
     q: str | None = None,
     limit: int = Query(default=500, le=500, ge=1),
-    service: FeedbackService = Depends(get_feedback_service),
+    service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> list[dict]:
     """All non-deleted feedback for a project (manager view)."""
     items = await service.list_all(
@@ -164,7 +168,7 @@ async def list_all_feedback(
 async def respond_to_feedback(
     feedback_id: UUID,
     body: RespondRequest,
-    service: FeedbackService = Depends(get_feedback_service),
+    service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> dict:
     """Add or overwrite a response on feedback."""
     try:
@@ -183,7 +187,7 @@ async def respond_to_feedback(
 async def resolve_feedback(
     feedback_id: UUID,
     body: TriageRequest,
-    service: FeedbackService = Depends(get_feedback_service),
+    service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> dict:
     """Resolve feedback, optionally with a response message."""
     try:
@@ -200,7 +204,7 @@ async def resolve_feedback(
 async def decline_feedback(
     feedback_id: UUID,
     body: TriageRequest,
-    service: FeedbackService = Depends(get_feedback_service),
+    service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> dict:
     """Decline feedback, optionally with a response message."""
     try:
