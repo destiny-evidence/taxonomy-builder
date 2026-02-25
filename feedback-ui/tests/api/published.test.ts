@@ -142,7 +142,7 @@ describe("published content client", () => {
 
       const result = await getRootIndex();
 
-      expect(mockFetch).toHaveBeenCalledWith("/published/index.json");
+      expect(mockFetch).toHaveBeenCalledWith("/published/index.json", {});
       expect(result).toEqual(ROOT_INDEX);
     });
 
@@ -162,7 +162,8 @@ describe("published content client", () => {
       const result = await getProjectIndex(PROJ_ID);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `/published/${PROJ_ID}/index.json`
+        `/published/${PROJ_ID}/index.json`,
+        {}
       );
       expect(result).toEqual(PROJECT_INDEX);
     });
@@ -181,7 +182,8 @@ describe("published content client", () => {
       const result = await getVocabulary(PROJ_ID, "1.0");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `/published/${PROJ_ID}/1.0/vocabulary.json`
+        `/published/${PROJ_ID}/1.0/vocabulary.json`,
+        {}
       );
       expect(result).toEqual(VOCABULARY);
     });
