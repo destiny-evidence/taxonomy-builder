@@ -53,7 +53,19 @@ export function ConceptDetail({ conceptId }: ConceptDetailProps) {
   }
   if (!result) return <div class="detail">Concept not found</div>;
 
-  const { concept } = result;
+  const { concept, schemeId } = result;
+
+  // Compute narrower concepts (inverse of broader)
+  const scheme = vocab.schemes.find((s) => s.id === schemeId);
+  const narrower: { id: string; label: string }[] = [];
+  if (scheme) {
+    for (const [id, c] of Object.entries(scheme.concepts)) {
+      if (c.broader.includes(conceptId)) {
+        narrower.push({ id, label: c.pref_label });
+      }
+    }
+    narrower.sort((a, b) => a.label.localeCompare(b.label));
+  }
 
   return (
     <div class="detail">
@@ -91,6 +103,17 @@ export function ConceptDetail({ conceptId }: ConceptDetailProps) {
           <div class="detail__link-list">
             {concept.broader.map((id) => (
               <ConceptLink key={id} id={id} label={resolveLabel(id)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {narrower.length > 0 && (
+        <div class="detail__section">
+          <div class="detail__label">Narrower</div>
+          <div class="detail__link-list">
+            {narrower.map((c) => (
+              <ConceptLink key={c.id} id={c.id} label={c.label} />
             ))}
           </div>
         </div>
