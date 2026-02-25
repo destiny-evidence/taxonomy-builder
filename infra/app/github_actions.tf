@@ -91,6 +91,20 @@ resource "azurerm_role_assignment" "gha_storage_account_contributor" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
+# GitHub Actions - Feedback UI Storage Blob Data Contributor
+resource "azurerm_role_assignment" "gha_feedback_blob_contributor" {
+  role_definition_name = "Storage Blob Data Contributor"
+  scope                = azurerm_storage_account.feedback.id
+  principal_id         = azuread_service_principal.github_actions.object_id
+}
+
+# GitHub Actions - Feedback UI Storage Account Contributor
+resource "azurerm_role_assignment" "gha_feedback_account_contributor" {
+  role_definition_name = "Storage Account Contributor"
+  scope                = azurerm_storage_account.feedback.id
+  principal_id         = azuread_service_principal.github_actions.object_id
+}
+
 # GitHub repository environment for deployment variables
 resource "github_repository_environment" "environment" {
   repository  = "taxonomy-builder"
@@ -178,7 +192,7 @@ resource "github_actions_environment_variable" "keycloak_url" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_URL"
-  value         = "https://${var.custom_domain}"
+  value         = "https://${local.builder_custom_domain}"
 }
 
 resource "github_actions_environment_variable" "keycloak_realm" {
@@ -193,4 +207,41 @@ resource "github_actions_environment_variable" "keycloak_client_id" {
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_CLIENT_ID"
   value         = "taxonomy-builder-ui"
+}
+
+resource "github_actions_environment_variable" "feedback_custom_domain" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FEEDBACK_CUSTOM_DOMAIN"
+  value         = local.feedback_custom_domain
+}
+
+resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "KEYCLOAK_FEEDBACK_CLIENT_ID"
+  value         = "taxonomy-feedback-ui"
+}
+
+# Feedback UI deployment variables
+
+resource "github_actions_environment_variable" "feedback_storage_account_name" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FEEDBACK_STORAGE_ACCOUNT_NAME"
+  value         = azurerm_storage_account.feedback.name
+}
+
+resource "github_actions_environment_variable" "frontdoor_profile_name" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FRONTDOOR_PROFILE_NAME"
+  value         = azurerm_cdn_frontdoor_profile.this.name
+}
+
+resource "github_actions_environment_variable" "frontdoor_endpoint_name" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FRONTDOOR_ENDPOINT_NAME"
+  value         = azurerm_cdn_frontdoor_endpoint.this.name
 }

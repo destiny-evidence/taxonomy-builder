@@ -13,12 +13,12 @@ resource "keycloak_realm" "this" {
 
   login_theme = "keycloak"
 
-  login_with_email_allowed  = true
-  duplicate_emails_allowed  = false
-  reset_password_allowed    = true
-  remember_me               = true
-  verify_email              = false
-  registration_allowed      = false
+  login_with_email_allowed       = true
+  duplicate_emails_allowed       = false
+  reset_password_allowed         = true
+  remember_me                    = true
+  verify_email                   = false
+  registration_allowed           = false
   registration_email_as_username = true
 }
 
@@ -32,12 +32,14 @@ resource "keycloak_openid_client" "api" {
   access_type = "BEARER-ONLY"
 }
 
-# API User role on the API client
+# API User role on the API client (includes feedback-user)
 resource "keycloak_role" "api_user" {
   realm_id    = local.keycloak_realm_id
   client_id   = keycloak_openid_client.api.id
   name        = "api-user"
   description = "User with access to the Taxonomy Builder API"
+
+  composite_roles = [keycloak_role.feedback_user.id]
 }
 
 # Client scope for API audience
@@ -74,11 +76,60 @@ resource "keycloak_openid_client" "ui" {
   direct_access_grants_enabled = false
   full_scope_allowed           = false
 
-  valid_redirect_uris = ["https://${var.custom_domain}/*"]
-  web_origins         = ["https://${var.custom_domain}"]
+  valid_redirect_uris = ["https://${local.builder_custom_domain}/*"]
+  web_origins         = ["https://${local.builder_custom_domain}"]
 }
 
-# Link API scope to UI client as default scope
+# --- Feedback ---
+
+# Feedback User role on the API client (limited permissions)
+resource "keycloak_role" "feedback_user" {
+  realm_id    = local.keycloak_realm_id
+  client_id   = keycloak_openid_client.api.id
+  name        = "feedback-user"
+  description = "User with access to submit feedback only"
+}
+
+# Client scope for feedback API access
+resource "keycloak_openid_client_scope" "feedback_api" {
+  realm_id               = local.keycloak_realm_id
+  name                   = "feedback-api-scope"
+  description            = "Scope for accessing the feedback API"
+  include_in_token_scope = true
+}
+
+# Audience Resolve protocol mapper on the feedback scope
+resource "keycloak_openid_audience_resolve_protocol_mapper" "feedback_api" {
+  realm_id        = local.keycloak_realm_id
+  client_scope_id = keycloak_openid_client_scope.feedback_api.id
+  name            = "audience-resolve"
+}
+
+# Role scope mapping - link feedback-user role to the feedback client scope
+resource "keycloak_generic_role_mapper" "feedback_scope_role" {
+  realm_id        = local.keycloak_realm_id
+  client_scope_id = keycloak_openid_client_scope.feedback_api.id
+  role_id         = keycloak_role.feedback_user.id
+}
+
+# Feedback UI Client (public, standard flow for browser authentication)
+resource "keycloak_openid_client" "feedback_ui" {
+  realm_id  = local.keycloak_realm_id
+  client_id = "taxonomy-feedback-ui"
+  name      = "Taxonomy Feedback UI"
+  enabled   = true
+
+  access_type                  = "PUBLIC"
+  standard_flow_enabled        = true
+  direct_access_grants_enabled = false
+  full_scope_allowed           = false
+
+  valid_redirect_uris = ["https://${local.feedback_custom_domain}/*"]
+  web_origins         = ["https://${local.feedback_custom_domain}"]
+}
+
+# --- Client scopes ---
+
 resource "keycloak_openid_client_default_scopes" "ui" {
   realm_id  = local.keycloak_realm_id
   client_id = keycloak_openid_client.ui.id
@@ -87,10 +138,26 @@ resource "keycloak_openid_client_default_scopes" "ui" {
     "openid",
     "profile",
     "email",
-    "basic",       # Contains sub claim mapper
-    "roles",       # Contains audience resolve mapper
+    "basic",
+    "roles",
     "web-origins",
     "acr",
     keycloak_openid_client_scope.api.name,
+  ]
+}
+
+resource "keycloak_openid_client_default_scopes" "feedback_ui" {
+  realm_id  = local.keycloak_realm_id
+  client_id = keycloak_openid_client.feedback_ui.id
+
+  default_scopes = [
+    "openid",
+    "profile",
+    "email",
+    "basic",
+    "roles",
+    "web-origins",
+    "acr",
+    keycloak_openid_client_scope.feedback_api.name,
   ]
 }

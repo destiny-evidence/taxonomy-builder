@@ -8,6 +8,7 @@ from fastapi import FastAPI, Response
 from sqlalchemy import text
 
 from taxonomy_builder.api.comments import comments_router, concept_comments_router
+from taxonomy_builder.api.feedback import feedback_router
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
 from taxonomy_builder.api.history import router as history_router
 from taxonomy_builder.api.ontology import router as ontology_router
@@ -64,6 +65,7 @@ app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(ontology_router)
 app.include_router(publishing_router)
+app.include_router(feedback_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])

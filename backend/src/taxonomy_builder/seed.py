@@ -2,13 +2,21 @@
 
 import asyncio
 import sys
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import DatabaseSessionManager
 from taxonomy_builder.models import Concept, ConceptBroader, ConceptScheme, Project, User
+from taxonomy_builder.schemas.publishing import PublishRequest
+from taxonomy_builder.services.concept_service import ConceptService
+from taxonomy_builder.services.project_service import ProjectService
+from taxonomy_builder.services.publishing_service import PublishingService
+from taxonomy_builder.services.reader_file_service import ReaderFileService
+from taxonomy_builder.services.snapshot_service import SnapshotService
 
 
 async def create_seed_data(session: AsyncSession) -> dict:
@@ -303,6 +311,47 @@ async def create_seed_data(session: AsyncSession) -> dict:
     return created
 
 
+async def publish_seed_projects(session_manager: DatabaseSessionManager) -> None:
+    """Publish all unpublished projects and write reader files to blob storage."""
+    blob_root = Path(settings.blob_filesystem_root).resolve()
+    blob_store = FilesystemBlobStore(root=blob_root)
+    cdn_purger = NoOpPurger()
+
+    try:
+        async with session_manager.session() as session:
+            project_svc = ProjectService(session)
+            concept_svc = ConceptService(session)
+            snapshot_svc = SnapshotService(session, project_svc, concept_svc)
+            publishing_svc = PublishingService(session, project_svc, snapshot_svc)
+            reader_svc = ReaderFileService(publishing_svc, blob_store, cdn_purger)
+
+            projects = await project_svc.list_projects()
+            published = 0
+            for project in projects:
+                existing = await publishing_svc.list_versions(project.id)
+                if existing:
+                    continue
+
+                version = await publishing_svc.publish(
+                    project.id,
+                    PublishRequest(
+                        version="1.0",
+                        title=f"{project.name} v1.0",
+                        notes="Seed data for local development.",
+                    ),
+                    publisher="seed",
+                )
+                await reader_svc.publish_reader_files(version)
+                published += 1
+                print(f"  - {project.name}: published v1.0")
+
+            if published == 0:
+                print("  (all projects already published)")
+    finally:
+        await blob_store.close()
+        await cdn_purger.close()
+
+
 async def run_seed() -> None:
     """Run the seeding process."""
     db_url = settings.effective_database_url
@@ -323,6 +372,9 @@ async def run_seed() -> None:
 
         if all(c == 0 for c in created.values()):
             print("  (data already exists, nothing created)")
+
+        print("Publishing seed projects:")
+        await publish_seed_projects(session_manager)
 
     finally:
         await session_manager.close()
