@@ -34,7 +34,7 @@ export function AppShell() {
 
   function handleBack() {
     mobileShowDetail.value = false;
-    window.location.hash = "";
+    navigateHome();
   }
 
   const isProjectView = route.value.projectId !== null;

@@ -11,54 +11,55 @@ export interface Route {
 
 const EMPTY_ROUTE: Route = { projectId: null, version: null, entityKind: null, entityId: null };
 
-/** Strip Keycloak callback params that leak into the hash after login redirect. */
-function cleanHash(raw: string): string {
-  return raw.split("&")[0];
-}
+/** Raw pathname, updated on popstate and programmatic navigation. */
+const pathname = signal(window.location.pathname);
 
-/** Raw hash string (without leading #), updated on hashchange. */
-const hash = signal(cleanHash(window.location.hash.slice(1)));
-
-function parseHash(h: string): Route {
+function parsePath(p: string): Route {
   // Full entity route: /{projectId}/{version}/{entityKind}/{entityId}
-  const full = h.match(/^\/([^/]+)\/([^/]+)\/(concept|scheme|class|property)\/(.+)$/);
+  const full = p.match(/^\/([^/]+)\/([^/]+)\/(concept|scheme|class|property)\/(.+)$/);
   if (full) {
     return { projectId: full[1], version: full[2], entityKind: full[3] as EntityKind, entityId: full[4] };
   }
   // Project-only route: /{projectId}
-  const projectOnly = h.match(/^\/([^/]+)$/);
+  const projectOnly = p.match(/^\/([^/]+)$/);
   if (projectOnly) {
     return { projectId: projectOnly[1], version: null, entityKind: null, entityId: null };
   }
   return EMPTY_ROUTE;
 }
 
-/** Current parsed route, derived from hash. */
-export const route = computed(() => parseHash(hash.value));
+/** Current parsed route, derived from pathname. */
+export const route = computed(() => parsePath(pathname.value));
 
-/** Navigate to an entity by updating the hash. */
+/** Navigate to an entity. */
 export function navigate(projectId: string, version: string, entityKind: EntityKind, entityId: string): void {
-  window.location.hash = `/${projectId}/${version}/${entityKind}/${entityId}`;
+  const path = `/${projectId}/${version}/${entityKind}/${entityId}`;
+  history.pushState({}, "", path);
+  pathname.value = path;
 }
 
 /** Navigate to a project (no entity selected). */
 export function navigateToProject(projectId: string): void {
-  window.location.hash = `/${projectId}`;
+  const path = `/${projectId}`;
+  history.pushState({}, "", path);
+  pathname.value = path;
 }
 
 /** Navigate to root (clears entity selection, shows project list). */
 export function navigateHome(): void {
-  window.location.hash = "";
+  history.pushState({}, "", "/");
+  pathname.value = "/";
 }
 
-function onHashChange() {
-  hash.value = cleanHash(window.location.hash.slice(1));
+function onPopState() {
+  pathname.value = window.location.pathname;
 }
 
 export function initRouter(): void {
-  window.addEventListener("hashchange", onHashChange);
+  pathname.value = window.location.pathname;
+  window.addEventListener("popstate", onPopState);
 }
 
 export function destroyRouter(): void {
-  window.removeEventListener("hashchange", onHashChange);
+  window.removeEventListener("popstate", onPopState);
 }

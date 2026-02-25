@@ -17,7 +17,8 @@
       "Bash(npm test:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(gh issue view:*)"
+      "Bash(gh issue view:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": []
