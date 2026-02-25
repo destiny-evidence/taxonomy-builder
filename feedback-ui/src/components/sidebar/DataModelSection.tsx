@@ -14,6 +14,14 @@ export function DataModelSection() {
   const properties = vocab.properties;
   if (classes.length === 0 && properties.length === 0) return null;
 
+  const classesAggCount = !classesExpanded.value && isAuthenticated.value
+    ? classes.reduce((sum, cls) => sum + feedbackCountForEntity(cls.id, "class"), 0)
+    : 0;
+
+  const propsAggCount = !propsExpanded.value && isAuthenticated.value
+    ? properties.reduce((sum, p) => sum + feedbackCountForEntity(p.id, "property"), 0)
+    : 0;
+
   return (
     <div class="sidebar__group">
       <div class="sidebar__group-header">Data Model</div>
@@ -25,6 +33,7 @@ export function DataModelSection() {
                 <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span class="sidebar__section-title">Classes</span>
+              {classesAggCount > 0 && <span class="sidebar__badge">{classesAggCount}</span>}
             </div>
             {classesExpanded.value && (
               <div class="sidebar__section-body">
@@ -53,6 +62,7 @@ export function DataModelSection() {
                 <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span class="sidebar__section-title">Properties</span>
+              {propsAggCount > 0 && <span class="sidebar__badge">{propsAggCount}</span>}
             </div>
             {propsExpanded.value && (
               <div class="sidebar__section-body">

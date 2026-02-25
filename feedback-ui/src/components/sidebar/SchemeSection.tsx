@@ -25,6 +25,16 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
 
   const tree = conceptTrees.value.get(scheme.id) ?? [];
 
+  const displayCount = (() => {
+    if (!isAuthenticated.value) return 0;
+    const ownCount = feedbackCountForEntity(scheme.id, "scheme");
+    if (expanded.value) return ownCount;
+    const conceptCount = Object.keys(scheme.concepts).reduce(
+      (sum, id) => sum + feedbackCountForEntity(id, "concept"), 0
+    );
+    return ownCount + conceptCount;
+  })();
+
   return (
     <div class="sidebar__section">
       <div class="sidebar__section-header" onClick={() => (expanded.value = !expanded.value)}>
@@ -40,10 +50,7 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
         >
           {scheme.title}
         </span>
-        {isAuthenticated.value && (() => {
-          const count = feedbackCountForEntity(scheme.id, "scheme");
-          return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
-        })()}
+        {displayCount > 0 && <span class="sidebar__badge">{displayCount}</span>}
       </div>
       {expanded.value && <ConceptTree nodes={tree} schemeId={scheme.id} />}
     </div>

@@ -5,6 +5,15 @@ import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 import type { ConceptTreeNode } from "../../state/vocabulary";
 
+/** Sum feedback counts for a concept node and all its descendants. */
+function subtreeFeedbackCount(node: ConceptTreeNode): number {
+  let count = feedbackCountForEntity(node.id, "concept");
+  for (const child of node.children) {
+    count += subtreeFeedbackCount(child);
+  }
+  return count;
+}
+
 interface ConceptTreeNodeProps {
   node: ConceptTreeNode;
   schemeId: string;
@@ -29,6 +38,10 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
     expanded.value = !expanded.value;
   }
 
+  const displayCount = isAuthenticated.value
+    ? (expanded.value ? feedbackCountForEntity(node.id, "concept") : subtreeFeedbackCount(node))
+    : 0;
+
   return (
     <div>
       <div
@@ -43,10 +56,7 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
           <span class="concept-tree__toggle-spacer" />
         )}
         <span class="concept-tree__label">{node.label}</span>
-        {isAuthenticated.value && (() => {
-          const count = feedbackCountForEntity(node.id, "concept");
-          return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
-        })()}
+        {displayCount > 0 && <span class="sidebar__badge">{displayCount}</span>}
       </div>
       {hasChildren && expanded.value && (
         <div class="concept-tree__children">
