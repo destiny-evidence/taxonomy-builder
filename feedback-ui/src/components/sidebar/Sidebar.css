@@ -97,7 +97,8 @@
 
 /* Data model items */
 .data-model-item {
-  display: block;
+  display: flex;
+  align-items: center;
   padding: var(--spacing-xs) 0;
   font-size: var(--font-size-sm);
   color: var(--color-text);
@@ -111,4 +112,21 @@
 .data-model-item--active {
   color: var(--color-primary);
   font-weight: 600;
+}
+
+/* Feedback count badge */
+.sidebar__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--color-success);
+  color: white;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: var(--spacing-xs);
+  flex-shrink: 0;
 }
