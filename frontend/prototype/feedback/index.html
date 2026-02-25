@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taxonomy Reader — Feedback Prototype</title>
+<style>
+/* ===== Design tokens (matching variables.css) ===== */
+:root {
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-tertiary: #e9ecef;
+  --color-border: #dee2e6;
+  --color-border-light: #e9ecef;
+  --color-text: #212529;
+  --color-text-secondary: #6c757d;
+  --color-text-muted: #adb5bd;
+  --color-primary: #0066cc;
+  --color-primary-hover: #0052a3;
+  --color-primary-light: #e6f0fa;
+  --color-danger: #dc3545;
+  --color-danger-hover: #bb2d3b;
+  --color-success: #198754;
+  --color-warning: #ffc107;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  --header-height: 56px;
+  --sidebar-width: 340px;
+}
+
+/* ===== Reset & base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background: var(--color-bg-secondary);
+  line-height: 1.5;
+}
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== App shell ===== */
+.app-header {
+  height: var(--header-height);
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  gap: var(--spacing-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.app-header h1 { font-size: var(--font-size-lg); font-weight: 600; }
+.app-header .spacer { flex: 1; }
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  background: var(--color-bg-tertiary);
+  padding: var(--spacing-xs) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+.tab-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-family: inherit;
+}
+.tab-btn:hover { background: var(--color-bg); color: var(--color-text); }
+.tab-btn.active { background: var(--color-bg); color: var(--color-primary); font-weight: 600; border-bottom: 2px solid var(--color-primary); }
+
+/* Toggle buttons in header */
+.toggle-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid rgba(255,255,255,0.4);
+  background: transparent;
+  color: #fff;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.toggle-btn:hover { background: rgba(255,255,255,0.15); }
+.toggle-btn.on { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.6); }
+
+/* ===== Badges ===== */
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.badge-primary { background: var(--color-primary-light); color: var(--color-primary); }
+.badge-success { background: #d1e7dd; color: var(--color-success); }
+.badge-warning { background: #fff3cd; color: #856404; }
+.badge-danger { background: #f8d7da; color: var(--color-danger); }
+.badge-muted { background: var(--color-bg-tertiary); color: var(--color-text-secondary); }
+.badge-concept { background: #e6f0fa; color: #0066cc; }
+.badge-scheme { background: #e8f5e9; color: #2e7d32; }
+.badge-class { background: #fff3e0; color: #e65100; }
+.badge-property { background: #f3e5f5; color: #7b1fa2; }
+
+/* ===== Reader layout ===== */
+.reader-layout {
+  display: flex;
+  height: calc(100vh - var(--header-height) - 41px);
+  overflow: hidden;
+}
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg);
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+.detail-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+  background: var(--color-bg);
+}
+
+/* Sidebar nav items */
+.nav-section { margin-bottom: var(--spacing-md); }
+.nav-section-header {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.nav-section-header:hover { color: var(--color-text-secondary); }
+.nav-item {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  padding-left: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.nav-item:hover { background: var(--color-bg-secondary); }
+.nav-item.active { background: var(--color-primary-light); color: var(--color-primary); font-weight: 500; }
+.nav-item.depth-2 { padding-left: calc(var(--spacing-md) + var(--spacing-md)); }
+.nav-item .feedback-count {
+  margin-left: auto;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.tier2-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-left: var(--spacing-xs);
+}
+.version-badge {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* ===== Detail view ===== */
+.detail-header { margin-bottom: var(--spacing-lg); }
+.detail-header h2 { font-size: var(--font-size-2xl); margin-bottom: var(--spacing-xs); display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; }
+.detail-meta { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.detail-section { margin-bottom: var(--spacing-lg); }
+.detail-section h3 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-border-light);
+}
+.detail-section p { margin-bottom: var(--spacing-sm); }
+.tag-list { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
+.tag {
+  padding: 2px 10px;
+  background: var(--color-bg-tertiary);
+  border-radius: 12px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+.link-list { list-style: none; }
+.link-list li { padding: var(--spacing-xs) 0; }
+.link-list a { cursor: pointer; }
+.empty-state {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--spacing-xl) var(--spacing-md);
+}
+.empty-state p { font-size: var(--font-size-lg); margin-bottom: var(--spacing-sm); }
+
+/* ===== Feedback items ===== */
+.feedback-section { margin-top: var(--spacing-lg); border-top: 2px solid var(--color-border); padding-top: var(--spacing-lg); }
+.feedback-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+.feedback-section-header h3 {
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: var(--font-size-lg);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+.feedback-filters {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+.filter-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+}
+.filter-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.filter-btn.active { background: var(--color-primary-light); border-color: var(--color-primary); color: var(--color-primary); font-weight: 600; }
+
+.feedback-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--color-bg);
+}
+.feedback-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+.feedback-author { font-weight: 600; font-size: var(--font-size-sm); }
+.feedback-date { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.feedback-content { font-size: var(--font-size-sm); line-height: 1.6; margin-bottom: var(--spacing-sm); }
+.feedback-status { display: flex; align-items: center; gap: var(--spacing-sm); }
+.btn-delete {
+  margin-left: auto;
+  padding: 2px var(--spacing-sm);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-danger);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  opacity: 0.7;
+}
+.btn-delete:hover { opacity: 1; background: var(--color-danger); color: white; }
+.feedback-response {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--font-size-sm);
+}
+.feedback-response .response-author { font-weight: 600; color: var(--color-primary); font-size: var(--font-size-xs); margin-bottom: 2px; }
+.version-context {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+  font-style: italic;
+}
+
+/* Submit form */
+.submit-form {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  margin-top: var(--spacing-md);
+}
+.submit-form h4 { font-size: var(--font-size-sm); margin-bottom: var(--spacing-sm); }
+.form-row { margin-bottom: var(--spacing-sm); }
+.form-row label { display: block; font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin-bottom: 2px; }
+.form-row select, .form-row textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  resize: vertical;
+}
+.form-row textarea { min-height: 80px; }
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  font-weight: 500;
+}
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-hover); }
+.btn-success { background: var(--color-success); color: #fff; }
+.btn-danger { background: var(--color-danger); color: #fff; }
+.btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text-secondary); }
+.btn-outline:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.login-prompt {
+  text-align: center;
+  padding: var(--spacing-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-md);
+}
+
+/* ===== Manager dashboard ===== */
+.manager-layout { padding: var(--spacing-lg); max-width: 1100px; margin: 0 auto; }
+.summary-bar {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+.summary-card {
+  flex: 1;
+  min-width: 140px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+}
+.summary-card .number { font-size: var(--font-size-2xl); font-weight: 700; }
+.summary-card .label { font-size: var(--font-size-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.manager-filters {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.manager-filters select {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  background: var(--color-bg);
+}
+.manager-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.manager-card:hover { box-shadow: var(--shadow-sm); }
+.manager-card.expanded { box-shadow: var(--shadow-md); }
+.manager-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+.manager-card-header .entity-label { font-weight: 600; }
+.manager-card-excerpt { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: var(--spacing-sm); }
+.manager-card-expanded {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-light);
+}
+.response-form { margin-top: var(--spacing-md); }
+.response-form textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  min-height: 60px;
+  resize: vertical;
+  margin-bottom: var(--spacing-sm);
+}
+.response-actions { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
+
+/* ===== Project landing ===== */
+.landing-layout { padding: var(--spacing-lg); max-width: 800px; margin: 0 auto; }
+.landing-header { margin-bottom: var(--spacing-xl); }
+.landing-header h2 { font-size: var(--font-size-2xl); margin-bottom: var(--spacing-xs); }
+.landing-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+  flex-wrap: wrap;
+}
+.stat-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.stat-card:hover { box-shadow: var(--shadow-sm); border-color: var(--color-primary); }
+.stat-card .number { font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-primary); }
+.stat-card .label { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.scheme-list { list-style: none; }
+.scheme-list li {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--color-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  transition: box-shadow 0.15s;
+}
+.scheme-list li:hover { box-shadow: var(--shadow-sm); border-color: var(--color-primary); }
+.scheme-list .scheme-name { font-weight: 600; }
+.scheme-list .scheme-desc { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.scheme-list .concept-count { margin-left: auto; }
+
+/* ===== Project list ===== */
+.project-list { list-style: none; }
+.project-card {
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.project-card:hover { box-shadow: var(--shadow-sm); border-color: var(--color-primary); }
+.project-card h3 { font-size: var(--font-size-lg); margin-bottom: var(--spacing-xs); }
+.project-card .project-desc { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-sm); }
+.project-card .project-meta { display: flex; gap: var(--spacing-md); flex-wrap: wrap; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+  margin-bottom: var(--spacing-md);
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+}
+.back-link:hover { text-decoration: underline; }
+
+/* ===== Search ===== */
+.search-box {
+  position: relative;
+  margin-bottom: var(--spacing-md);
+}
+.search-box input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  background: var(--color-bg-secondary);
+}
+.search-box input:focus { outline: none; border-color: var(--color-primary); background: var(--color-bg); }
+.search-box .search-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  pointer-events: none;
+}
+.search-box .search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 2px;
+  line-height: 1;
+}
+.search-box .search-clear:hover { color: var(--color-text); }
+.search-results {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.search-results .search-group-header {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-xs);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+  position: sticky;
+  top: 0;
+}
+.search-results .search-result-item {
+  padding: var(--spacing-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--color-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.search-results .search-result-item:last-child { border-bottom: none; }
+.search-results .search-result-item:hover { background: var(--color-bg-secondary); }
+.search-result-label { display: flex; align-items: center; gap: var(--spacing-sm); }
+.search-result-context { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.search-result-context mark { background: #fff3cd; border-radius: 2px; padding: 0 1px; }
+.search-result-label mark { background: #fff3cd; border-radius: 2px; padding: 0 1px; }
+.search-no-results { padding: var(--spacing-md); text-align: center; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+
+/* ===== Version selector ===== */
+.version-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+.version-selector label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+.version-selector select {
+  padding: 2px var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ===== Demo project switcher ===== */
+.demo-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.demo-switcher button {
+  padding: 3px var(--spacing-sm);
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.demo-switcher button:hover { background: rgba(255,255,255,0.1); }
+.demo-switcher button.active { background: rgba(255,255,255,0.2); color: #fff; }
+.demo-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.5);
+}
+
+/* ===== Mobile ===== */
+.mobile-back {
+  display: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.mobile-back button {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .reader-layout { flex-direction: column; height: auto; }
+  .sidebar { width: 100%; min-width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); }
+  .detail-panel { width: 100%; }
+
+  /* Mobile drill-down: show/hide */
+  .reader-layout.mobile-detail .sidebar { display: none; }
+  .reader-layout:not(.mobile-detail) .detail-panel { display: none; }
+  .reader-layout.mobile-detail .mobile-back { display: block; }
+
+  .tab-bar { padding: var(--spacing-xs) var(--spacing-sm); overflow-x: auto; }
+  .manager-layout, .landing-layout { padding: var(--spacing-md); }
+}
+
+/* ===== Utility ===== */
+.flex-center { display: flex; align-items: center; gap: var(--spacing-sm); }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.text-muted { color: var(--color-text-muted); }
+.text-sm { font-size: var(--font-size-sm); }
+.chevron { font-size: 10px; transition: transform 0.15s; display: inline-block; }
+.chevron.open { transform: rotate(90deg); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+import { h, render } from 'https://esm.sh/preact@10.25.4';
+import { useState, useMemo, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
+import htm from 'https://esm.sh/htm@3.1.1';
+
+const html = htm.bind(h);
+
+// ===== All published snapshots (multiple versions per project possible) =====
+const DEMO_PROJECT_ID = "01965a00-0000-7000-8000-000000000000";
+const STUDY_PROJECT_ID = "02abc100-0000-7000-8000-000000000000";
+
+const SNAPSHOTS = [
+  // --- Demo Taxonomy v1.0 (flat) ---
+  {
+    format_version: "1.0", version: "1.0", title: "Initial release",
+    published_at: "2026-02-01T09:00:00Z", publisher: "Jane Smith",
+    project: { id: DEMO_PROJECT_ID, name: "Demo Taxonomy",
+      description: "A simple demo taxonomy for testing. Includes a color vocabulary plus a lightweight ontology for evidence synthesis.",
+      namespace: "http://example.org/taxonomies/demo" },
+    schemes: [{
+      id: "01965a00-0000-7000-8000-000000000001", title: "Colors",
+      description: "A simple color taxonomy.", uri: "http://example.org/demo/colors",
+      top_concepts: ["01965a00-0000-7000-8000-000000000002","01965a00-0000-7000-8000-000000000003","01965a00-0000-7000-8000-000000000004"],
+      concepts: {
+        "01965a00-0000-7000-8000-000000000002": { pref_label: "Red", identifier: "red", uri: "http://example.org/demo/colors/red", definition: null, scope_note: null, alt_labels: ["Crimson","Scarlet"], broader: [], related: [] },
+        "01965a00-0000-7000-8000-000000000003": { pref_label: "Blue", identifier: "blue", uri: "http://example.org/demo/colors/blue", definition: null, scope_note: null, alt_labels: ["Azure","Navy"], broader: [], related: [] },
+        "01965a00-0000-7000-8000-000000000004": { pref_label: "Green", identifier: "green", uri: "http://example.org/demo/colors/green", definition: null, scope_note: null, alt_labels: ["Emerald"], broader: [], related: [] }
+      }
+    }],
+    classes: [
+      { id: "01965a00-0000-7000-8000-b00000000001", identifier: "Investigation", uri: "https://evrepo.example.org/vocab/Investigation", label: "Investigation", description: "A discrete research effort reported within a reference.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000002", identifier: "Finding", uri: "https://evrepo.example.org/vocab/Finding", label: "Finding", description: "The atomic unit of evidence.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000003", identifier: "Intervention", uri: "https://evrepo.example.org/vocab/Intervention", label: "Intervention", description: "A policy, program, practice, or treatment being evaluated.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000004", identifier: "Outcome", uri: "https://evrepo.example.org/vocab/Outcome", label: "Outcome", description: "A measured result or endpoint.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000005", identifier: "EffectEstimate", uri: "https://evrepo.example.org/vocab/EffectEstimate", label: "Effect Estimate", description: "A quantitative estimate of effect size with associated uncertainty measures.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000006", identifier: "Context", uri: "https://evrepo.example.org/vocab/Context", label: "Context", description: "The setting and circumstances in which an investigation took place.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000007", identifier: "Funder", uri: "https://evrepo.example.org/vocab/Funder", label: "Funder", description: "An organisation providing financial support.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000008", identifier: "Implementer", uri: "https://evrepo.example.org/vocab/Implementer", label: "Implementer", description: "An organisation or entity responsible for delivering an intervention.", scope_note: null },
+    ],
+    properties: [{ id: "01965a00-0000-7000-8000-a00000000001", identifier: "riskColor", uri: "http://example.org/taxonomies/demo/riskColor", label: "Risk Color", description: "Color code representing the risk level of a finding.", domain_class_uri: "https://evrepo.example.org/vocab/Finding", range_scheme_id: "01965a00-0000-7000-8000-000000000001", range_scheme_uri: "http://example.org/demo/colors", range_datatype: null, cardinality: "single", required: false }]
+  },
+  // --- Demo Taxonomy v2.0 (warm/cool hierarchy) ---
+  {
+    format_version: "1.0", version: "2.0", title: "Add warm/cool categories",
+    published_at: "2026-03-01T09:00:00Z", publisher: "Jane Smith",
+    project: { id: DEMO_PROJECT_ID, name: "Demo Taxonomy",
+      description: "A simple demo taxonomy for testing. Includes a color vocabulary with hierarchical warm/cool categories, plus a lightweight ontology for evidence synthesis.",
+      namespace: "http://example.org/taxonomies/demo" },
+    schemes: [{
+      id: "01965a00-0000-7000-8000-000000000001", title: "Colors",
+      description: "A simple color taxonomy.", uri: "http://example.org/demo/colors",
+      top_concepts: ["01965a00-0000-7000-8000-000000000005","01965a00-0000-7000-8000-000000000006"],
+      concepts: {
+        "01965a00-0000-7000-8000-000000000002": { pref_label: "Red", identifier: "red", uri: "http://example.org/demo/colors/red", definition: null, scope_note: null, alt_labels: ["Crimson","Scarlet"], broader: ["01965a00-0000-7000-8000-000000000005"], related: [] },
+        "01965a00-0000-7000-8000-000000000003": { pref_label: "Blue", identifier: "blue", uri: "http://example.org/demo/colors/blue", definition: null, scope_note: null, alt_labels: ["Azure","Navy"], broader: ["01965a00-0000-7000-8000-000000000006"], related: ["01965a00-0000-7000-8000-000000000007"] },
+        "01965a00-0000-7000-8000-000000000004": { pref_label: "Green", identifier: "green", uri: "http://example.org/demo/colors/green", definition: null, scope_note: null, alt_labels: ["Emerald"], broader: ["01965a00-0000-7000-8000-000000000006"], related: ["01965a00-0000-7000-8000-000000000007"] },
+        "01965a00-0000-7000-8000-000000000005": { pref_label: "Warm Colors", identifier: "warm-colors", uri: "http://example.org/demo/colors/warm-colors", definition: "Colors associated with warmth.", scope_note: null, alt_labels: [], broader: [], related: [] },
+        "01965a00-0000-7000-8000-000000000006": { pref_label: "Cool Colors", identifier: "cool-colors", uri: "http://example.org/demo/colors/cool-colors", definition: "Colors associated with coolness.", scope_note: null, alt_labels: [], broader: [], related: [] },
+        "01965a00-0000-7000-8000-000000000007": { pref_label: "Turquoise", identifier: "turquoise", uri: "http://example.org/demo/colors/turquoise", definition: "A cyan-like color between blue and green.", scope_note: "Used when a color is perceived as both blue and green.", alt_labels: ["Teal"], broader: ["01965a00-0000-7000-8000-000000000006"], related: ["01965a00-0000-7000-8000-000000000003","01965a00-0000-7000-8000-000000000004"] },
+        "01965a00-0000-7000-8000-000000000008": { pref_label: "Orange", identifier: "orange", uri: "http://example.org/demo/colors/orange", definition: null, scope_note: null, alt_labels: ["Amber"], broader: ["01965a00-0000-7000-8000-000000000005"], related: [] }
+      }
+    }],
+    classes: [
+      { id: "01965a00-0000-7000-8000-b00000000001", identifier: "Investigation", uri: "https://evrepo.example.org/vocab/Investigation", label: "Investigation", description: "A discrete research effort reported within a reference.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000002", identifier: "Finding", uri: "https://evrepo.example.org/vocab/Finding", label: "Finding", description: "The atomic unit of evidence.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000003", identifier: "Intervention", uri: "https://evrepo.example.org/vocab/Intervention", label: "Intervention", description: "A policy, program, practice, or treatment being evaluated.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000004", identifier: "Outcome", uri: "https://evrepo.example.org/vocab/Outcome", label: "Outcome", description: "A measured result or endpoint.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000005", identifier: "EffectEstimate", uri: "https://evrepo.example.org/vocab/EffectEstimate", label: "Effect Estimate", description: "A quantitative estimate of effect size with associated uncertainty measures.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000006", identifier: "Context", uri: "https://evrepo.example.org/vocab/Context", label: "Context", description: "The setting and circumstances in which an investigation took place.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000007", identifier: "Funder", uri: "https://evrepo.example.org/vocab/Funder", label: "Funder", description: "An organisation providing financial support.", scope_note: null },
+      { id: "01965a00-0000-7000-8000-b00000000008", identifier: "Implementer", uri: "https://evrepo.example.org/vocab/Implementer", label: "Implementer", description: "An organisation or entity responsible for delivering an intervention.", scope_note: null },
+    ],
+    properties: [{ id: "01965a00-0000-7000-8000-a00000000001", identifier: "riskColor", uri: "http://example.org/taxonomies/demo/riskColor", label: "Risk Color", description: "Color code representing the risk level of a finding.", domain_class_uri: "https://evrepo.example.org/vocab/Finding", range_scheme_id: "01965a00-0000-7000-8000-000000000001", range_scheme_uri: "http://example.org/demo/colors", range_datatype: null, cardinality: "single", required: false }]
+  },
+  // --- Study Designs v1.0 ---
+  {
+    format_version: "1.0", version: "1.0", title: "Initial publication",
+    published_at: "2026-02-15T12:00:00Z", publisher: "Tom Nguyen",
+    project: { id: STUDY_PROJECT_ID, name: "Study Designs",
+      description: "Controlled vocabulary for classifying research study designs. Used to tag investigations by methodology.",
+      namespace: "http://example.org/taxonomies/study-designs" },
+    schemes: [
+      {
+        id: "02abc100-0000-7000-8000-000000000001", title: "Study Design Types",
+        description: "Hierarchical classification of research study designs.",
+        uri: "http://example.org/study-designs/types",
+        top_concepts: ["02abc100-0000-7000-8000-000000000010","02abc100-0000-7000-8000-000000000020"],
+        concepts: {
+          "02abc100-0000-7000-8000-000000000010": { pref_label: "Experimental", identifier: "experimental", uri: "http://example.org/study-designs/types/experimental", definition: "Studies in which the researcher manipulates an independent variable.", scope_note: null, alt_labels: [], broader: [], related: [] },
+          "02abc100-0000-7000-8000-000000000011": { pref_label: "Randomised Controlled Trial", identifier: "rct", uri: "http://example.org/study-designs/types/rct", definition: "An experimental study in which participants are randomly assigned to intervention or control groups.", scope_note: "The gold standard for evaluating intervention effectiveness.", alt_labels: ["RCT"], broader: ["02abc100-0000-7000-8000-000000000010"], related: [] },
+          "02abc100-0000-7000-8000-000000000012": { pref_label: "Quasi-Experimental", identifier: "quasi-experimental", uri: "http://example.org/study-designs/types/quasi-experimental", definition: "An experimental study without random assignment.", scope_note: null, alt_labels: ["Non-randomised experiment"], broader: ["02abc100-0000-7000-8000-000000000010"], related: [] },
+          "02abc100-0000-7000-8000-000000000020": { pref_label: "Observational", identifier: "observational", uri: "http://example.org/study-designs/types/observational", definition: "Studies in which the researcher observes without manipulating variables.", scope_note: null, alt_labels: [], broader: [], related: [] },
+          "02abc100-0000-7000-8000-000000000021": { pref_label: "Cohort Study", identifier: "cohort", uri: "http://example.org/study-designs/types/cohort", definition: "An observational study following a group of subjects over time.", scope_note: null, alt_labels: ["Longitudinal study"], broader: ["02abc100-0000-7000-8000-000000000020"], related: ["02abc100-0000-7000-8000-000000000022"] },
+          "02abc100-0000-7000-8000-000000000022": { pref_label: "Case-Control Study", identifier: "case-control", uri: "http://example.org/study-designs/types/case-control", definition: "An observational study comparing subjects with a condition to those without.", scope_note: null, alt_labels: [], broader: ["02abc100-0000-7000-8000-000000000020"], related: ["02abc100-0000-7000-8000-000000000021"] },
+          "02abc100-0000-7000-8000-000000000023": { pref_label: "Cross-Sectional Study", identifier: "cross-sectional", uri: "http://example.org/study-designs/types/cross-sectional", definition: "An observational study measuring variables at a single point in time.", scope_note: null, alt_labels: ["Prevalence study"], broader: ["02abc100-0000-7000-8000-000000000020"], related: [] }
+        }
+      },
+      {
+        id: "02abc100-0000-7000-8000-000000000002", title: "Evidence Strength",
+        description: "Rating scale for strength of evidence.",
+        uri: "http://example.org/study-designs/evidence-strength",
+        top_concepts: ["02abc100-0000-7000-8000-000000000030","02abc100-0000-7000-8000-000000000031","02abc100-0000-7000-8000-000000000032"],
+        concepts: {
+          "02abc100-0000-7000-8000-000000000030": { pref_label: "High", identifier: "high", uri: "http://example.org/study-designs/evidence-strength/high", definition: "Strong evidence from multiple well-designed studies.", scope_note: null, alt_labels: [], broader: [], related: [] },
+          "02abc100-0000-7000-8000-000000000031": { pref_label: "Moderate", identifier: "moderate", uri: "http://example.org/study-designs/evidence-strength/moderate", definition: "Moderate evidence with some limitations in study design or consistency.", scope_note: null, alt_labels: [], broader: [], related: [] },
+          "02abc100-0000-7000-8000-000000000032": { pref_label: "Low", identifier: "low", uri: "http://example.org/study-designs/evidence-strength/low", definition: "Limited evidence from studies with significant methodological weaknesses.", scope_note: null, alt_labels: ["Weak"], broader: [], related: [] }
+        }
+      }
+    ],
+    classes: [
+      { id: "02abc100-0000-7000-8000-b00000000001", identifier: "StudyReport", uri: "http://example.org/study-designs/StudyReport", label: "Study Report", description: "A published or unpublished report of a research study.", scope_note: null },
+      { id: "02abc100-0000-7000-8000-b00000000002", identifier: "SamplePopulation", uri: "http://example.org/study-designs/SamplePopulation", label: "Sample Population", description: "The group of subjects or units in a study.", scope_note: null },
+    ],
+    properties: [
+      { id: "02abc100-0000-7000-8000-a00000000001", identifier: "studyDesign", uri: "http://example.org/study-designs/studyDesign", label: "Study Design", description: "The study design type used in a study report.", domain_class_uri: "http://example.org/study-designs/StudyReport", range_scheme_id: "02abc100-0000-7000-8000-000000000001", range_scheme_uri: "http://example.org/study-designs/types", range_datatype: null, cardinality: "single", required: true },
+      { id: "02abc100-0000-7000-8000-a00000000002", identifier: "evidenceRating", uri: "http://example.org/study-designs/evidenceRating", label: "Evidence Rating", description: "Overall strength of evidence rating for a study report.", domain_class_uri: "http://example.org/study-designs/StudyReport", range_scheme_id: "02abc100-0000-7000-8000-000000000002", range_scheme_uri: "http://example.org/study-designs/evidence-strength", range_datatype: null, cardinality: "single", required: false }
+    ]
+  }
+];
+
+// Derived lookups
+function snapshotsForProject(projectId) {
+  return SNAPSHOTS.filter(s => s.project.id === projectId).sort((a, b) => b.version.localeCompare(a.version));
+}
+function latestSnapshot(projectId) {
+  return snapshotsForProject(projectId)[0];
+}
+const ALL_PROJECT_IDS = [...new Set(SNAPSHOTS.map(s => s.project.id))];
+const DEFAULT_VOCAB = latestSnapshot(DEMO_PROJECT_ID);
+const MOCK_CURRENT_USER = "Dr. Maria Chen";
+
+// ===== Feedback types by entity category =====
+const FEEDBACK_TYPES = {
+  concept: ["Unclear definition", "Missing term/area", "Scope question", "Overlap/duplication", "General comment"],
+  scheme: ["Unclear definition", "Missing term/area", "Scope question", "Overlap/duplication", "General comment"],
+  class: ["Incorrect modelling", "Missing relationship", "Structural question", "General comment"],
+  property: ["Incorrect modelling", "Missing relationship", "Structural question", "General comment"]
+};
+
+// ===== Mock feedback =====
+const ALL_FEEDBACK = [
+  // --- Demo Taxonomy feedback ---
+  {
+    id: "fb-001",
+    project_id: DEMO_PROJECT_ID,
+    snapshot_version: "2.0",
+    entity_type: "concept",
+    entity_id: "01965a00-0000-7000-8000-000000000002",
+    entity_label: "Red",
+    scheme_context: "Colors",
+    feedback_type: "Unclear definition",
+    content: "The concept \"Red\" has no definition at all. For a published taxonomy, every concept should have at least a basic definition. Can we add something like \"A primary color at the long-wavelength end of the visible spectrum\"?",
+    author: "Dr. Maria Chen",
+    created_at: "2026-03-05T14:22:00Z",
+    status: "open",
+    response: null
+  },
+  {
+    id: "fb-002",
+    project_id: DEMO_PROJECT_ID,
+    snapshot_version: "2.0",
+    entity_type: "concept",
+    entity_id: "01965a00-0000-7000-8000-000000000002",
+    entity_label: "Red",
+    scheme_context: "Colors",
+    feedback_type: "Missing term/area",
+    content: "I notice there's no \"Yellow\" concept in the taxonomy. Yellow is a primary color and should be included under \"Warm Colors\", alongside Red and Orange.",
+    author: "James Park",
+    created_at: "2026-03-08T09:15:00Z",
+    status: "responded",
+    response: {
+      author: "Jane Smith (Manager)",
+      content: "Good catch! Yellow was omitted from the demo intentionally to keep the example small, but you're right — in a real taxonomy this would be essential. We'll add it in the next version.",
+      created_at: "2026-03-09T11:30:00Z"
+    }
+  },
+  {
+    id: "fb-003",
+    project_id: DEMO_PROJECT_ID,
+    snapshot_version: "1.0",
+    entity_type: "scheme",
+    entity_id: "01965a00-0000-7000-8000-000000000001",
+    entity_label: "Colors",
+    scheme_context: null,
+    feedback_type: "Missing term/area",
+    content: "The Colors scheme is too flat — all concepts are at the same level. It would help to have subcategories like warm/cool to organise the color concepts hierarchically.",
+    author: "Dr. Alex Rivera",
+    created_at: "2026-02-12T16:45:00Z",
+    status: "resolved",
+    response: {
+      author: "Jane Smith (Manager)",
+      content: "Addressed in v2.0 — we've restructured the scheme with Warm Colors and Cool Colors as top-level categories. Thank you for the suggestion!",
+      created_at: "2026-03-02T10:00:00Z"
+    }
+  },
+  {
+    id: "fb-004",
+    project_id: DEMO_PROJECT_ID,
+    snapshot_version: "2.0",
+    entity_type: "class",
+    entity_id: "01965a00-0000-7000-8000-b00000000001",
+    entity_label: "Investigation",
+    scheme_context: null,
+    feedback_type: "Structural question",
+    content: "The boundary between Investigation and Finding is unclear. An investigation could contain multiple findings, but the current model doesn't explicitly represent this containment. Should there be a property linking Investigation to Finding?",
+    author: "Prof. Sarah Okonkwo",
+    created_at: "2026-03-10T08:30:00Z",
+    status: "open",
+    response: null
+  },
+  {
+    id: "fb-005",
+    project_id: DEMO_PROJECT_ID,
+    snapshot_version: "2.0",
+    entity_type: "property",
+    entity_id: "01965a00-0000-7000-8000-a00000000001",
+    entity_label: "Risk Color",
+    scheme_context: null,
+    feedback_type: "Incorrect modelling",
+    content: "The riskColor property has cardinality \"single\", but a finding could have different risk levels across dimensions (e.g. risk of bias vs. risk of confounding). Should this allow multiple values, or should separate properties be created for each dimension?",
+    author: "Dr. Maria Chen",
+    created_at: "2026-03-12T11:20:00Z",
+    status: "declined",
+    response: {
+      author: "Jane Smith (Manager)",
+      content: "By design, riskColor represents the overall summary risk assessment for a finding. Dimension-specific risk scores are modelled separately in the evidence repository, outside this taxonomy's scope. Declining as working-as-intended.",
+      created_at: "2026-03-13T09:45:00Z"
+    }
+  },
+  {
+    id: "fb-006",
+    project_id: DEMO_PROJECT_ID,
+    snapshot_version: "2.0",
+    entity_type: "concept",
+    entity_id: "01965a00-0000-7000-8000-000000000007",
+    entity_label: "Turquoise",
+    scheme_context: "Colors",
+    feedback_type: "Scope question",
+    content: "Turquoise is listed under Cool Colors and has related links to both Blue and Green. Should it also be a narrower concept of both Blue and Green (polyhierarchy), or is the 'related' relationship intentional?",
+    author: "James Park",
+    created_at: "2026-03-15T13:00:00Z",
+    status: "open",
+    response: null
+  },
+  // --- Study Designs feedback ---
+  {
+    id: "fb-007",
+    project_id: STUDY_PROJECT_ID,
+    snapshot_version: "1.0",
+    entity_type: "concept",
+    entity_id: "02abc100-0000-7000-8000-000000000011",
+    entity_label: "Randomised Controlled Trial",
+    scheme_context: "Study Design Types",
+    feedback_type: "Missing term/area",
+    content: "Cluster RCTs and stepped-wedge designs are common in public health but not represented here. They differ from individual-level RCTs in important ways. Should they be narrower concepts under RCT?",
+    author: "Dr. Alex Rivera",
+    created_at: "2026-02-20T10:15:00Z",
+    status: "open",
+    response: null
+  },
+  {
+    id: "fb-008",
+    project_id: STUDY_PROJECT_ID,
+    snapshot_version: "1.0",
+    entity_type: "scheme",
+    entity_id: "02abc100-0000-7000-8000-000000000002",
+    entity_label: "Evidence Strength",
+    scheme_context: null,
+    feedback_type: "Scope question",
+    content: "Three levels (High/Moderate/Low) is quite coarse. GRADE uses four levels and is widely adopted. Should this align with GRADE, or is it intentionally simpler?",
+    author: "Prof. Sarah Okonkwo",
+    created_at: "2026-02-22T14:00:00Z",
+    status: "responded",
+    response: {
+      author: "Tom Nguyen (Manager)",
+      content: "Good question. We opted for a simpler scale initially, but aligning with GRADE is on the roadmap for v2.0. We'll add 'Very Low' and possibly map to GRADE certainty ratings.",
+      created_at: "2026-02-23T09:00:00Z"
+    }
+  }
+];
+
+// ===== Helpers =====
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+function statusBadge(status) {
+  const map = { open: 'badge-warning', responded: 'badge-primary', resolved: 'badge-success', declined: 'badge-muted' };
+  return html`<span class="badge ${map[status] || 'badge-muted'}">${status}</span>`;
+}
+function entityBadge(type) {
+  return html`<span class="badge badge-${type}">${type}</span>`;
+}
+function feedbackForProject(projectId) {
+  return ALL_FEEDBACK.filter(f => f.project_id === projectId);
+}
+function feedbackForEntity(projectId, entityType, entityId) {
+  return ALL_FEEDBACK.filter(f => f.project_id === projectId && f.entity_type === entityType && f.entity_id === entityId);
+}
+function getNarrower(vocab, schemeId, conceptId) {
+  const scheme = vocab.schemes.find(s => s.id === schemeId);
+  if (!scheme) return [];
+  return Object.entries(scheme.concepts)
+    .filter(([, c]) => c.broader.includes(conceptId))
+    .map(([id, c]) => ({ id, ...c }));
+}
+function getConceptLabel(vocab, id) {
+  for (const s of vocab.schemes) {
+    if (s.concepts[id]) return s.concepts[id].pref_label;
+  }
+  return id;
+}
+function getClassLabel(vocab, uri) {
+  const cls = vocab.classes.find(c => c.uri === uri);
+  return cls ? cls.label : uri;
+}
+function getSchemeLabel(vocab, id) {
+  const s = vocab.schemes.find(s => s.id === id);
+  return s ? s.title : id;
+}
+function propertiesForClass(vocab, classUri) {
+  return vocab.properties.filter(p => p.domain_class_uri === classUri);
+}
+function totalConcepts(vocab) {
+  return vocab.schemes.reduce((sum, s) => sum + Object.keys(s.concepts).length, 0);
+}
+
+// ===== Components =====
+const Fragment = ({ children }) => children;
+
+// --- Feedback card ---
+function FeedbackCard({ item, vocab, showEntity, isAuthenticated, onDelete }) {
+  const isOwn = isAuthenticated && item.author === MOCK_CURRENT_USER;
+  return html`
+    <div class="feedback-card">
+      <div class="feedback-card-header">
+        <span class="feedback-author">${item.author}</span>
+        <span class="feedback-date">${formatDate(item.created_at)}</span>
+        ${showEntity && html`<${Fragment}>${entityBadge(item.entity_type)}<span class="text-sm">${item.entity_label}</span></>`}
+        <span class="badge badge-muted">${item.feedback_type}</span>
+        ${statusBadge(item.status)}
+        ${isOwn && onDelete && html`<button class="btn-delete" onClick=${(e) => { e.stopPropagation(); onDelete(item.id); }}>Delete</button>`}
+      </div>
+      <div class="feedback-content">${item.content}</div>
+      ${item.response && html`
+        <div class="feedback-response">
+          <div class="response-author">${item.response.author} — ${formatDate(item.response.created_at)}</div>
+          <div>${item.response.content}</div>
+        </div>
+      `}
+      ${item.snapshot_version !== vocab.version && html`
+        <div class="version-context">Filed against v${item.snapshot_version} — entity may have changed in current v${vocab.version}</div>
+      `}
+    </div>
+  `;
+}
+
+// --- Feedback section (in entity detail) ---
+function FeedbackSection({ vocab, entityType, entityId, isAuthenticated }) {
+  const [filter, setFilter] = useState('all');
+  const [fbType, setFbType] = useState('');
+  const [fbText, setFbText] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [deletedIds, setDeletedIds] = useState([]);
+
+  const allItems = feedbackForEntity(vocab.project.id, entityType, entityId).filter(f => !deletedIds.includes(f.id));
+  const items = isAuthenticated ? allItems.filter(f => f.author === MOCK_CURRENT_USER) : [];
+  const filtered = filter === 'all' ? items :
+    filter === 'open' ? items.filter(f => f.status === 'open' || f.status === 'responded') :
+    items.filter(f => f.status === 'resolved' || f.status === 'declined');
+
+  const types = FEEDBACK_TYPES[entityType] || [];
+
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault();
+    if (!fbType || !fbText.trim()) return;
+    setSubmitted(true);
+    setFbType('');
+    setFbText('');
+    setTimeout(() => setSubmitted(false), 3000);
+  }, [fbType, fbText]);
+
+  function handleDelete(id) {
+    if (confirm('Delete this feedback?')) {
+      setDeletedIds(prev => [...prev, id]);
+    }
+  }
+
+  return html`
+    <div class="feedback-section">
+      <div class="feedback-section-header">
+        <h3>Feedback</h3>
+        ${items.length > 0 && html`<span class="badge badge-warning">${items.length}</span>`}
+      </div>
+      ${items.length > 0 && html`
+        <div class="feedback-filters">
+          ${['all', 'open', 'resolved'].map(f => html`
+            <button class="filter-btn ${filter === f ? 'active' : ''}" onClick=${() => setFilter(f)}>${f.charAt(0).toUpperCase() + f.slice(1)}</button>
+          `)}
+        </div>
+        ${filtered.map(item => html`<${FeedbackCard} item=${item} vocab=${vocab} showEntity=${false} isAuthenticated=${isAuthenticated} onDelete=${handleDelete} />`)}
+        ${filtered.length === 0 && html`<p class="text-muted text-sm">No ${filter} feedback.</p>`}
+      `}
+      ${isAuthenticated && items.length === 0 && html`<p class="text-muted text-sm">You haven't submitted feedback on this entity.</p>`}
+
+      ${isAuthenticated ? html`
+        <div class="submit-form">
+          <h4>Submit Feedback</h4>
+          ${submitted ? html`<p style="color: var(--color-success); font-weight: 500;">Feedback submitted (mock).</p>` : html`
+            <form onSubmit=${handleSubmit}>
+              <div class="form-row">
+                <label>Feedback type</label>
+                <select value=${fbType} onChange=${e => setFbType(e.target.value)}>
+                  <option value="">Select type...</option>
+                  ${types.map(t => html`<option value=${t}>${t}</option>`)}
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Your feedback</label>
+                <textarea value=${fbText} onInput=${e => setFbText(e.target.value)} placeholder="Describe your feedback..." />
+              </div>
+              <button type="submit" class="btn btn-primary" disabled=${!fbType || !fbText.trim()}>Submit Feedback</button>
+            </form>
+          `}
+        </div>
+      ` : html`
+        <div class="login-prompt">Log in to submit feedback</div>
+      `}
+    </div>
+  `;
+}
+
+// --- Entity detail views ---
+function ConceptDetail({ vocab, schemeId, conceptId, isAuthenticated, onNavigate }) {
+  const scheme = vocab.schemes.find(s => s.id === schemeId);
+  const concept = scheme?.concepts[conceptId];
+  if (!concept) return html`<div class="empty-state"><p>Concept not found</p></div>`;
+  const narrower = getNarrower(vocab, schemeId, conceptId);
+  const related = concept.related.map(id => ({ id, label: getConceptLabel(vocab, id) }));
+  const broader = concept.broader.map(id => ({ id, label: getConceptLabel(vocab, id) }));
+
+  return html`
+    <div>
+      <div class="detail-header">
+        <h2>${concept.pref_label} ${entityBadge('concept')}</h2>
+        <div class="detail-meta">${concept.uri}</div>
+      </div>
+      ${concept.definition && html`<div class="detail-section"><h3>Definition</h3><p>${concept.definition}</p></div>`}
+      ${concept.scope_note && html`<div class="detail-section"><h3>Scope Note</h3><p>${concept.scope_note}</p></div>`}
+      ${concept.alt_labels.length > 0 && html`
+        <div class="detail-section">
+          <h3>Alternative Labels</h3>
+          <div class="tag-list">${concept.alt_labels.map(l => html`<span class="tag">${l}</span>`)}</div>
+        </div>
+      `}
+      ${broader.length > 0 && html`
+        <div class="detail-section">
+          <h3>Broader</h3>
+          <ul class="link-list">${broader.map(b => html`<li><a onClick=${() => onNavigate('concept', schemeId, b.id)}>${b.label}</a></li>`)}</ul>
+        </div>
+      `}
+      ${narrower.length > 0 && html`
+        <div class="detail-section">
+          <h3>Narrower</h3>
+          <ul class="link-list">${narrower.map(n => html`<li><a onClick=${() => onNavigate('concept', schemeId, n.id)}>${n.label}</a></li>`)}</ul>
+        </div>
+      `}
+      ${related.length > 0 && html`
+        <div class="detail-section">
+          <h3>Related</h3>
+          <ul class="link-list">${related.map(r => html`<li><a onClick=${() => onNavigate('concept', schemeId, r.id)}>${r.label}</a></li>`)}</ul>
+        </div>
+      `}
+      <${FeedbackSection} vocab=${vocab} entityType="concept" entityId=${conceptId} isAuthenticated=${isAuthenticated} />
+    </div>
+  `;
+}
+
+function SchemeDetail({ vocab, schemeId, isAuthenticated, onNavigate }) {
+  const scheme = vocab.schemes.find(s => s.id === schemeId);
+  if (!scheme) return html`<div class="empty-state"><p>Scheme not found</p></div>`;
+  const conceptCount = Object.keys(scheme.concepts).length;
+  const topConcepts = scheme.top_concepts.map(id => ({ id, label: scheme.concepts[id]?.pref_label || id }));
+
+  return html`
+    <div>
+      <div class="detail-header">
+        <h2>${scheme.title} ${entityBadge('scheme')}</h2>
+        <div class="detail-meta">${scheme.uri}</div>
+      </div>
+      ${scheme.description && html`<div class="detail-section"><h3>Description</h3><p>${scheme.description}</p></div>`}
+      <div class="detail-section">
+        <h3>Statistics</h3>
+        <p>${conceptCount} concepts</p>
+      </div>
+      <div class="detail-section">
+        <h3>Top Concepts</h3>
+        <ul class="link-list">${topConcepts.map(c => html`<li><a onClick=${() => onNavigate('concept', schemeId, c.id)}>${c.label}</a></li>`)}</ul>
+      </div>
+      <${FeedbackSection} vocab=${vocab} entityType="scheme" entityId=${schemeId} isAuthenticated=${isAuthenticated} />
+    </div>
+  `;
+}
+
+function ClassDetail({ vocab, classId, isAuthenticated }) {
+  const cls = vocab.classes.find(c => c.id === classId);
+  if (!cls) return html`<div class="empty-state"><p>Class not found</p></div>`;
+  const props = propertiesForClass(vocab, cls.uri);
+
+  return html`
+    <div>
+      <div class="detail-header">
+        <h2>${cls.label} ${entityBadge('class')}</h2>
+        <div class="detail-meta">${cls.uri}</div>
+      </div>
+      ${cls.description && html`<div class="detail-section"><h3>Description</h3><p>${cls.description}</p></div>`}
+      ${cls.scope_note && html`<div class="detail-section"><h3>Scope Note</h3><p>${cls.scope_note}</p></div>`}
+      ${props.length > 0 && html`
+        <div class="detail-section">
+          <h3>Properties (domain)</h3>
+          <ul class="link-list">${props.map(p => html`<li>${p.label} — ${p.description}</li>`)}</ul>
+        </div>
+      `}
+      <${FeedbackSection} vocab=${vocab} entityType="class" entityId=${classId} isAuthenticated=${isAuthenticated} />
+    </div>
+  `;
+}
+
+function PropertyDetail({ vocab, propertyId, isAuthenticated }) {
+  const prop = vocab.properties.find(p => p.id === propertyId);
+  if (!prop) return html`<div class="empty-state"><p>Property not found</p></div>`;
+  const rangeLabel = prop.range_scheme_id ? `Scheme: ${getSchemeLabel(vocab, prop.range_scheme_id)}` :
+    prop.range_datatype ? `Datatype: ${prop.range_datatype}` : 'Unknown';
+
+  return html`
+    <div>
+      <div class="detail-header">
+        <h2>${prop.label} ${entityBadge('property')}</h2>
+        <div class="detail-meta">${prop.uri}</div>
+      </div>
+      ${prop.description && html`<div class="detail-section"><h3>Description</h3><p>${prop.description}</p></div>`}
+      <div class="detail-section">
+        <h3>Domain</h3>
+        <p>${getClassLabel(vocab, prop.domain_class_uri)}</p>
+      </div>
+      <div class="detail-section">
+        <h3>Range</h3>
+        <p>${rangeLabel}</p>
+      </div>
+      <div class="detail-section">
+        <h3>Constraints</h3>
+        <p>Cardinality: ${prop.cardinality} ${prop.required ? '(required)' : '(optional)'}</p>
+      </div>
+      <${FeedbackSection} vocab=${vocab} entityType="property" entityId=${propertyId} isAuthenticated=${isAuthenticated} />
+    </div>
+  `;
+}
+
+// --- Navigation sidebar ---
+// --- Search component ---
+function highlightMatch(text, query) {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return html`${text.slice(0, idx)}<mark>${text.slice(idx, idx + query.length)}</mark>${text.slice(idx + query.length)}`;
+}
+
+function SidebarSearch({ vocab, onSelect }) {
+  const [query, setQuery] = useState('');
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return null;
+    const hits = { entities: [], feedback: [] };
+    const projectId = vocab.project.id;
+    const projectFeedback = feedbackForProject(projectId);
+
+    // Search entities
+    for (const scheme of vocab.schemes) {
+      if (scheme.title.toLowerCase().includes(q)) {
+        hits.entities.push({ type: 'scheme', id: scheme.id, label: scheme.title, context: 'Scheme' });
+      }
+      for (const [id, c] of Object.entries(scheme.concepts)) {
+        const inLabel = c.pref_label.toLowerCase().includes(q);
+        const inAlt = c.alt_labels.some(a => a.toLowerCase().includes(q));
+        if (inLabel || inAlt) {
+          hits.entities.push({ type: 'concept', schemeId: scheme.id, id, label: c.pref_label,
+            context: inAlt && !inLabel ? `alt: ${c.alt_labels.find(a => a.toLowerCase().includes(q))}` : scheme.title });
+        }
+      }
+    }
+    for (const cls of vocab.classes) {
+      if (cls.label.toLowerCase().includes(q) || cls.identifier.toLowerCase().includes(q)) {
+        hits.entities.push({ type: 'class', id: cls.id, label: cls.label, context: 'Class' });
+      }
+    }
+    for (const prop of vocab.properties) {
+      if (prop.label.toLowerCase().includes(q) || prop.identifier.toLowerCase().includes(q)) {
+        hits.entities.push({ type: 'property', id: prop.id, label: prop.label, context: 'Property' });
+      }
+    }
+
+    // Search feedback content
+    for (const fb of projectFeedback) {
+      if (fb.content.toLowerCase().includes(q) || fb.entity_label.toLowerCase().includes(q)) {
+        const snippet = extractSnippet(fb.content, q);
+        hits.feedback.push({ fb, snippet });
+      }
+      if (fb.response && fb.response.content.toLowerCase().includes(q)) {
+        const snippet = extractSnippet(fb.response.content, q);
+        hits.feedback.push({ fb, snippet, isResponse: true });
+      }
+    }
+    return hits;
+  }, [query, vocab]);
+
+  function extractSnippet(text, q) {
+    const idx = text.toLowerCase().indexOf(q);
+    if (idx === -1) return text.slice(0, 80);
+    const start = Math.max(0, idx - 30);
+    const end = Math.min(text.length, idx + q.length + 50);
+    return (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
+  }
+
+  function handleEntityClick(hit) {
+    if (hit.type === 'concept') {
+      onSelect({ type: 'concept', schemeId: hit.schemeId, id: hit.id });
+    } else {
+      onSelect({ type: hit.type, id: hit.id });
+    }
+    setQuery('');
+  }
+
+  function handleFeedbackClick(fb) {
+    // Navigate to the entity the feedback is about
+    if (fb.entity_type === 'concept') {
+      // Find which scheme contains this concept
+      for (const s of vocab.schemes) {
+        if (s.concepts[fb.entity_id]) {
+          onSelect({ type: 'concept', schemeId: s.id, id: fb.entity_id });
+          break;
+        }
+      }
+    } else {
+      onSelect({ type: fb.entity_type, id: fb.entity_id });
+    }
+    setQuery('');
+  }
+
+  const hasResults = results && (results.entities.length > 0 || results.feedback.length > 0);
+  const noResults = results && results.entities.length === 0 && results.feedback.length === 0;
+
+  return html`
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input type="text" placeholder="Search entities and feedback..."
+        value=${query} onInput=${e => setQuery(e.target.value)} />
+      ${query && html`<button class="search-clear" onClick=${() => setQuery('')}>✕</button>`}
+    </div>
+    ${hasResults && html`
+      <div class="search-results">
+        ${results.entities.length > 0 && html`
+          <div class="search-group-header">Entities (${results.entities.length})</div>
+          ${results.entities.map(hit => html`
+            <div class="search-result-item" onClick=${() => handleEntityClick(hit)}>
+              <div class="search-result-label">
+                ${highlightMatch(hit.label, query)}
+                ${entityBadge(hit.type)}
+              </div>
+              <div class="search-result-context">${hit.context}</div>
+            </div>
+          `)}
+        `}
+        ${results.feedback.length > 0 && html`
+          <div class="search-group-header">Feedback (${results.feedback.length})</div>
+          ${results.feedback.map(({ fb, snippet, isResponse }) => html`
+            <div class="search-result-item" onClick=${() => handleFeedbackClick(fb)}>
+              <div class="search-result-label">
+                ${fb.entity_label}
+                ${entityBadge(fb.entity_type)}
+                ${statusBadge(fb.status)}
+                ${isResponse && html`<span class="badge badge-muted">response</span>`}
+              </div>
+              <div class="search-result-context">${highlightMatch(snippet, query)}</div>
+            </div>
+          `)}
+        `}
+      </div>
+    `}
+    ${noResults && query.length >= 2 && html`
+      <div class="search-results"><div class="search-no-results">No matches for "${query}"</div></div>
+    `}
+  `;
+}
+
+// --- Navigation sidebar ---
+function Sidebar({ vocab, selected, onSelect, feedbackCounts, onVersionChange }) {
+  const versions = snapshotsForProject(vocab.project.id);
+  const [expandedSchemes, setExpandedSchemes] = useState(() => {
+    const init = {};
+    if (vocab.schemes[0]) init[vocab.schemes[0].id] = true;
+    return init;
+  });
+  const [ontologyOpen, setOntologyOpen] = useState(false);
+  const [classesOpen, setClassesOpen] = useState(false);
+  const [propsOpen, setPropsOpen] = useState(false);
+
+  function toggleScheme(id) {
+    setExpandedSchemes(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function renderConceptTree(scheme, parentId, depth) {
+    if (parentId === null) {
+      const tops = scheme.top_concepts.map(id => [id, scheme.concepts[id]]).filter(([, c]) => c);
+      return tops.map(([id, c]) => html`
+        <div key=${id}>
+          <div class="nav-item ${selected?.type === 'concept' && selected?.id === id ? 'active' : ''}"
+            style=${{ paddingLeft: `${16 + depth * 16}px` }}
+            onClick=${() => onSelect({ type: 'concept', schemeId: scheme.id, id })}>
+            ${c.pref_label}
+            ${(feedbackCounts[`concept:${id}`] || 0) > 0 && html`<span class="feedback-count">${feedbackCounts[`concept:${id}`]}</span>`}
+          </div>
+          ${renderConceptTree(scheme, id, depth + 1)}
+        </div>
+      `);
+    }
+    const children = Object.entries(scheme.concepts)
+      .filter(([, c]) => c.broader.includes(parentId))
+      .sort(([, a], [, b]) => a.pref_label.localeCompare(b.pref_label));
+    return children.map(([id, c]) => html`
+      <div key=${id}>
+        <div class="nav-item ${selected?.type === 'concept' && selected?.id === id ? 'active' : ''}"
+          style=${{ paddingLeft: `${16 + depth * 16}px` }}
+          onClick=${() => onSelect({ type: 'concept', schemeId: scheme.id, id })}>
+          ${c.pref_label}
+          ${(feedbackCounts[`concept:${id}`] || 0) > 0 && html`<span class="feedback-count">${feedbackCounts[`concept:${id}`]}</span>`}
+        </div>
+        ${renderConceptTree(scheme, id, depth + 1)}
+      </div>
+    `);
+  }
+
+  return html`
+    <div class="sidebar">
+      <div style=${{ marginBottom: 'var(--spacing-md)' }}>
+        <div style=${{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>${vocab.project.name}</div>
+        ${versions.length > 1 ? html`
+          <div class="version-selector">
+            <label>Version</label>
+            <select value=${vocab.version} onChange=${e => onVersionChange(e.target.value)}>
+              ${versions.map(v => html`<option key=${v.version} value=${v.version}>v${v.version} — ${formatDate(v.published_at)}</option>`)}
+            </select>
+          </div>
+        ` : html`
+          <div class="version-badge">v${vocab.version} — Published ${formatDate(vocab.published_at)}</div>
+        `}
+      </div>
+
+      <${SidebarSearch} vocab=${vocab} onSelect=${onSelect} />
+
+      <div class="nav-section">
+        <div class="nav-section-header" style=${{ marginBottom: '4px' }}>Concept Schemes</div>
+        ${vocab.schemes.map(scheme => html`
+          <div key=${scheme.id}>
+            <div class="nav-item ${selected?.type === 'scheme' && selected?.id === scheme.id ? 'active' : ''}"
+              onClick=${() => { onSelect({ type: 'scheme', id: scheme.id }); toggleScheme(scheme.id); }}>
+              <span class="chevron ${expandedSchemes[scheme.id] ? 'open' : ''}">▶</span>
+              ${scheme.title}
+              ${(feedbackCounts[`scheme:${scheme.id}`] || 0) > 0 && html`<span class="feedback-count">${feedbackCounts[`scheme:${scheme.id}`]}</span>`}
+            </div>
+            ${expandedSchemes[scheme.id] && renderConceptTree(scheme, null, 1)}
+          </div>
+        `)}
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-header" onClick=${() => setOntologyOpen(!ontologyOpen)}>
+          <span class="chevron ${ontologyOpen ? 'open' : ''}">▶</span>
+          Data Model
+        </div>
+        ${ontologyOpen && html`
+          <div>
+            <div class="nav-section-header" onClick=${() => setClassesOpen(!classesOpen)} style=${{ paddingLeft: 'var(--spacing-md)' }}>
+              <span class="chevron ${classesOpen ? 'open' : ''}">▶</span>
+              Classes (${vocab.classes.length})
+            </div>
+            ${classesOpen && vocab.classes.map(cls => html`
+              <div class="nav-item depth-2 ${selected?.type === 'class' && selected?.id === cls.id ? 'active' : ''}"
+                key=${cls.id}
+                onClick=${() => onSelect({ type: 'class', id: cls.id })}>
+                ${cls.label}
+                ${(feedbackCounts[`class:${cls.id}`] || 0) > 0 && html`<span class="feedback-count">${feedbackCounts[`class:${cls.id}`]}</span>`}
+              </div>
+            `)}
+            <div class="nav-section-header" onClick=${() => setPropsOpen(!propsOpen)} style=${{ paddingLeft: 'var(--spacing-md)' }}>
+              <span class="chevron ${propsOpen ? 'open' : ''}">▶</span>
+              Properties (${vocab.properties.length})
+            </div>
+            ${propsOpen && vocab.properties.map(prop => html`
+              <div class="nav-item depth-2 ${selected?.type === 'property' && selected?.id === prop.id ? 'active' : ''}"
+                key=${prop.id}
+                onClick=${() => onSelect({ type: 'property', id: prop.id })}>
+                ${prop.label}
+                ${(feedbackCounts[`property:${prop.id}`] || 0) > 0 && html`<span class="feedback-count">${feedbackCounts[`property:${prop.id}`]}</span>`}
+              </div>
+            `)}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+// --- Reader view ---
+function ReaderView({ vocab, isAuthenticated, onVersionChange }) {
+  const [selected, setSelected] = useState(null);
+  const [mobileDetail, setMobileDetail] = useState(false);
+
+  const feedbackCounts = useMemo(() => {
+    const counts = {};
+    if (!isAuthenticated) return counts;
+    for (const f of feedbackForProject(vocab.project.id)) {
+      if (f.author !== MOCK_CURRENT_USER) continue;
+      const key = `${f.entity_type}:${f.entity_id}`;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [vocab, isAuthenticated]);
+
+  function handleSelect(sel) {
+    setSelected(sel);
+    setMobileDetail(true);
+  }
+
+  function handleNavigate(type, schemeId, id) {
+    setSelected(type === 'concept' ? { type, schemeId, id } : { type, id });
+  }
+
+  function renderDetail() {
+    if (!selected) return html`<div class="empty-state"><p>Select an entity from the sidebar</p><p class="text-sm">Browse concepts, schemes, classes, and properties</p></div>`;
+    switch (selected.type) {
+      case 'concept': return html`<${ConceptDetail} vocab=${vocab} schemeId=${selected.schemeId} conceptId=${selected.id} isAuthenticated=${isAuthenticated} onNavigate=${handleNavigate} />`;
+      case 'scheme': return html`<${SchemeDetail} vocab=${vocab} schemeId=${selected.id} isAuthenticated=${isAuthenticated} onNavigate=${handleNavigate} />`;
+      case 'class': return html`<${ClassDetail} vocab=${vocab} classId=${selected.id} isAuthenticated=${isAuthenticated} />`;
+      case 'property': return html`<${PropertyDetail} vocab=${vocab} propertyId=${selected.id} isAuthenticated=${isAuthenticated} />`;
+    }
+  }
+
+  return html`
+    <div class="reader-layout ${mobileDetail ? 'mobile-detail' : ''}">
+      <div class="mobile-back">
+        <button onClick=${() => setMobileDetail(false)}>← Back to navigation</button>
+      </div>
+      <${Sidebar} vocab=${vocab} selected=${selected} onSelect=${handleSelect} feedbackCounts=${feedbackCounts} onVersionChange=${onVersionChange} />
+      <div class="detail-panel">
+        ${renderDetail()}
+      </div>
+    </div>
+  `;
+}
+
+// --- Manager dashboard ---
+function ManagerView({ vocab }) {
+  const [entityFilter, setEntityFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expanded, setExpanded] = useState(null);
+  const [responses, setResponses] = useState({});
+
+  const projectFeedback = feedbackForProject(vocab.project.id);
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return projectFeedback.filter(f => {
+      if (entityFilter !== 'all' && f.entity_type !== entityFilter) return false;
+      if (typeFilter !== 'all' && f.feedback_type !== typeFilter) return false;
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'open' && f.status !== 'open' && f.status !== 'responded') return false;
+        if (statusFilter === 'resolved' && f.status !== 'resolved') return false;
+        if (statusFilter === 'declined' && f.status !== 'declined') return false;
+      }
+      if (q && !f.content.toLowerCase().includes(q)
+            && !f.entity_label.toLowerCase().includes(q)
+            && !f.author.toLowerCase().includes(q)
+            && !(f.response && f.response.content.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [projectFeedback, entityFilter, typeFilter, statusFilter, searchQuery]);
+
+  const openCount = projectFeedback.filter(f => f.status === 'open' || f.status === 'responded').length;
+  const byType = {};
+  for (const f of projectFeedback) { byType[f.entity_type] = (byType[f.entity_type] || 0) + 1; }
+
+  const allTypes = [...new Set(projectFeedback.map(f => f.feedback_type))];
+
+  function handleAction(id, action) {
+    alert(`Mock action: ${action} on feedback ${id}\nResponse: ${responses[id] || '(none)'}`);
+  }
+
+  return html`
+    <div class="manager-layout">
+      <h2 style=${{ marginBottom: 'var(--spacing-lg)' }}>Feedback Manager — ${vocab.project.name}</h2>
+
+      <div class="summary-bar">
+        <div class="summary-card">
+          <div class="number">${projectFeedback.length}</div>
+          <div class="label">Total</div>
+        </div>
+        <div class="summary-card">
+          <div class="number" style=${{ color: 'var(--color-warning)' }}>${openCount}</div>
+          <div class="label">Open</div>
+        </div>
+        ${Object.entries(byType).map(([type, count]) => html`
+          <div class="summary-card" key=${type}>
+            <div class="number">${count}</div>
+            <div class="label">${type}s</div>
+          </div>
+        `)}
+      </div>
+
+      <div class="manager-filters">
+        <input type="text" placeholder="Search feedback..." value=${searchQuery} onInput=${e => setSearchQuery(e.target.value)}
+          style=${{ padding: 'var(--spacing-sm)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', fontSize: 'var(--font-size-sm)', background: 'var(--color-bg)', flex: '1', minWidth: '150px' }} />
+        <select value=${entityFilter} onChange=${e => setEntityFilter(e.target.value)}>
+          <option value="all">All entity types</option>
+          <option value="concept">Concepts</option>
+          <option value="scheme">Schemes</option>
+          <option value="class">Classes</option>
+          <option value="property">Properties</option>
+        </select>
+        <select value=${typeFilter} onChange=${e => setTypeFilter(e.target.value)}>
+          <option value="all">All feedback types</option>
+          ${allTypes.map(t => html`<option value=${t} key=${t}>${t}</option>`)}
+        </select>
+        <select value=${statusFilter} onChange=${e => setStatusFilter(e.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="resolved">Resolved</option>
+          <option value="declined">Declined</option>
+        </select>
+        <span class="text-sm text-muted">${filtered.length} item${filtered.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      ${filtered.map(item => html`
+        <div class="manager-card ${expanded === item.id ? 'expanded' : ''}" key=${item.id}>
+          <div class="manager-card-header" onClick=${() => setExpanded(expanded === item.id ? null : item.id)}>
+            <span class="entity-label">${item.entity_label}</span>
+            ${entityBadge(item.entity_type)}
+            ${item.scheme_context && html`<span class="text-sm text-muted">in ${item.scheme_context}</span>`}
+            <span class="badge badge-muted">${item.feedback_type}</span>
+            ${statusBadge(item.status)}
+            <span class="feedback-date" style=${{ marginLeft: 'auto' }}>${item.author} · ${formatDate(item.created_at)}</span>
+          </div>
+          ${expanded !== item.id && html`
+            <div class="manager-card-excerpt">${item.content.slice(0, 120)}${item.content.length > 120 ? '...' : ''}</div>
+          `}
+          ${expanded === item.id && html`
+            <div class="manager-card-expanded">
+              <div class="feedback-content">${item.content}</div>
+              <div class="version-context">Filed against v${item.snapshot_version}${item.snapshot_version !== vocab.version ? ` (current: v${vocab.version})` : ''}</div>
+              ${item.response && html`
+                <div class="feedback-response mt-md">
+                  <div class="response-author">${item.response.author} — ${formatDate(item.response.created_at)}</div>
+                  <div>${item.response.content}</div>
+                </div>
+              `}
+              ${(item.status === 'open' || item.status === 'responded') && html`
+                <div class="response-form">
+                  <textarea placeholder="Write a response..."
+                    value=${responses[item.id] || ''}
+                    onInput=${e => setResponses(prev => ({ ...prev, [item.id]: e.target.value }))} />
+                  <div class="response-actions">
+                    <button class="btn btn-primary" onClick=${() => handleAction(item.id, 'respond')}>Respond</button>
+                    <button class="btn btn-success" onClick=${() => handleAction(item.id, 'resolve')}>Resolve</button>
+                    <button class="btn btn-outline" onClick=${() => handleAction(item.id, 'decline')}>Decline</button>
+                    <button class="btn btn-outline" style=${{ marginLeft: 'auto' }}>View in builder</button>
+                  </div>
+                </div>
+              `}
+            </div>
+          `}
+        </div>
+      `)}
+      ${filtered.length === 0 && html`<p class="text-muted" style=${{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>No feedback matches the current filters.</p>`}
+    </div>
+  `;
+}
+
+// --- About view (project info, replaces landing) ---
+function AboutView({ vocab }) {
+  return html`
+    <div class="landing-layout">
+      <div class="landing-header">
+        <h2>${vocab.project.name}</h2>
+        <p class="text-muted">${vocab.project.description}</p>
+      </div>
+
+      <div class="detail-section">
+        <h3>Published Version</h3>
+        <p>Version ${vocab.version} — "${vocab.title}"</p>
+        <p class="text-sm text-muted">Published ${formatDate(vocab.published_at)} by ${vocab.publisher}</p>
+      </div>
+
+      <div class="landing-stats">
+        <div class="stat-card">
+          <div class="number">${vocab.schemes.length}</div>
+          <div class="label">Scheme${vocab.schemes.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">${totalConcepts(vocab)}</div>
+          <div class="label">Concepts</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">${vocab.classes.length}</div>
+          <div class="label">Classes</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">${vocab.properties.length}</div>
+          <div class="label">Properties</div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>Concept Schemes</h3>
+        <ul class="scheme-list">
+          ${vocab.schemes.map(scheme => html`
+            <li key=${scheme.id}>
+              <div>
+                <div class="scheme-name">${scheme.title}</div>
+                <div class="scheme-desc">${scheme.description}</div>
+              </div>
+              <div class="concept-count">
+                <span class="badge badge-concept">${Object.keys(scheme.concepts).length} concepts</span>
+              </div>
+            </li>
+          `)}
+        </ul>
+      </div>
+
+      <div class="detail-section">
+        <h3>All Versions</h3>
+        <ul class="scheme-list">
+          ${snapshotsForProject(vocab.project.id).map(v => html`
+            <li key=${v.version} style=${{ cursor: 'default' }}>
+              <div>
+                <div class="scheme-name">v${v.version} — ${v.title}</div>
+                <div class="scheme-desc">Published ${formatDate(v.published_at)} by ${v.publisher}</div>
+              </div>
+              ${v.version === vocab.version && html`<span class="badge badge-primary" style=${{ marginLeft: 'auto' }}>viewing</span>`}
+            </li>
+          `)}
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+// --- App root ---
+function App() {
+  const [view, setView] = useState('reader');
+  const [activeVocab, setActiveVocab] = useState(DEFAULT_VOCAB);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+
+
+  function handleVersionChange(version) {
+    const snap = SNAPSHOTS.find(s => s.project.id === activeVocab.project.id && s.version === version);
+    if (snap) setActiveVocab(snap);
+  }
+
+  function handleProjectSwitch(pid) {
+    setActiveVocab(latestSnapshot(pid));
+  }
+
+  return html`
+    <div>
+      <header class="app-header">
+        <h1>Taxonomy Reader</h1>
+        <span class="spacer" />
+        <div style=${{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span class="demo-label">demo</span>
+          <div class="demo-switcher">
+            ${ALL_PROJECT_IDS.map(pid => {
+              const snap = latestSnapshot(pid);
+              return html`<button key=${pid} class=${activeVocab.project.id === pid ? 'active' : ''} onClick=${() => handleProjectSwitch(pid)}>${snap.project.name}</button>`;
+            })}
+          </div>
+        </div>
+        <button class="toggle-btn ${isAuthenticated ? 'on' : ''}" onClick=${() => setIsAuthenticated(!isAuthenticated)}>
+          Auth: ${isAuthenticated ? 'ON' : 'OFF'}
+        </button>
+      </header>
+      <nav class="tab-bar">
+        <button class="tab-btn ${view === 'reader' ? 'active' : ''}" onClick=${() => setView('reader')}>Browser</button>
+        <button class="tab-btn ${view === 'manager' ? 'active' : ''}" onClick=${() => setView('manager')}>Manager</button>
+        <button class="tab-btn ${view === 'about' ? 'active' : ''}" onClick=${() => setView('about')}>About</button>
+      </nav>
+      ${view === 'reader' && html`<${ReaderView} key=${activeVocab.project.id + activeVocab.version} vocab=${activeVocab} isAuthenticated=${isAuthenticated} onVersionChange=${handleVersionChange} />`}
+      ${view === 'manager' && html`<${ManagerView} vocab=${activeVocab} />`}
+      ${view === 'about' && html`<${AboutView} vocab=${activeVocab} />`}
+    </div>
+  `;
+}
+
+render(html`<${App} />`, document.getElementById('app'));
+</script>
+</body>
+</html>

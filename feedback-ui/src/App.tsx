@@ -1,31 +1,34 @@
 import { useEffect } from "preact/hooks";
-import { initAuth, login, logout } from "./api/auth";
-import { authInitialized, authLoading, isAuthenticated, userDisplayName } from "./state/auth";
+import { initAuth } from "./api/auth";
+import { authInitialized, isAuthenticated } from "./state/auth";
+import { loadOwnFeedback } from "./state/feedback";
+import { AppShell } from "./components/layout/AppShell";
+import { LatencyToggle } from "./components/common/LatencyToggle";
 
 export function App() {
   useEffect(() => {
     initAuth();
   }, []);
 
+  // Load own feedback when authenticated
+  useEffect(() => {
+    if (isAuthenticated.value) {
+      loadOwnFeedback();
+    }
+  }, [isAuthenticated.value]);
+
   if (!authInitialized.value) {
-    return <div>Loading...</div>;
+    return (
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh">
+        Loading...
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h1>Feedback</h1>
-      {authLoading.value && <p>Authenticating...</p>}
-      {isAuthenticated.value ? (
-        <div>
-          <p>Signed in as {userDisplayName.value}</p>
-          <button onClick={logout}>Sign out</button>
-        </div>
-      ) : (
-        <div>
-          <p>Not signed in (public access)</p>
-          <button onClick={login}>Sign in</button>
-        </div>
-      )}
-    </div>
+    <>
+      <AppShell />
+      {import.meta.env.DEV && <LatencyToggle />}
+    </>
   );
 }

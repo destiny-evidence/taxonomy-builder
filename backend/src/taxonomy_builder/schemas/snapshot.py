@@ -145,11 +145,12 @@ class SnapshotProperty(BaseModel):
     def require_exactly_one_range(self) -> SnapshotProperty:
         has_scheme = self.range_scheme_id is not None
         has_datatype = self.range_datatype is not None
-        if has_scheme == has_datatype:
+        has_class = self.range_class is not None
+        if sum((has_scheme, has_datatype, has_class)) != 1:
             raise PydanticCustomError(
                 "property_invalid_range",
-                "Property '{label}' must have either a range scheme"
-                " or a range datatype, not both or neither.",
+                "Property '{label}' must have exactly one of"
+                " range scheme, range datatype, or range class.",
                 {
                     "label": self.label,
                     "entity_type": "property",

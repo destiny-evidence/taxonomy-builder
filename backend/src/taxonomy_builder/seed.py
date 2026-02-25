@@ -33,8 +33,12 @@ async def create_seed_data(session: AsyncSession) -> dict:
     Returns a summary of created objects.
     """
     created = {
-        "users": 0, "projects": 0, "schemes": 0,
-        "concepts": 0, "classes": 0, "properties": 0,
+        "users": 0,
+        "projects": 0,
+        "schemes": 0,
+        "concepts": 0,
+        "classes": 0,
+        "properties": 0,
     }
 
     # Create a dev user
@@ -239,8 +243,11 @@ async def create_seed_data(session: AsyncSession) -> dict:
         ("Finding", "Finding", "A finding or result reported by an investigation."),
         ("Intervention", "Intervention", "An intervention evaluated in a study."),
         ("Outcome", "Outcome", "A measured outcome of an intervention."),
-        ("EffectEstimate", "Effect Estimate",
-         "A quantitative estimate of an intervention's effect."),
+        (
+            "EffectEstimate",
+            "Effect Estimate",
+            "A quantitative estimate of an intervention's effect.",
+        ),
         ("Context", "Context", "The context in which a study was conducted."),
         ("Funder", "Funder", "An entity that funded a study."),
         ("Implementer", "Implementer", "An entity that implemented an intervention."),

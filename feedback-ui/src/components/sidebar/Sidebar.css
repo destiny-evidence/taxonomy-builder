@@ -1,0 +1,198 @@
+.sidebar {
+  padding: var(--spacing-md);
+}
+
+/* Top-level groups (Concept Schemes, Data Model) */
+.sidebar__group {
+  margin-bottom: var(--spacing-md);
+}
+
+.sidebar__group + .sidebar__group {
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.sidebar__group-header {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: var(--spacing-xs) 0;
+  margin-bottom: var(--spacing-xs);
+}
+
+.sidebar__group-body {
+  padding-left: var(--spacing-xs);
+}
+
+/* Collapsible sections within groups */
+.sidebar__section {
+  margin-bottom: var(--spacing-xs);
+}
+
+.sidebar__section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin: 0 calc(-1 * var(--spacing-sm));
+  user-select: none;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+
+.sidebar__section-header:hover {
+  background: var(--color-bg-secondary);
+}
+
+.sidebar__section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sidebar__section-title:hover {
+  color: var(--color-primary);
+}
+
+.sidebar__section-title--active {
+  color: var(--color-primary);
+}
+
+.sidebar__section-body {
+  padding-left: var(--spacing-sm);
+}
+
+/* Chevron toggle (replaces ▸ text character) */
+.sidebar__chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.sidebar__chevron--open {
+  transform: rotate(90deg);
+}
+
+.sidebar__empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  padding: var(--spacing-sm) 0;
+}
+
+/* Version selector */
+.version-selector {
+  margin-bottom: var(--spacing-md);
+}
+
+.version-selector__select {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Concept tree */
+.concept-tree__node {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin: 0 calc(-1 * var(--spacing-sm));
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+
+.concept-tree__node:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+}
+
+.concept-tree__node--active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.concept-tree__chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.concept-tree__chevron--open {
+  transform: rotate(90deg);
+}
+
+.concept-tree__toggle-spacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.concept-tree__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concept-tree__children {
+  padding-left: var(--spacing-md);
+}
+
+/* Data model items */
+.data-model-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin: 0 calc(-1 * var(--spacing-sm));
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+
+.data-model-item:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+}
+
+.data-model-item--active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Feedback count badge */
+.sidebar__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--color-success);
+  color: white;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: var(--spacing-xs);
+  flex-shrink: 0;
+}

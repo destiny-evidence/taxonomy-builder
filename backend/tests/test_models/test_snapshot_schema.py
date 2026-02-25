@@ -96,8 +96,20 @@ class TestSnapshotProperty:
         p = SnapshotProperty(**_property())
         assert p.range_scheme_id is None
         assert p.range_datatype == "xsd:string"
+        assert p.range_class is None
 
-    def test_both_range_fields_raises(self) -> None:
+    def test_with_range_class(self) -> None:
+        p = SnapshotProperty(
+            **_property(
+                range_datatype=None,
+                range_class="http://example.org/OtherClass",
+            )
+        )
+        assert p.range_scheme_id is None
+        assert p.range_datatype is None
+        assert p.range_class == "http://example.org/OtherClass"
+
+    def test_multiple_range_fields_raises(self) -> None:
         with pytest.raises(ValidationError):
             SnapshotProperty(
                 **_property(
@@ -106,7 +118,7 @@ class TestSnapshotProperty:
                 )
             )
 
-    def test_neither_range_field_raises(self) -> None:
+    def test_no_range_field_raises(self) -> None:
         with pytest.raises(ValidationError):
             SnapshotProperty(
                 **_property(range_scheme_id=None, range_datatype=None)

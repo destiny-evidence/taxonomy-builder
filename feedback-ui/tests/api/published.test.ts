@@ -101,6 +101,7 @@ const VOCABULARY: Vocabulary = {
       range_scheme_id: "cccccccc-1111-2222-3333-dddddddddddd",
       range_scheme_uri: "https://example.org/test/scheme",
       range_datatype: null,
+      range_class: null,
       cardinality: "single",
       required: true,
     },
@@ -141,7 +142,7 @@ describe("published content client", () => {
 
       const result = await getRootIndex();
 
-      expect(mockFetch).toHaveBeenCalledWith("/published/index.json");
+      expect(mockFetch).toHaveBeenCalledWith("/published/index.json", {});
       expect(result).toEqual(ROOT_INDEX);
     });
 
@@ -161,7 +162,8 @@ describe("published content client", () => {
       const result = await getProjectIndex(PROJ_ID);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `/published/${PROJ_ID}/index.json`
+        `/published/${PROJ_ID}/index.json`,
+        {}
       );
       expect(result).toEqual(PROJECT_INDEX);
     });
@@ -180,7 +182,8 @@ describe("published content client", () => {
       const result = await getVocabulary(PROJ_ID, "1.0");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `/published/${PROJ_ID}/1.0/vocabulary.json`
+        `/published/${PROJ_ID}/1.0/vocabulary.json`,
+        {}
       );
       expect(result).toEqual(VOCABULARY);
     });

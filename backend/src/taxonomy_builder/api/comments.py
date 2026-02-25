@@ -3,13 +3,8 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import (
-    AuthenticatedUser,
-    get_current_user,
-)
-from taxonomy_builder.database import get_db
+from taxonomy_builder.api.dependencies import get_comment_service
 from taxonomy_builder.schemas.comment import CommentCreate, CommentRead
 from taxonomy_builder.services.comment_service import (
     CommentNotFoundError,
@@ -25,14 +20,6 @@ concept_comments_router = APIRouter(prefix="/api/concepts", tags=["comments"])
 
 # Router for direct comment operations
 comments_router = APIRouter(prefix="/api/comments", tags=["comments"])
-
-
-def get_comment_service(
-    db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(get_current_user),
-) -> CommentService:
-    """Dependency that provides a CommentService with user context."""
-    return CommentService(db, user_id=current_user.user.id)
 
 
 @concept_comments_router.get(
