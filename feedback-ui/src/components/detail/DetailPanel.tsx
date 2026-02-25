@@ -21,13 +21,13 @@ export function DetailPanel() {
 
   switch (entityKind) {
     case "concept":
-      return <ConceptDetail conceptId={entityId} />;
+      return <ConceptDetail key={entityId} conceptId={entityId} />;
     case "scheme":
-      return <SchemeDetail schemeId={entityId} />;
+      return <SchemeDetail key={entityId} schemeId={entityId} />;
     case "class":
-      return <ClassDetail classId={entityId} />;
+      return <ClassDetail key={entityId} classId={entityId} />;
     case "property":
-      return <PropertyDetail propertyId={entityId} />;
+      return <PropertyDetail key={entityId} propertyId={entityId} />;
     default:
       return <WelcomePanel />;
   }
