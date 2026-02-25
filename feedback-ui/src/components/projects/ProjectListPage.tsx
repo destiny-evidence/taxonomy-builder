@@ -1,10 +1,11 @@
 import { projects, loading, error } from "../../state/vocabulary";
 import { navigateToProject } from "../../router";
+import { LoadingSpinner } from "../common/LoadingOverlay";
 import "./ProjectListPage.css";
 
 export function ProjectListPage() {
   if (loading.value) {
-    return <div class="project-list"><p class="project-list__status">Loading projects...</p></div>;
+    return <div class="project-list"><LoadingSpinner /></div>;
   }
 
   if (error.value) {

@@ -1,6 +1,7 @@
 import { API_BASE } from "../config";
 import { getToken } from "./auth";
 import { clearAuth } from "../state/auth";
+import { delay } from "./latency";
 
 export class ApiError extends Error {
   constructor(
@@ -35,6 +36,7 @@ async function request<T>(
     }
   }
 
+  await delay();
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method,
     headers,

@@ -3,6 +3,7 @@ import { initAuth } from "./api/auth";
 import { authInitialized, isAuthenticated } from "./state/auth";
 import { loadOwnFeedback } from "./state/feedback";
 import { AppShell } from "./components/layout/AppShell";
+import { LatencyToggle } from "./components/common/LatencyToggle";
 
 export function App() {
   useEffect(() => {
@@ -24,5 +25,10 @@ export function App() {
     );
   }
 
-  return <AppShell />;
+  return (
+    <>
+      <AppShell />
+      {import.meta.env.DEV && <LatencyToggle />}
+    </>
+  );
 }

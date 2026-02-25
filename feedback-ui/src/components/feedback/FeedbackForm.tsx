@@ -2,6 +2,7 @@ import { useSignal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { getFeedbackTypes } from "../../constants/feedback-types";
 import { submitFeedback } from "../../state/feedback";
+import { LoadingOverlay } from "../common/LoadingOverlay";
 import "./FeedbackForm.css";
 
 interface FeedbackFormProps {
@@ -58,7 +59,8 @@ export function FeedbackForm({
   const maxChars = 10000;
 
   return (
-    <form class="feedback-form" onSubmit={handleSubmit}>
+    <form class="feedback-form" onSubmit={handleSubmit} style="position:relative">
+      {submitting.value && <LoadingOverlay />}
       {success.value && (
         <div class="feedback-form__success">Feedback submitted</div>
       )}

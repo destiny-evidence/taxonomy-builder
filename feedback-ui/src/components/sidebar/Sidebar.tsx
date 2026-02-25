@@ -3,11 +3,12 @@ import { searchQuery } from "../../state/search";
 import { SearchBar } from "./SearchBar";
 import { SchemeSection } from "./SchemeSection";
 import { DataModelSection } from "./DataModelSection";
+import { LoadingSpinner } from "../common/LoadingOverlay";
 import "./Sidebar.css";
 
 export function Sidebar() {
   if (loading.value) {
-    return <div class="sidebar"><p class="sidebar__empty">Loading...</p></div>;
+    return <div class="sidebar"><LoadingSpinner /></div>;
   }
 
   if (error.value) {

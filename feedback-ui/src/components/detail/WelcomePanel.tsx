@@ -1,10 +1,12 @@
 import {
   vocabulary,
+  loading,
   projectIndex,
   projectIndexLoading,
   selectedVersion,
   switchVersion,
 } from "../../state/vocabulary";
+import { LoadingSpinner } from "../common/LoadingOverlay";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -21,7 +23,12 @@ function VersionList() {
   const latest = index?.latest_version;
 
   if (projectIndexLoading.value) {
-    return <div class="about__versions-loading">Loading versions…</div>;
+    return (
+      <div class="detail__section">
+        <div class="detail__label">Versions</div>
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (versions.length === 0) return null;
@@ -82,6 +89,10 @@ function VersionList() {
 }
 
 export function WelcomePanel() {
+  if (loading.value) {
+    return <div class="detail"><LoadingSpinner /></div>;
+  }
+
   const vocab = vocabulary.value;
   if (!vocab) {
     return (

@@ -1,4 +1,5 @@
 import { PUBLISHED_BASE } from "../config";
+import { delay, cacheOptions } from "./latency";
 
 // --- Types matching the published JSON schemas ---
 
@@ -108,7 +109,8 @@ export interface Vocabulary {
 
 async function fetchPublished<T>(path: string): Promise<T> {
   const url = `${PUBLISHED_BASE}${path}`;
-  const response = await fetch(url);
+  await delay();
+  const response = await fetch(url, cacheOptions());
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status}`);
   }

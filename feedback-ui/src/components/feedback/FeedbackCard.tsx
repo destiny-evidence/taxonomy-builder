@@ -2,6 +2,7 @@ import { useSignal } from "@preact/signals";
 import { Badge, feedbackTypeLabel, statusVariant } from "./Badge";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { deleteFeedback } from "../../state/feedback";
+import { LoadingOverlay } from "../common/LoadingOverlay";
 import type { FeedbackRead } from "../../api/feedback";
 import "./FeedbackCard.css";
 
@@ -32,7 +33,8 @@ export function FeedbackCard({ feedback }: FeedbackCardProps) {
   });
 
   return (
-    <div class="feedback-card">
+    <div class="feedback-card" style="position:relative">
+      {deleting.value && <LoadingOverlay />}
       <div class="feedback-card__header">
         <span class="feedback-card__date">{date}</span>
         <span class="feedback-card__version">v{feedback.snapshot_version}</span>

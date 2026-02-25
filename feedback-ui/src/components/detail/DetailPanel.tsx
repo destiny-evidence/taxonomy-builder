@@ -5,6 +5,7 @@ import { ConceptDetail } from "./ConceptDetail";
 import { SchemeDetail } from "./SchemeDetail";
 import { ClassDetail } from "./ClassDetail";
 import { PropertyDetail } from "./PropertyDetail";
+import { LoadingSpinner } from "../common/LoadingOverlay";
 import "./detail.css";
 
 export function DetailPanel() {
@@ -15,7 +16,7 @@ export function DetailPanel() {
   }
 
   if (loading.value || !vocabulary.value) {
-    return <div class="detail">Loading...</div>;
+    return <div class="detail"><LoadingSpinner /></div>;
   }
 
   switch (entityKind) {
