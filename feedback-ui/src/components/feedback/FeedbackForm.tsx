@@ -16,13 +16,12 @@ export function FeedbackForm({
   entityLabel,
 }: FeedbackFormProps) {
   const types = getFeedbackTypes(entityType);
-  const selectedType = useSignal(types[0]?.value ?? "");
+  const selectedType = useSignal("");
   const content = useSignal("");
 
   // Reset selected type when entity type changes (e.g. concept → class)
   useEffect(() => {
-    const newTypes = getFeedbackTypes(entityType);
-    selectedType.value = newTypes[0]?.value ?? "";
+    selectedType.value = "";
   }, [entityType]);
   const submitting = useSignal(false);
   const success = useSignal(false);
@@ -44,7 +43,7 @@ export function FeedbackForm({
         trimmed
       );
       content.value = "";
-      selectedType.value = types[0]?.value ?? "";
+      selectedType.value = "";
       success.value = true;
       setTimeout(() => (success.value = false), 3000);
     } catch (e) {
@@ -71,10 +70,14 @@ export function FeedbackForm({
         <select
           class="feedback-form__select"
           value={selectedType.value}
+          required
           onChange={(e) =>
             (selectedType.value = (e.target as HTMLSelectElement).value)
           }
         >
+          <option value="" disabled hidden>
+            Select type…
+          </option>
           {types.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
@@ -101,7 +104,7 @@ export function FeedbackForm({
         <button
           type="submit"
           class="feedback-form__submit"
-          disabled={submitting.value || !content.value.trim()}
+          disabled={submitting.value || !selectedType.value || !content.value.trim()}
         >
           {submitting.value ? "Submitting..." : "Submit"}
         </button>

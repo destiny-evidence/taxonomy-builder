@@ -29,6 +29,10 @@
   color: var(--color-text);
 }
 
+.feedback-form__select:invalid {
+  color: var(--color-text-muted);
+}
+
 .feedback-form__textarea {
   min-height: 100px;
   resize: vertical;
