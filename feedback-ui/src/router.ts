@@ -34,6 +34,11 @@ function parsePath(p: string): Route {
     return { projectId: segments[0], version: segments[1], entityKind: null, entityId: null };
   }
 
+  if (segments.length === 1) {
+    // /{projectId} — versionless, resolved by AppShell
+    return { projectId: segments[0], version: null, entityKind: null, entityId: null };
+  }
+
   return EMPTY_ROUTE;
 }
 
@@ -61,8 +66,20 @@ export function navigate(projectId: string, version: string, entityKind: EntityK
 }
 
 /** Navigate to a project version (no entity selected). */
-export function navigateToProject(projectId: string, version: string): void {
+export function navigateToProject(projectId: string, version: string, { replace = false } = {}): void {
   const path = `/${projectId}/${version}/`;
+  if (replace) {
+    history.replaceState({}, "", path);
+  } else {
+    navDepth++;
+    history.pushState({}, "", path);
+  }
+  pathname.value = path;
+}
+
+/** Navigate to a project without a version (triggers version resolution). */
+export function navigateToProjectLatest(projectId: string): void {
+  const path = `/${projectId}/`;
   navDepth++;
   history.pushState({}, "", path);
   pathname.value = path;

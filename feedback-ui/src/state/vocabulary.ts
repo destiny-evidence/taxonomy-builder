@@ -149,6 +149,15 @@ export async function loadVersion(
   }
 }
 
+export async function resolveLatestVersion(projectId: string): Promise<string | null> {
+  try {
+    const index = await getProjectIndex(projectId);
+    return index.versions.length > 0 ? index.versions[0].version : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadProjectIndex(projectId: string): Promise<void> {
   if (projectIndex.value?.project.id === projectId) return;
   projectIndex.value = null;

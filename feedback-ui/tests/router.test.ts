@@ -87,11 +87,11 @@ describe("router", () => {
     });
   });
 
-  it("returns empty route for single-segment path", () => {
+  it("returns versionless project route for single-segment path", () => {
     window.history.pushState({}, "", "/proj-1");
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(route.value).toEqual({
-      projectId: null,
+      projectId: "proj-1",
       version: null,
       entityKind: null,
       entityId: null,

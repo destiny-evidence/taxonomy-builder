@@ -1,6 +1,6 @@
 import { useEffect } from "preact/hooks";
 import { initRouter, destroyRouter, route, navigateHome, navigateToProject, goBack, mobileView } from "../../router";
-import { loadProjects, selectProject, projectName, selectedVersion, currentProjectId } from "../../state/vocabulary";
+import { loadProjects, selectProject, resolveLatestVersion, projectName, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { AuthStatus } from "./AuthStatus";
 import { isOffline } from "../../state/network";
 import { Sidebar } from "../sidebar/Sidebar";
@@ -19,8 +19,17 @@ export function AppShell() {
   const routedProjectId = route.value.projectId;
   const routedVersion = route.value.version;
   useEffect(() => {
-    if (routedProjectId && routedVersion && routedProjectId !== currentProjectId.value) {
-      selectProject(routedProjectId, routedVersion);
+    if (!routedProjectId) return;
+    if (routedVersion) {
+      if (routedProjectId !== currentProjectId.value) {
+        selectProject(routedProjectId, routedVersion);
+      }
+    } else {
+      // Versionless route — resolve best version from project index
+      resolveLatestVersion(routedProjectId).then((version) => {
+        if (version) navigateToProject(routedProjectId, version, { replace: true });
+        else navigateHome();
+      });
     }
   }, [routedProjectId, routedVersion]);
 

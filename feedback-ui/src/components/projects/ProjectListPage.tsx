@@ -1,5 +1,5 @@
 import { projects, loading, error } from "../../state/vocabulary";
-import { navigateToProject } from "../../router";
+import { navigateToProject, navigateToProjectLatest } from "../../router";
 import { LoadingSpinner } from "../common/LoadingOverlay";
 import "./ProjectListPage.css";
 
@@ -32,16 +32,19 @@ export function ProjectListPage() {
           <button
             key={project.id}
             class="project-card"
-            disabled={!project.latest_version}
-            onClick={() => navigateToProject(project.id, project.latest_version!)}
+            onClick={() =>
+              project.latest_version
+                ? navigateToProject(project.id, project.latest_version)
+                : navigateToProjectLatest(project.id)
+            }
           >
             <h2 class="project-card__name">{project.name}</h2>
             {project.description && (
               <p class="project-card__description">{project.description}</p>
             )}
-            {project.latest_version && (
-              <span class="project-card__version">v{project.latest_version}</span>
-            )}
+            <span class="project-card__version">
+              {project.latest_version ? `v${project.latest_version}` : "No released version"}
+            </span>
           </button>
         ))}
       </div>
