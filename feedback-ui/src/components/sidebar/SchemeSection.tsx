@@ -1,6 +1,6 @@
 import { useSignal } from "@preact/signals";
 import { navigate, route } from "../../router";
-import { selectedVersion, conceptTrees } from "../../state/vocabulary";
+import { selectedVersion, currentProjectId, conceptTrees } from "../../state/vocabulary";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 import { ConceptTree } from "./ConceptTree";
@@ -17,8 +17,9 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
 
   function handleTitleClick() {
     const version = selectedVersion.value;
-    if (version) {
-      navigate(version, "scheme", scheme.id);
+    const projectId = currentProjectId.value;
+    if (version && projectId) {
+      navigate(projectId, version, "scheme", scheme.id);
     }
   }
 

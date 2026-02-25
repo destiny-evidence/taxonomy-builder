@@ -1,6 +1,6 @@
 import { useSignal } from "@preact/signals";
 import { navigate, route } from "../../router";
-import { vocabulary, selectedVersion } from "../../state/vocabulary";
+import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 
@@ -35,7 +35,7 @@ export function DataModelSection() {
                   <div
                     key={cls.id}
                     class={`data-model-item${route.value.entityKind === "class" && route.value.entityId === cls.id ? " data-model-item--active" : ""}`}
-                    onClick={() => { if (version) navigate(version, "class", cls.id); }}
+                    onClick={() => { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id); }}
                   >
                     {cls.label}
                     {count > 0 && <span class="sidebar__badge">{count}</span>}
@@ -56,7 +56,7 @@ export function DataModelSection() {
                   <div
                     key={prop.id}
                     class={`data-model-item${route.value.entityKind === "property" && route.value.entityId === prop.id ? " data-model-item--active" : ""}`}
-                    onClick={() => { if (version) navigate(version, "property", prop.id); }}
+                    onClick={() => { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id); }}
                   >
                     {prop.label}
                     {count > 0 && <span class="sidebar__badge">{count}</span>}

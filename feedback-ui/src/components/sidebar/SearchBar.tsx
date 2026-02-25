@@ -1,5 +1,5 @@
 import { navigate } from "../../router";
-import { selectedVersion } from "../../state/vocabulary";
+import { selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { searchQuery, searchResults, type SearchResult } from "../../state/search";
 import type { EntityKind } from "../../router";
 import "./SearchBar.css";
@@ -26,12 +26,13 @@ export function SearchBar() {
 
   function handleClick(result: SearchResult) {
     const version = selectedVersion.value;
-    if (!version) return;
+    const projectId = currentProjectId.value;
+    if (!version || !projectId) return;
 
     if (result.type === "feedback" && result.entityType && result.entityId) {
-      navigate(version, result.entityType as EntityKind, result.entityId);
+      navigate(projectId, version, result.entityType as EntityKind, result.entityId);
     } else if (result.type !== "feedback") {
-      navigate(version, result.type, result.id);
+      navigate(projectId, version, result.type, result.id);
     }
     searchQuery.value = "";
   }

@@ -1,6 +1,6 @@
 import { useSignal } from "@preact/signals";
 import { navigate, route } from "../../router";
-import { selectedVersion } from "../../state/vocabulary";
+import { selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 import type { ConceptTreeNode } from "../../state/vocabulary";
@@ -18,8 +18,9 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
 
   function handleClick() {
     const version = selectedVersion.value;
-    if (version) {
-      navigate(version, "concept", node.id);
+    const projectId = currentProjectId.value;
+    if (version && projectId) {
+      navigate(projectId, version, "concept", node.id);
     }
   }
 

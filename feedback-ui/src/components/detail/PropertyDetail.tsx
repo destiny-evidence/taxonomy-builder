@@ -1,4 +1,4 @@
-import { vocabulary, selectedVersion } from "../../state/vocabulary";
+import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { navigate } from "../../router";
 import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabProperty } from "../../api/published";
@@ -53,7 +53,8 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
                 class="detail__link"
                 onClick={() => {
                   const version = selectedVersion.value;
-                  if (version) navigate(version, "class", domainClass.id);
+                  const projectId = currentProjectId.value;
+                  if (version && projectId) navigate(projectId, version, "class", domainClass.id);
                 }}
               >
                 {domainClass.label}
@@ -70,7 +71,8 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
                 class="detail__link"
                 onClick={() => {
                   const version = selectedVersion.value;
-                  if (version) navigate(version, "scheme", rangeScheme.id);
+                  const projectId = currentProjectId.value;
+                  if (version && projectId) navigate(projectId, version, "scheme", rangeScheme.id);
                 }}
               >
                 {rangeScheme.title}

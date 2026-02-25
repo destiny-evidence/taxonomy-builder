@@ -1,4 +1,4 @@
-import { vocabulary, selectedVersion } from "../../state/vocabulary";
+import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { navigate } from "../../router";
 import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabConcept } from "../../api/published";
@@ -22,10 +22,11 @@ function findConcept(
 
 function ConceptLink({ id, label }: { id: string; label: string }) {
   const version = selectedVersion.value;
+  const projectId = currentProjectId.value;
   return (
     <span
       class="detail__link"
-      onClick={() => version && navigate(version, "concept", id)}
+      onClick={() => version && projectId && navigate(projectId, version, "concept", id)}
     >
       {label}
     </span>

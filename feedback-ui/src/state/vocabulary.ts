@@ -112,10 +112,6 @@ export async function loadProjects(): Promise<void> {
     error.value = null;
     const index = await getRootIndex();
     projects.value = index.projects;
-    // Auto-select first project (multi-project picker deferred)
-    if (index.projects.length > 0) {
-      await selectProject(index.projects[0].id);
-    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to load projects";
   } finally {

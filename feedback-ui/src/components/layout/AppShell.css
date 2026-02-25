@@ -26,6 +26,21 @@
   font-weight: 600;
 }
 
+.app-shell__breadcrumb-link {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.app-shell__breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.app-shell__breadcrumb-sep {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
 .app-shell__version {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);

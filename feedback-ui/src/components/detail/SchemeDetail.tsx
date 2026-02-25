@@ -1,4 +1,4 @@
-import { vocabulary, selectedVersion } from "../../state/vocabulary";
+import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { navigate } from "../../router";
 import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabScheme } from "../../api/published";
@@ -52,7 +52,8 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
                 class="detail__link"
                 onClick={() => {
                   const version = selectedVersion.value;
-                  if (version) navigate(version, "concept", c.id);
+                  const projectId = currentProjectId.value;
+                  if (version && projectId) navigate(projectId, version, "concept", c.id);
                 }}
               >
                 {c.label}
