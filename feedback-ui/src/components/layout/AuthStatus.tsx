@@ -1,5 +1,6 @@
 import { isAuthenticated, userDisplayName } from "../../state/auth";
 import { login, logout } from "../../api/auth";
+import "./AuthStatus.css";
 
 export function AuthStatus() {
   if (isAuthenticated.value) {
