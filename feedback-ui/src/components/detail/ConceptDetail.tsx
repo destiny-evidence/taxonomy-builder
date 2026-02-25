@@ -1,5 +1,6 @@
 import { vocabulary, selectedVersion } from "../../state/vocabulary";
 import { navigate } from "../../router";
+import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabConcept } from "../../api/published";
 
 interface ConceptDetailProps {
@@ -104,6 +105,12 @@ export function ConceptDetail({ conceptId }: ConceptDetailProps) {
           </div>
         </div>
       )}
+
+      <FeedbackSection
+        entityType="concept"
+        entityId={conceptId}
+        entityLabel={concept.pref_label}
+      />
     </div>
   );
 }

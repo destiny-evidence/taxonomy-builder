@@ -1,5 +1,6 @@
 import { vocabulary, selectedVersion } from "../../state/vocabulary";
 import { navigate } from "../../router";
+import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabScheme } from "../../api/published";
 
 interface SchemeDetailProps {
@@ -60,6 +61,12 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
           </div>
         </div>
       )}
+
+      <FeedbackSection
+        entityType="scheme"
+        entityId={schemeId}
+        entityLabel={scheme.title}
+      />
     </div>
   );
 }
