@@ -44,7 +44,7 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
 
       {topConcepts.length > 0 && (
         <div class="detail__section">
-          <div class="detail__label">Top Concepts</div>
+          <div class="detail__label">Root Concepts</div>
           <div class="detail__link-list">
             {topConcepts.map((c) => (
               <span

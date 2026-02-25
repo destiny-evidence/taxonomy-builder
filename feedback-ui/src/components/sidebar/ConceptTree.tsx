@@ -36,11 +36,11 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
         onClick={handleClick}
       >
         {hasChildren ? (
-          <span class="concept-tree__toggle" onClick={handleToggle}>
-            {expanded.value ? "▾" : "▸"}
-          </span>
+          <svg class={`concept-tree__chevron${expanded.value ? " concept-tree__chevron--open" : ""}`} onClick={handleToggle} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         ) : (
-          <span class="concept-tree__toggle" />
+          <span class="concept-tree__toggle-spacer" />
         )}
         <span class="concept-tree__label">{node.label}</span>
         {isAuthenticated.value && (() => {

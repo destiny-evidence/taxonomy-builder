@@ -27,14 +27,23 @@ export function Sidebar() {
 
   const hasSearchQuery = searchQuery.value.trim().length > 0;
 
+  const hasSchemes = vocab.schemes.length > 0;
+
   return (
     <div class="sidebar">
       <SearchBar />
       {!hasSearchQuery && (
         <>
-          {vocab.schemes.map((scheme) => (
-            <SchemeSection key={scheme.id} scheme={scheme} />
-          ))}
+          {hasSchemes && (
+            <div class="sidebar__group">
+              <div class="sidebar__group-header">Concept Schemes</div>
+              <div class="sidebar__group-body">
+                {vocab.schemes.map((scheme) => (
+                  <SchemeSection key={scheme.id} scheme={scheme} />
+                ))}
+              </div>
+            </div>
+          )}
           <DataModelSection />
         </>
       )}

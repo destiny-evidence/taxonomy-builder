@@ -28,23 +28,22 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
   return (
     <div class="sidebar__section">
       <div class="sidebar__section-header" onClick={() => (expanded.value = !expanded.value)}>
+        <svg class={`sidebar__chevron${expanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
         <span
-          class={`sidebar__section-title${isActive ? " data-model-item--active" : ""}`}
+          class={`sidebar__section-title${isActive ? " sidebar__section-title--active" : ""}`}
           onClick={(e: Event) => {
             e.stopPropagation();
             handleTitleClick();
           }}
-          style="cursor: pointer"
         >
           {scheme.title}
-          {isAuthenticated.value && (() => {
-            const count = feedbackCountForEntity(scheme.id, selectedVersion.value ?? "");
-            return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
-          })()}
         </span>
-        <span class={`sidebar__toggle${expanded.value ? " sidebar__toggle--open" : ""}`}>
-          ▸
-        </span>
+        {isAuthenticated.value && (() => {
+          const count = feedbackCountForEntity(scheme.id, selectedVersion.value ?? "");
+          return count > 0 ? <span class="sidebar__badge">{count}</span> : null;
+        })()}
       </div>
       {expanded.value && <ConceptTree nodes={tree} schemeId={scheme.id} />}
     </div>
