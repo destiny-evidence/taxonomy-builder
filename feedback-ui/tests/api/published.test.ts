@@ -101,6 +101,7 @@ const VOCABULARY: Vocabulary = {
       range_scheme_id: "cccccccc-1111-2222-3333-dddddddddddd",
       range_scheme_uri: "https://example.org/test/scheme",
       range_datatype: null,
+      range_class: null,
       cardinality: "single",
       required: true,
     },

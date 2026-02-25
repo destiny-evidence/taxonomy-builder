@@ -204,16 +204,26 @@
           {
             "properties": {
               "range_scheme_id": { "type": "string" },
-              "range_datatype": { "type": "null" }
+              "range_datatype": { "type": "null" },
+              "range_class": { "type": "null" }
             },
             "required": ["range_scheme_id", "range_scheme_uri"]
           },
           {
             "properties": {
               "range_scheme_id": { "type": "null" },
-              "range_datatype": { "type": "string" }
+              "range_datatype": { "type": "string" },
+              "range_class": { "type": "null" }
             },
             "required": ["range_datatype"]
+          },
+          {
+            "properties": {
+              "range_scheme_id": { "type": "null" },
+              "range_datatype": { "type": "null" },
+              "range_class": { "type": "string" }
+            },
+            "required": ["range_class"]
           }
         ],
         "properties": {
@@ -256,7 +266,12 @@
           },
           "range_datatype": {
             "type": ["string", "null"],
-            "description": "XSD datatype (e.g. \"xsd:integer\"), or null if range is a concept scheme."
+            "description": "XSD datatype (e.g. \"xsd:integer\"), or null if range is a concept scheme or class."
+          },
+          "range_class": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "URI of the range ontology class, or null if range is a concept scheme or datatype."
           },
           "cardinality": {
             "type": "string",

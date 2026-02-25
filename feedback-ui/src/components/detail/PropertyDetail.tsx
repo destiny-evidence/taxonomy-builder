@@ -27,6 +27,11 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
     ? (vocabulary.value?.schemes ?? []).find((s) => s.id === prop.range_scheme_id)
     : null;
 
+  // Resolve range class
+  const rangeClass = prop.range_class
+    ? (vocabulary.value?.classes ?? []).find((c) => c.uri === prop.range_class)
+    : null;
+
   return (
     <div class="detail">
       <h1 class="detail__title">{prop.label}</h1>
@@ -76,6 +81,17 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
                 }}
               >
                 {rangeScheme.title}
+              </span>
+            ) : rangeClass ? (
+              <span
+                class="detail__link"
+                onClick={() => {
+                  const version = selectedVersion.value;
+                  const projectId = currentProjectId.value;
+                  if (version && projectId) navigate(projectId, version, "class", rangeClass.id);
+                }}
+              >
+                {rangeClass.label}
               </span>
             ) : (
               prop.range_datatype ?? "—"

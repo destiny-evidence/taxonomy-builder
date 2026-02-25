@@ -85,6 +85,7 @@ export interface VocabProperty {
   range_scheme_id: string | null;
   range_scheme_uri: string | null;
   range_datatype: string | null;
+  range_class: string | null;
   cardinality: "single" | "multiple";
   required: boolean;
 }

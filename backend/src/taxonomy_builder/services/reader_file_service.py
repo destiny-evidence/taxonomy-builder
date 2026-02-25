@@ -79,6 +79,7 @@ class ReaderFileService:
                     "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
                     "range_scheme_uri": prop.range_scheme_uri,
                     "range_datatype": prop.range_datatype,
+                    "range_class": prop.range_class,
                     "cardinality": prop.cardinality,
                     "required": prop.required,
                 }

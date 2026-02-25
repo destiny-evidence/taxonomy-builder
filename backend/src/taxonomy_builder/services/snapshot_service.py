@@ -193,7 +193,7 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
             errors.append(
                 ValidationError(
                     code="broken_range_scheme_ref",
-                    message=f"prop '{prop.label}' references a non-existent scheme.",
+                    message=f"property '{prop.label}' references a non-existent scheme.",
                     entity_type="property",
                     entity_id=prop.id,
                     entity_label=prop.label,
@@ -204,8 +204,22 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                 ValidationError(
                     code="broken_domain_class_ref",
                     message=(
-                        f"prop '{prop.label}' references domain class"
+                        f"property '{prop.label}' references domain class"
                         f" '{prop.domain_class}' which is not in the"
+                        " project's ontology classes."
+                    ),
+                    entity_type="property",
+                    entity_id=prop.id,
+                    entity_label=prop.label,
+                )
+            )
+        if prop.range_class and prop.range_class not in class_uris:
+            errors.append(
+                ValidationError(
+                    code="broken_range_class_ref",
+                    message=(
+                        f"property '{prop.label}' references range class"
+                        f" '{prop.range_class}' which is not in the"
                         " project's ontology classes."
                     ),
                     entity_type="property",

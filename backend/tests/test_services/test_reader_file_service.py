@@ -97,6 +97,7 @@ def _make_snapshot(
                 "range_scheme_id": str(SCHEME_ID),
                 "range_scheme_uri": "http://example.org/colors",
                 "range_datatype": None,
+                "range_class": None,
                 "cardinality": "single",
                 "required": False,
             }
