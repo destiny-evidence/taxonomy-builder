@@ -34,9 +34,10 @@ interface EditDraft {
   identifier: string;
   description: string;
   domain_class: string;
-  range_type: "scheme" | "datatype";
+  range_type: "scheme" | "datatype" | "class";
   range_scheme_id: string;
   range_datatype: string;
+  range_class: string;
   cardinality: "single" | "multiple";
   required: boolean;
 }
@@ -75,6 +76,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
           range_type: "datatype",
           range_scheme_id: "",
           range_datatype: "",
+          range_class: "",
           cardinality: "single",
           required: false,
         }
@@ -118,9 +120,10 @@ export function PropertyDetail(props: PropertyDetailProps) {
       identifier: property.identifier,
       description: property.description ?? "",
       domain_class: property.domain_class,
-      range_type: property.range_scheme_id ? "scheme" : "datatype",
+      range_type: property.range_scheme_id ? "scheme" : property.range_class ? "class" : "datatype",
       range_scheme_id: property.range_scheme_id ?? "",
       range_datatype: property.range_datatype ?? "",
+      range_class: property.range_class ?? "",
       cardinality: property.cardinality,
       required: property.required,
     };
@@ -156,6 +159,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
           domain_class: editDraft.domain_class,
           range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || undefined : undefined,
           range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || undefined : undefined,
+          range_class: editDraft.range_type === "class" ? editDraft.range_class || undefined : undefined,
           cardinality: editDraft.cardinality,
           required: editDraft.required,
         };
@@ -168,6 +172,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
           domain_class: editDraft.domain_class,
           range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || null : null,
           range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || null : null,
+          range_class: editDraft.range_type === "class" ? editDraft.range_class || null : null,
           cardinality: editDraft.cardinality,
           required: editDraft.required,
         });
@@ -223,7 +228,11 @@ export function PropertyDetail(props: PropertyDetailProps) {
   const isFormValid = editDraft
     ? !!editDraft.label.trim() &&
       !!editDraft.domain_class &&
-      (editDraft.range_type === "scheme" ? !!editDraft.range_scheme_id : !!editDraft.range_datatype) &&
+      (editDraft.range_type === "scheme"
+        ? !!editDraft.range_scheme_id
+        : editDraft.range_type === "class"
+          ? !!editDraft.range_class
+          : !!editDraft.range_datatype) &&
       (isCreateMode ? !!editDraft.identifier.trim() && !identifierError : true)
     : false;
 
@@ -242,6 +251,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
     if (!editDraft.domain_class) missing.push("Class");
     if (editDraft.range_type === "scheme" && !editDraft.range_scheme_id) missing.push("Range scheme");
     if (editDraft.range_type === "datatype" && !editDraft.range_datatype) missing.push("Range datatype");
+    if (editDraft.range_type === "class" && !editDraft.range_class) missing.push("Range class");
     return missing;
   }
 
@@ -362,6 +372,16 @@ export function PropertyDetail(props: PropertyDetailProps) {
                   />
                   <span>Datatype</span>
                 </label>
+                <label class="property-detail__radio">
+                  <input
+                    type="radio"
+                    name="rangeType"
+                    value="class"
+                    checked={editDraft.range_type === "class"}
+                    onChange={() => updateDraft("range_type", "class")}
+                  />
+                  <span>Class</span>
+                </label>
               </div>
 
               {editDraft.range_type === "scheme" ? (
@@ -379,6 +399,25 @@ export function PropertyDetail(props: PropertyDetailProps) {
                     {projectSchemes.map((scheme) => (
                       <option key={scheme.id} value={scheme.id}>
                         {scheme.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : editDraft.range_type === "class" ? (
+                <div class="property-detail__field">
+                  <label class="property-detail__label" htmlFor="edit-range-class">
+                    Range Class
+                  </label>
+                  <select
+                    id="edit-range-class"
+                    class="property-detail__select"
+                    value={editDraft.range_class}
+                    onChange={(e) => updateDraft("range_class", (e.target as HTMLSelectElement).value)}
+                  >
+                    <option value="">Select a class...</option>
+                    {classes.map((cls) => (
+                      <option key={cls.uri} value={cls.uri}>
+                        {cls.label}
                       </option>
                     ))}
                   </select>

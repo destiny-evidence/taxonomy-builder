@@ -1,4 +1,5 @@
-import { vocabulary } from "../../state/vocabulary";
+import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
+import { navigate } from "../../router";
 import { FeedbackSection } from "../feedback/FeedbackSection";
 import type { VocabClass } from "../../api/published";
 

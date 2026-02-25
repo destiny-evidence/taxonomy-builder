@@ -40,6 +40,7 @@ class PropertyCreate(BaseModel):
     range_class: str | None = Field(default=None, min_length=1, max_length=2048)
     cardinality: Literal["single", "multiple"]
     required: bool = False
+    uri: str | None = Field(default=None, min_length=1, max_length=2048)
 
     @field_validator("identifier")
     @classmethod
@@ -149,6 +150,6 @@ class PropertyRead(BaseModel):
     range_class: str | None
     cardinality: str
     required: bool
-    uri: str | None
+    uri: str
     created_at: datetime
     updated_at: datetime

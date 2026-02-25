@@ -186,6 +186,7 @@ export interface Property {
   range_scheme_id: string | null;
   range_scheme: ConceptSchemeBrief | null;
   range_datatype: string | null;
+  range_class: string | null;
   cardinality: "single" | "multiple";
   required: boolean;
   uri: string | null;
@@ -200,6 +201,7 @@ export interface PropertyCreate {
   domain_class: string;
   range_scheme_id?: string | null;
   range_datatype?: string | null;
+  range_class?: string | null;
   cardinality: "single" | "multiple";
   required?: boolean;
 }
@@ -211,6 +213,7 @@ export interface PropertyUpdate {
   domain_class?: string;
   range_scheme_id?: string | null;
   range_datatype?: string | null;
+  range_class?: string | null;
   cardinality?: "single" | "multiple";
   required?: boolean;
 }
@@ -231,23 +234,9 @@ export function datatypeLabel(xsdType: string): string {
 
 // ============ Ontology ============
 export interface OntologyClass {
+  id: string;
   uri: string;
   label: string;
-  comment: string | null;
-}
-
-export interface OntologyProperty {
-  uri: string;
-  label: string;
-  comment: string | null;
-  domain: string[];
-  range: string[];
-  property_type: "object" | "datatype";
-}
-
-export interface CoreOntology {
-  classes: OntologyClass[];
-  object_properties: OntologyProperty[];
-  datatype_properties: OntologyProperty[];
+  description: string | null;
 }
 

@@ -26,9 +26,12 @@ export function ClassDetailPane({
 
   const ontologyClass = ontologyClasses.value.find((c) => c.uri === classUri);
   const classProperties = properties.value.filter((p) => p.domain_class === classUri);
+  const rangeProperties = properties.value.filter(
+    (p) => p.range_class === classUri && p.domain_class !== classUri,
+  );
 
   const classLabel = ontologyClass?.label ?? classUri;
-  const classDescription = ontologyClass?.comment;
+  const classDescription = ontologyClass?.description;
 
   function handleAddProperty() {
     creatingProperty.value = { projectId, domainClassUri: classUri };
@@ -88,6 +91,10 @@ export function ClassDetailPane({
                       >
                         {prop.range_scheme.title}
                       </button>
+                    ) : prop.range_class ? (
+                      <span class="class-detail-pane__datatype">
+                        {ontologyClasses.value.find((c) => c.uri === prop.range_class)?.label ?? prop.range_class}
+                      </span>
                     ) : (
                       <span class="class-detail-pane__datatype">
                         {prop.range_datatype ? datatypeLabel(prop.range_datatype) : null}
@@ -99,6 +106,29 @@ export function ClassDetailPane({
             </ul>
           )}
         </div>
+
+        {rangeProperties.length > 0 && (
+          <div class="class-detail-pane__section">
+            <div class="class-detail-pane__section-header">
+              <h3 class="class-detail-pane__section-title">Referenced by</h3>
+            </div>
+            <ul class="class-detail-pane__property-list">
+              {rangeProperties.map((prop) => (
+                <li key={prop.id} class="class-detail-pane__property">
+                  <button
+                    class="class-detail-pane__property-name"
+                    onClick={() => onPropertySelect(prop.id)}
+                  >
+                    {prop.label}
+                  </button>
+                  <span class="class-detail-pane__datatype">
+                    {ontologyClasses.value.find((c) => c.uri === prop.domain_class)?.label ?? prop.domain_class}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div class="class-detail-pane__footer">

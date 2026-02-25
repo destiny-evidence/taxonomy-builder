@@ -13,50 +13,42 @@ describe("ontologyApi", () => {
     mockFetch.mockReset();
   });
 
-  describe("get", () => {
-    it("fetches the core ontology", async () => {
-      const mockOntology = {
-        classes: [
-          { uri: "http://example.org/Person", label: "Person", comment: "A human being" },
-        ],
-        object_properties: [],
-        datatype_properties: [],
-      };
+  describe("listForProject", () => {
+    it("fetches classes for a project", async () => {
+      const mockClasses = [
+        { id: "1", uri: "http://example.org/Person", label: "Person", description: "A human being" },
+      ];
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockOntology),
+        json: () => Promise.resolve(mockClasses),
       });
 
-      const result = await ontologyApi.get();
+      const result = await ontologyApi.listForProject("project-123");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "/api/ontology",
+        "/api/projects/project-123/classes",
         expect.objectContaining({ method: "GET" })
       );
-      expect(result).toEqual(mockOntology);
+      expect(result).toEqual(mockClasses);
     });
 
-    it("returns classes with label and comment", async () => {
-      const mockOntology = {
-        classes: [
-          { uri: "http://example.org/Person", label: "Person", comment: "A human being" },
-          { uri: "http://example.org/Organization", label: "Organization", comment: null },
-        ],
-        object_properties: [],
-        datatype_properties: [],
-      };
+    it("returns classes with label and description", async () => {
+      const mockClasses = [
+        { id: "1", uri: "http://example.org/Person", label: "Person", description: "A human being" },
+        { id: "2", uri: "http://example.org/Organization", label: "Organization", description: null },
+      ];
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockOntology),
+        json: () => Promise.resolve(mockClasses),
       });
 
-      const result = await ontologyApi.get();
+      const result = await ontologyApi.listForProject("project-123");
 
-      expect(result.classes).toHaveLength(2);
-      expect(result.classes[0].label).toBe("Person");
-      expect(result.classes[1].comment).toBeNull();
+      expect(result).toHaveLength(2);
+      expect(result[0].label).toBe("Person");
+      expect(result[1].description).toBeNull();
     });
   });
 });

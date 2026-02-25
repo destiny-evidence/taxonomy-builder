@@ -18,6 +18,7 @@ const mockProperties: Property[] = [
     range_scheme_id: null,
     range_scheme: null,
     range_datatype: "xsd:date",
+    range_class: null,
     cardinality: "single",
     required: false,
     uri: null,
@@ -34,6 +35,7 @@ const mockProperties: Property[] = [
     range_scheme_id: "scheme-1",
     range_scheme: { id: "scheme-1", title: "Countries", uri: "http://example.org/countries" },
     range_datatype: null,
+    range_class: null,
     cardinality: "single",
     required: true,
     uri: null,
@@ -50,6 +52,7 @@ const mockProperties: Property[] = [
     range_scheme_id: null,
     range_scheme: null,
     range_datatype: "xsd:date",
+    range_class: null,
     cardinality: "single",
     required: false,
     uri: null,
@@ -65,8 +68,8 @@ vi.mock("../../../src/state/ontology", async () => {
     ...actual,
     ontologyClasses: {
       value: [
-        { uri: "http://example.org/Person", label: "Person", comment: "A human being" },
-        { uri: "http://example.org/Organization", label: "Organization", comment: null },
+        { id: "cls-1", uri: "http://example.org/Person", label: "Person", description: "A human being" },
+        { id: "cls-2", uri: "http://example.org/Organization", label: "Organization", description: null },
       ],
     },
   };

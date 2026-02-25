@@ -91,8 +91,7 @@ async def test_empty_project(db_session: AsyncSession, project: Project) -> None
 
     assert snapshot.concept_schemes == []
     assert snapshot.properties == []
-    # Only core ontology classes (no project-specific classes)
-    assert all(cls.scope_note is None for cls in snapshot.classes)
+    assert snapshot.classes == []
 
 
 @pytest.mark.asyncio
@@ -235,6 +234,7 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
         range_scheme_id=scheme.id,
         cardinality="single",
         required=True,
+        uri="http://example.org/vocab/testProp",
     )
     db_session.add(prop)
     await db_session.flush()
@@ -266,12 +266,14 @@ async def test_classes_from_project(db_session: AsyncSession, project: Project) 
         label="Finding",
         description="A finding",
         scope_note="Use for findings",
+        uri="http://example.org/vocab/Finding",
     )
     cls2 = OntologyClass(
         project_id=project.id,
         identifier="Study",
         label="Study",
         description="A study",
+        uri="http://example.org/vocab/Study",
     )
     db_session.add_all([cls1, cls2])
     await db_session.flush()
@@ -280,7 +282,7 @@ async def test_classes_from_project(db_session: AsyncSession, project: Project) 
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
-    assert len(snapshot.classes) >= 2
+    assert len(snapshot.classes) == 2
     classes_by_id = {c.id: c for c in snapshot.classes}
     finding = classes_by_id[cls1.id]
     assert finding.identifier == "Finding"
@@ -346,6 +348,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
         identifier="Finding",
         label="Finding",
         description="A finding",
+        uri="http://example.org/vocab/Finding",
     )
     db_session.add(ont_cls)
     await db_session.flush()
@@ -360,6 +363,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
         range_scheme_id=scheme1.id,
         cardinality="multiple",
         required=False,
+        uri="http://example.org/vocab/topic",
     )
     db_session.add(prop)
     await db_session.flush()
@@ -389,7 +393,7 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     assert len(snapshot.properties) == 1
     assert snapshot.properties[0].identifier == "topic"
 
-    # Project ontology class is included (alongside core ontology classes)
-    project_classes = [c for c in snapshot.classes if c.id == ont_cls.id]
-    assert len(project_classes) == 1
-    assert project_classes[0].uri == "http://example.org/vocab/Finding"
+    # Project ontology class is included
+    assert len(snapshot.classes) == 1
+    assert snapshot.classes[0].id == ont_cls.id
+    assert snapshot.classes[0].uri == "http://example.org/vocab/Finding"

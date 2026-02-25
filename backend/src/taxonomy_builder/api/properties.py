@@ -11,8 +11,10 @@ from taxonomy_builder.services.project_service import ProjectNotFoundError
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
+    ProjectNamespaceRequiredError,
     PropertyIdentifierExistsError,
     PropertyService,
+    PropertyURIExistsError,
     SchemeNotInProjectError,
 )
 
@@ -52,6 +54,8 @@ async def create_property(
         return await service.create_property(project_id, property_in)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ProjectNamespaceRequiredError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except DomainClassNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except InvalidRangeError as e:
@@ -59,6 +63,8 @@ async def create_property(
     except SchemeNotInProjectError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except PropertyIdentifierExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except PropertyURIExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 

@@ -35,6 +35,7 @@ const mockProperty: Property = {
   range_scheme_id: null,
   range_scheme: null,
   range_datatype: "xsd:date",
+  range_class: null,
   cardinality: "single",
   required: false,
   uri: null,
