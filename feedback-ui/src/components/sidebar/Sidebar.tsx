@@ -1,6 +1,5 @@
 import { vocabulary, loading, error } from "../../state/vocabulary";
 import { searchQuery } from "../../state/search";
-import { VersionSelector } from "./VersionSelector";
 import { SearchBar } from "./SearchBar";
 import { SchemeSection } from "./SchemeSection";
 import { DataModelSection } from "./DataModelSection";
@@ -30,7 +29,6 @@ export function Sidebar() {
 
   return (
     <div class="sidebar">
-      <VersionSelector />
       <SearchBar />
       {!hasSearchQuery && (
         <>

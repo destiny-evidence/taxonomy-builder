@@ -1,14 +1,11 @@
 import { computed, signal } from "@preact/signals";
 import {
   getRootIndex,
-  getProjectIndex,
   getVocabulary,
   type RootIndexProject,
-  type ProjectIndex,
   type Vocabulary,
   type VocabConcept,
   type VocabScheme,
-  type VersionEntry,
 } from "../api/published";
 import { isAuthenticated } from "./auth";
 import { loadOwnFeedback } from "./feedback";
@@ -20,18 +17,13 @@ export const error = signal<string | null>(null);
 
 export const projects = signal<RootIndexProject[]>([]);
 export const currentProjectId = signal<string | null>(null);
-export const projectIndex = signal<ProjectIndex | null>(null);
 export const vocabulary = signal<Vocabulary | null>(null);
 export const selectedVersion = signal<string | null>(null);
 
 // --- Derived ---
 
-export const versions = computed<VersionEntry[]>(
-  () => projectIndex.value?.versions ?? []
-);
-
 export const projectName = computed(
-  () => vocabulary.value?.project.name ?? projectIndex.value?.project.name ?? ""
+  () => vocabulary.value?.project.name ?? ""
 );
 
 /** Concept tree node for rendering the sidebar. */
@@ -119,19 +111,12 @@ export async function loadProjects(): Promise<void> {
   }
 }
 
-export async function selectProject(projectId: string): Promise<void> {
+export async function selectProject(projectId: string, version: string): Promise<void> {
   try {
     loading.value = true;
     error.value = null;
     currentProjectId.value = projectId;
-    const idx = await getProjectIndex(projectId);
-    projectIndex.value = idx;
-    // Load latest version
-    const version = idx.latest_version ?? idx.versions[0]?.version;
-    if (version) {
-      await loadVersion(projectId, version);
-    }
-    // Load own feedback now that project is known
+    await loadVersion(projectId, version);
     if (isAuthenticated.value) {
       loadOwnFeedback();
     }

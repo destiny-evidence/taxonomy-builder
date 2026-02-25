@@ -31,7 +31,8 @@ export function ProjectListPage() {
           <button
             key={project.id}
             class="project-card"
-            onClick={() => navigateToProject(project.id)}
+            disabled={!project.latest_version}
+            onClick={() => navigateToProject(project.id, project.latest_version!)}
           >
             <h2 class="project-card__name">{project.name}</h2>
             {project.description && (

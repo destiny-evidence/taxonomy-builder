@@ -21,12 +21,23 @@ describe("router", () => {
     });
   });
 
-  it("parses project-only route", () => {
-    window.history.pushState({}, "", "/proj-1");
+  it("parses project+version route", () => {
+    window.history.pushState({}, "", "/proj-1/1.0");
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(route.value).toEqual({
       projectId: "proj-1",
-      version: null,
+      version: "1.0",
+      entityKind: null,
+      entityId: null,
+    });
+  });
+
+  it("parses project+version route with trailing slash", () => {
+    window.history.pushState({}, "", "/proj-1/1.0/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(route.value).toEqual({
+      projectId: "proj-1",
+      version: "1.0",
       entityKind: null,
       entityId: null,
     });
@@ -76,8 +87,19 @@ describe("router", () => {
     });
   });
 
-  it("returns empty route for invalid path", () => {
-    window.history.pushState({}, "", "/invalid/path");
+  it("returns empty route for single-segment path", () => {
+    window.history.pushState({}, "", "/proj-1");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(route.value).toEqual({
+      projectId: null,
+      version: null,
+      entityKind: null,
+      entityId: null,
+    });
+  });
+
+  it("returns empty route for three-segment path without entity kind", () => {
+    window.history.pushState({}, "", "/proj-1/1.0/invalid");
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(route.value).toEqual({
       projectId: null,
@@ -98,12 +120,12 @@ describe("router", () => {
     });
   });
 
-  it("navigateToProject pushes state with project-only path", () => {
-    navigateToProject("proj-1");
-    expect(window.location.pathname).toBe("/proj-1");
+  it("navigateToProject pushes state with project+version path", () => {
+    navigateToProject("proj-1", "1.0");
+    expect(window.location.pathname).toBe("/proj-1/1.0/");
     expect(route.value).toEqual({
       projectId: "proj-1",
-      version: null,
+      version: "1.0",
       entityKind: null,
       entityId: null,
     });

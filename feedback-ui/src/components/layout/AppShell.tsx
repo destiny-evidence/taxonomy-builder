@@ -17,13 +17,14 @@ export function AppShell() {
     return destroyRouter;
   }, []);
 
-  // When route's projectId changes, select that project
+  // When route's project/version changes, select that project
   const routedProjectId = route.value.projectId;
+  const routedVersion = route.value.version;
   useEffect(() => {
-    if (routedProjectId && routedProjectId !== currentProjectId.value) {
-      selectProject(routedProjectId);
+    if (routedProjectId && routedVersion && routedProjectId !== currentProjectId.value) {
+      selectProject(routedProjectId, routedVersion);
     }
-  }, [routedProjectId]);
+  }, [routedProjectId, routedVersion]);
 
   // On mobile, show detail panel when a route has an entity
   useEffect(() => {
