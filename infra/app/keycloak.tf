@@ -128,20 +128,6 @@ resource "keycloak_openid_client" "feedback_ui" {
   web_origins         = ["https://${local.feedback_custom_domain}"]
 }
 
-# --- Default role assignment ---
-
-# Add api-user to the realm's built-in default roles so all users get it
-data "keycloak_role" "default_roles" {
-  realm_id = local.keycloak_realm_id
-  name     = "default-roles-${var.keycloak_realm_name}"
-}
-
-resource "keycloak_generic_role_mapper" "default_api_user" {
-  realm_id  = local.keycloak_realm_id
-  role_id   = keycloak_role.api_user.id
-  parent_id = data.keycloak_role.default_roles.id
-}
-
 # --- Client scopes ---
 
 resource "keycloak_openid_client_default_scopes" "ui" {
