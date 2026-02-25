@@ -34,6 +34,10 @@
   gap: var(--spacing-sm);
 }
 
+.class-detail-pane__section + .class-detail-pane__section {
+  margin-top: var(--spacing-lg);
+}
+
 .class-detail-pane__section-header {
   display: flex;
   align-items: center;
