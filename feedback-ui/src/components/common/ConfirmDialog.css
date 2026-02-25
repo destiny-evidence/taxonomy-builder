@@ -4,6 +4,11 @@
   padding: var(--spacing-lg);
   max-width: 400px;
   box-shadow: var(--shadow-lg);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  margin: 0;
 }
 
 .confirm-dialog::backdrop {
