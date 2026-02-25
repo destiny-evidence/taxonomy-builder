@@ -269,7 +269,8 @@ jobs:
               --profile-name ${{ vars.FRONTDOOR_PROFILE_NAME }} \
               --endpoint-name ${{ vars.FRONTDOOR_ENDPOINT_NAME }} \
               --domains ${{ vars.FEEDBACK_CUSTOM_DOMAIN }} \
-              --content-paths "/*"
+              --content-paths "/*" \
+              --no-wait
 
   migrate-database:
     runs-on: ubuntu-latest
