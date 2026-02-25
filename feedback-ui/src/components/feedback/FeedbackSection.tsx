@@ -63,6 +63,18 @@ export function FeedbackSection({
   return (
     <div class="feedback-section">
       <div class="feedback-section__header">
+        <span class="feedback-section__title">Submit Feedback</span>
+      </div>
+
+      <FeedbackForm
+        entityType={entityType}
+        entityId={entityId}
+        entityLabel={entityLabel}
+      />
+
+      <div class="feedback-section__divider" />
+
+      <div class="feedback-section__header">
         <span class="feedback-section__title">Your Feedback</span>
         {allFeedback.length > 0 && (
           <span class="feedback-section__count">{allFeedback.length}</span>
@@ -104,15 +116,9 @@ export function FeedbackSection({
         </div>
       ) : (
         <div class="feedback-section__empty">
-          You have not provided feedback yet on this entity.
+          No feedback submitted yet for this entity.
         </div>
       )}
-
-      <FeedbackForm
-        entityType={entityType}
-        entityId={entityId}
-        entityLabel={entityLabel}
-      />
     </div>
   );
 }
