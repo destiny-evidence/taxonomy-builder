@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from taxonomy_builder.api.dependencies import get_feedback_service
 from taxonomy_builder.schemas.feedback import FeedbackCreate, FeedbackRead
@@ -44,11 +44,13 @@ async def create_feedback(
 )
 async def list_own_feedback(
     project_id: UUID,
+    response: Response,
     version: str | None = None,
     entity_type: str | None = None,
     service: FeedbackService = Depends(get_feedback_service),
 ) -> list[dict]:
     """List the current user's feedback for a project."""
+    response.headers["Cache-Control"] = "private, max-age=0, stale-while-revalidate=300"
     items = await service.list_own(
         project_id, version=version, entity_type=entity_type
     )
