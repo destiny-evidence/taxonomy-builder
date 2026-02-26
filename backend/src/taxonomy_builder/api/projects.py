@@ -1,8 +1,9 @@
 """Projects API endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 from fastapi.responses import Response
 
 from taxonomy_builder.api.dependencies import (
@@ -14,6 +15,7 @@ from taxonomy_builder.api.dependencies import (
 from taxonomy_builder.api.utils import slugify
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from taxonomy_builder.schemas.publishing import VERSION_PATTERN
 from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse
 from taxonomy_builder.services.project_service import (
     ProjectNameExistsError,

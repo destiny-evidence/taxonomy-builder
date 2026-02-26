@@ -29,6 +29,7 @@ async def published_version(db_session: AsyncSession) -> PublishedVersion:
 
     animal_id = uuid4()
     mammal_id = uuid4()
+    seal_id = uuid4()
     scheme_id = uuid4()
 
     snapshot = SnapshotVocabulary(
