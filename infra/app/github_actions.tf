@@ -216,6 +216,13 @@ resource "github_actions_environment_variable" "feedback_custom_domain" {
   value         = local.feedback_custom_domain
 }
 
+resource "github_actions_environment_variable" "feedback_url" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FEEDBACK_URL"
+  value         = "https://${local.feedback_custom_domain}"
+}
+
 resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment

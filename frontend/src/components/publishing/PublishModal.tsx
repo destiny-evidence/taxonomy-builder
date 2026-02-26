@@ -7,6 +7,7 @@ import {
   type PublishPreview,
   type PublishedVersionRead,
 } from "../../api/publishing";
+import { FEEDBACK_URL } from "../../config";
 import "./PublishModal.css";
 
 interface PublishModalProps {
@@ -39,6 +40,7 @@ export function PublishModal({
   const [submitting, setSubmitting] = useState(false);
   const [publishedVersion, setPublishedVersion] =
     useState<PublishedVersionRead | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -289,6 +291,26 @@ export function PublishModal({
                     ? "published successfully."
                     : "published as pre-release."}
                 </p>
+                {FEEDBACK_URL && (() => {
+                  const permalink = `${FEEDBACK_URL}/${projectId}/${publishedVersion.version}`;
+                  return (
+                    <div class="publish-modal__permalink">
+                      <a href={permalink} target="_blank" rel="noopener noreferrer">
+                        {permalink}
+                      </a>
+                      <button
+                        class="publish-modal__copy-btn"
+                        onClick={() => {
+                          navigator.clipboard.writeText(permalink);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                      >
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  );
+                })()}
                 <div class="publish-modal__actions">
                   <Button onClick={handleClose}>Done</Button>
                 </div>

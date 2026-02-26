@@ -123,6 +123,7 @@ jobs:
           VITE_KEYCLOAK_URL: ${{ vars.KEYCLOAK_URL }}
           VITE_KEYCLOAK_REALM: ${{ vars.KEYCLOAK_REALM }}
           VITE_KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_CLIENT_ID }}
+          VITE_FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
         run: npm run build
 
       - name: Upload frontend artifacts
