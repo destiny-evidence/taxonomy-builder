@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getExportUrl, schemesApi } from "../../src/api/schemes";
+import { schemesApi } from "../../src/api/schemes";
 
 // Mock the auth module
 vi.mock("../../src/api/auth", () => ({
@@ -14,28 +14,37 @@ vi.mock("../../src/state/auth", () => ({
 import { getToken } from "../../src/api/auth";
 import { clearAuth } from "../../src/state/auth";
 
-describe("getExportUrl", () => {
-  const schemeId = "abc-123";
+describe("schemesApi.exportScheme", () => {
+  const mockFetch = vi.fn();
+  const originalFetch = global.fetch;
 
-  it("builds correct URL for turtle format", () => {
-    const url = getExportUrl(schemeId, "ttl");
+  beforeEach(() => {
+    global.fetch = mockFetch;
+    vi.mocked(getToken).mockResolvedValue("test-token");
+    vi.mocked(clearAuth).mockClear();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
+  it("fetches with Authorization header and returns blob", async () => {
+    const mockBlob = new Blob(["turtle content"], { type: "text/turtle" });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(mockBlob),
+      headers: new Headers({ "Content-Disposition": 'attachment; filename="test.ttl"' }),
+    });
+
+    const result = await schemesApi.exportScheme("abc-123", "ttl");
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe("/api/schemes/abc-123/export?format=ttl");
-  });
-
-  it("builds correct URL for XML format", () => {
-    const url = getExportUrl(schemeId, "xml");
-    expect(url).toBe("/api/schemes/abc-123/export?format=xml");
-  });
-
-  it("builds correct URL for JSON-LD format", () => {
-    const url = getExportUrl(schemeId, "jsonld");
-    expect(url).toBe("/api/schemes/abc-123/export?format=jsonld");
-  });
-
-  it("handles UUIDs as scheme IDs", () => {
-    const uuid = "550e8400-e29b-41d4-a716-446655440000";
-    const url = getExportUrl(uuid, "ttl");
-    expect(url).toBe(`/api/schemes/${uuid}/export?format=ttl`);
+    expect(options.headers?.Authorization).toBe("Bearer test-token");
+    expect(result.blob).toBe(mockBlob);
+    expect(result.filename).toBe("test.ttl");
   });
 });
 

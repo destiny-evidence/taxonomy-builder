@@ -1,10 +1,110 @@
 """Tests for the Projects API endpoints."""
 
+from datetime import datetime
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.published_version import PublishedVersion
+from taxonomy_builder.schemas.snapshot import (
+    SnapshotClass,
+    SnapshotConcept,
+    SnapshotProjectMetadata,
+    SnapshotProperty,
+    SnapshotScheme,
+    SnapshotVocabulary,
+)
+
+
+@pytest.fixture
+async def published_version(db_session: AsyncSession) -> PublishedVersion:
+    """Create a project with a published version containing a snapshot."""
+    project = Project(name="Export Project")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    animal_id = uuid4()
+    mammal_id = uuid4()
+    seal_id = uuid4()
+    scheme_id = uuid4()
+
+    snapshot = SnapshotVocabulary(
+        project=SnapshotProjectMetadata(
+            id=project.id,
+            name=project.name,
+            namespace="http://example.org/namespace"
+        ),
+        concept_schemes=[
+            SnapshotScheme(
+                id=scheme_id,
+                title="Test Taxonomy",
+                description="A test taxonomy",
+                uri="http://example.org/taxonomy",
+                concepts=[
+                    SnapshotConcept(
+                        id=animal_id,
+                        pref_label="Animals",
+                        identifier="animals",
+                        uri="http://example.org/taxonomy/animals",
+                        definition="Living organisms",
+                    ),
+                    SnapshotConcept(
+                        id=mammal_id,
+                        pref_label="Mammals",
+                        identifier="mammals",
+                        uri="http://example.org/taxonomy/mammals",
+                        broader_ids=[animal_id],
+                    ),
+                    SnapshotConcept(
+                        id=seal_id,
+                        pref_label="Seal",
+                        alt_labels=["sausage", "log"],
+                        identifier="seal",
+                        uri="http://example.org/taxonomy/seal",
+                        broader_ids=[mammal_id],
+                    ),
+                ],
+            )
+        ],
+        properties=[
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="studyType",
+                label="Study Type",
+                uri="http://example.org/ontology/studyType",
+                domain_class="http://example.org/ontology/Study",
+                range_scheme_id=scheme_id,
+                range_scheme_uri="http://example.org/taxonomy",
+                cardinality="single",
+                required=True,
+            ),
+        ],
+        classes=[
+            SnapshotClass(
+                id=uuid4(),
+                identifier="Study",
+                label="Study",
+                uri="http://example.org/ontology/Study",
+                description="A research study",
+            ),
+        ],
+    )
+
+    published = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now()
+    )
+    db_session.add(published)
+    await db_session.flush()
+    await db_session.refresh(published)
+    return published
 
 
 @pytest.mark.asyncio
@@ -327,3 +427,119 @@ async def test_update_project_clear_namespace(authenticated_client: AsyncClient,
     )
     assert response.status_code == 200
     assert response.json()["namespace"] is None
+
+
+# Version export tests
+
+@pytest.mark.asyncio
+async def test_export_version_ttl(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test exporting a published version as Turtle."""
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/turtle; charset=utf-8"
+    assert "attachment" in response.headers["content-disposition"]
+    assert ".ttl" in response.headers["content-disposition"]
+
+    content = response.text
+    assert "@prefix" in content
+    assert "skos:ConceptScheme" in content
+
+
+@pytest.mark.asyncio
+async def test_export_version_contains_concepts(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test that the exported version contains expected concepts."""
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export"
+    )
+
+    content = response.text
+    assert "Animals" in content
+    assert "Mammals" in content
+    assert "skos:broader" in content
+
+
+@pytest.mark.asyncio
+async def test_export_version_filename(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test that the filename is based on the version title."""
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export"
+    )
+
+    disposition = response.headers["content-disposition"]
+    assert "v1-0.ttl" in disposition
+
+
+@pytest.mark.asyncio
+async def test_export_version_xml(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test exporting a published version as RDF/XML."""
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export?format=xml"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/rdf+xml; charset=utf-8"
+    assert ".rdf" in response.headers["content-disposition"]
+
+    content = response.text
+    assert "<?xml" in content or "<rdf:RDF" in content
+
+
+@pytest.mark.asyncio
+async def test_export_version_jsonld(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test exporting a published version as JSON-LD."""
+    import json
+
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/1.0/export?format=jsonld"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/ld+json; charset=utf-8"
+    assert ".jsonld" in response.headers["content-disposition"]
+
+    data = json.loads(response.text)
+    assert isinstance(data, (dict, list))
+
+
+@pytest.mark.asyncio
+async def test_export_version_not_found(
+    authenticated_client: AsyncClient, published_version: PublishedVersion
+) -> None:
+    """Test that exporting a non-existent version returns 404."""
+    project_id = published_version.project_id
+    response = await authenticated_client.get(
+        f"/api/projects/{project_id}/versions/99.0/export"
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_export_version_project_not_found(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Test that exporting from a non-existent project returns 404."""
+    fake_id = uuid4()
+    response = await authenticated_client.get(
+        f"/api/projects/{fake_id}/versions/1.0/export"
+    )
+
+    assert response.status_code == 404

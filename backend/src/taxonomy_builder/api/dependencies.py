@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.database import get_db
 from taxonomy_builder.models.user import User
 from taxonomy_builder.services.auth_service import AuthenticationError, AuthService
+from taxonomy_builder.services.skos_export_service import SKOSExportService
 
 if TYPE_CHECKING:
     from taxonomy_builder.services.comment_service import CommentService
