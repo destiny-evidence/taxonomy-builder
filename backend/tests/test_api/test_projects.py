@@ -58,6 +58,14 @@ async def published_version(db_session: AsyncSession) -> PublishedVersion:
                         uri="http://example.org/taxonomy/mammals",
                         broader_ids=[animal_id],
                     ),
+                    SnapshotConcept(
+                        id=seal_id,
+                        pref_label="Seal",
+                        alt_labels=["sausage", "log"],
+                        identifier="seal",
+                        uri="http://example.org/taxonomy/seal",
+                        broader_ids=[mammal_id],
+                    ),
                 ],
             )
         ],
