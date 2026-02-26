@@ -52,7 +52,7 @@
 .app-shell__offline {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--color-warning);
+  color: #664d00;
   background: rgba(255, 193, 7, 0.12);
   border: 1px solid rgba(255, 193, 7, 0.3);
   border-radius: var(--radius-sm);
