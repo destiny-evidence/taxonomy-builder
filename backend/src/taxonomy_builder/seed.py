@@ -180,8 +180,9 @@ async def create_seed_data(session: AsyncSession) -> dict:
         (meta_analysis.id, secondary_studies.id),
         (scoping_review.id, secondary_studies.id),
         (rapid_review.id, secondary_studies.id),
-        # Meta-analysis can also be under Systematic Review (polyhierarchy example)
+        # Meta-analysis under Systematic Review AND Primary Studies (polyhierarchy example)
         (meta_analysis.id, systematic_review.id),
+        (meta_analysis.id, primary_studies.id),
     ]
 
     for concept_id, broader_id in broader_relationships:
@@ -439,6 +440,9 @@ async def create_seed_data(session: AsyncSession) -> dict:
         (blue.id, cool.id),
         (green.id, cool.id),
         (purple.id, cool.id),
+        # Polyhierarchy: Yellow and Green span both warm and cool
+        (yellow.id, cool.id),
+        (green.id, warm.id),
     ]
     for concept_id, broader_id in color_relationships:
         session.add(ConceptBroader(concept_id=concept_id, broader_concept_id=broader_id))

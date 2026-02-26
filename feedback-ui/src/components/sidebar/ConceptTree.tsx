@@ -63,7 +63,10 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
         ) : (
           <span class="concept-tree__toggle-spacer" />
         )}
-        <span class="concept-tree__label">{node.label}</span>
+        <span class="concept-tree__label" title={node.broaderCount > 1 ? `Appears under ${node.broaderCount} broader concepts` : undefined}>
+          {node.label}
+          {node.broaderCount > 1 && <sup class="concept-tree__poly">{node.broaderCount}</sup>}
+        </span>
         {displayCount > 0 && <span class="sidebar__badge">{displayCount}</span>}
       </div>
       {hasChildren && expanded.value && (

@@ -157,6 +157,12 @@
   white-space: nowrap;
 }
 
+.concept-tree__poly {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-left: 2px;
+}
+
 .concept-tree__children {
   padding-left: var(--spacing-md);
 }
