@@ -5,7 +5,6 @@ from datetime import datetime
 from uuid import UUID, uuid7
 
 from sqlalchemy import ForeignKey, Index, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from taxonomy_builder.database import Base
@@ -77,11 +76,56 @@ class Feedback(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=FeedbackStatus.open.value
     )
-    response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    response_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    responded_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    responded_by_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Status change tracking
+    status_changed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    status_changed_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    def to_read_dict(self, *, can_delete: bool) -> dict:
+        """Reader-facing response dict (no manager identity)."""
+        response_dict = None
+        if self.response_content:
+            response_dict = {
+                "author": "Vocabulary manager",
+                "content": self.response_content,
+                "created_at": self.responded_at,
+            }
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "snapshot_version": self.snapshot_version,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "entity_label": self.entity_label,
+            "feedback_type": self.feedback_type,
+            "content": self.content,
+            "status": self.status,
+            "response": response_dict,
+            "created_at": self.created_at,
+            "can_delete": can_delete,
+        }
+
+    def to_manager_dict(self) -> dict:
+        """Manager-facing response dict (includes author info)."""
+        base = self.to_read_dict(can_delete=False)
+        base["author_name"] = self.author_name
+        base["responded_by_name"] = self.responded_by_name
+        return base
 
     __table_args__ = (
         Index("ix_feedback_project_user", project_id, user_id, deleted_at),
         Index("ix_feedback_project_entity", project_id, entity_id, deleted_at),
+        Index(
+            "ix_feedback_project_status",
+            project_id, deleted_at, status, created_at,
+        ),
     )

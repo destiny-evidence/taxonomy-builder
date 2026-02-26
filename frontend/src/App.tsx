@@ -4,6 +4,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { SchemeWorkspacePage } from "./pages/SchemeWorkspacePage";
+import { FeedbackDashboardPage } from "./pages/FeedbackDashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { initAuth } from "./api/auth";
 import { authInitialized } from "./state/auth";
@@ -30,6 +31,9 @@ export function App() {
         </ProtectedRoute>
         <ProtectedRoute path="/projects/:projectId">
           <SchemeWorkspacePage />
+        </ProtectedRoute>
+        <ProtectedRoute path="/projects/:projectId/feedback">
+          <FeedbackDashboardPage />
         </ProtectedRoute>
         <ProtectedRoute path="/projects/:projectId/schemes/:schemeId">
           <SchemeWorkspacePage />

@@ -229,7 +229,22 @@ def get_feedback_service(
     db: AsyncSession = Depends(get_db),
     current_user: AuthenticatedUser = Depends(require_role("feedback-user")),
 ) -> FeedbackService:
-    """Dependency that provides a FeedbackService with user context."""
+    """Dependency that provides a FeedbackService for reader operations."""
+    from taxonomy_builder.services.feedback_service import FeedbackService
+
+    return FeedbackService(
+        db,
+        user_id=current_user.user.id,
+        user_display_name=current_user.user.display_name,
+        user_email=current_user.user.email,
+    )
+
+
+def get_manager_feedback_service(
+    db: AsyncSession = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_role("api-user")),
+) -> FeedbackService:
+    """Dependency that provides a FeedbackService for manager operations."""
     from taxonomy_builder.services.feedback_service import FeedbackService
 
     return FeedbackService(

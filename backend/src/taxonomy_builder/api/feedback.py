@@ -2,18 +2,46 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from taxonomy_builder.api.dependencies import get_feedback_service
-from taxonomy_builder.schemas.feedback import FeedbackCreate, FeedbackRead
+from taxonomy_builder.api.dependencies import (
+    get_feedback_service,
+    get_manager_feedback_service,
+)
+from taxonomy_builder.schemas.feedback import (
+    FeedbackCreate,
+    FeedbackManagerRead,
+    FeedbackRead,
+    RespondRequest,
+    TriageRequest,
+)
 from taxonomy_builder.services.feedback_service import (
     EntityNotInSnapshotError,
     FeedbackNotFoundError,
     FeedbackService,
+    FeedbackStatusConflictError,
     VersionNotFoundError,
 )
 
 feedback_router = APIRouter(prefix="/api/feedback", tags=["feedback"])
+
+
+# --- Static paths first (before {project_id} / {feedback_id} params) ---
+
+
+@feedback_router.get(
+    "/counts",
+)
+async def get_open_counts(
+    project_ids: list[UUID] = Query(...),
+    service: FeedbackService = Depends(get_manager_feedback_service),
+) -> dict[str, int]:
+    """Open + responded feedback counts per project for badge display."""
+    counts = await service.get_open_counts(project_ids)
+    return {str(k): v for k, v in counts.items()}
+
+
+# --- Reader endpoints ---
 
 
 @feedback_router.post(
@@ -29,7 +57,7 @@ async def create_feedback(
     """Submit feedback on a published entity."""
     try:
         feedback = await service.create(project_id, feedback_in)
-        return _to_response(feedback, can_delete=True)
+        return feedback.to_read_dict(can_delete=True)
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except EntityNotInSnapshotError as e:
@@ -54,7 +82,7 @@ async def list_own_feedback(
     items = await service.list_own(
         project_id, version=version, entity_type=entity_type
     )
-    return [_to_response(fb, can_delete=True) for fb in items]
+    return [fb.to_read_dict(can_delete=True) for fb in items]
 
 
 @feedback_router.delete(
@@ -72,18 +100,82 @@ async def delete_feedback(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-def _to_response(feedback, *, can_delete: bool) -> dict:
-    return {
-        "id": feedback.id,
-        "project_id": feedback.project_id,
-        "snapshot_version": feedback.snapshot_version,
-        "entity_type": feedback.entity_type,
-        "entity_id": feedback.entity_id,
-        "entity_label": feedback.entity_label,
-        "feedback_type": feedback.feedback_type,
-        "content": feedback.content,
-        "status": feedback.status,
-        "response": feedback.response,
-        "created_at": feedback.created_at,
-        "can_delete": can_delete,
-    }
+# --- Manager endpoints ---
+
+
+@feedback_router.get(
+    "/{project_id}/all",
+    response_model=list[FeedbackManagerRead],
+)
+async def list_all_feedback(
+    project_id: UUID,
+    status_filter: str | None = Query(default=None, alias="status"),
+    entity_type: str | None = None,
+    feedback_type: str | None = None,
+    q: str | None = None,
+    limit: int = Query(default=500, le=500, ge=1),
+    service: FeedbackService = Depends(get_manager_feedback_service),
+) -> list[dict]:
+    """All non-deleted feedback for a project (manager view)."""
+    items = await service.list_all(
+        project_id,
+        status=status_filter,
+        entity_type=entity_type,
+        feedback_type=feedback_type,
+        q=q,
+        limit=limit,
+    )
+    return [fb.to_manager_dict() for fb in items]
+
+
+@feedback_router.post(
+    "/{feedback_id}/respond",
+    response_model=FeedbackManagerRead,
+)
+async def respond_to_feedback(
+    feedback_id: UUID,
+    body: RespondRequest,
+    service: FeedbackService = Depends(get_manager_feedback_service),
+) -> dict:
+    """Add or overwrite a response on feedback."""
+    try:
+        fb = await service.respond(feedback_id, body.content)
+        return fb.to_manager_dict()
+    except FeedbackNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except FeedbackStatusConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@feedback_router.post(
+    "/{feedback_id}/resolve",
+    response_model=FeedbackManagerRead,
+)
+async def resolve_feedback(
+    feedback_id: UUID,
+    body: TriageRequest,
+    service: FeedbackService = Depends(get_manager_feedback_service),
+) -> dict:
+    """Resolve feedback, optionally with a response message."""
+    try:
+        fb = await service.resolve(feedback_id, content=body.content)
+        return fb.to_manager_dict()
+    except FeedbackNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@feedback_router.post(
+    "/{feedback_id}/decline",
+    response_model=FeedbackManagerRead,
+)
+async def decline_feedback(
+    feedback_id: UUID,
+    body: TriageRequest,
+    service: FeedbackService = Depends(get_manager_feedback_service),
+) -> dict:
+    """Decline feedback, optionally with a response message."""
+    try:
+        fb = await service.decline(feedback_id, content=body.content)
+        return fb.to_manager_dict()
+    except FeedbackNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

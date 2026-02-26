@@ -1,6 +1,7 @@
 """Pydantic schemas for Feedback."""
 
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -31,7 +32,7 @@ class FeedbackCreate(BaseModel):
         return stripped
 
     @model_validator(mode="after")
-    def validate_feedback_type_for_entity(self) -> FeedbackCreate:
+    def validate_feedback_type_for_entity(self) -> Self:
         valid_types = FEEDBACK_TYPES_BY_ENTITY.get(self.entity_type)
         if valid_types and self.feedback_type not in valid_types:
             raise ValueError(
@@ -41,8 +42,16 @@ class FeedbackCreate(BaseModel):
         return self
 
 
+class FeedbackResponse(BaseModel):
+    """Nested response info shown to readers (no manager identity)."""
+
+    author: str
+    content: str
+    created_at: datetime
+
+
 class FeedbackRead(BaseModel):
-    """Schema for reading feedback."""
+    """Schema for reading feedback (reader-facing)."""
 
     id: UUID
     project_id: UUID
@@ -53,6 +62,41 @@ class FeedbackRead(BaseModel):
     feedback_type: str
     content: str
     status: FeedbackStatus
-    response: dict | None = None
+    response: FeedbackResponse | None = None
     created_at: datetime
     can_delete: bool = False
+
+
+class FeedbackManagerRead(FeedbackRead):
+    """Schema for reading feedback (manager-facing, includes author info)."""
+
+    author_name: str
+    responded_by_name: str | None = None
+
+
+class RespondRequest(BaseModel):
+    """Body for POST /respond."""
+
+    content: str = Field(min_length=1, max_length=10000)
+
+    @field_validator("content")
+    @classmethod
+    def strip_and_validate(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Response content cannot be empty or whitespace only")
+        return stripped
+
+
+class TriageRequest(BaseModel):
+    """Body for POST /resolve and POST /decline."""
+
+    content: str | None = Field(default=None, max_length=10000)
+
+    @field_validator("content")
+    @classmethod
+    def strip_or_none(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        stripped = v.strip()
+        return stripped or None

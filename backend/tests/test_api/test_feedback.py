@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user, require_role
+from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
 from taxonomy_builder.main import app
 from taxonomy_builder.models.feedback import Feedback
 from taxonomy_builder.models.project import Project
@@ -180,6 +180,26 @@ async def other_auth_client(
             org_name=None,
             org_roles=[],
             client_roles=["feedback-user"],
+        )
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    yield client
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+async def manager_client(
+    client: AsyncClient, user: User
+) -> AsyncGenerator[AsyncClient]:
+    """Client authenticated as a manager (api-user role)."""
+
+    async def override_current_user() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            user=user,
+            org_id=None,
+            org_name=None,
+            org_roles=[],
+            client_roles=["api-user", "feedback-user"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -595,3 +615,522 @@ async def test_feedback_user_can_create_feedback(
         f"/api/feedback/{project.id}", json=body
     )
     assert response.status_code == 201
+
+
+# ============ Manager: List All Tests ============
+
+
+@pytest.mark.asyncio
+async def test_list_all(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    other_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """GET /all returns all feedback with author_name."""
+    fb1 = _make_feedback(user, project_id=project.id, content="Feedback 1")
+    fb2 = _make_feedback(other_user, project_id=project.id, content="Feedback 2")
+    db_session.add_all([fb1, fb2])
+    await db_session.flush()
+
+    response = await manager_client.get(f"/api/feedback/{project.id}/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    names = {item["author_name"] for item in data}
+    assert user.display_name in names
+    assert other_user.display_name in names
+
+
+@pytest.mark.asyncio
+async def test_list_all_filter_status(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """?status=open filters correctly."""
+    fb_open = _make_feedback(user, project_id=project.id, content="Open")
+    fb_resolved = _make_feedback(
+        user, project_id=project.id, content="Resolved", status="resolved"
+    )
+    db_session.add_all([fb_open, fb_resolved])
+    await db_session.flush()
+
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?status=open")
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "Open"
+
+
+@pytest.mark.asyncio
+async def test_list_all_filter_entity_type(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """?entity_type=concept filters correctly."""
+    fb_concept = _make_feedback(user, project_id=project.id, content="Concept fb")
+    fb_class = _make_feedback(
+        user,
+        project_id=project.id,
+        content="Class fb",
+        entity_type="class",
+        entity_id=CLASS_ID,
+        entity_label="Test Class",
+        feedback_type="incorrect_modelling",
+    )
+    db_session.add_all([fb_concept, fb_class])
+    await db_session.flush()
+
+    response = await manager_client.get(
+        f"/api/feedback/{project.id}/all?entity_type=concept"
+    )
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "Concept fb"
+
+
+@pytest.mark.asyncio
+async def test_list_all_filter_feedback_type(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """?feedback_type=unclear_definition filters correctly."""
+    fb_unclear = _make_feedback(user, project_id=project.id, content="Unclear")
+    fb_missing = _make_feedback(
+        user, project_id=project.id, content="Missing", feedback_type="missing_term"
+    )
+    db_session.add_all([fb_unclear, fb_missing])
+    await db_session.flush()
+
+    response = await manager_client.get(
+        f"/api/feedback/{project.id}/all?feedback_type=unclear_definition"
+    )
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "Unclear"
+
+
+@pytest.mark.asyncio
+async def test_list_all_search(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """?q=keyword matches content, entity_label, author_name (case-insensitive)."""
+    fb1 = _make_feedback(user, project_id=project.id, content="The definition is vague")
+    fb2 = _make_feedback(
+        user, project_id=project.id, content="Something else entirely"
+    )
+    db_session.add_all([fb1, fb2])
+    await db_session.flush()
+
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?q=VAGUE")
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "The definition is vague"
+
+
+@pytest.mark.asyncio
+async def test_list_all_excludes_deleted(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """Soft-deleted feedback is not returned."""
+    fb = _make_feedback(
+        user,
+        project_id=project.id,
+        content="Deleted",
+        deleted_at=datetime.now(),
+    )
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.get(f"/api/feedback/{project.id}/all")
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_all_capped(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """Result count is capped at the limit."""
+    for i in range(3):
+        db_session.add(
+            _make_feedback(user, project_id=project.id, content=f"Feedback {i}")
+        )
+    await db_session.flush()
+
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?limit=2")
+    data = response.json()
+    assert len(data) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_all_requires_auth(
+    client: AsyncClient, project: Project
+) -> None:
+    """GET /all without auth returns 401."""
+    response = await client.get(f"/api/feedback/{project.id}/all")
+    assert response.status_code == 401
+
+
+# ============ Manager: Respond Tests ============
+
+
+@pytest.mark.asyncio
+async def test_respond(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """POST /respond sets response fields and status=responded."""
+    fb = _make_feedback(other_user, project_id=project.id, content="Need help")
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": "Here's help"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "responded"
+    assert data["response"]["content"] == "Here's help"
+    assert "created_at" in data["response"]
+    assert data["responded_by_name"] == user.display_name
+    assert data["author_name"] == other_user.display_name
+
+
+@pytest.mark.asyncio
+async def test_respond_overwrites(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """Responding again overwrites previous response."""
+    fb = _make_feedback(other_user, project_id=project.id, content="Question")
+    db_session.add(fb)
+    await db_session.flush()
+
+    await manager_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": "First answer"}
+    )
+    response = await manager_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": "Updated answer"}
+    )
+    assert response.status_code == 200
+    assert response.json()["response"]["content"] == "Updated answer"
+
+
+@pytest.mark.asyncio
+async def test_respond_empty_content(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """POST /respond with empty content returns 422."""
+    fb = _make_feedback(other_user, project_id=project.id, content="Question")
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": ""}
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["resolved", "declined"])
+async def test_respond_to_terminal_status(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+    status: str,
+) -> None:
+    """POST /respond to resolved or declined item returns 409."""
+    fb = _make_feedback(
+        other_user, project_id=project.id, content="Terminal", status=status
+    )
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": "Late response"}
+    )
+    assert response.status_code == 409
+
+
+# ============ Manager: Triage Tests ============
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("action", "expected_status"),
+    [("resolve", "resolved"), ("decline", "declined")],
+)
+async def test_triage(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+    action: str,
+    expected_status: str,
+) -> None:
+    """POST /resolve or /decline sets the corresponding status."""
+    fb = _make_feedback(other_user, project_id=project.id, content=f"To {action}")
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(f"/api/feedback/{fb.id}/{action}", json={})
+    assert response.status_code == 200
+    assert response.json()["status"] == expected_status
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("action", "expected_status"),
+    [("resolve", "resolved"), ("decline", "declined")],
+)
+async def test_triage_with_content(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    user: User,
+    db_session: AsyncSession,
+    action: str,
+    expected_status: str,
+) -> None:
+    """POST /resolve or /decline with content sets response + status."""
+    fb = _make_feedback(other_user, project_id=project.id, content=f"To {action}")
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(
+        f"/api/feedback/{fb.id}/{action}", json={"content": "Manager note"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == expected_status
+    assert data["response"]["content"] == "Manager note"
+    assert data["responded_by_name"] == user.display_name
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("initial_status", "action", "expected_status"),
+    [
+        ("declined", "resolve", "resolved"),
+        ("resolved", "decline", "declined"),
+    ],
+    ids=["declined_to_resolved", "resolved_to_declined"],
+)
+async def test_retriage(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+    initial_status: str,
+    action: str,
+    expected_status: str,
+) -> None:
+    """Re-triage between resolved and declined is allowed."""
+    fb = _make_feedback(
+        other_user, project_id=project.id, content="Re-triage", status=initial_status
+    )
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(f"/api/feedback/{fb.id}/{action}", json={})
+    assert response.status_code == 200
+    assert response.json()["status"] == expected_status
+
+
+@pytest.mark.asyncio
+async def test_resolve_idempotent(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """POST /resolve on already resolved is a no-op, returns 200."""
+    fb = _make_feedback(
+        other_user,
+        project_id=project.id,
+        content="Already resolved",
+        status="resolved",
+    )
+    db_session.add(fb)
+    await db_session.flush()
+
+    response = await manager_client.post(f"/api/feedback/{fb.id}/resolve", json={})
+    assert response.status_code == 200
+    assert response.json()["status"] == "resolved"
+
+
+# ============ Manager: Open Counts Tests ============
+
+
+@pytest.mark.asyncio
+async def test_open_counts(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """GET /counts returns open+responded counts per project."""
+    fb_open = _make_feedback(user, project_id=project.id, content="Open")
+    fb_responded = _make_feedback(
+        user, project_id=project.id, content="Responded", status="responded"
+    )
+    fb_resolved = _make_feedback(
+        user, project_id=project.id, content="Resolved", status="resolved"
+    )
+    db_session.add_all([fb_open, fb_responded, fb_resolved])
+    await db_session.flush()
+
+    response = await manager_client.get(
+        f"/api/feedback/counts?project_ids={project.id}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data[str(project.id)] == 2
+
+
+# ============ Manager: Auth Required ============
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "url_tpl", "body"),
+    [
+        ("get", "/api/feedback/{project_id}/all", None),
+        ("post", "/api/feedback/{feedback_id}/respond", {"content": "Hi"}),
+        ("post", "/api/feedback/{feedback_id}/resolve", {}),
+        ("post", "/api/feedback/{feedback_id}/decline", {}),
+        ("get", "/api/feedback/counts?project_ids={project_id}", None),
+    ],
+    ids=["list_all", "respond", "resolve", "decline", "counts"],
+)
+async def test_manager_requires_auth(
+    client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+    method: str,
+    url_tpl: str,
+    body: dict | None,
+) -> None:
+    """All manager endpoints return 401 without auth."""
+    fb = _make_feedback(user, project_id=project.id, content="Auth test")
+    db_session.add(fb)
+    await db_session.flush()
+
+    url = url_tpl.format(project_id=project.id, feedback_id=fb.id)
+    call = client.get if method == "get" else client.post
+    kwargs: dict = {"json": body} if body is not None else {}
+    response = await call(url, **kwargs)
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "url_tpl", "body"),
+    [
+        ("get", "/api/feedback/{project_id}/all", None),
+        ("post", "/api/feedback/{feedback_id}/respond", {"content": "Hi"}),
+        ("post", "/api/feedback/{feedback_id}/resolve", {}),
+        ("post", "/api/feedback/{feedback_id}/decline", {}),
+        ("get", "/api/feedback/counts?project_ids={project_id}", None),
+    ],
+    ids=["list_all", "respond", "resolve", "decline", "counts"],
+)
+async def test_feedback_user_cannot_access_manager_endpoints(
+    auth_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+    method: str,
+    url_tpl: str,
+    body: dict | None,
+) -> None:
+    """feedback-user role alone gets 403 on manager endpoints."""
+    fb = _make_feedback(user, project_id=project.id, content="Auth test")
+    db_session.add(fb)
+    await db_session.flush()
+
+    url = url_tpl.format(project_id=project.id, feedback_id=fb.id)
+    call = auth_client.get if method == "get" else auth_client.post
+    kwargs: dict = {"json": body} if body is not None else {}
+    response = await call(url, **kwargs)
+    assert response.status_code == 403
+
+
+# ============ Reader: Privacy Tests ============
+
+
+@pytest.mark.asyncio
+async def test_reader_response_hides_manager_name(
+    auth_client: AsyncClient,
+    project: Project,
+    user: User,
+    other_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """GET /mine response dict has content + created_at only, no manager identity."""
+    # Create feedback as `user` (the reader)
+    fb = _make_feedback(user, project_id=project.id, content="Help needed")
+    db_session.add(fb)
+    await db_session.flush()
+
+    # Switch to other_user (manager) to respond
+    async def manager_override() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            user=other_user, org_id=None, org_name=None, org_roles=[],
+            client_roles=["api-user", "feedback-user"],
+        )
+
+    app.dependency_overrides[get_current_user] = manager_override
+
+    resp = await auth_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": "Here's the fix"}
+    )
+    assert resp.status_code == 200
+
+    # Switch back to user (reader) to check /mine
+    async def reader_override() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            user=user, org_id=None, org_name=None, org_roles=[],
+            client_roles=["feedback-user"],
+        )
+
+    app.dependency_overrides[get_current_user] = reader_override
+
+    list_resp = await auth_client.get(f"/api/feedback/{project.id}/mine")
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert len(data) == 1
+    item = data[0]
+    assert item["response"] is not None
+    assert item["response"]["content"] == "Here's the fix"
+    assert item["response"]["author"] == "Vocabulary manager"
+    assert "created_at" in item["response"]
+    # Manager identity must NOT leak to reader
+    assert "responded_by" not in item["response"]
+    assert "responded_by_name" not in item["response"]
+    assert "responded_by_name" not in item

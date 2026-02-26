@@ -1,8 +1,11 @@
+import { useEffect } from "preact/hooks";
+import { useSignal } from "@preact/signals";
 import { Button } from "../common/Button";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
 import { ontologyClasses, selectedClassUri } from "../../state/ontology";
 import { selectionMode } from "../../state/workspace";
+import { feedbackManagerApi } from "../../api/feedback";
 import "./ProjectPane.css";
 
 interface ProjectPaneProps {
@@ -31,6 +34,13 @@ export function ProjectPane({
   );
   const project = currentProject.value;
   const classes = ontologyClasses.value;
+  const feedbackCount = useSignal(0);
+
+  useEffect(() => {
+    feedbackManagerApi.counts([projectId]).then((counts) => {
+      feedbackCount.value = counts[projectId] ?? 0;
+    }).catch(() => {});
+  }, [projectId]);
 
   const isClassSelected = (uri: string) =>
     selectionMode.value === "class" && selectedClassUri.value === uri;
@@ -62,6 +72,17 @@ export function ProjectPane({
             History
           </button>
         </div>
+        <a
+          href={`/projects/${projectId}/feedback`}
+          class="project-pane__feedback-btn"
+        >
+          Feedback
+          {feedbackCount.value > 0 && (
+            <span class="project-pane__feedback-count">
+              {feedbackCount.value}
+            </span>
+          )}
+        </a>
       </div>
 
       <div class="project-pane__content">

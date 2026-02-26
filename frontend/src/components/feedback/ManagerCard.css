@@ -1,0 +1,237 @@
+.manager-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.manager-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.manager-card--expanded {
+  box-shadow: var(--shadow-md);
+}
+
+/* Header row */
+.manager-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.manager-card__entity-label {
+  font-weight: 600;
+}
+
+.manager-card__meta {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Badges */
+.manager-card__badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.manager-card__badge--warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.manager-card__badge--primary {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.manager-card__badge--success {
+  background: #d1e7dd;
+  color: var(--color-success);
+}
+
+.manager-card__badge--muted {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.manager-card__badge--concept {
+  background: #e6f0fa;
+  color: #0066cc;
+}
+
+.manager-card__badge--scheme {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.manager-card__badge--class {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.manager-card__badge--property {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+/* Collapsed excerpt */
+.manager-card__excerpt {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-sm);
+}
+
+/* Expanded detail */
+.manager-card__detail {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-light);
+  cursor: default;
+}
+
+.manager-card__content {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  margin: 0 0 var(--spacing-sm);
+  white-space: pre-wrap;
+}
+
+.manager-card__version {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-bottom: var(--spacing-sm);
+}
+
+.manager-card__version-tag {
+  font-family: var(--font-mono, monospace);
+  font-style: normal;
+}
+
+/* Existing response quote */
+.manager-card__response {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.manager-card__response-meta {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--spacing-xs);
+}
+
+.manager-card__response-content {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Error */
+.manager-card__error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Action area */
+.manager-card__actions {
+  margin-top: var(--spacing-md);
+}
+
+.manager-card__textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  min-height: 60px;
+  resize: vertical;
+  margin-bottom: var(--spacing-sm);
+}
+
+.manager-card__textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.manager-card__buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.manager-card__btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.manager-card__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.manager-card__btn--primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.manager-card__btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.manager-card__btn--success {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.manager-card__btn--success:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.manager-card__btn--outline {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.manager-card__btn--outline:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.manager-card__btn--link {
+  background: transparent;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+}
+
+.manager-card__btn--link:hover {
+  text-decoration: underline;
+}

@@ -232,6 +232,31 @@ export function datatypeLabel(xsdType: string): string {
   return DATATYPE_LABELS[xsdType] ?? xsdType;
 }
 
+// ============ Feedback (Manager) ============
+export type FeedbackStatus = "open" | "responded" | "resolved" | "declined";
+
+export interface FeedbackResponse {
+  content: string;
+  created_at: string;
+}
+
+export interface FeedbackManagerRead {
+  id: string;
+  project_id: string;
+  snapshot_version: string;
+  entity_type: string;
+  entity_id: string;
+  entity_label: string;
+  feedback_type: string;
+  content: string;
+  status: FeedbackStatus;
+  response: FeedbackResponse | null;
+  created_at: string;
+  can_delete: boolean;
+  author_name: string;
+  responded_by_name: string | null;
+}
+
 // ============ Ontology ============
 export interface OntologyClass {
   id: string;
