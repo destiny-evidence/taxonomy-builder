@@ -2,9 +2,11 @@ import {
   statusFilter,
   entityTypeFilter,
   feedbackTypeFilter,
+  versionFilter,
   searchQuery,
   filteredFeedback,
   availableFeedbackTypes,
+  availableVersions,
 } from "../../state/feedback";
 import type { FeedbackStatus } from "../../types/models";
 import "./FeedbackFilters.css";
@@ -27,6 +29,7 @@ const STATUS_OPTIONS: { value: FeedbackStatus | ""; label: string }[] = [
 
 export function FeedbackFilters() {
   const fbTypes = availableFeedbackTypes.value;
+  const versions = availableVersions.value;
   const count = filteredFeedback.value.length;
 
   return (
@@ -40,6 +43,20 @@ export function FeedbackFilters() {
           searchQuery.value = (e.target as HTMLInputElement).value;
         }}
       />
+      <select
+        class="feedback-filters__select"
+        value={versionFilter.value}
+        onChange={(e) => {
+          versionFilter.value = (e.target as HTMLSelectElement).value;
+        }}
+      >
+        <option value="">All versions</option>
+        {versions.map((v) => (
+          <option key={v} value={v}>
+            v{v}
+          </option>
+        ))}
+      </select>
       <select
         class="feedback-filters__select"
         value={entityTypeFilter.value}

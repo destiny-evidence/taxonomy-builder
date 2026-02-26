@@ -2,6 +2,7 @@ import { signal, computed } from "@preact/signals";
 import type { FeedbackManagerRead, FeedbackStatus } from "../types/models";
 
 export const allFeedback = signal<FeedbackManagerRead[]>([]);
+export const projectVersions = signal<string[]>([]);
 export const feedbackLoading = signal(false);
 export const feedbackError = signal<string | null>(null);
 
@@ -9,6 +10,7 @@ export const feedbackError = signal<string | null>(null);
 export const statusFilter = signal<FeedbackStatus | "">("");
 export const entityTypeFilter = signal("");
 export const feedbackTypeFilter = signal("");
+export const versionFilter = signal("");
 export const searchQuery = signal("");
 
 export const filteredFeedback = computed(() => {
@@ -22,6 +24,9 @@ export const filteredFeedback = computed(() => {
   }
   if (feedbackTypeFilter.value) {
     items = items.filter((fb) => fb.feedback_type === feedbackTypeFilter.value);
+  }
+  if (versionFilter.value) {
+    items = items.filter((fb) => fb.snapshot_version === versionFilter.value);
   }
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
@@ -54,9 +59,19 @@ export const availableFeedbackTypes = computed(() => {
   return [...types].sort();
 });
 
+// All published versions (including those without feedback), preserving API sort order
+export const availableVersions = computed(() => {
+  const known = new Set(projectVersions.value);
+  const extras = allFeedback.value
+    .map((fb) => fb.snapshot_version)
+    .filter((v) => !known.has(v));
+  return [...projectVersions.value, ...new Set(extras)];
+});
+
 export function resetFilters() {
   statusFilter.value = "";
   entityTypeFilter.value = "";
   feedbackTypeFilter.value = "";
+  versionFilter.value = "";
   searchQuery.value = "";
 }

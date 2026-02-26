@@ -6,6 +6,7 @@ import { ManagerCard } from "../components/feedback/ManagerCard";
 import { LoadingSpinner } from "../components/common/LoadingOverlay";
 import {
   allFeedback,
+  projectVersions,
   feedbackLoading,
   feedbackError,
   filteredFeedback,
@@ -14,6 +15,7 @@ import {
 import { currentProject } from "../state/projects";
 import { feedbackManagerApi } from "../api/feedback";
 import { projectsApi } from "../api/projects";
+import { publishingApi } from "../api/publishing";
 import "./FeedbackDashboardPage.css";
 
 interface FeedbackDashboardPageProps {
@@ -28,9 +30,11 @@ export function FeedbackDashboardPage({
     if (!projectId) return;
     loadFeedback(projectId);
     loadProject(projectId);
+    loadVersions(projectId);
     return () => {
       resetFilters();
       allFeedback.value = [];
+      projectVersions.value = [];
     };
   }, [projectId]);
 
@@ -40,6 +44,15 @@ export function FeedbackDashboardPage({
       currentProject.value = await projectsApi.get(id);
     } catch {
       // Project name just won't show in breadcrumb
+    }
+  }
+
+  async function loadVersions(id: string) {
+    try {
+      const versions = await publishingApi.listVersions(id);
+      projectVersions.value = versions.map((v) => v.version);
+    } catch {
+      // Version list is non-critical; dropdown still works from feedback data
     }
   }
 
