@@ -60,8 +60,8 @@
 }
 
 .app-shell__version {
-  font-size: var(--font-size-sm);
-  font-weight: 400;
+  font-size: var(--font-size-base);
+  font-weight: 500;
   color: var(--color-text-secondary);
   margin-left: var(--spacing-sm);
 }
