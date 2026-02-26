@@ -1,8 +1,8 @@
-import { useSignal } from "@preact/signals";
 import { navigate, route } from "../../router";
 import { selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
+import { expandedIds, toggleExpanded } from "../../state/sidebar";
 import type { ConceptTreeNode } from "../../state/vocabulary";
 
 /** Sum feedback counts for a concept node and all its descendants. */
@@ -20,7 +20,7 @@ interface ConceptTreeNodeProps {
 }
 
 function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
-  const expanded = useSignal(false);
+  const expanded = expandedIds.value.has(node.id);
   const hasChildren = node.children.length > 0;
   const isActive =
     route.value.entityKind === "concept" && route.value.entityId === node.id;
@@ -39,11 +39,11 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
 
   function handleToggle(e: Event) {
     e.stopPropagation();
-    expanded.value = !expanded.value;
+    toggleExpanded(node.id);
   }
 
   const displayCount = isAuthenticated.value
-    ? (expanded.value ? feedbackCountForEntity(node.id, "concept") : subtreeFeedbackCount(node))
+    ? (expanded ? feedbackCountForEntity(node.id, "concept") : subtreeFeedbackCount(node))
     : 0;
 
   return (
@@ -52,12 +52,12 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
         class={`concept-tree__node${isActive ? " concept-tree__node--active" : ""}`}
         role="button"
         tabIndex={0}
-        aria-expanded={hasChildren ? expanded.value : undefined}
+        aria-expanded={hasChildren ? expanded : undefined}
         onClick={handleClick}
         onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") handleClick(); if (e.key === " " && hasChildren) { e.preventDefault(); handleToggle(e); } }}
       >
         {hasChildren ? (
-          <svg class={`concept-tree__chevron${expanded.value ? " concept-tree__chevron--open" : ""}`} onClick={handleToggle} width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class={`concept-tree__chevron${expanded ? " concept-tree__chevron--open" : ""}`} onClick={handleToggle} width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         ) : (
@@ -69,7 +69,7 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
         </span>
         {displayCount > 0 && <span class="sidebar__badge">{displayCount}</span>}
       </div>
-      {hasChildren && expanded.value && (
+      {hasChildren && expanded && (
         <div class="concept-tree__children">
           {node.children.map((child) => (
             <TreeNode key={child.id} node={child} schemeId={schemeId} />

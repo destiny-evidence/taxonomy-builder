@@ -7,14 +7,16 @@ import { SchemeDetail } from "./SchemeDetail";
 import { ClassDetail } from "./ClassDetail";
 import { PropertyDetail } from "./PropertyDetail";
 import { LoadingSpinner } from "../common/LoadingOverlay";
+import { revealEntity } from "../../state/sidebar";
 import "./detail.css";
 
 export function DetailPanel() {
   const { entityKind, entityId } = route.value;
 
-  // Focus the detail title and reset scroll when navigating to an entity
+  // Reveal entity in sidebar, focus detail title, and reset scroll
   useEffect(() => {
     if (entityKind && entityId) {
+      revealEntity(entityKind, entityId);
       const container = document.querySelector(".app-shell__detail");
       if (container) container.scrollTop = 0;
       requestAnimationFrame(() => {
