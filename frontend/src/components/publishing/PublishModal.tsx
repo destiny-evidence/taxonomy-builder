@@ -12,6 +12,63 @@ import { projectsApi } from "../../api/projects";
 import type { ExportFormat } from "../../api/schemes";
 import "./PublishModal.css";
 
+interface ExportButtonProps {
+  projectId: string;
+  version: PublishedVersionRead;
+}
+
+function ExportButton({ projectId, version }: ExportButtonProps) {
+  const [exporting, setExporting] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+
+  async function handleExport(format: ExportFormat) {
+    setExporting(true);
+    setShowPicker(false);
+    try {
+      const { blob, filename } = await projectsApi.exportVersion(projectId, version.version, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      if (filename) a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  if (exporting) {
+    return <span class="publish-modal__export-status">Exporting…</span>;
+  }
+
+  if (showPicker) {
+    return (
+      <div class="publish-modal__export-picker">
+        <Button size="sm" variant="secondary" onClick={() => handleExport("ttl")}>
+          Turtle
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => handleExport("xml")}>
+          RDF/XML
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => handleExport("jsonld")}>
+          JSON-LD
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setShowPicker(false)}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button variant="secondary" size="sm" onClick={() => setShowPicker(true)}>
+      Export
+    </Button>
+  );
+}
+
 interface PublishModalProps {
   isOpen: boolean;
   projectId: string;
@@ -43,8 +100,6 @@ export function PublishModal({
   const [publishedVersion, setPublishedVersion] =
     useState<PublishedVersionRead | null>(null);
   const [copied, setCopied] = useState(false);
-  const [exportingVersionId, setExportingVersionId] = useState<string | null>(null);
-  const [exportPickerVersionId, setExportPickerVersionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -85,27 +140,7 @@ export function PublishModal({
     setNotes("");
     setSubmitting(false);
     setPublishedVersion(null);
-    setExportingVersionId(null);
-    setExportPickerVersionId(null);
     onClose();
-  }
-
-  async function handleExportVersion(v: PublishedVersionRead, format: ExportFormat) {
-    setExportingVersionId(v.id);
-    setExportPickerVersionId(null);
-    try {
-      const { blob, filename } = await projectsApi.exportVersion(projectId, v.version, format);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      if (filename) a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } finally {
-      setExportingVersionId(null);
-    }
   }
 
   async function handlePublish() {
@@ -336,6 +371,7 @@ export function PublishModal({
                   );
                 })()}
                 <div class="publish-modal__actions">
+                  <ExportButton projectId={projectId} version={publishedVersion} />
                   <Button onClick={handleClose}>Done</Button>
                 </div>
               </div>
@@ -395,32 +431,7 @@ export function PublishModal({
                         pre-release
                       </span>
                     )}
-                    {exportingVersionId === v.id ? (
-                      <span class="publish-modal__export-status">Exporting…</span>
-                    ) : exportPickerVersionId === v.id ? (
-                      <div class="publish-modal__export-picker">
-                        <Button size="sm" variant="secondary" onClick={() => handleExportVersion(v, "ttl")}>
-                          Turtle
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => handleExportVersion(v, "xml")}>
-                          RDF/XML
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => handleExportVersion(v, "jsonld")}>
-                          JSON-LD
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setExportPickerVersionId(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setExportPickerVersionId(v.id)}
-                      >
-                        Export
-                      </Button>
-                    )}
+                    <ExportButton projectId={projectId} version={v} />
                   </div>
                 ))}
               </div>
