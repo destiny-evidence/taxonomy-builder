@@ -20,6 +20,14 @@
   --color-success: #198754;
   --color-warning: #ffc107;
 
+  /* Badge colors */
+  --badge-open-bg: #fff3cd;
+  --badge-open-text: #856404;
+  --badge-responded-bg: #cce5ff;
+  --badge-responded-text: #004085;
+  --badge-resolved-bg: #d4edda;
+  --badge-resolved-text: #155724;
+
   /* Typography */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
