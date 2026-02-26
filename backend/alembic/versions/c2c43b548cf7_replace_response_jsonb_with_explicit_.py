@@ -1,7 +1,7 @@
 """replace response jsonb with explicit columns
 
 Revision ID: c2c43b548cf7
-Revises: f384033dffca
+Revises: 2baacab5ddc4
 Create Date: 2026-02-25 16:10:44.993756
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'c2c43b548cf7'
-down_revision: Union[str, Sequence[str], None] = 'f384033dffca'
+down_revision: Union[str, Sequence[str], None] = '2baacab5ddc4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
