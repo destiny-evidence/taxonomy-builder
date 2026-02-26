@@ -122,6 +122,20 @@
   color: var(--color-primary);
 }
 
+.project-pane__feedback-count {
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  padding: 0 5px;
+  margin-left: var(--spacing-sm);
+}
 
 .project-pane__content {
   flex: 1;
