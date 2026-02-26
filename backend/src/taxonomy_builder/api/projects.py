@@ -11,7 +11,7 @@ from taxonomy_builder.api.dependencies import (
     get_import_service,
     get_project_service,
 )
-from taxonomy_builder.api.schemes import slugify
+from taxonomy_builder.api.utils import slugify
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse

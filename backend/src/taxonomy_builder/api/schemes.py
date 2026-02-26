@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
 from taxonomy_builder.api.dependencies import get_export_service, get_scheme_service
+from taxonomy_builder.api.utils import slugify
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept_scheme import (
     ConceptSchemeCreate,
@@ -34,14 +35,6 @@ project_schemes_router = APIRouter(prefix="/api/projects", tags=["schemes"])
 
 # Router for direct scheme operations
 schemes_router = APIRouter(prefix="/api/schemes", tags=["schemes"])
-
-
-def slugify(text: str) -> str:
-    """Convert text to a URL-safe slug."""
-    text = text.lower()
-    text = re.sub(r"[^\w\s-]", "-", text)
-    text = re.sub(r"[\s_]+", "-", text)
-    return text.strip("-")
 
 
 @project_schemes_router.get("/{project_id}/schemes", response_model=list[ConceptSchemeRead])
