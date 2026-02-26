@@ -64,6 +64,8 @@
 
 .sidebar__section-title--active {
   color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .sidebar__section-body {
@@ -130,6 +132,8 @@
 .concept-tree__node--active {
   color: var(--color-primary);
   font-weight: 600;
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(var(--spacing-sm) + 3px);
 }
 
 .concept-tree__chevron {
@@ -188,6 +192,8 @@
 .data-model-item--active {
   color: var(--color-primary);
   font-weight: 600;
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(var(--spacing-sm) + 3px);
 }
 
 /* Feedback count badge */
