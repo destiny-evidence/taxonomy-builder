@@ -634,7 +634,7 @@ describe("PublishModal", () => {
       fireEvent.click(screen.getAllByText("Publish").find((el) => el.classList.contains("btn"))!);
 
       await waitFor(() => {
-        expect(screen.getByText(/1\.1/)).toBeInTheDocument();
+        expect(screen.getByText("1.1")).toBeInTheDocument();
         expect(screen.getByText(/published successfully/)).toBeInTheDocument();
       });
     });
