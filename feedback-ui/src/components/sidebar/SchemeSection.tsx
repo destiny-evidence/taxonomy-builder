@@ -37,16 +37,26 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
 
   return (
     <div class="sidebar__section">
-      <div class="sidebar__section-header" onClick={() => (expanded.value = !expanded.value)}>
-        <svg class={`sidebar__chevron${expanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+      <div
+        class="sidebar__section-header"
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded.value}
+        onClick={() => (expanded.value = !expanded.value)}
+        onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); expanded.value = !expanded.value; } }}
+      >
+        <svg class={`sidebar__chevron${expanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         <span
           class={`sidebar__section-title${isActive ? " sidebar__section-title--active" : ""}`}
+          role="link"
+          tabIndex={0}
           onClick={(e: Event) => {
             e.stopPropagation();
             handleTitleClick();
           }}
+          onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") { e.stopPropagation(); handleTitleClick(); } }}
         >
           {scheme.title}
         </span>

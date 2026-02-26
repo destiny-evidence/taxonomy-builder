@@ -46,10 +46,14 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
     <div>
       <div
         class={`concept-tree__node${isActive ? " concept-tree__node--active" : ""}`}
+        role="button"
+        tabIndex={0}
+        aria-expanded={hasChildren ? expanded.value : undefined}
         onClick={handleClick}
+        onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") handleClick(); if (e.key === " " && hasChildren) { e.preventDefault(); handleToggle(e); } }}
       >
         {hasChildren ? (
-          <svg class={`concept-tree__chevron${expanded.value ? " concept-tree__chevron--open" : ""}`} onClick={handleToggle} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <svg class={`concept-tree__chevron${expanded.value ? " concept-tree__chevron--open" : ""}`} onClick={handleToggle} width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         ) : (

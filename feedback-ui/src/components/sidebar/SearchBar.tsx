@@ -52,7 +52,8 @@ export function SearchBar() {
     <div class="search-bar">
       <input
         class="search-bar__input"
-        type="text"
+        type="search"
+        aria-label="Search vocabulary"
         placeholder="Search..."
         value={searchQuery.value}
         onInput={(e) =>

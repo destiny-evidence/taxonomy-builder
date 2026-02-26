@@ -28,8 +28,8 @@ export function DataModelSection() {
       <div class="sidebar__group-body">
         {classes.length > 0 && (
           <div class="sidebar__section">
-            <div class="sidebar__section-header" onClick={() => (classesExpanded.value = !classesExpanded.value)}>
-              <svg class={`sidebar__chevron${classesExpanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <div class="sidebar__section-header" role="button" tabIndex={0} aria-expanded={classesExpanded.value} onClick={() => (classesExpanded.value = !classesExpanded.value)} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); classesExpanded.value = !classesExpanded.value; } }}>
+              <svg class={`sidebar__chevron${classesExpanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span class="sidebar__section-title">Classes</span>
@@ -44,7 +44,10 @@ export function DataModelSection() {
                     <div
                       key={cls.id}
                       class={`data-model-item${route.value.entityKind === "class" && route.value.entityId === cls.id ? " data-model-item--active" : ""}`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id); }}
+                      onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id); } }}
                     >
                       {cls.label}
                       {count > 0 && <span class="sidebar__badge">{count}</span>}
@@ -57,8 +60,8 @@ export function DataModelSection() {
         )}
         {properties.length > 0 && (
           <div class="sidebar__section">
-            <div class="sidebar__section-header" onClick={() => (propsExpanded.value = !propsExpanded.value)}>
-              <svg class={`sidebar__chevron${propsExpanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <div class="sidebar__section-header" role="button" tabIndex={0} aria-expanded={propsExpanded.value} onClick={() => (propsExpanded.value = !propsExpanded.value)} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); propsExpanded.value = !propsExpanded.value; } }}>
+              <svg class={`sidebar__chevron${propsExpanded.value ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span class="sidebar__section-title">Properties</span>
@@ -73,7 +76,10 @@ export function DataModelSection() {
                     <div
                       key={prop.id}
                       class={`data-model-item${route.value.entityKind === "property" && route.value.entityId === prop.id ? " data-model-item--active" : ""}`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id); }}
+                      onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id); } }}
                     >
                       {prop.label}
                       {count > 0 && <span class="sidebar__badge">{count}</span>}
