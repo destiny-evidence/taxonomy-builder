@@ -142,7 +142,7 @@ async def import_skos(
 @router.get("/{project_id}/versions/{version_id}/export")
 async def export_version(
     project_id: UUID,
-    version_id: str,
+    version_id: Annotated[str, Path(pattern=VERSION_PATTERN)],
     current_user: CurrentUser,
     format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
     project_service: ProjectService = Depends(get_project_service),
