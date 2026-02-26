@@ -105,6 +105,10 @@
 }
 
 /* Concept tree */
+.concept-tree {
+  padding-left: var(--spacing-md);
+}
+
 .concept-tree__node {
   display: flex;
   align-items: center;

@@ -26,6 +26,10 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
     route.value.entityKind === "concept" && route.value.entityId === node.id;
 
   function handleClick() {
+    if (isActive) {
+      (document.querySelector(".detail__title") as HTMLElement)?.focus({ preventScroll: true });
+      return;
+    }
     const version = selectedVersion.value;
     const projectId = currentProjectId.value;
     if (version && projectId) {
@@ -84,7 +88,7 @@ export function ConceptTree({ nodes, schemeId }: ConceptTreeProps) {
   }
 
   return (
-    <div>
+    <div class="concept-tree">
       {nodes.map((node) => (
         <TreeNode key={node.id} node={node} schemeId={schemeId} />
       ))}

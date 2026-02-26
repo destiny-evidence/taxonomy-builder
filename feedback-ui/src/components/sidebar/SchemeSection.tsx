@@ -16,6 +16,10 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
     route.value.entityKind === "scheme" && route.value.entityId === scheme.id;
 
   function handleTitleClick() {
+    if (isActive) {
+      (document.querySelector(".detail__title") as HTMLElement)?.focus({ preventScroll: true });
+      return;
+    }
     const version = selectedVersion.value;
     const projectId = currentProjectId.value;
     if (version && projectId) {

@@ -40,14 +40,19 @@ export function DataModelSection() {
                 {classes.map((cls) => {
                   const count = isAuthenticated.value ? feedbackCountForEntity(cls.id, "class") : 0;
                   const version = selectedVersion.value;
+                  const isActive = route.value.entityKind === "class" && route.value.entityId === cls.id;
+                  const handleNav = () => {
+                    if (isActive) { (document.querySelector(".detail__title") as HTMLElement)?.focus({ preventScroll: true }); return; }
+                    const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id);
+                  };
                   return (
                     <div
                       key={cls.id}
-                      class={`data-model-item${route.value.entityKind === "class" && route.value.entityId === cls.id ? " data-model-item--active" : ""}`}
+                      class={`data-model-item${isActive ? " data-model-item--active" : ""}`}
                       role="button"
                       tabIndex={0}
-                      onClick={() => { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id); }}
-                      onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id); } }}
+                      onClick={handleNav}
+                      onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") handleNav(); }}
                     >
                       {cls.label}
                       {count > 0 && <span class="sidebar__badge">{count}</span>}
@@ -72,14 +77,19 @@ export function DataModelSection() {
                 {properties.map((prop) => {
                   const count = isAuthenticated.value ? feedbackCountForEntity(prop.id, "property") : 0;
                   const version = selectedVersion.value;
+                  const isActive = route.value.entityKind === "property" && route.value.entityId === prop.id;
+                  const handleNav = () => {
+                    if (isActive) { (document.querySelector(".detail__title") as HTMLElement)?.focus({ preventScroll: true }); return; }
+                    const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id);
+                  };
                   return (
                     <div
                       key={prop.id}
-                      class={`data-model-item${route.value.entityKind === "property" && route.value.entityId === prop.id ? " data-model-item--active" : ""}`}
+                      class={`data-model-item${isActive ? " data-model-item--active" : ""}`}
                       role="button"
                       tabIndex={0}
-                      onClick={() => { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id); }}
-                      onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") { const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id); } }}
+                      onClick={handleNav}
+                      onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") handleNav(); }}
                     >
                       {prop.label}
                       {count > 0 && <span class="sidebar__badge">{count}</span>}

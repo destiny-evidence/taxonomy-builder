@@ -27,7 +27,7 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
 
   return (
     <div class="detail">
-      <h1 class="detail__title">{scheme.title}</h1>
+      <h1 class="detail__title" tabIndex={0}>{scheme.title} <span class="detail__entity-type">(Concept Scheme)</span></h1>
       <div class="detail__uri">{scheme.uri}</div>
 
       {scheme.description && (

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "preact/hooks";
+import { useEffect } from "preact/hooks";
 import { route } from "../../router";
 import { vocabulary, loading } from "../../state/vocabulary";
 import { WelcomePanel } from "./WelcomePanel";
@@ -11,26 +11,35 @@ import "./detail.css";
 
 export function DetailPanel() {
   const { entityKind, entityId } = route.value;
-  const panelRef = useRef<HTMLElement>(null);
 
-  // Move focus to detail panel when navigating to an entity
+  // Focus the detail title and reset scroll when navigating to an entity
   useEffect(() => {
-    if (entityKind && entityId && panelRef.current) {
-      panelRef.current.focus();
+    if (entityKind && entityId) {
+      const container = document.querySelector(".app-shell__detail");
+      if (container) container.scrollTop = 0;
+      requestAnimationFrame(() => {
+        const title = container?.querySelector(".detail__title") as HTMLElement | null;
+        if (title) title.focus({ preventScroll: true });
+      });
     }
   }, [entityKind, entityId]);
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Tab" && e.shiftKey && e.target === panelRef.current) {
-      const active = document.querySelector(
-        ".concept-tree__node--active, .sidebar__section-title--active, .data-model-item--active"
-      ) as HTMLElement | null;
-      if (active) {
-        e.preventDefault();
-        active.focus();
+  // Shift+Tab from title returns to active sidebar item
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Tab" && e.shiftKey && (e.target as Element)?.classList?.contains("detail__title")) {
+        const active = document.querySelector(
+          ".concept-tree__node--active, .sidebar__section-title--active, .data-model-item--active"
+        ) as HTMLElement | null;
+        if (active) {
+          e.preventDefault();
+          active.focus();
+        }
       }
     }
-  }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (!entityKind || !entityId) {
     return <WelcomePanel />;
@@ -40,27 +49,16 @@ export function DetailPanel() {
     return <div class="detail"><LoadingSpinner /></div>;
   }
 
-  let content;
   switch (entityKind) {
     case "concept":
-      content = <ConceptDetail key={entityId} conceptId={entityId} />;
-      break;
+      return <ConceptDetail key={entityId} conceptId={entityId} />;
     case "scheme":
-      content = <SchemeDetail key={entityId} schemeId={entityId} />;
-      break;
+      return <SchemeDetail key={entityId} schemeId={entityId} />;
     case "class":
-      content = <ClassDetail key={entityId} classId={entityId} />;
-      break;
+      return <ClassDetail key={entityId} classId={entityId} />;
     case "property":
-      content = <PropertyDetail key={entityId} propertyId={entityId} />;
-      break;
+      return <PropertyDetail key={entityId} propertyId={entityId} />;
     default:
       return <WelcomePanel />;
   }
-
-  return (
-    <main ref={panelRef} tabIndex={0} class="detail-panel" aria-label="Entity detail" style="outline: none;" onKeyDown={handleKeyDown}>
-      {content}
-    </main>
-  );
 }
