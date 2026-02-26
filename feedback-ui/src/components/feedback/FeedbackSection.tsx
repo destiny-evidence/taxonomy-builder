@@ -91,6 +91,7 @@ export function FeedbackSection({
                   ? " feedback-section__filter-btn--active"
                   : ""
               }`}
+              aria-pressed={statusFilter.value === f.key}
               onClick={() => (statusFilter.value = f.key)}
             >
               {f.label}
@@ -101,6 +102,7 @@ export function FeedbackSection({
             class={`feedback-section__filter-btn${
               versionOnly.value ? " feedback-section__filter-btn--active" : ""
             }`}
+            aria-pressed={versionOnly.value}
             onClick={() => (versionOnly.value = !versionOnly.value)}
           >
             This version only
