@@ -1,0 +1,38 @@
+{
+  "@context": "../../../vocab/esea/esea-context.jsonld",
+
+  "_comment": "Three CodingAnnotation types: concept-valued, string, and numeric. Each wraps a coded value with provenance (codedBy, supportingText, status). The status property resolves to named individuals via @vocab coercion in the context.",
+
+  "educationLevel": [
+    {
+      "@type": "EducationLevelCodingAnnotation",
+      "codedValue": { "@id": "esea:C1020" },
+      "supportingText": "Pupils in Standards 1-3 in rural Kenyan primary schools",
+      "codedBy": "coder1",
+      "status": "coded"
+    }
+  ],
+
+  "country": {
+    "@type": "StringCodingAnnotation",
+    "codedValue": "KE",
+    "supportingText": "Study conducted in Bungoma County, Kenya",
+    "codedBy": "EEF",
+    "status": "coded"
+  },
+
+  "duration": {
+    "@type": "NumericCodingAnnotation",
+    "codedValue": 40,
+    "supportingText": "Two school terms, approximately 40 weeks",
+    "codedBy": "EEF",
+    "status": "coded"
+  },
+
+  "attrition": {
+    "@type": "NumericCodingAnnotation",
+    "codedValue": null,
+    "codedBy": "EEF",
+    "status": "notReported"
+  }
+}

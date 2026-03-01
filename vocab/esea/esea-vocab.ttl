@@ -99,7 +99,9 @@ esea:EffectSizeType a owl:Class ;
 esea:educationLevel a owl:ObjectProperty ;
     rdfs:label "education level" ;
     rdfs:comment "The ISCED education level of the target population." ;
-    rdfs:domain evrepo:Finding ;
+    # Fix: domain is Context, not Finding — educationLevel describes the setting,
+    # not the comparison. Matches briefing field reference table and JSON-LD examples.
+    rdfs:domain evrepo:Context ;
     rdfs:range esea:EducationLevel .
 
 esea:educationSetting a owl:ObjectProperty ;

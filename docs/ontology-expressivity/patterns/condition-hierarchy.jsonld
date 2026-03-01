@@ -1,0 +1,56 @@
+{
+  "@context": "../../../vocab/esea/esea-context.jsonld",
+
+  "_comment": "The Condition hierarchy in action across two study designs. Finding 1 is a standard RCT: evaluates an Intervention, comparedTo a ControlCondition. Finding 2 is a pre-post design: both conditions are TemporalConditions. The evaluates/comparedTo pattern works uniformly because Intervention, ControlCondition, and TemporalCondition are all subclasses of Condition.",
+
+  "@graph": [
+    {
+      "_comment": "Finding 1: RCT — Intervention vs Control",
+      "@id": "_:finding-rct",
+      "@type": "Finding",
+      "evaluates": {
+        "@id": "_:intervention-phonics",
+        "@type": "Intervention",
+        "implementationName": {
+          "@type": "StringCodingAnnotation",
+          "codedValue": "Structured phonics programme",
+          "codedBy": "EEF",
+          "status": "coded"
+        },
+        "educationTheme": [
+          {
+            "@type": "EducationThemeCodingAnnotation",
+            "codedValue": { "@id": "esea:C8210" },
+            "codedBy": "EEF",
+            "status": "coded"
+          }
+        ],
+        "duration": {
+          "@type": "NumericCodingAnnotation",
+          "codedValue": 24,
+          "supportingText": "24 weeks",
+          "codedBy": "EEF",
+          "status": "coded"
+        }
+      },
+      "comparedTo": {
+        "@id": "_:control-bau",
+        "@type": "ControlCondition"
+      }
+    },
+
+    {
+      "_comment": "Finding 2: Pre-post design — both conditions are temporal",
+      "@id": "_:finding-prepost",
+      "@type": "Finding",
+      "evaluates": {
+        "@id": "_:post-test",
+        "@type": "TemporalCondition"
+      },
+      "comparedTo": {
+        "@id": "_:pre-test",
+        "@type": "TemporalCondition"
+      }
+    }
+  ]
+}

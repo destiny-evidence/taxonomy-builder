@@ -1,0 +1,48 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix evrepo: <https://evrepo.example.org/vocab/> .
+
+# =============================================================================
+# Enumeration class: CodingStatus
+# =============================================================================
+#
+# CodingStatus is a closed set of three named individuals. The fourth state —
+# "not yet coded" — is represented by the absence of a CodingAnnotation.
+#
+# The builder has no native support for owl:oneOf or named individuals.
+# The pragmatic workaround (issue #112) is to model this as a concept scheme
+# with three concepts. At export time, the exporter can optionally emit the
+# owl:oneOf pattern below instead of SKOS.
+# =============================================================================
+
+evrepo:CodingStatus a owl:Class ;
+    rdfs:label "Coding Status" ;
+    rdfs:comment """The status of a coded value. A closed enumeration:
+    coded (value has been assigned), notApplicable (field does not apply
+    to this entity), notReported (study does not report this field).
+    Absence of a CodingAnnotation means 'not yet coded'.""" ;
+    owl:oneOf (
+        evrepo:coded
+        evrepo:notApplicable
+        evrepo:notReported
+    ) .
+
+evrepo:coded a owl:NamedIndividual, evrepo:CodingStatus ;
+    rdfs:label "coded" ;
+    rdfs:comment "The value has been assigned by a coder or data source." .
+
+evrepo:notApplicable a owl:NamedIndividual, evrepo:CodingStatus ;
+    rdfs:label "not applicable" ;
+    rdfs:comment "The field does not apply to this entity (e.g. cluster count for a non-clustered trial)." .
+
+evrepo:notReported a owl:NamedIndividual, evrepo:CodingStatus ;
+    rdfs:label "not reported" ;
+    rdfs:comment "The study does not report this information." .
+
+# --- Usage on CodingAnnotation ---
+
+evrepo:status a owl:ObjectProperty ;
+    rdfs:label "status" ;
+    rdfs:comment "The coding status of this annotation." ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range evrepo:CodingStatus .

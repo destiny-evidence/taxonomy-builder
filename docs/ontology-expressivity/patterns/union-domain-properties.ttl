@@ -1,0 +1,69 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix evrepo: <https://evrepo.example.org/vocab/> .
+
+# =============================================================================
+# Union domain properties
+# =============================================================================
+#
+# supportingText, codedBy, and sourceLocation each apply to three classes:
+# CodingAnnotation (provenance on coded values), ObservedResult (provenance on
+# per-arm statistics), and EffectEstimate (provenance on computed effects).
+#
+# The builder currently supports only a single domain_class per property.
+# Issue #110 adds multi-domain support so these can be represented.
+# =============================================================================
+
+# --- Classes (abbreviated) ---
+
+evrepo:CodingAnnotation a owl:Class ;
+    rdfs:label "Coding Annotation" ;
+    rdfs:comment "Wraps a coded value with provenance." .
+
+evrepo:ObservedResult a owl:Class ;
+    rdfs:label "Observed Result" ;
+    rdfs:comment "Per-arm descriptive statistics." .
+
+evrepo:EffectEstimate a owl:Class ;
+    rdfs:label "Effect Estimate" ;
+    rdfs:comment "Computed or reported effect size." .
+
+# --- Union domain properties ---
+
+evrepo:supportingText a owl:DatatypeProperty ;
+    rdfs:label "supporting text" ;
+    rdfs:comment "Verbatim text from the source document supporting this value." ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf (
+            evrepo:CodingAnnotation
+            evrepo:ObservedResult
+            evrepo:EffectEstimate
+        )
+    ] ;
+    rdfs:range xsd:string .
+
+evrepo:codedBy a owl:DatatypeProperty ;
+    rdfs:label "coded by" ;
+    rdfs:comment "Identifier of the person or organisation that produced this value." ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf (
+            evrepo:CodingAnnotation
+            evrepo:ObservedResult
+            evrepo:EffectEstimate
+        )
+    ] ;
+    rdfs:range xsd:string .
+
+evrepo:sourceLocation a owl:DatatypeProperty ;
+    rdfs:label "source location" ;
+    rdfs:comment "Location within the source document (e.g. 'Table 3, p. 18')." ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf (
+            evrepo:CodingAnnotation
+            evrepo:ObservedResult
+            evrepo:EffectEstimate
+        )
+    ] ;
+    rdfs:range xsd:string .
