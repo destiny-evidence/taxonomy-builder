@@ -1,0 +1,57 @@
+{
+  "@context": "../../../vocab/esea/esea-context.jsonld",
+
+  "_comment": "A cluster RCT finding with per-arm ObservedResults and an EffectEstimate. Each ObservedResult links back to its Condition via forCondition. ObservedResult and EffectEstimate carry class-level provenance (codedBy, sourceLocation) directly — they do NOT use CodingAnnotation wrapping.",
+
+  "@id": "_:finding-1",
+  "@type": "Finding",
+  "evaluates": {
+    "@id": "_:intervention",
+    "@type": "Intervention"
+  },
+  "comparedTo": {
+    "@id": "_:control",
+    "@type": "ControlCondition"
+  },
+  "hasArmData": [
+    {
+      "@type": "ObservedResult",
+      "forCondition": "_:intervention",
+      "n": 580,
+      "mean": 24.3,
+      "sd": 12.1,
+      "preMean": 8.2,
+      "preSd": 5.4,
+      "clusterCount": 25,
+      "codedBy": "EEF",
+      "sourceLocation": "Table 3, p. 18"
+    },
+    {
+      "@type": "ObservedResult",
+      "forCondition": "_:control",
+      "n": 518,
+      "mean": 18.7,
+      "sd": 11.8,
+      "preMean": 8.0,
+      "preSd": 5.2,
+      "clusterCount": 25,
+      "codedBy": "EEF",
+      "sourceLocation": "Table 3, p. 18"
+    }
+  ],
+  "hasEffectEstimate": [
+    {
+      "@type": "EffectEstimate",
+      "pointEstimate": 0.35,
+      "standardError": 0.12,
+      "confidenceLevel": 0.95,
+      "confidenceIntervalLower": 0.11,
+      "confidenceIntervalUpper": 0.59,
+      "baselineAdjusted": true,
+      "clusteringAdjusted": "yes",
+      "effectSizeMetric": "esea:C0020",
+      "codedBy": "EEF",
+      "sourceLocation": "Table 4, p. 22"
+    }
+  ]
+}
