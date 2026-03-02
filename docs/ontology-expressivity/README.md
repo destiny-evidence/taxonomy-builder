@@ -15,10 +15,10 @@ The audience is developers working on the taxonomy builder. Each gap is explaine
 
 The evidence repository vocabulary is split across two namespaces:
 
-- **evrepo** (`https://evrepo.example.org/vocab/`) — domain-agnostic core. Defines the evidence graph structure (Investigation → Finding → Intervention/Outcome/Context), the CodingAnnotation provenance pattern, ObservedResult/EffectEstimate statistical classes, and the Condition hierarchy. Shared across education, health, and climate sectors.
-- **esea** (`https://esea.example.org/vocab/`) — education-specific extension. Defines SKOS concept schemes (education level, outcome, setting, etc.) and education-specific properties that extend the core.
+- **evrepo** (`https://vocab.evidence-repository.org/`) — domain-agnostic core. Defines the evidence graph structure (Investigation → Finding → Intervention/Outcome/Context), the CodingAnnotation provenance pattern, ObservedResult/EffectEstimate statistical classes, the Condition hierarchy, and the CodingStatus enumeration. Shared across education, health, and climate sectors.
+- **esea** (`https://vocab.esea.education/`) — education-specific extension. Defines SKOS concept schemes (education level, outcome, setting, etc.) and education-specific properties that extend the core. Covers all 24 taxonomy fields with 169 concepts.
 
-The builder manages the domain vocabulary layer — concept schemes with their concepts, ontology classes, and properties. The core ontology was originally loaded as a static file at startup; since [#93](https://github.com/destiny-evidence/taxonomy-builder/issues/93), classes and properties are fully project-scoped. The canonical vocabulary files live in [`vocab/`](../../vocab/) — `evrepo-core/` for the shared foundation and `esea/` for the education extension. Note that `evrepo-core.ttl` is a working draft — it defines the core classes and properties (Investigation, Finding, Intervention, etc.) but does not yet include the CodingAnnotation pattern, ObservedResult, Condition hierarchy, or provenance properties described in this document. Those are defined in the JSON-LD context and examples but await formal OWL definitions in the TTL.
+The builder manages the domain vocabulary layer — concept schemes with their concepts, ontology classes, and properties. The core ontology was originally loaded as a static file at startup; since [#93](https://github.com/destiny-evidence/taxonomy-builder/issues/93), classes and properties are fully project-scoped. The canonical vocabulary files live in [`vocab/`](../../vocab/) — `evrepo-core/` for the shared foundation and `esea/` for the education extension.
 
 The builder is not education-specific. The evrepo/esea vocabulary is one domain application. A health or climate domain would define its own extension vocabulary. Issue [#99](https://github.com/destiny-evidence/taxonomy-builder/issues/99) proposes a template picker that would let users bootstrap a new project from bundled TTL files, replacing the current seed-data approach which hard-codes evidence-synthesis classes for developer convenience.
 
@@ -113,7 +113,7 @@ The `classes[]` array in `vocabulary.schema.json` would need a `superclasses` fi
 
 The CodingAnnotation pattern wraps every coded value with provenance — who coded it, the supporting text from the source document, and a status. But the same provenance properties also appear on ObservedResult and EffectEstimate (which carry their own class-level provenance *without* the CodingAnnotation wrapper).
 
-This means `supportingText`, `codedBy`, and `sourceLocation` each need to apply to three unrelated classes:
+This means `supportingText` and `codedBy` each need to apply to three unrelated classes, and `sourceLocation` to two (ObservedResult and EffectEstimate — CodingAnnotation uses `supportingText` instead for source context):
 
 ```turtle
 evrepo:supportingText a owl:DatatypeProperty ;
@@ -155,7 +155,7 @@ The `domain_class_uri` field in `vocabulary.schema.json` would change from a sin
 RDF/OWL distinguishes three kinds of properties:
 
 - `owl:ObjectProperty` — links to another resource (e.g. `evaluates` → Intervention)
-- `owl:DatatypeProperty` — links to a literal value (e.g. `effectSize` → xsd:decimal)
+- `owl:DatatypeProperty` — links to a literal value (e.g. `pointEstimate` → xsd:decimal)
 - `rdf:Property` — intentionally untyped, can link to either
 
 The builder infers property kind from the range: if range is a class or scheme, it's an ObjectProperty; if range is a datatype, it's a DatatypeProperty. This works for most properties but fails for `codedValue`.
@@ -225,11 +225,11 @@ None if using the concept scheme workaround. If native support is added later, a
 
 Three patterns in the core ontology don't require data model changes but need correct handling during serialisation:
 
-**Concept-typed class subclasses.** Each concept scheme has a corresponding OWL class that is a subclass of `skos:Concept`. For example, EducationLevel concepts are instances of both `skos:Concept` and `esea:EducationLevel`. This dual-typing enables OWL property range constraints on the concept class while preserving SKOS compatibility.
+**Concept-typed class subclasses.** Each concept scheme has a corresponding OWL class that is a subclass of `skos:Concept`. For example, EducationLevel concepts are instances of both `skos:Concept` and `esea:EducationLevelConcept`. This dual-typing enables OWL property range constraints on the concept class while preserving SKOS compatibility.
 
 ```turtle
-esea:EducationLevel rdfs:subClassOf skos:Concept .
-esea:C1020 a skos:Concept, esea:EducationLevel .
+esea:EducationLevelConcept rdfs:subClassOf skos:Concept .
+esea:C00002 a skos:Concept, esea:EducationLevelConcept .
 ```
 
 **OWL restrictions.** CodingAnnotation subclasses use OWL restrictions to constrain `codedValue`. For example, `NumericCodingAnnotation` restricts `codedValue` to `xsd:decimal`. This is deep OWL DL machinery that the builder does not need to author — it can be emitted at export time from conventions.

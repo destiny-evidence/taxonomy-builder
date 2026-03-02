@@ -20,7 +20,7 @@
         "educationTheme": [
           {
             "@type": "EducationThemeCodingAnnotation",
-            "codedValue": { "@id": "esea:C8210" },
+            "codedValue": { "@id": "esea:C00074" },
             "codedBy": "EEF",
             "status": "coded"
           }

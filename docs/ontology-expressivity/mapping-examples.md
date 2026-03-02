@@ -10,14 +10,14 @@ Two worked examples are included: an EEF cluster RCT with full quantitative data
 
 The [`vocab/esea/example-finding.jsonld`](../../vocab/esea/example-finding.jsonld) file models a cluster randomised controlled trial of a literacy intervention in Kenyan primary schools. This is a synthetic example based on typical EEF data, and it exercises the full depth of the evidence graph — including the quantitative layers that study-level databases like 3ie do not capture.
 
-**The complete Investigation.** The top-level object is an Investigation with `studyDesign` (RCT, `esea:C2010`), `funderResearch` (EEF), `isRetracted` (false), and `dataSource` (EEF). These are investigation-level fields — they describe the study as a whole, not any individual finding.
+**The complete Investigation.** The top-level object is an Investigation with `documentType` (Journal Article, `esea:C00008`), `funderResearch` (EEF), `isRetracted` (false), and `dataSource` (EEF). These are investigation-level fields — they describe the study as a whole, not any individual finding.
 
 **A single Finding with the full evidence graph.** The Investigation contains one Finding that demonstrates every major relationship:
 
-- `evaluates` → an **Intervention** (a structured phonics programme) carrying two education themes (`esea:C8210` Literacy Interventions, `esea:C8320` Teacher Professional Development), an implementer type (`esea:C4020` NGO), implementation components (training + materials), fidelity data, duration (40 weeks), and a named programme
+- `evaluates` → an **Intervention** (a structured phonics programme) carrying two education themes (`esea:C00074` Literacy and Reading Interventions, `esea:C00055` Workforce Professional Development), an implementer type (`esea:C00133` NGO), implementation description (training + materials), fidelity data, duration (40 weeks), and a named programme
 - `comparedTo` → a **ControlCondition** (business-as-usual)
-- `hasContext` → a **Context** with education level (`esea:C1020` Primary), setting (`esea:C9010` Public School), country (KE), sub-national region (Bungoma County), and participants
-- `hasOutcome` → an **Outcome** with education outcome type (`esea:C3011` Basic Skills - Literacy) and a free-text description of the specific measure (EGRA oral reading fluency)
+- `hasContext` → a **Context** with education level (`esea:C00002` Primary), setting (`esea:C00146` Public School), country (KE), sub-national region (Bungoma County), and participants
+- `hasOutcome` → an **Outcome** with outcome type (`esea:C00123` Basic Skills and Literacy) via the OutcomeCodingAnnotation pattern
 
 **Per-arm ObservedResults.** The Finding has two ObservedResults, one per arm:
 
@@ -32,11 +32,11 @@ The [`vocab/esea/example-finding.jsonld`](../../vocab/esea/example-finding.jsonl
 
 Each ObservedResult links back to its Condition via `forCondition` and carries class-level provenance (`codedBy: "EEF"`, `sourceLocation: "Table 3, p. 18"`) — not CodingAnnotation wrapping.
 
-**EffectEstimate with full statistics.** The Finding has one EffectEstimate: Hedges' g = 0.35 (SE = 0.12, 95% CI [0.11, 0.59]), baseline-adjusted, clustering-adjusted. The `effectSizeMetric` points to `esea:C0020` (Hedges' g). This is the kind of data that drives meta-analysis — the atomic unit the evidence repository is designed to serve.
+**EffectEstimate with full statistics.** The Finding has one EffectEstimate: Hedges' g = 0.35 (SE = 0.12, 95% CI [0.11, 0.59]), baseline-adjusted, clustering-adjusted. The `effectSizeMetric` points to `evrepo:hedgesG` (effect size metrics are now in the core ontology, not ESEA-specific). The `estimateSource` is `evrepo:computedFromStats`. This is the kind of data that drives meta-analysis — the atomic unit the evidence repository is designed to serve.
 
 **CodingAnnotation throughout.** Every coded field — education theme, implementer type, education level, country, outcome — is wrapped in a typed CodingAnnotation with `codedBy: "EEF"`, `supportingText` (the evidence from the source document), and `status: "coded"`. Multi-select fields like education theme use arrays of CodingAnnotations, each with its own provenance.
 
-**A known placeholder.** The `documentType` field currently reuses concept `esea:C2010` (RCT) because the TTL does not yet define a DocumentType concept scheme. This will need its own scheme when document type concepts are added to the vocabulary.
+**Study Design not yet in vocabulary.** The ESEA vocabulary does not yet include a Study Design scheme (the wiki page does not exist). When added, it would appear as an Investigation-level CodingAnnotation alongside `documentType`.
 
 ## The 3ie Development Evidence Portal
 
@@ -48,8 +48,8 @@ The [`3ie-mapping-example.jsonld`](worked-examples/3ie-mapping-example.jsonld) e
 
 **Multiple outcomes create multiple Findings.** Study 34810 has two outcomes: "Index of employment" and "Employment type (regular employment)". In 3ie's tabular format these are two rows sharing all other fields. In the evidence graph, they become two separate Findings under the same Investigation, each with its own Outcome but sharing the same Intervention and Context. The Finding is the atomic unit — one comparison × one outcome.
 
-**CodingAnnotation wraps every mapped value.** When the 3ie dataset says `implementation_agencies=Government agency`, the mapping does not just set `implementerType` to `esea:C4060`. It wraps the value in a CodingAnnotation that records:
-- `codedValue`: the concept (`esea:C4060` — "National or State Government")
+**CodingAnnotation wraps every mapped value.** When the 3ie dataset says `implementation_agencies=Government agency`, the mapping does not just set `implementerType` to `esea:C00137`. It wraps the value in a CodingAnnotation that records:
+- `codedValue`: the concept (`esea:C00137` — "National or State Government")
 - `codedBy`: `"3ie"` (the source organisation, since we have no individual coder)
 - `supportingText`: `"Government Of Senegal"` (the original value from the `implementation_agencies_name` column)
 - `status`: `"coded"`
@@ -58,7 +58,7 @@ This provenance survives the transformation. A downstream consumer can see that 
 
 **Missing data uses the status enumeration.** The 3ie record has `research_funding_agency=Not specified`. This maps to a CodingAnnotation with `codedValue: null` and `status: "notReported"` — the source explicitly indicates the information is absent, which is different from the field simply being empty (which would mean "not yet coded" and the CodingAnnotation would be omitted entirely).
 
-**Concept mapping requires judgement.** Not every 3ie field maps cleanly to an ESEA concept. The 3ie `sub_sector` value "Workforce development and vocational education" maps to education level `esea:C1050` (TVET), but this is an inference — 3ie codes sector, not ISCED level. The `unit_of_observation=Household` does not map to any participant type concept, so it becomes a free-text StringCodingAnnotation on `participants`. These mapping decisions are exactly the kind of case-by-case assessment the Jacobs briefing describes.
+**Concept mapping requires judgement.** Not every 3ie field maps cleanly to an ESEA concept. The 3ie `sub_sector` value "Workforce development and vocational education" maps to education level `esea:C00005` (TVET), but this is an inference — 3ie codes sector, not ISCED level. The `unit_of_observation=Household` does not map to any participant type concept, so it becomes a free-text StringCodingAnnotation on `participants`. These mapping decisions are exactly the kind of case-by-case assessment the Jacobs briefing describes.
 
 **Study-level vs finding-level data.** The 3ie DEP dataset contains no per-arm statistics (n, mean, sd) and no effect sizes (SMD, SE, confidence intervals). It is study-level metadata. Compare this with the EEF worked example ([`vocab/esea/example-finding.jsonld`](../../vocab/esea/example-finding.jsonld)) which has full quantitative data — ObservedResults with per-arm stats and EffectEstimates with Hedges' g. The evidence graph accommodates both: a Finding from 3ie has `evaluates`, `hasContext`, `hasOutcome` but no `hasArmData` or `hasEffectEstimate`. A Finding from EEF has all of these. The schema is additive — richer sources fill in more of the graph.
 
