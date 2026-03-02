@@ -4,6 +4,7 @@ from rdflib import Graph
 
 from taxonomy_builder.services.rdf_parser import (
     ValidationResult,
+    extract_property_metadata,
     find_properties,
     parse_rdf,
     validate_graph,
@@ -271,6 +272,45 @@ def test_union_domain_detected():
     assert len(union_infos) == 1
     assert "title" in union_infos[0].message
     assert "#110" in union_infos[0].message
+
+
+def test_union_domain_extracts_first_class():
+    """extract_property_metadata resolves union domain to first class URI."""
+    g = _graph(UNION_DOMAIN_TTL)
+    props = find_properties(g)
+    assert len(props) == 1
+    uri, ptype = props[0]
+
+    metadata = extract_property_metadata(g, uri, ptype)
+    # Should extract ex:Finding (first in the union list), not None
+    assert metadata["domain_uri"] == "http://example.org/Finding"
+
+
+UNION_DOMAIN_RDF_PROPERTY_TTL = b"""
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class .
+ex:CodingAnnotation a owl:Class .
+
+ex:codedBy a rdf:Property ;
+    rdfs:label "Coded By" ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( ex:Finding ex:CodingAnnotation )
+    ] .
+"""
+
+
+def test_union_domain_rdf_property_extracts_first_class():
+    """rdf:Property with union domain also extracts first class."""
+    g = _graph(UNION_DOMAIN_RDF_PROPERTY_TTL)
+    props = find_properties(g)
+    uri, ptype = [(u, t) for u, t in props if str(u).endswith("codedBy")][0]
+
+    metadata = extract_property_metadata(g, uri, ptype)
+    assert metadata["domain_uri"] == "http://example.org/Finding"
 
 
 NAMED_INDIVIDUAL_TTL = b"""

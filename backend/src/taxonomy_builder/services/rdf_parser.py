@@ -184,6 +184,7 @@ def _check_unsupported_subclasses(g: Graph, result: ValidationResult) -> None:
 
 def _check_unsupported_union_domains(g: Graph, result: ValidationResult) -> None:
     """Detect owl:unionOf in property domains."""
+    # find_properties() includes owl:ObjectProperty, owl:DatatypeProperty, and rdf:Property
     for uri, _ptype in find_properties(g):
         domain = g.value(uri, RDFS.domain)
         if isinstance(domain, BNode) and (domain, OWL.unionOf, None) in g:
@@ -196,20 +197,6 @@ def _check_unsupported_union_domains(g: Graph, result: ValidationResult) -> None
                 ),
                 entity_uri=str(uri),
             ))
-    # Also check rdf:Property instances for union domains
-    for subject in g.subjects(RDF.type, RDF.Property):
-        if isinstance(subject, URIRef):
-            domain = g.value(subject, RDFS.domain)
-            if isinstance(domain, BNode) and (domain, OWL.unionOf, None) in g:
-                result.info.append(ValidationIssue(
-                    severity="info",
-                    type="unsupported_union_domain",
-                    message=(
-                        f"Property '{get_identifier_from_uri(subject)}' has a union "
-                        f"domain — only first class will be used (#110)"
-                    ),
-                    entity_uri=str(subject),
-                ))
 
 
 def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> None:
@@ -444,6 +431,18 @@ def find_properties(g: Graph) -> list[tuple[URIRef, str]]:
     return properties
 
 
+def _resolve_union_first(g: Graph, bnode: BNode) -> URIRef | None:
+    """Extract the first URIRef from an owl:unionOf RDF list on a blank node."""
+    union_list = g.value(bnode, OWL.unionOf)
+    if union_list is None:
+        return None
+    # Walk rdf:first/rdf:rest list
+    first = g.value(union_list, RDF.first)
+    if isinstance(first, URIRef):
+        return first
+    return None
+
+
 def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dict:
     """Extract metadata for a property."""
     label = g.value(prop_uri, RDFS.label)
@@ -455,6 +454,15 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
     description = g.value(prop_uri, RDFS.comment)
     domain = g.value(prop_uri, RDFS.domain)
     range_val = g.value(prop_uri, RDFS.range)
+
+    # Resolve union domains to first class in the union
+    domain_uri: str | None = None
+    if isinstance(domain, URIRef):
+        domain_uri = str(domain)
+    elif isinstance(domain, BNode):
+        first_class = _resolve_union_first(g, domain)
+        if first_class is not None:
+            domain_uri = str(first_class)
 
     # Read allowMultiple annotation for cardinality (any namespace)
     cardinality = "single"
@@ -469,7 +477,7 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
         "label": str(label),
         "description": str(description) if description else None,
         "property_type": prop_type,
-        "domain_uri": str(domain) if isinstance(domain, URIRef) else None,
+        "domain_uri": domain_uri,
         "range_uri": str(range_val) if isinstance(range_val, URIRef) else None,
         "uri": str(prop_uri),
         "cardinality": cardinality,
