@@ -3,7 +3,7 @@ import { useSignal } from "@preact/signals";
 import { Button } from "../common/Button";
 import { currentProject } from "../../state/projects";
 import { schemes } from "../../state/schemes";
-import { ontologyClasses, selectedClassUri } from "../../state/ontology";
+import { ontologyClasses, selectedClassUri } from "../../state/classes";
 import { selectionMode } from "../../state/workspace";
 import { feedbackManagerApi } from "../../api/feedback";
 import "./ProjectPane.css";
@@ -13,6 +13,7 @@ interface ProjectPaneProps {
   currentSchemeId: string | null;
   onSchemeSelect: (schemeId: string) => void;
   onClassSelect: (classUri: string) => void;
+  onNewClass: () => void;
   onNewScheme: () => void;
   onImport: () => void;
   onPublish: () => void;
@@ -24,6 +25,7 @@ export function ProjectPane({
   currentSchemeId,
   onSchemeSelect,
   onClassSelect,
+  onNewClass,
   onNewScheme,
   onImport,
   onPublish,
@@ -105,6 +107,9 @@ export function ProjectPane({
               ))}
             </div>
           )}
+          <button class="project-pane__add-button" onClick={onNewClass}>
+            + New Class
+          </button>
         </div>
 
         {/* Schemes section */}

@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/preact";
 import { ProjectPane } from "../../../src/components/workspace/ProjectPane";
 import { currentProject } from "../../../src/state/projects";
 import { schemes } from "../../../src/state/schemes";
-import { selectedClassUri } from "../../../src/state/ontology";
+import { selectedClassUri } from "../../../src/state/classes";
 import { selectionMode } from "../../../src/state/workspace";
 import type { Project, ConceptScheme } from "../../../src/types/models";
 
@@ -38,14 +38,14 @@ const mockSchemes: ConceptScheme[] = [
 ];
 
 // Mock the ontologyClasses computed signal
-vi.mock("../../../src/state/ontology", async () => {
-  const actual = await vi.importActual("../../../src/state/ontology");
+vi.mock("../../../src/state/classes", async () => {
+  const actual = await vi.importActual("../../../src/state/classes");
   return {
     ...actual,
     ontologyClasses: {
       value: [
-        { uri: "http://example.org/Investigation", label: "Investigation", comment: "A research effort" },
-        { uri: "http://example.org/Finding", label: "Finding", comment: "A specific result" },
+        { id: "cls-1", project_id: "proj-1", identifier: "Investigation", uri: "http://example.org/Investigation", label: "Investigation", description: "A research effort", scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+        { id: "cls-2", project_id: "proj-1", identifier: "Finding", uri: "http://example.org/Finding", label: "Finding", description: "A specific result", scope_note: null, created_at: "2024-01-02T00:00:00Z", updated_at: "2024-01-02T00:00:00Z" },
       ],
     },
   };
@@ -57,6 +57,7 @@ function renderPane(overrides: Partial<Parameters<typeof ProjectPane>[0]> = {}) 
     currentSchemeId: null as string | null,
     onSchemeSelect: vi.fn(),
     onClassSelect: vi.fn(),
+    onNewClass: vi.fn(),
     onNewScheme: vi.fn(),
     onImport: vi.fn(),
     onPublish: vi.fn(),
@@ -119,6 +120,12 @@ describe("ProjectPane", () => {
       const { props } = renderPane();
       fireEvent.click(screen.getByText("Investigation"));
       expect(props.onClassSelect).toHaveBeenCalledWith("http://example.org/Investigation");
+    });
+
+    it("calls onNewClass when New Class button clicked", () => {
+      const { props } = renderPane();
+      fireEvent.click(screen.getByText("+ New Class"));
+      expect(props.onNewClass).toHaveBeenCalled();
     });
 
     it("highlights selected class", () => {

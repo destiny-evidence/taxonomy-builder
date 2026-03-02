@@ -4,11 +4,13 @@ import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { propertiesApi } from "../../api/properties";
 import { ApiError } from "../../api/client";
-import { ontologyClasses } from "../../state/ontology";
+import { ontologyClasses } from "../../state/classes";
 import { schemes } from "../../state/schemes";
 import { DATATYPE_LABELS } from "../../types/models";
 import type { Property, PropertyCreate } from "../../types/models";
 import { toCamelCase, validateIdentifier } from "../../utils/strings";
+import { formatDatetime } from "../../utils/dates";
+import "../common/WorkspaceDetail.css";
 import "./PropertyDetail.css";
 
 interface ViewEditProps {
@@ -48,17 +50,6 @@ function extractLocalName(uri: string): string {
   const slashIndex = uri.lastIndexOf("/");
   const index = Math.max(hashIndex, slashIndex);
   return index >= 0 ? uri.substring(index + 1) : uri;
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function PropertyDetail(props: PropertyDetailProps) {
@@ -273,11 +264,11 @@ export function PropertyDetail(props: PropertyDetailProps) {
   const title = isCreateMode ? "New Property" : isEditing ? "Edit Property" : property!.label;
 
   return (
-    <div class="property-detail">
-      <div class="property-detail__header">
-        <h3 class="property-detail__title">{title}</h3>
+    <div class="workspace-detail">
+      <div class="workspace-detail__header">
+        <h3 class="workspace-detail__title">{title}</h3>
         {!isCreateMode && !isEditing && (
-          <div class="property-detail__header-actions">
+          <div class="workspace-detail__header-actions">
             <Button variant="ghost" size="sm" onClick={handleEditClick}>
               Edit
             </Button>
@@ -301,10 +292,10 @@ export function PropertyDetail(props: PropertyDetailProps) {
       </div>
 
       {saveError && (
-        <div class="property-detail__error" role="alert">{saveError}</div>
+        <div class="workspace-detail__error" role="alert">{saveError}</div>
       )}
 
-      <div class="property-detail__content">
+      <div class="workspace-detail__content">
         {isEditing && editDraft ? (
           <>
             <Input
@@ -326,9 +317,9 @@ export function PropertyDetail(props: PropertyDetailProps) {
                 placeholder="e.g., dateOfBirth"
               />
             ) : (
-              <div class="property-detail__field">
-                <label class="property-detail__label">Identifier</label>
-                <div class="property-detail__value property-detail__value--mono">
+              <div class="workspace-detail__field">
+                <label class="workspace-detail__label">Identifier</label>
+                <div class="workspace-detail__value workspace-detail__value--mono">
                   {property!.identifier}
                 </div>
               </div>
@@ -342,9 +333,9 @@ export function PropertyDetail(props: PropertyDetailProps) {
               multiline
             />
 
-            <div class="property-detail__field">
-              <label class="property-detail__label">Class</label>
-              <div class="property-detail__value">
+            <div class="workspace-detail__field">
+              <label class="workspace-detail__label">Class</label>
+              <div class="workspace-detail__value">
                 {classes.find((c) => c.uri === editDraft.domain_class)?.label ?? extractLocalName(editDraft.domain_class)}
               </div>
             </div>
@@ -385,8 +376,8 @@ export function PropertyDetail(props: PropertyDetailProps) {
               </div>
 
               {editDraft.range_type === "scheme" ? (
-                <div class="property-detail__field">
-                  <label class="property-detail__label" htmlFor="edit-range-scheme">
+                <div class="workspace-detail__field">
+                  <label class="workspace-detail__label" htmlFor="edit-range-scheme">
                     Range Scheme
                   </label>
                   <select
@@ -404,8 +395,8 @@ export function PropertyDetail(props: PropertyDetailProps) {
                   </select>
                 </div>
               ) : editDraft.range_type === "class" ? (
-                <div class="property-detail__field">
-                  <label class="property-detail__label" htmlFor="edit-range-class">
+                <div class="workspace-detail__field">
+                  <label class="workspace-detail__label" htmlFor="edit-range-class">
                     Range Class
                   </label>
                   <select
@@ -423,8 +414,8 @@ export function PropertyDetail(props: PropertyDetailProps) {
                   </select>
                 </div>
               ) : (
-                <div class="property-detail__field">
-                  <label class="property-detail__label" htmlFor="edit-range-datatype">
+                <div class="workspace-detail__field">
+                  <label class="workspace-detail__label" htmlFor="edit-range-datatype">
                     Range Datatype
                   </label>
                   <select
@@ -470,7 +461,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
               </div>
             </fieldset>
 
-            <div class="property-detail__field">
+            <div class="workspace-detail__field">
               <label class="property-detail__checkbox">
                 <input
                   type="checkbox"
@@ -483,63 +474,63 @@ export function PropertyDetail(props: PropertyDetailProps) {
           </>
         ) : property ? (
           <>
-            <div class="property-detail__field">
-              <label class="property-detail__label">Identifier</label>
-              <div class="property-detail__value property-detail__value--mono">
+            <div class="workspace-detail__field">
+              <label class="workspace-detail__label">Identifier</label>
+              <div class="workspace-detail__value workspace-detail__value--mono">
                 {property.identifier}
               </div>
             </div>
 
             {property.description && (
-              <div class="property-detail__field">
-                <label class="property-detail__label">Description</label>
-                <div class="property-detail__value">{property.description}</div>
+              <div class="workspace-detail__field">
+                <label class="workspace-detail__label">Description</label>
+                <div class="workspace-detail__value">{property.description}</div>
               </div>
             )}
 
-            <div class="property-detail__field">
-              <label class="property-detail__label">Class</label>
-              <div class="property-detail__value">
+            <div class="workspace-detail__field">
+              <label class="workspace-detail__label">Class</label>
+              <div class="workspace-detail__value">
                 {classes.find((c) => c.uri === property.domain_class)?.label ?? extractLocalName(property.domain_class)}
               </div>
             </div>
 
             <div class="property-detail__row">
-              <div class="property-detail__field property-detail__field--half">
-                <label class="property-detail__label">Cardinality</label>
-                <div class="property-detail__value">
+              <div class="workspace-detail__field property-detail__field--half">
+                <label class="workspace-detail__label">Cardinality</label>
+                <div class="workspace-detail__value">
                   {property.cardinality === "single" ? "Single value" : "Multiple values"}
                 </div>
               </div>
 
-              <div class="property-detail__field property-detail__field--half">
-                <label class="property-detail__label">Required</label>
-                <div class="property-detail__value">
+              <div class="workspace-detail__field property-detail__field--half">
+                <label class="workspace-detail__label">Required</label>
+                <div class="workspace-detail__value">
                   {property.required ? "Yes" : "No"}
                 </div>
               </div>
             </div>
 
-            <div class="property-detail__meta">
-              <span>Created {formatDate(property.created_at)}</span>
-              <span>Updated {formatDate(property.updated_at)}</span>
+            <div class="workspace-detail__meta">
+              <span>Created {formatDatetime(property.created_at)}</span>
+              <span>Updated {formatDatetime(property.updated_at)}</span>
             </div>
           </>
         ) : null}
       </div>
 
       {isEditing && formTouched && !saveLoading && !isFormValid && getMissingFields().length > 0 && (
-        <div class="property-detail__missing" aria-live="polite">
+        <div class="workspace-detail__missing" aria-live="polite">
           Still needed: {getMissingFields().join(", ")}
         </div>
       )}
 
       {isEditing && !isCreateMode && !saveLoading && isFormValid && !hasChanges && (
-        <div class="property-detail__hint" aria-live="polite">No changes to save</div>
+        <div class="workspace-detail__hint" aria-live="polite">No changes to save</div>
       )}
 
       {isEditing && (
-        <div class="property-detail__actions">
+        <div class="workspace-detail__actions">
           <Button variant="secondary" size="sm" onClick={handleCancel} disabled={saveLoading}>
             Cancel
           </Button>
