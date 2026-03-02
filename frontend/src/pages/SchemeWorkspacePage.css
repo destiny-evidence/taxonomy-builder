@@ -21,6 +21,11 @@
   background: var(--color-bg-secondary);
 }
 
+.scheme-workspace__create-class {
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
 .scheme-workspace__placeholder {
   display: flex;
   align-items: center;

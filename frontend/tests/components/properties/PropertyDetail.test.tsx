@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { PropertyDetail } from "../../../src/components/properties/PropertyDetail";
 import { propertiesApi } from "../../../src/api/properties";
 import { ApiError } from "../../../src/api/client";
-import { ontologyClasses } from "../../../src/state/ontology";
+import { ontologyClasses } from "../../../src/state/classes";
 import { schemes } from "../../../src/state/schemes";
 import type { Property } from "../../../src/types/models";
 
@@ -50,8 +50,8 @@ describe("PropertyDetail", () => {
     vi.resetAllMocks();
     // Set up ontology classes for edit mode dropdowns
     ontologyClasses.value = [
-      { id: "cls-1", uri: "http://example.org/Person", label: "Person", description: null },
-      { id: "cls-2", uri: "http://example.org/Organization", label: "Organization", description: null },
+      { id: "cls-1", project_id: "proj-1", identifier: "Person", uri: "http://example.org/Person", label: "Person", description: null, scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+      { id: "cls-2", project_id: "proj-1", identifier: "Organization", uri: "http://example.org/Organization", label: "Organization", description: null, scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
     ];
     // Set up schemes for edit mode dropdowns
     schemes.value = [
@@ -152,7 +152,7 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       // Close button is in the header next to the title
-      const header = screen.getByText("Birth Date").closest(".property-detail__header");
+      const header = screen.getByText("Birth Date").closest(".workspace-detail__header");
       expect(header?.querySelector("button")).toBeInTheDocument();
     });
 

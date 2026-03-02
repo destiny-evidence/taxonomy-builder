@@ -4,6 +4,7 @@ import { ProjectPane } from "../components/workspace/ProjectPane";
 import { TreePane } from "../components/workspace/TreePane";
 import { ConceptPane } from "../components/workspace/ConceptPane";
 import { ClassDetailPane } from "../components/workspace/ClassDetailPane";
+import { ClassDetail } from "../components/classes/ClassDetail";
 import { PropertyPane } from "../components/workspace/PropertyPane";
 import { ConceptForm } from "../components/concepts/ConceptForm";
 import { SchemeForm } from "../components/schemes/SchemeForm";
@@ -23,13 +24,13 @@ import {
   selectedConcept,
 } from "../state/concepts";
 import { selectionMode, isClassMode, isSchemeMode } from "../state/workspace";
-import { selectedClassUri, selectedClass, ontologyClasses } from "../state/ontology";
+import { selectedClassUri, selectedClass, ontologyClasses, creatingClass } from "../state/classes";
 import { properties, selectedPropertyId } from "../state/properties";
 import { historyVersion } from "../state/history";
 import { projectsApi } from "../api/projects";
 import { schemesApi } from "../api/schemes";
 import { conceptsApi } from "../api/concepts";
-import { ontologyApi } from "../api/ontology";
+import { classesApi } from "../api/classes";
 import { propertiesApi } from "../api/properties";
 import type { Concept } from "../types/models";
 import "./SchemeWorkspacePage.css";
@@ -103,7 +104,7 @@ export function SchemeWorkspacePage({
 
   async function loadClasses(projectId: string) {
     try {
-      ontologyClasses.value = await ontologyApi.listForProject(projectId);
+      ontologyClasses.value = await classesApi.listForProject(projectId);
     } catch (err) {
       console.error("Failed to load classes:", err);
     }
@@ -158,6 +159,41 @@ export function SchemeWorkspacePage({
     }
   }
 
+  async function handleClassesRefresh() {
+    if (projectId) {
+      await loadClasses(projectId);
+      historyVersion.value++;
+    }
+  }
+
+  async function handleClassDeleted() {
+    selectedClassUri.value = null;
+    selectionMode.value = null;
+    if (projectId) {
+      await Promise.all([loadClasses(projectId), loadProperties(projectId)]);
+    }
+  }
+
+  function handleNewClass() {
+    creatingClass.value = { projectId: projectId! };
+    selectionMode.value = "class";
+    selectedClassUri.value = null;
+    selectedPropertyId.value = null;
+    selectedConceptId.value = null;
+  }
+
+  function handleCreateClassSuccess() {
+    creatingClass.value = null;
+    if (projectId) {
+      loadClasses(projectId);
+      historyVersion.value++;
+    }
+  }
+
+  function handleCreateClassCancel() {
+    creatingClass.value = null;
+  }
+
   function handleExpandAll() {
     const allPaths = new Set<string>();
     function collectPaths(nodes: typeof treeData.value, parentPath = "") {
@@ -178,6 +214,7 @@ export function SchemeWorkspacePage({
   }
 
   function handleClassSelect(classUri: string) {
+    creatingClass.value = null;
     selectionMode.value = "class";
     selectedClassUri.value = classUri;
     selectedPropertyId.value = null;
@@ -187,6 +224,7 @@ export function SchemeWorkspacePage({
   }
 
   function handleSchemeSelect(schemeId: string) {
+    creatingClass.value = null;
     selectionMode.value = "scheme";
     selectedClassUri.value = null;
     selectedPropertyId.value = null;
@@ -274,6 +312,7 @@ export function SchemeWorkspacePage({
         currentSchemeId={schemeId ?? null}
         onSchemeSelect={handleSchemeSelect}
         onClassSelect={handleClassSelect}
+        onNewClass={handleNewClass}
         onNewScheme={() => setIsSchemeFormOpen(true)}
         onImport={() => setIsImportOpen(true)}
         onPublish={() => { setPublishInitialTab("publish"); setIsPublishOpen(true); }}
@@ -282,12 +321,24 @@ export function SchemeWorkspacePage({
 
       {/* Pane 2: Context-dependent detail */}
       <div class="scheme-workspace__main">
-        {isClassMode.value && selectedClass.value ? (
+        {isClassMode.value && creatingClass.value ? (
+          <div class="scheme-workspace__create-class">
+            <ClassDetail
+              mode="create"
+              projectId={projectId}
+              onSuccess={handleCreateClassSuccess}
+              onCancel={handleCreateClassCancel}
+              onRefresh={handleClassesRefresh}
+            />
+          </div>
+        ) : isClassMode.value && selectedClass.value ? (
           <ClassDetailPane
             classUri={selectedClassUri.value!}
             projectId={projectId}
             onPropertySelect={handlePropertySelect}
             onSchemeNavigate={handleSchemeNavigate}
+            onRefresh={handleClassesRefresh}
+            onClassDeleted={handleClassDeleted}
           />
         ) : isSchemeMode.value && schemeId ? (
           <TreePane
