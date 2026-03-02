@@ -1,17 +1,13 @@
 {
   "@context": "esea-context.jsonld",
-  "@id": "https://example.org/investigations/KE-2023-literacy-001",
+
+  "_comment": "A cluster RCT of a literacy intervention in Kenyan primary schools. Exercises the full evidence graph: Investigation-level metadata, Finding with evaluates/comparedTo, per-arm ObservedResults, EffectEstimate, and CodingAnnotation wrapping on all coded fields.",
+
   "@type": "Investigation",
-  "studyDesign": {
-    "@type": "StudyDesignCodingAnnotation",
-    "codedValue": { "@id": "esea:C2010" },
-    "supportingText": "Schools were randomly assigned to treatment and control groups",
-    "codedBy": "EEF",
-    "status": "coded"
-  },
   "documentType": {
     "@type": "DocumentTypeCodingAnnotation",
-    "codedValue": { "@id": "esea:C2010" },
+    "codedValue": { "@id": "esea:C00008" },
+    "supportingText": "Published in Journal of Development Economics, peer-reviewed",
     "codedBy": "EEF",
     "status": "coded"
   },
@@ -23,212 +19,216 @@
   },
   "isRetracted": false,
   "dataSource": "EEF",
-  "hasBaselineDifferences": false,
-  "hasCostData": true,
-  "hasFinding": [
-    {
-      "@id": "_:finding-1",
-      "@type": "Finding",
-      "evaluates": {
-        "@id": "_:intervention",
-        "@type": "Intervention",
-        "educationTheme": [
-          {
-            "@type": "EducationThemeCodingAnnotation",
-            "codedValue": { "@id": "esea:C8210" },
-            "supportingText": "Structured literacy programme with phonics-based reading instruction",
-            "codedBy": "EEF",
-            "status": "coded"
-          },
-          {
-            "@type": "EducationThemeCodingAnnotation",
-            "codedValue": { "@id": "esea:C8320" },
-            "supportingText": "Teachers received 5-day initial training plus termly coaching visits",
-            "codedBy": "EEF",
-            "status": "coded"
-          }
-        ],
-        "implementerType": {
-          "@type": "ImplementerTypeCodingAnnotation",
-          "codedValue": { "@id": "esea:C4020" },
-          "supportingText": "Implemented by an international education NGO",
-          "codedBy": "EEF",
-          "status": "coded"
-        },
-        "implementationComponent": [
-          {
-            "@type": "ImplementationComponentCodingAnnotation",
-            "codedValue": { "@id": "esea:C5010" },
-            "codedBy": "EEF",
-            "status": "coded"
-          },
-          {
-            "@type": "ImplementationComponentCodingAnnotation",
-            "codedValue": { "@id": "esea:C5030" },
-            "codedBy": "EEF",
-            "status": "coded"
-          }
-        ],
-        "implementationFidelity": {
-          "@type": "ImplementationFidelityCodingAnnotation",
-          "codedValue": { "@id": "esea:C10020" },
-          "supportingText": "Fidelity measured via classroom observation checklist; 78% of teachers met threshold",
-          "codedBy": "EEF",
-          "status": "coded"
-        },
-        "implementationName": {
-          "@type": "StringCodingAnnotation",
-          "codedValue": "Kenya Primary Literacy Programme",
-          "codedBy": "EEF",
-          "status": "coded"
-        },
-        "duration": {
-          "@type": "NumericCodingAnnotation",
-          "codedValue": 40,
-          "supportingText": "Two school terms, approximately 40 weeks",
-          "codedBy": "EEF",
-          "status": "coded"
-        },
-        "funderIntervention": {
-          "@type": "StringCodingAnnotation",
-          "codedValue": "DFID Kenya",
-          "codedBy": "EEF",
-          "status": "coded"
-        }
-      },
-      "comparedTo": {
-        "@id": "_:control",
-        "@type": "ControlCondition"
-      },
-      "hasContext": {
-        "@type": "Context",
-        "educationLevel": [
-          {
-            "@type": "EducationLevelCodingAnnotation",
-            "codedValue": { "@id": "esea:C1020" },
-            "supportingText": "Pupils in Standards 1-3 in rural Kenyan primary schools",
-            "codedBy": "EEF",
-            "status": "coded"
-          }
-        ],
-        "educationSetting": [
-          {
-            "@type": "SettingCodingAnnotation",
-            "codedValue": { "@id": "esea:C9010" },
-            "codedBy": "EEF",
-            "status": "coded"
-          }
-        ],
-        "country": {
-          "@type": "StringCodingAnnotation",
-          "codedValue": "KE",
-          "codedBy": "EEF",
-          "status": "coded"
-        },
-        "countryLevel1": {
-          "@type": "StringCodingAnnotation",
-          "codedValue": "Bungoma County",
-          "codedBy": "EEF",
-          "status": "coded"
-        },
-        "participants": [
-          {
-            "@type": "StringCodingAnnotation",
-            "codedValue": "Primary school pupils aged 6-9",
-            "codedBy": "EEF",
-            "status": "coded"
-          }
-        ]
-      },
-      "hasOutcome": {
-        "@type": "Outcome",
-        "educationOutcome": [
-          {
-            "@type": "OutcomeCodingAnnotation",
-            "codedValue": { "@id": "esea:C3011" },
-            "supportingText": "EGRA oral reading fluency, words correct per minute",
-            "codedBy": "EEF",
-            "status": "coded"
-          }
-        ],
-        "outcomeDescription": "EGRA oral reading fluency subtest — words correct per minute at endline"
-      },
-      "participantType": [
+
+  "hasFinding": {
+    "@type": "Finding",
+
+    "evaluates": {
+      "@type": "Intervention",
+      "@id": "_:intervention",
+      "educationTheme": [
         {
-          "@type": "ParticipantTypeCodingAnnotation",
-          "codedValue": { "@id": "esea:C7010" },
+          "@type": "EducationThemeCodingAnnotation",
+          "codedValue": { "@id": "esea:C00074" },
+          "supportingText": "Structured literacy programme with phonics-based reading instruction",
+          "codedBy": "EEF",
+          "status": "coded"
+        },
+        {
+          "@type": "EducationThemeCodingAnnotation",
+          "codedValue": { "@id": "esea:C00055" },
+          "supportingText": "Teachers received 5-day initial training plus termly coaching visits",
           "codedBy": "EEF",
           "status": "coded"
         }
       ],
-      "sampleSize": {
-        "@type": "NumericCodingAnnotation",
-        "codedValue": 1200,
-        "supportingText": "1,200 pupils across 50 schools",
+      "implementerType": {
+        "@type": "ImplementerTypeCodingAnnotation",
+        "codedValue": { "@id": "esea:C00133" },
+        "supportingText": "Implemented by an international education NGO",
         "codedBy": "EEF",
         "status": "coded"
       },
-      "attrition": {
-        "@type": "NumericCodingAnnotation",
-        "codedValue": 8.5,
-        "supportingText": "102 of 1,200 pupils lost to follow-up",
-        "codedBy": "EEF",
-        "status": "coded"
-      },
-      "cost": {
-        "@type": "StringCodingAnnotation",
-        "codedValue": "yes",
-        "codedBy": "EEF",
-        "status": "coded"
-      },
-      "groupDifferences": {
-        "@type": "StringCodingAnnotation",
-        "codedValue": "no",
-        "supportingText": "No statistically significant differences at baseline (p=0.42)",
-        "codedBy": "EEF",
-        "status": "coded"
-      },
-      "hasArmData": [
+      "implementationDescription": [
         {
-          "@type": "ObservedResult",
-          "forCondition": "_:intervention",
-          "n": 580,
-          "mean": 24.3,
-          "sd": 12.1,
-          "preMean": 8.2,
-          "preSd": 5.4,
-          "clusterCount": 25,
+          "@type": "ImplementationDescriptionCodingAnnotation",
+          "codedValue": { "@id": "esea:C00138" },
           "codedBy": "EEF",
-          "sourceLocation": "Table 3, p. 18"
+          "status": "coded"
         },
         {
-          "@type": "ObservedResult",
-          "forCondition": "_:control",
-          "n": 518,
-          "mean": 18.7,
-          "sd": 11.8,
-          "preMean": 8.0,
-          "preSd": 5.2,
-          "clusterCount": 25,
+          "@type": "ImplementationDescriptionCodingAnnotation",
+          "codedValue": { "@id": "esea:C00140" },
           "codedBy": "EEF",
-          "sourceLocation": "Table 3, p. 18"
+          "status": "coded"
         }
       ],
-      "hasEffectEstimate": [
+      "implementationFidelity": {
+        "@type": "ImplementationFidelityCodingAnnotation",
+        "codedValue": { "@id": "esea:C00143" },
+        "supportingText": "Fidelity measured via classroom observation checklist; 78% of teachers met threshold",
+        "codedBy": "EEF",
+        "status": "coded"
+      },
+      "implementationName": {
+        "@type": "StringCodingAnnotation",
+        "codedValue": "Kenya Primary Literacy Programme",
+        "codedBy": "EEF",
+        "status": "coded"
+      },
+      "duration": {
+        "@type": "NumericCodingAnnotation",
+        "codedValue": 40,
+        "supportingText": "Two school terms, approximately 40 weeks",
+        "codedBy": "EEF",
+        "status": "coded"
+      },
+      "funderIntervention": {
+        "@type": "StringCodingAnnotation",
+        "codedValue": "DFID Kenya",
+        "codedBy": "EEF",
+        "status": "coded"
+      }
+    },
+
+    "comparedTo": {
+      "@type": "ControlCondition",
+      "@id": "_:control"
+    },
+
+    "hasContext": {
+      "@type": "Context",
+      "educationLevel": [
         {
-          "@type": "EffectEstimate",
-          "pointEstimate": 0.35,
-          "standardError": 0.12,
-          "confidenceLevel": 0.95,
-          "confidenceIntervalLower": 0.11,
-          "confidenceIntervalUpper": 0.59,
-          "baselineAdjusted": true,
-          "clusteringAdjusted": "yes",
-          "effectSizeMetric": "esea:C0020",
+          "@type": "EducationLevelCodingAnnotation",
+          "codedValue": { "@id": "esea:C00002" },
+          "supportingText": "Pupils in Standards 1-3 in rural Kenyan primary schools",
           "codedBy": "EEF",
-          "sourceLocation": "Table 4, p. 22"
+          "status": "coded"
+        }
+      ],
+      "setting": [
+        {
+          "@type": "SettingCodingAnnotation",
+          "codedValue": { "@id": "esea:C00146" },
+          "codedBy": "EEF",
+          "status": "coded"
+        }
+      ],
+      "country": {
+        "@type": "StringCodingAnnotation",
+        "codedValue": "KE",
+        "codedBy": "EEF",
+        "status": "coded"
+      },
+      "countryLevel1": {
+        "@type": "StringCodingAnnotation",
+        "codedValue": "Bungoma County",
+        "codedBy": "EEF",
+        "status": "coded"
+      },
+      "participants": [
+        {
+          "@type": "StringCodingAnnotation",
+          "codedValue": "Primary school pupils aged 6-9",
+          "codedBy": "EEF",
+          "status": "coded"
         }
       ]
-    }
-  ]
+    },
+
+    "hasOutcome": {
+      "@type": "Outcome",
+      "outcome": [
+        {
+          "@type": "OutcomeCodingAnnotation",
+          "codedValue": { "@id": "esea:C00123" },
+          "supportingText": "EGRA oral reading fluency, words correct per minute",
+          "codedBy": "EEF",
+          "status": "coded"
+        }
+      ]
+    },
+
+    "sampleSize": {
+      "@type": "NumericCodingAnnotation",
+      "codedValue": 1200,
+      "supportingText": "1,200 pupils across 50 schools",
+      "codedBy": "EEF",
+      "status": "coded"
+    },
+    "attrition": {
+      "@type": "NumericCodingAnnotation",
+      "codedValue": 8.5,
+      "supportingText": "102 of 1,200 pupils lost to follow-up",
+      "codedBy": "EEF",
+      "status": "coded"
+    },
+    "cost": {
+      "@type": "StringCodingAnnotation",
+      "codedValue": "yes",
+      "codedBy": "EEF",
+      "status": "coded"
+    },
+    "groupDifferences": {
+      "@type": "StringCodingAnnotation",
+      "codedValue": "no",
+      "supportingText": "No statistically significant differences at baseline (p=0.42)",
+      "codedBy": "EEF",
+      "status": "coded"
+    },
+    "sampleFeatures": [
+      {
+        "@type": "SampleFeaturesCodingAnnotation",
+        "codedValue": { "@id": "esea:C00189" },
+        "supportingText": "Majority low-SES rural households",
+        "codedBy": "EEF",
+        "status": "coded"
+      }
+    ],
+
+    "hasArmData": [
+      {
+        "@type": "ObservedResult",
+        "forCondition": { "@id": "_:intervention" },
+        "n": 580,
+        "mean": 24.3,
+        "sd": 12.1,
+        "preMean": 8.2,
+        "preSd": 5.4,
+        "clusterCount": 25,
+        "codedBy": "EEF",
+        "sourceLocation": "Table 3, p. 18"
+      },
+      {
+        "@type": "ObservedResult",
+        "forCondition": { "@id": "_:control" },
+        "n": 518,
+        "mean": 18.7,
+        "sd": 11.8,
+        "preMean": 8.0,
+        "preSd": 5.2,
+        "clusterCount": 25,
+        "codedBy": "EEF",
+        "sourceLocation": "Table 3, p. 18"
+      }
+    ],
+
+    "hasEffectEstimate": [
+      {
+        "@type": "EffectEstimate",
+        "pointEstimate": 0.35,
+        "standardError": 0.12,
+        "confidenceLevel": 0.95,
+        "confidenceIntervalLower": 0.11,
+        "confidenceIntervalUpper": 0.59,
+        "effectSizeMetric": { "@id": "evrepo:hedgesG" },
+        "estimateSource": { "@id": "evrepo:computedFromStats" },
+        "baselineAdjusted": true,
+        "clusteringAdjusted": "yes",
+        "codedBy": "EEF",
+        "sourceLocation": "Table 4, p. 22"
+      }
+    ]
+  }
 }

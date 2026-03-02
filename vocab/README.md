@@ -6,14 +6,14 @@ Domain vocabulary definitions for the evidence repository. These files are the c
 
 The vocabulary is split across two namespaces, layered so that sector-specific extensions build on a shared core:
 
-**[`evrepo-core/`](evrepo-core/)** — Sector-agnostic evidence synthesis foundation. The full design includes the evidence graph structure (Investigation → Finding → Intervention/Outcome/Context), the CodingAnnotation provenance pattern, ObservedResult, EffectEstimate, and the Condition hierarchy. Shared across education, health, and climate sectors.
+**[`evrepo-core/`](evrepo-core/)** — Sector-agnostic evidence synthesis foundation. Defines the evidence graph structure (Investigation → Finding → Intervention/Outcome/Context), the CodingAnnotation provenance pattern, ObservedResult, EffectEstimate, the Condition hierarchy (Intervention/ControlCondition/TemporalCondition), and the CodingStatus enumeration. Shared across education, health, and climate sectors.
 
-- Namespace: `https://evrepo.example.org/vocab/`
-- `evrepo-core.ttl` — OWL/Turtle ontology (**working draft** — defines core classes and properties but does not yet include CodingAnnotation, ObservedResult, Condition hierarchy, or provenance properties described in the [exposition](../docs/ontology-expressivity/))
+- Namespace: `https://vocab.evidence-repository.org/`
+- `evrepo-core.ttl` — OWL/Turtle ontology
 
-**[`esea/`](esea/)** — Education Sector Evidence Architecture. Extends the core with education-specific concept schemes (education level, theme, outcome, setting, etc.) and properties.
+**[`esea/`](esea/)** — Education Sector Evidence Architecture. Extends the core with education-specific concept schemes covering all 24 taxonomy fields (169 concepts), CodingAnnotation subclasses with OWL restrictions, and domain properties.
 
-- Namespace: `https://esea.example.org/vocab/`
+- Namespace: `https://vocab.esea.education/`
 - `esea-vocab.ttl` — SKOS concept schemes, OWL classes, and properties
 - `esea-context.jsonld` — JSON-LD @context for serialising evidence data
 - `example-finding.jsonld` — Worked example: a cluster RCT with per-arm data
