@@ -24,7 +24,7 @@ export function DetailPanel() {
         if (title) title.focus({ preventScroll: true });
       });
     }
-  }, [entityKind, entityId]);
+  }, [entityKind, entityId, vocabulary.value]);
 
   // Shift+Tab from title returns to active sidebar item
   useEffect(() => {
