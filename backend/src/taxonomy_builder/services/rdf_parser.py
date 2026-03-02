@@ -85,6 +85,17 @@ def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
     """
     result = ValidationResult()
 
+    if len(g) == 0:
+        result.warnings.append(ValidationIssue(
+            severity="warning",
+            type="empty_graph",
+            message=(
+                "File parsed successfully but contains no RDF data — "
+                "check the file format matches the file extension"
+            ),
+        ))
+        return result
+
     _check_file_uris(g, result)
     _check_unresolved_domains(g, class_uris, result)
     _check_rdf_properties(g, result)

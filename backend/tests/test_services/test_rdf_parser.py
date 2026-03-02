@@ -361,6 +361,23 @@ def test_owl_restriction_detected():
     assert "#113" in restriction_infos[0].message
 
 
+# --- Empty graph detection ---
+
+
+EMPTY_GRAPH_TTL = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+"""
+
+
+def test_empty_graph_produces_warning():
+    """A graph with no triples produces a warning."""
+    g = _graph(EMPTY_GRAPH_TTL)
+    result = validate_graph(g, set())
+
+    assert len(result.warnings) == 1
+    assert result.warnings[0].type == "empty_graph"
+
+
 # --- ValidationResult structure ---
 
 

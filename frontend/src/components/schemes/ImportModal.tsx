@@ -252,22 +252,23 @@ export function ImportModal({
                   </span>
                 </div>
 
-                {preview.warnings.length > 0 && (
-                  <div class="import-modal__warnings">
-                    <p class="import-modal__warning-summary">
-                      {preview.warnings.length} warning
-                      {preview.warnings.length !== 1 ? "s" : ""}:
-                      {preview.warnings.length <= 5
-                        ? ""
-                        : ` showing first 5 of ${preview.warnings.length}`}
-                    </p>
-                    {preview.warnings.slice(0, 5).map((w, i) => (
-                      <p key={i} class="import-modal__warning">
-                        {w}
+                {preview.warnings.length > 0 &&
+                  preview.validation_issues.length === 0 && (
+                    <div class="import-modal__warnings">
+                      <p class="import-modal__warning-summary">
+                        {preview.warnings.length} warning
+                        {preview.warnings.length !== 1 ? "s" : ""}:
+                        {preview.warnings.length <= 5
+                          ? ""
+                          : ` showing first 5 of ${preview.warnings.length}`}
                       </p>
-                    ))}
-                  </div>
-                )}
+                      {preview.warnings.slice(0, 5).map((w, i) => (
+                        <p key={i} class="import-modal__warning">
+                          {w}
+                        </p>
+                      ))}
+                    </div>
+                  )}
               </>
             )}
 
