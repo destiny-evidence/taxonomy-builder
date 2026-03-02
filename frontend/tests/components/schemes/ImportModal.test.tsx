@@ -53,6 +53,7 @@ describe("ImportModal", () => {
     properties_count: 0,
     warnings: [],
     errors: [],
+    validation_issues: [],
   };
 
   const mockResult: schemesApi.ImportResult = {
@@ -65,6 +66,7 @@ describe("ImportModal", () => {
     classes_created: [],
     properties_created: [],
     warnings: [],
+    validation_issues: [],
   };
 
   afterEach(() => {

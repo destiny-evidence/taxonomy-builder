@@ -5,6 +5,7 @@ import {
   schemesApi,
   type ImportPreview,
   type ImportResult,
+  type ValidationIssue,
 } from "../../api/schemes";
 import "./ImportModal.css";
 
@@ -20,6 +21,80 @@ function formatImportSummary(result: ImportResult): string {
   return parts.length > 0
     ? `Successfully imported ${parts.join(", ")}.`
     : "No entities found in file.";
+}
+
+function groupByType(issues: ValidationIssue[]): Map<string, ValidationIssue[]> {
+  const groups = new Map<string, ValidationIssue[]>();
+  for (const issue of issues) {
+    const existing = groups.get(issue.type);
+    if (existing) {
+      existing.push(issue);
+    } else {
+      groups.set(issue.type, [issue]);
+    }
+  }
+  return groups;
+}
+
+function ValidationIssueGroup({
+  issues,
+  severity,
+}: {
+  issues: ValidationIssue[];
+  severity: "error" | "warning" | "info";
+}) {
+  const grouped = groupByType(issues);
+  if (grouped.size === 0) return null;
+
+  const prefix = severity === "error" ? "Error" : severity === "warning" ? "Warning" : "Note";
+  const cssClass = `import-modal__validation-${severity}`;
+
+  return (
+    <div class={cssClass}>
+      {[...grouped.entries()].map(([type, group]) => (
+        <p key={type} class="import-modal__validation-item">
+          <strong>{prefix}:</strong>{" "}
+          {group.length > 1
+            ? `${group[0].message} (+${group.length - 1} more)`
+            : group[0].message}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function ValidationIssues({
+  issues,
+}: {
+  issues: ValidationIssue[];
+}) {
+  if (!issues || issues.length === 0) return null;
+
+  const errors = issues.filter((i) => i.severity === "error");
+  const warnings = issues.filter((i) => i.severity === "warning");
+  const infos = issues.filter((i) => i.severity === "info");
+
+  const [showInfo, setShowInfo] = useState(false);
+
+  return (
+    <div class="import-modal__validation" aria-live="polite">
+      <ValidationIssueGroup issues={errors} severity="error" />
+      <ValidationIssueGroup issues={warnings} severity="warning" />
+      {infos.length > 0 && (
+        <div class="import-modal__validation-info-section">
+          <button
+            type="button"
+            class="import-modal__validation-info-toggle"
+            onClick={() => setShowInfo(!showInfo)}
+          >
+            {showInfo ? "Hide" : "Show"} {infos.length} informational note
+            {infos.length !== 1 ? "s" : ""}
+          </button>
+          {showInfo && <ValidationIssueGroup issues={infos} severity="info" />}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface ImportModalProps {
@@ -86,7 +161,6 @@ export function ImportModal({
   }
 
   function handleClose() {
-    // Reset state
     setFile(null);
     setStep("select");
     setPreview(null);
@@ -129,63 +203,73 @@ export function ImportModal({
 
         {step === "preview" && preview && (
           <div class="import-modal__preview">
-            <div class="import-modal__schemes">
-              {preview.schemes.map((scheme, index) => (
-                <div key={index} class="import-modal__scheme-card">
-                  <h3 class="import-modal__scheme-title">{scheme.title}</h3>
-                  {scheme.description && (
-                    <p class="import-modal__scheme-description">
-                      {scheme.description}
-                    </p>
-                  )}
-                  {scheme.uri && (
-                    <p class="import-modal__scheme-uri">{scheme.uri}</p>
-                  )}
-                  <div class="import-modal__scheme-stats">
-                    <span>{scheme.concepts_count} concepts</span>
-                    <span>{scheme.relationships_count} relationships</span>
-                  </div>
-                  {scheme.warnings.length > 0 && (
-                    <div class="import-modal__scheme-warnings">
-                      {scheme.warnings.map((warning, i) => (
+            <ValidationIssues issues={preview.validation_issues} />
+
+            {preview.valid && (
+              <>
+                <div class="import-modal__schemes">
+                  {preview.schemes.map((scheme, index) => (
+                    <div key={index} class="import-modal__scheme-card">
+                      <h3 class="import-modal__scheme-title">{scheme.title}</h3>
+                      {scheme.description && (
+                        <p class="import-modal__scheme-description">
+                          {scheme.description}
+                        </p>
+                      )}
+                      {scheme.uri && (
+                        <p class="import-modal__scheme-uri">{scheme.uri}</p>
+                      )}
+                      <div class="import-modal__scheme-stats">
+                        <span>{scheme.concepts_count} concepts</span>
+                        <span>{scheme.relationships_count} relationships</span>
+                      </div>
+                      {scheme.warnings.length > 0 && (
+                        <div class="import-modal__scheme-warnings">
+                          {scheme.warnings.map((warning, i) => (
+                            <p key={i} class="import-modal__warning">
+                              {warning}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div class="import-modal__totals">
+                  <span>
+                    Total:{" "}
+                    {[
+                      preview.classes_count > 0 &&
+                        `${preview.classes_count} classes`,
+                      preview.properties_count > 0 &&
+                        `${preview.properties_count} properties`,
+                      `${preview.total_concepts_count} concepts`,
+                      `${preview.total_relationships_count} relationships`,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </div>
+
+                {preview.warnings.length > 0 &&
+                  preview.validation_issues.length === 0 && (
+                    <div class="import-modal__warnings">
+                      <p class="import-modal__warning-summary">
+                        {preview.warnings.length} warning
+                        {preview.warnings.length !== 1 ? "s" : ""}:
+                        {preview.warnings.length <= 5
+                          ? ""
+                          : ` showing first 5 of ${preview.warnings.length}`}
+                      </p>
+                      {preview.warnings.slice(0, 5).map((w, i) => (
                         <p key={i} class="import-modal__warning">
-                          {warning}
+                          {w}
                         </p>
                       ))}
                     </div>
                   )}
-                </div>
-              ))}
-            </div>
-
-            <div class="import-modal__totals">
-              <span>
-                Total:{" "}
-                {[
-                  preview.classes_count > 0 &&
-                    `${preview.classes_count} classes`,
-                  preview.properties_count > 0 &&
-                    `${preview.properties_count} properties`,
-                  `${preview.total_concepts_count} concepts`,
-                  `${preview.total_relationships_count} relationships`,
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
-              </span>
-            </div>
-
-            {preview.warnings.length > 0 && (
-              <div class="import-modal__warnings">
-                <p class="import-modal__warning-summary">
-                  {preview.warnings.length} warning{preview.warnings.length !== 1 ? "s" : ""}:
-                  {preview.warnings.length <= 5
-                    ? ""
-                    : ` showing first 5 of ${preview.warnings.length}`}
-                </p>
-                {preview.warnings.slice(0, 5).map((w, i) => (
-                  <p key={i} class="import-modal__warning">{w}</p>
-                ))}
-              </div>
+              </>
             )}
 
             {error && <p class="import-modal__error">{error}</p>}
@@ -194,7 +278,9 @@ export function ImportModal({
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button onClick={handleImport}>Import All</Button>
+              {preview.valid && (
+                <Button onClick={handleImport}>Import All</Button>
+              )}
             </div>
           </div>
         )}
@@ -208,10 +294,11 @@ export function ImportModal({
         {step === "success" && result && (
           <div class="import-modal__success">
             <p>{formatImportSummary(result)}</p>
+            <ValidationIssues issues={result.validation_issues} />
             {result.warnings.length > 0 && (
               <p class="import-modal__warning-summary">
-                {result.warnings.length} warning{result.warnings.length !== 1 ? "s" : ""} during
-                import.
+                {result.warnings.length} warning
+                {result.warnings.length !== 1 ? "s" : ""} during import.
               </p>
             )}
             <div class="import-modal__actions">

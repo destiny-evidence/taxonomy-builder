@@ -1,8 +1,18 @@
 """Pydantic schemas for SKOS import."""
 
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+
+class ValidationIssueResponse(BaseModel):
+    """A single validation issue found during import analysis."""
+
+    severity: Literal["error", "warning", "info"]
+    type: str
+    message: str
+    entity_uri: str | None = None
 
 
 class SchemePreviewResponse(BaseModel):
@@ -48,6 +58,7 @@ class ImportPreviewResponse(BaseModel):
     properties_count: int = 0
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    validation_issues: list[ValidationIssueResponse] = Field(default_factory=list)
 
 
 class SchemeCreatedResponse(BaseModel):
@@ -87,3 +98,4 @@ class ImportResultResponse(BaseModel):
     classes_created: list[ClassCreatedResponse] = Field(default_factory=list)
     properties_created: list[PropertyCreatedResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    validation_issues: list[ValidationIssueResponse] = Field(default_factory=list)
