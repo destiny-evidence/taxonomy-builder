@@ -1,6 +1,9 @@
 """Pure RDF parsing and analysis — no database access."""
 
-from rdflib import Graph, Literal, URIRef
+from dataclasses import dataclass, field
+from typing import Literal as LiteralType
+
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
 
 # XSD namespace prefix for abbreviating datatype URIs
@@ -46,6 +49,198 @@ def parse_rdf(content: bytes, fmt: str) -> Graph:
     except Exception as e:
         raise InvalidRDFError(f"Failed to parse RDF: {e}") from e
     return g
+
+
+# --- Validation ---
+
+
+@dataclass
+class ValidationIssue:
+    severity: LiteralType["error", "warning", "info"]
+    type: str
+    message: str
+    entity_uri: str | None = None
+
+
+@dataclass
+class ValidationResult:
+    errors: list[ValidationIssue] = field(default_factory=list)
+    warnings: list[ValidationIssue] = field(default_factory=list)
+    info: list[ValidationIssue] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        return len(self.errors) > 0
+
+
+def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
+    """Run validation checks on a parsed RDF graph before import.
+
+    Args:
+        g: The parsed RDF graph.
+        class_uris: URIs of known classes (existing project classes + classes in the file).
+
+    Returns:
+        ValidationResult with categorised issues.
+    """
+    result = ValidationResult()
+
+    _check_file_uris(g, result)
+    _check_unresolved_domains(g, class_uris, result)
+    _check_rdf_properties(g, result)
+    _check_unsupported_subclasses(g, result)
+    _check_unsupported_union_domains(g, result)
+    _check_unsupported_named_individuals(g, result)
+    _check_unsupported_restrictions(g, result)
+
+    return result
+
+
+def _check_file_uris(g: Graph, result: ValidationResult) -> None:
+    """Detect file:// URIs in subjects and objects."""
+    seen: set[str] = set()
+    for s, _p, o in g:
+        for node in (s, o):
+            if isinstance(node, URIRef):
+                uri_str = str(node)
+                if uri_str.startswith("file://") and uri_str not in seen:
+                    seen.add(uri_str)
+                    result.errors.append(ValidationIssue(
+                        severity="error",
+                        type="file_uri",
+                        message=(
+                            f"file:// URI detected: {uri_str} — "
+                            f"this usually means the file is missing an @base directive"
+                        ),
+                        entity_uri=uri_str,
+                    ))
+
+
+def _check_unresolved_domains(
+    g: Graph, class_uris: set[str], result: ValidationResult
+) -> None:
+    """Warn when properties reference domain classes not in the known set."""
+    # Collect classes defined in this graph
+    file_class_uris = {str(uri) for uri in find_owl_classes(g)}
+    all_class_uris = class_uris | file_class_uris
+
+    for uri, _ptype in find_properties(g):
+        domain = g.value(uri, RDFS.domain)
+        if not isinstance(domain, URIRef):
+            continue
+        domain_str = str(domain)
+        if domain_str not in all_class_uris:
+            result.warnings.append(ValidationIssue(
+                severity="warning",
+                type="unresolved_domain",
+                message=(
+                    f"Property '{get_identifier_from_uri(uri)}' has domain "
+                    f"'{domain_str}' which doesn't match any class in the project"
+                ),
+                entity_uri=str(uri),
+            ))
+
+
+def _check_rdf_properties(g: Graph, result: ValidationResult) -> None:
+    """Detect rdf:Property instances for informational reporting."""
+    for subject in g.subjects(RDF.type, RDF.Property):
+        if isinstance(subject, URIRef):
+            result.info.append(ValidationIssue(
+                severity="info",
+                type="rdf_property",
+                message=(
+                    f"'{get_identifier_from_uri(subject)}' is typed as rdf:Property "
+                    f"(not owl:ObjectProperty/DatatypeProperty)"
+                ),
+                entity_uri=str(subject),
+            ))
+
+
+def _check_unsupported_subclasses(g: Graph, result: ValidationResult) -> None:
+    """Detect rdfs:subClassOf between ontology classes (not concept subclasses)."""
+    concept_subclasses = find_concept_subclasses(g)
+    count = 0
+    for s, _p, o in g.triples((None, RDFS.subClassOf, None)):
+        if not isinstance(s, URIRef) or not isinstance(o, URIRef):
+            continue
+        # Skip subClassOf skos:Concept (that's normal concept typing)
+        if o == SKOS.Concept:
+            continue
+        # Skip if the subject is a concept subclass (already handled)
+        if s in concept_subclasses:
+            continue
+        count += 1
+
+    if count:
+        result.info.append(ValidationIssue(
+            severity="info",
+            type="unsupported_subclass",
+            message=(
+                f"Found {count} subclass relationship{'s' if count != 1 else ''} "
+                f"between ontology classes — not yet supported (#109)"
+            ),
+        ))
+
+
+def _check_unsupported_union_domains(g: Graph, result: ValidationResult) -> None:
+    """Detect owl:unionOf in property domains."""
+    for uri, _ptype in find_properties(g):
+        domain = g.value(uri, RDFS.domain)
+        if isinstance(domain, BNode) and (domain, OWL.unionOf, None) in g:
+            result.info.append(ValidationIssue(
+                severity="info",
+                type="unsupported_union_domain",
+                message=(
+                    f"Property '{get_identifier_from_uri(uri)}' has a union domain "
+                    f"— only first class will be used (#110)"
+                ),
+                entity_uri=str(uri),
+            ))
+    # Also check rdf:Property instances for union domains
+    for subject in g.subjects(RDF.type, RDF.Property):
+        if isinstance(subject, URIRef):
+            domain = g.value(subject, RDFS.domain)
+            if isinstance(domain, BNode) and (domain, OWL.unionOf, None) in g:
+                result.info.append(ValidationIssue(
+                    severity="info",
+                    type="unsupported_union_domain",
+                    message=(
+                        f"Property '{get_identifier_from_uri(subject)}' has a union "
+                        f"domain — only first class will be used (#110)"
+                    ),
+                    entity_uri=str(subject),
+                ))
+
+
+def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> None:
+    """Detect owl:NamedIndividual instances."""
+    count = sum(
+        1 for s in g.subjects(RDF.type, OWL.NamedIndividual)
+        if isinstance(s, URIRef)
+    )
+    if count:
+        result.info.append(ValidationIssue(
+            severity="info",
+            type="unsupported_named_individual",
+            message=(
+                f"Found {count} named individual{'s' if count != 1 else ''} "
+                f"— not yet supported (#112)"
+            ),
+        ))
+
+
+def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
+    """Detect owl:Restriction instances."""
+    count = sum(1 for _ in g.subjects(RDF.type, OWL.Restriction))
+    if count:
+        result.info.append(ValidationIssue(
+            severity="info",
+            type="unsupported_restriction",
+            message=(
+                f"Found {count} OWL restriction{'s' if count != 1 else ''} "
+                f"— these will be skipped (#113)"
+            ),
+        ))
 
 
 # --- URI helpers ---
@@ -202,15 +397,16 @@ def extract_class_metadata(g: Graph, class_uri: URIRef) -> dict:
 
 
 def find_properties(g: Graph) -> list[tuple[URIRef, str]]:
-    """Find owl:ObjectProperty and owl:DatatypeProperty instances.
+    """Find owl:ObjectProperty, owl:DatatypeProperty, and rdf:Property instances.
 
     Returns list of (uri, property_type) tuples, deduplicated by URI.
     If a property is typed as both ObjectProperty and DatatypeProperty,
     the type is resolved from rdfs:range: XSD range -> datatype,
-    otherwise -> object.
+    otherwise -> object.  rdf:Property instances get type "rdf".
     """
     object_props: set[URIRef] = set()
     datatype_props: set[URIRef] = set()
+    rdf_props: set[URIRef] = set()
 
     for subject in g.subjects(RDF.type, OWL.ObjectProperty):
         if isinstance(subject, URIRef):
@@ -220,10 +416,14 @@ def find_properties(g: Graph) -> list[tuple[URIRef, str]]:
         if isinstance(subject, URIRef):
             datatype_props.add(subject)
 
-    all_uris = object_props | datatype_props
+    for subject in g.subjects(RDF.type, RDF.Property):
+        if isinstance(subject, URIRef):
+            rdf_props.add(subject)
+
+    owl_uris = object_props | datatype_props
     properties: list[tuple[URIRef, str]] = []
 
-    for uri in all_uris:
+    for uri in owl_uris:
         is_obj = uri in object_props
         is_dt = uri in datatype_props
         if is_obj and is_dt:
@@ -236,6 +436,10 @@ def find_properties(g: Graph) -> list[tuple[URIRef, str]]:
             properties.append((uri, "datatype"))
         else:
             properties.append((uri, "object"))
+
+    # Add rdf:Property instances not already covered by OWL types
+    for uri in rdf_props - owl_uris:
+        properties.append((uri, "rdf"))
 
     return properties
 
