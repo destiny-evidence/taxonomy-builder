@@ -13,6 +13,7 @@ from taxonomy_builder.schemas.ontology_class import (
 )
 from taxonomy_builder.services.ontology_class_service import (
     OntologyClassIdentifierExistsError,
+    OntologyClassReferencedByPropertyError,
     OntologyClassService,
     OntologyClassURIExistsError,
     ProjectNamespaceRequiredError,
@@ -103,9 +104,12 @@ async def delete_ontology_class(
     service: OntologyClassService = Depends(get_ontology_class_service),
 ) -> None:
     """Delete an ontology class."""
-    deleted = await service.delete_ontology_class(class_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Ontology class with id '{class_id}' not found",
-        )
+    try:
+        deleted = await service.delete_ontology_class(class_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Ontology class with id '{class_id}' not found",
+            )
+    except OntologyClassReferencedByPropertyError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

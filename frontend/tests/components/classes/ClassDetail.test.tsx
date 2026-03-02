@@ -219,6 +219,22 @@ describe("ClassDetail", () => {
         expect(mockOnDeleted).toHaveBeenCalled();
       });
     });
+
+    it("shows error when delete fails with 409", async () => {
+      vi.mocked(classesApi.delete).mockRejectedValue(
+        new ApiError(409, "Cannot delete"),
+      );
+
+      renderView();
+      fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("alert")).toHaveTextContent(
+          /referenced by one or more properties/i,
+        );
+      });
+    });
   });
 
   describe("create mode", () => {

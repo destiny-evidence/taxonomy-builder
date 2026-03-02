@@ -51,6 +51,7 @@ export function ClassDetail(props: ClassDetailProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isCreateMode) {
@@ -78,6 +79,7 @@ export function ClassDetail(props: ClassDetailProps) {
     setEditDraft(draft);
     setInitialDraft(draft);
     setValidationErrors({});
+    setDeleteError(null);
     setIsEditing(true);
   }
 
@@ -185,15 +187,20 @@ export function ClassDetail(props: ClassDetailProps) {
   async function handleDelete() {
     if (!ontologyClass) return;
     setDeleteLoading(true);
+    setDeleteError(null);
     try {
       await classesApi.delete(ontologyClass.id);
       props.onRefresh();
       (props as ViewEditProps).onDeleted();
     } catch (err) {
-      console.error("Failed to delete class:", err);
+      setShowDeleteConfirm(false);
+      if (err instanceof ApiError && err.status === 409) {
+        setDeleteError("Cannot delete this class because it is referenced by one or more properties");
+      } else {
+        setDeleteError(err instanceof Error ? err.message : "Failed to delete class");
+      }
     } finally {
       setDeleteLoading(false);
-      setShowDeleteConfirm(false);
     }
   }
 
@@ -219,9 +226,9 @@ export function ClassDetail(props: ClassDetailProps) {
         )}
       </div>
 
-      {saveError && (
+      {(saveError || deleteError) && (
         <div class="workspace-detail__error" role="alert">
-          {saveError}
+          {saveError || deleteError}
         </div>
       )}
 
