@@ -1,0 +1,176 @@
+{
+  "@context": "../../../vocab/esea/esea-context.jsonld",
+
+  "_comment": "3ie DEP study 34810 mapped from flat tabular data to the ESEA evidence graph. The source is a single row in '3ie DEP education IE data (Dec2025).xlsx' with columns like evaluation_design, country, intervention, outcome. This example shows how flat fields map to the nested Investigation -> Finding -> Intervention/Context/Outcome structure with CodingAnnotation provenance. Source: Kane & Ndoye (2020), 'Internship Programs and Access to Employment', DOI 10.3917/edd.344.0047",
+
+  "@id": "https://example.org/investigations/3ie-34810",
+  "@type": "Investigation",
+
+  "_comment_study_design": "3ie field: evaluation_design='Quasi-experimental', evaluation_method='Instrumental variable estimation'. Study Design is not yet defined in the ESEA vocabulary (wiki page does not exist). When the scheme is added, this would be coded here.",
+
+  "documentType": {
+    "_comment": "3ie field: publication_type='Journal article'",
+    "@type": "DocumentTypeCodingAnnotation",
+    "codedValue": { "@id": "esea:C00008" },
+    "supportingText": "Journal article",
+    "codedBy": "3ie",
+    "status": "coded"
+  },
+
+  "funderResearch": {
+    "_comment": "3ie field: research_funding_agency='Not specified'",
+    "@type": "StringCodingAnnotation",
+    "codedValue": null,
+    "codedBy": "3ie",
+    "status": "notReported"
+  },
+
+  "isRetracted": false,
+  "dataSource": "3ie-DEP",
+
+  "hasFinding": [
+    {
+      "_comment": "3ie has two outcomes for this study: 'Index of employment' and 'Employment type'. Each becomes a separate Finding. This is finding 1.",
+      "@id": "_:finding-employment-index",
+      "@type": "Finding",
+
+      "evaluates": {
+        "@id": "_:intervention-cnee",
+        "@type": "Intervention",
+
+        "educationTheme": [
+          {
+            "_comment": "3ie field: intervention='Technical and Vocational Education and Training (TVET)'. No exact match in theme scheme; closest is Teaching and Learning (C00022) as parent.",
+            "@type": "EducationThemeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00022" },
+            "supportingText": "An internship and apprenticeship programme enacted by the government of Senegal",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ],
+
+        "implementerType": {
+          "_comment": "3ie field: implementation_agencies='Government agency'",
+          "@type": "ImplementerTypeCodingAnnotation",
+          "codedValue": { "@id": "esea:C00137" },
+          "supportingText": "Government Of Senegal",
+          "codedBy": "3ie",
+          "status": "coded"
+        },
+
+        "implementationName": {
+          "_comment": "3ie field: project_name",
+          "@type": "StringCodingAnnotation",
+          "codedValue": "National State-Private Sector Employer Agreement (CNEE)",
+          "codedBy": "3ie",
+          "status": "coded"
+        },
+
+        "funderIntervention": {
+          "_comment": "3ie field: program_funding_agency='Not specified'",
+          "@type": "StringCodingAnnotation",
+          "codedValue": null,
+          "codedBy": "3ie",
+          "status": "notReported"
+        }
+      },
+
+      "comparedTo": {
+        "@id": "_:control-no-internship",
+        "@type": "ControlCondition"
+      },
+
+      "hasContext": {
+        "@type": "Context",
+
+        "educationLevel": [
+          {
+            "_comment": "3ie field: sub_sector='Workforce development and vocational education'. Maps to TVET level.",
+            "@type": "EducationLevelCodingAnnotation",
+            "codedValue": { "@id": "esea:C00005" },
+            "supportingText": "Workforce development and vocational education",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ],
+
+        "setting": [
+          {
+            "_comment": "Inferred from intervention type — vocational/apprenticeship context",
+            "@type": "SettingCodingAnnotation",
+            "codedValue": { "@id": "esea:C00152" },
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ],
+
+        "country": {
+          "_comment": "3ie field: country='Senegal'. Converted to ISO 3166-1 alpha-2.",
+          "@type": "StringCodingAnnotation",
+          "codedValue": "SN",
+          "codedBy": "3ie",
+          "status": "coded"
+        },
+
+        "participants": [
+          {
+            "_comment": "3ie field: unit_of_observation='Household'. Not a direct fit — participants is open text.",
+            "@type": "StringCodingAnnotation",
+            "codedValue": "Households with internship/apprenticeship programme participants",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ]
+      },
+
+      "hasOutcome": {
+        "_comment": "3ie field: outcome='Index of employment', outcome_description='Access to employment (p71, t4)'",
+        "@type": "Outcome",
+        "outcome": [
+          {
+            "@type": "OutcomeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00130" },
+            "supportingText": "Access to employment (p71, t4)",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ]
+      },
+
+      "sampleFeatures": [
+        {
+          "_comment": "3ie field: equity_dimension='Sex', equity_focus='Sub-group analysis by sex'",
+          "@type": "SampleFeaturesCodingAnnotation",
+          "codedValue": { "@id": "esea:C00187" },
+          "supportingText": "Sub-group analysis by sex — (p71) Table 4",
+          "codedBy": "3ie",
+          "status": "coded"
+        }
+      ],
+
+      "_comment_no_effect_data": "3ie DEP is study-level metadata — no per-arm statistics (n, mean, sd) or effect sizes (SMD, SE, CI) are available. hasArmData and hasEffectEstimate are omitted. Compare with the EEF mapping in vocab/esea/example-finding.jsonld which has full quantitative data."
+    },
+
+    {
+      "_comment": "Finding 2: same intervention/context, different outcome",
+      "@id": "_:finding-employment-type",
+      "@type": "Finding",
+
+      "evaluates": { "@id": "_:intervention-cnee" },
+      "comparedTo": { "@id": "_:control-no-internship" },
+
+      "hasOutcome": {
+        "@type": "Outcome",
+        "outcome": [
+          {
+            "@type": "OutcomeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00130" },
+            "supportingText": "Regular employment (p72, fig.1)",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ]
+      }
+    }
+  ]
+}

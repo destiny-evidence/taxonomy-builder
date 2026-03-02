@@ -1,0 +1,71 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix evrepo: <https://vocab.evidence-repository.org/> .
+
+# =============================================================================
+# Union domain properties
+# =============================================================================
+#
+# supportingText and codedBy each apply to three classes: CodingAnnotation,
+# ObservedResult, and EffectEstimate. sourceLocation applies to two:
+# ObservedResult and EffectEstimate (CodingAnnotation uses supportingText
+# instead for source context).
+#
+# All three are declared as rdf:Property (not owl:DatatypeProperty) because
+# codedBy could hold a string identifier or an @id reference to an agent.
+#
+# The builder currently supports only a single domain_class per property.
+# Issue #110 adds multi-domain support so these can be represented.
+# =============================================================================
+
+# --- Classes (abbreviated) ---
+
+evrepo:CodingAnnotation a owl:Class ;
+    rdfs:label "Coding Annotation" ;
+    rdfs:comment "Wraps a coded value with provenance." .
+
+evrepo:ObservedResult a owl:Class ;
+    rdfs:label "Observed Result" ;
+    rdfs:comment "Per-arm descriptive statistics." .
+
+evrepo:EffectEstimate a owl:Class ;
+    rdfs:label "Effect Estimate" ;
+    rdfs:comment "Computed or reported effect size." .
+
+# --- Union domain properties ---
+
+evrepo:supportingText a rdf:Property ;
+    rdfs:label "supporting text" ;
+    rdfs:comment "Verbatim text from the source document supporting this value." ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf (
+            evrepo:CodingAnnotation
+            evrepo:ObservedResult
+            evrepo:EffectEstimate
+        )
+    ] ;
+    rdfs:range xsd:string .
+
+evrepo:codedBy a rdf:Property ;
+    rdfs:label "coded by" ;
+    rdfs:comment "The agent (human coder or LLM) who performed the coding." ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf (
+            evrepo:CodingAnnotation
+            evrepo:ObservedResult
+            evrepo:EffectEstimate
+        )
+    ] .
+
+evrepo:sourceLocation a rdf:Property ;
+    rdfs:label "source location" ;
+    rdfs:comment "Location in the source document where the data was found (e.g. table number, page reference)." ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf (
+            evrepo:ObservedResult
+            evrepo:EffectEstimate
+        )
+    ] ;
+    rdfs:range xsd:string .
