@@ -166,12 +166,11 @@ export function SchemeWorkspacePage({
     }
   }
 
-  function handleClassDeleted() {
+  async function handleClassDeleted() {
     selectedClassUri.value = null;
     selectionMode.value = null;
     if (projectId) {
-      loadClasses(projectId);
-      loadProperties(projectId);
+      await Promise.all([loadClasses(projectId), loadProperties(projectId)]);
     }
   }
 

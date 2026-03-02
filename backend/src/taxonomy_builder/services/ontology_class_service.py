@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -252,7 +252,10 @@ class OntologyClassService:
         result = await self.db.execute(
             select(Property.id).where(
                 Property.project_id == ontology_class.project_id,
-                Property.domain_class == ontology_class.uri,
+                or_(
+                    Property.domain_class == ontology_class.uri,
+                    Property.range_class == ontology_class.uri,
+                ),
             )
         )
         if result.first() is not None:

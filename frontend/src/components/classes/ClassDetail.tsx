@@ -175,14 +175,14 @@ export function ClassDetail(props: ClassDetailProps) {
       ? JSON.stringify(editDraft) !== JSON.stringify(initialDraft)
       : false;
 
-  function getMissingFields(): string[] {
+  const missingFields = (() => {
     if (!editDraft) return [];
     const missing: string[] = [];
     if (!editDraft.label.trim()) missing.push("Label");
     if (isCreateMode && !editDraft.identifier.trim()) missing.push("Identifier");
     else if (isCreateMode && identifierError) missing.push("Valid identifier");
     return missing;
-  }
+  })();
 
   async function handleDelete() {
     if (!ontologyClass) return;
@@ -190,7 +190,6 @@ export function ClassDetail(props: ClassDetailProps) {
     setDeleteError(null);
     try {
       await classesApi.delete(ontologyClass.id);
-      props.onRefresh();
       (props as ViewEditProps).onDeleted();
     } catch (err) {
       setShowDeleteConfirm(false);
@@ -316,9 +315,9 @@ export function ClassDetail(props: ClassDetailProps) {
         formTouched &&
         !saveLoading &&
         !isFormValid &&
-        getMissingFields().length > 0 && (
+        missingFields.length > 0 && (
           <div class="workspace-detail__missing" aria-live="polite">
-            Still needed: {getMissingFields().join(", ")}
+            Still needed: {missingFields.join(", ")}
           </div>
         )}
 

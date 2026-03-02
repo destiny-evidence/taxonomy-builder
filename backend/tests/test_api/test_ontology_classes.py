@@ -302,3 +302,32 @@ class TestDeleteOntologyClass:
         assert response.status_code == 409
         assert "cannot be deleted" in response.json()["detail"]
         assert "referenced by one or more properties" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_delete_ontology_class_referenced_as_range_class(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        ontology_class_obj: OntologyClass,
+        project: Project,
+    ) -> None:
+        """Test that deleting a class used as range_class by a property returns 409."""
+        prop = Property(
+            project_id=project.id,
+            identifier="relatesTo",
+            label="Relates To",
+            domain_class="https://example.org/vocab/Other",
+            range_class=ontology_class_obj.uri,
+            cardinality="single",
+            required=False,
+            uri="https://example.org/vocab/relatesTo",
+        )
+        db_session.add(prop)
+        await db_session.flush()
+
+        response = await authenticated_client.delete(
+            f"/api/classes/{ontology_class_obj.id}"
+        )
+        assert response.status_code == 409
+        assert "cannot be deleted" in response.json()["detail"]
+        assert "referenced by one or more properties" in response.json()["detail"]
