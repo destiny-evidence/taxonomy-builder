@@ -69,7 +69,7 @@ export function ConceptDetail({ conceptId }: ConceptDetailProps) {
 
   return (
     <div class="detail">
-      <h1 class="detail__title">{concept.pref_label}</h1>
+      <h1 class="detail__title" tabIndex={0}>{concept.pref_label}</h1>
       <div class="detail__uri">{concept.uri}</div>
 
       {concept.definition && (

@@ -64,6 +64,8 @@
 
 .sidebar__section-title--active {
   color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .sidebar__section-body {
@@ -105,6 +107,10 @@
 }
 
 /* Concept tree */
+.concept-tree {
+  padding-left: var(--spacing-md);
+}
+
 .concept-tree__node {
   display: flex;
   align-items: center;
@@ -126,6 +132,8 @@
 .concept-tree__node--active {
   color: var(--color-primary);
   font-weight: 600;
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(var(--spacing-sm) + 3px);
 }
 
 .concept-tree__chevron {
@@ -153,6 +161,12 @@
   white-space: nowrap;
 }
 
+.concept-tree__poly {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-left: 2px;
+}
+
 .concept-tree__children {
   padding-left: var(--spacing-md);
 }
@@ -178,6 +192,8 @@
 .data-model-item--active {
   color: var(--color-primary);
   font-weight: 600;
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(var(--spacing-sm) + 3px);
 }
 
 /* Feedback count badge */

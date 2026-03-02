@@ -13,9 +13,27 @@ function findScheme(schemeId: string): VocabScheme | null {
   return vocab.schemes.find((s) => s.id === schemeId) ?? null;
 }
 
+function PropertyLink({ id, label }: { id: string; label: string }) {
+  const version = selectedVersion.value;
+  const projectId = currentProjectId.value;
+  return (
+    <span
+      class="detail__link"
+      onClick={() => version && projectId && navigate(projectId, version, "property", id)}
+    >
+      {label}
+    </span>
+  );
+}
+
 export function SchemeDetail({ schemeId }: SchemeDetailProps) {
   const scheme = findScheme(schemeId);
   if (!scheme) return <div class="detail">Scheme not found</div>;
+
+  const allProperties = vocabulary.value?.properties ?? [];
+  const rangeProperties = allProperties.filter(
+    (p) => p.range_scheme_id === schemeId
+  );
 
   const conceptCount = Object.keys(scheme.concepts).length;
   const topConcepts = scheme.top_concepts
@@ -27,7 +45,7 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
 
   return (
     <div class="detail">
-      <h1 class="detail__title">{scheme.title}</h1>
+      <h1 class="detail__title" tabIndex={0}>{scheme.title} <span class="detail__entity-type">(Concept Scheme)</span></h1>
       <div class="detail__uri">{scheme.uri}</div>
 
       {scheme.description && (
@@ -58,6 +76,17 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
               >
                 {c.label}
               </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rangeProperties.length > 0 && (
+        <div class="detail__section">
+          <div class="detail__label">Used by Properties</div>
+          <div class="detail__link-list">
+            {rangeProperties.map((p) => (
+              <PropertyLink key={p.id} id={p.id} label={p.label} />
             ))}
           </div>
         </div>

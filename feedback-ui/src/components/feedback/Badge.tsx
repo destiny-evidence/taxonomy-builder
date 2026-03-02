@@ -5,8 +5,16 @@ interface BadgeProps {
   variant?: "default" | "open" | "responded" | "resolved" | "declined";
 }
 
+const STATUS_PREFIX: Record<string, string> = {
+  open: "\u29D7 ",
+  responded: "\u21A9 ",
+  resolved: "\u2713 ",
+  declined: "\u2717 ",
+};
+
 export function Badge({ label, variant = "default" }: BadgeProps) {
-  return <span class={`badge badge--${variant}`}>{label}</span>;
+  const prefix = STATUS_PREFIX[variant] ?? "";
+  return <span class={`badge badge--${variant}`}>{prefix}{label}</span>;
 }
 
 /** Map feedback_type value to a display label. */

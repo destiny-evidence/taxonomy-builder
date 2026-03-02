@@ -39,7 +39,8 @@
   border-radius: var(--radius-sm);
 }
 
-.search-results__item:hover {
+.search-results__item:hover,
+.search-results__item--active {
   background: var(--color-bg-secondary);
   color: var(--color-primary);
 }
