@@ -22,10 +22,12 @@ from taxonomy_builder.schemas.skos_import import (
     PropertyPreviewResponse,
     SchemeCreatedResponse,
     SchemePreviewResponse,
+    ValidationIssueResponse,
 )
 from taxonomy_builder.services.change_tracker import ChangeTracker
 from taxonomy_builder.services.rdf_parser import (
     InvalidRDFError,
+    ValidationResult,
     abbreviate_xsd,
     analyze_graph,
     count_broader_relationships,
@@ -36,6 +38,7 @@ from taxonomy_builder.services.rdf_parser import (
     get_scheme_title,
     parse_rdf,
     resolve_object_range,
+    validate_graph,
 )
 
 # Re-export for existing importers (api/projects.py)
@@ -57,6 +60,21 @@ class ExistingProjectData:
     class_identifiers: set[str] = field(default_factory=set)
     property_identifiers: set[str] = field(default_factory=set)
     property_uris: set[str] = field(default_factory=set)
+
+
+def _validation_to_responses(
+    validation: ValidationResult,
+) -> list[ValidationIssueResponse]:
+    """Convert ValidationResult issues into API response objects."""
+    return [
+        ValidationIssueResponse(
+            severity=issue.severity,
+            type=issue.type,
+            message=issue.message,
+            entity_uri=issue.entity_uri,
+        )
+        for issue in validation.errors + validation.warnings + validation.info
+    ]
 
 
 class SKOSImportService:
@@ -83,6 +101,24 @@ class SKOSImportService:
         # Load existing project data for duplicate detection and range resolution
         existing = await self._load_existing_project_data(project_id)
 
+        # Build class_uris for validation (existing + from file)
+        file_class_uris = {cm["uri"] for cm in analysis["classes"]}
+        all_class_uris = existing.class_uris | file_class_uris
+
+        # Run validation
+        validation = validate_graph(g, all_class_uris)
+        validation_issues = _validation_to_responses(validation)
+
+        # If validation has errors, return early with valid=false
+        if validation.has_errors:
+            return ImportPreviewResponse(
+                valid=False,
+                schemes=[],
+                total_concepts_count=0,
+                total_relationships_count=0,
+                validation_issues=validation_issues,
+            )
+
         # Build combined URI sets (existing + from file)
         scheme_uris = set(existing.scheme_uris)
         scheme_uri_to_title = dict(existing.scheme_uri_to_title)
@@ -100,7 +136,7 @@ class SKOSImportService:
         )
         # Build class_uris from existing + those that will actually be created
         class_uris = existing.class_uris | {cp.uri for cp in class_previews}
-        property_previews, warnings = self._preview_properties(
+        property_previews, prop_warnings = self._preview_properties(
             g, analysis["properties"], existing.property_identifiers,
             existing.property_uris, scheme_uris, scheme_uri_to_title, class_uris,
         )
@@ -114,7 +150,8 @@ class SKOSImportService:
             properties=property_previews,
             classes_count=len(class_previews),
             properties_count=len(property_previews),
-            warnings=analysis["warnings"] + warnings,
+            warnings=analysis["warnings"] + prop_warnings,
+            validation_issues=validation_issues,
         )
 
     async def _load_existing_project_data(
@@ -283,6 +320,20 @@ class SKOSImportService:
         # Load existing data once for duplicate detection and range resolution
         existing = await self._load_existing_project_data(project_id)
 
+        # Build class_uris for validation (existing + from file)
+        file_class_uris = {cm["uri"] for cm in analysis["classes"]}
+        all_class_uris = existing.class_uris | file_class_uris
+
+        # Run validation — refuse to import if errors found
+        validation = validate_graph(g, all_class_uris)
+        if validation.has_errors:
+            error_msgs = "; ".join(e.message for e in validation.errors)
+            raise SKOSImportError(
+                f"Import blocked by validation errors: {error_msgs}"
+            )
+
+        validation_issues = _validation_to_responses(validation)
+
         classes_created = await self._import_classes(
             project_id, analysis["classes"],
             existing.class_uris, existing.class_identifiers,
@@ -298,7 +349,7 @@ class SKOSImportService:
         # Combine existing class URIs with those actually created (not skipped)
         class_uris = existing.class_uris | {c.uri for c in classes_created}
 
-        properties_created, warnings = await self._import_properties(
+        properties_created, prop_warnings = await self._import_properties(
             g, project_id, analysis["properties"],
             existing.property_identifiers, existing.property_uris,
             scheme_uri_to_id, class_uris,
@@ -310,7 +361,8 @@ class SKOSImportService:
             total_relationships_created=total_relationships,
             classes_created=classes_created,
             properties_created=properties_created,
-            warnings=warnings,
+            warnings=prop_warnings,
+            validation_issues=validation_issues,
         )
 
     async def _import_classes(
