@@ -171,21 +171,23 @@ export function SchemeWorkspacePage({
     selectionMode.value = null;
     if (projectId) {
       await Promise.all([loadClasses(projectId), loadProperties(projectId)]);
+      historyVersion.value++;
     }
   }
 
   function handleNewClass() {
-    creatingClass.value = { projectId: projectId! };
+    if (!projectId) return;
+    creatingClass.value = { projectId };
     selectionMode.value = "class";
     selectedClassUri.value = null;
     selectedPropertyId.value = null;
     selectedConceptId.value = null;
   }
 
-  function handleCreateClassSuccess() {
+  async function handleCreateClassSuccess() {
     creatingClass.value = null;
     if (projectId) {
-      loadClasses(projectId);
+      await loadClasses(projectId);
       historyVersion.value++;
     }
   }
