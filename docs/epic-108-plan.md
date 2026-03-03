@@ -83,9 +83,13 @@ The implementation is a narrow type-preservation slice: add `concept_type_uris: 
 
 **Seed replaced with TTL import.** The seed module currently hard-codes class/property data as Python literals. In Stripe 2, it's replaced with `SKOSImportService.execute()` importing the evrepo-core TTL file. This exercises the import pipeline and keeps seed data in sync with the vocab files.
 
-### Out of scope (settled)
+### Data model — OWL restriction preservation
 
-**OWL restrictions (`owl:Restriction`) — deferred.** Restrictions like `StringCodingAnnotation` constraining `codedValue` to `xsd:string` are enforcement mechanisms, not data. The builder doesn't enforce per-subclass constraints and has no data model for them. Adding support would require new entity types, opaque preservation, or full modeling — a separate epic. Import warnings are upgraded from `info` to `warning` so authors know what they're losing. If Andrew or downstream tooling requires restrictions to survive round-trip, this becomes a separate scoping conversation.
+**Structured pass-through for `allValuesFrom` restrictions.** Andrew confirmed restrictions should be preserved. All 11 restrictions in the current vocab files follow one pattern: `owl:allValuesFrom` on `evrepo:codedValue`, constraining which concept type a CodingAnnotation subclass accepts. A small `class_restriction` table captures them all: `(class_id, on_property_uri, restriction_type, value_uri)`. Import parses the blank-node pattern, creates records. Export replays them. No UI for creating/editing restrictions in the first pass.
+
+This is tightly coupled with concept-typed classes and dual-typing: the restriction references a concept-typed class (e.g. `EducationLevelConcept`), which only resolves if that class is imported as an ontology class, and concepts are dual-typed as instances of it.
+
+### Out of scope (settled)
 
 **Named individuals (`owl:oneOf`, #112) — not needed.** The builder represents enumerated value sets as SKOS concepts in concept schemes. `owl:NamedIndividual` maps to concepts in the builder's model. Import reports as `info`.
 
@@ -330,6 +334,54 @@ Two PRs or one — implementer's call.
 
 ---
 
+### Stripe 5: Constraint system (restrictions + concept-typed classes + dual-typing)
+
+The OWL constraint system round-trips as a package: restrictions reference concept-typed classes, which are meaningful because concepts are dual-typed as instances of them. All three pieces ship together.
+
+#### Data model
+
+**`class_restriction` table:** `class_id` (FK → `ontology_classes.id`, CASCADE), `on_property_uri` (String), `restriction_type` (String, e.g. `"allValuesFrom"`), `value_uri` (String). Composite PK or separate PK with unique constraint.
+
+**`concept_type_uris` column on `concepts`:** PostgreSQL ARRAY of strings, default `{}`. Stores non-`skos:Concept` `rdf:type` URIs.
+
+**Concept-typed classes:** Remove `if subject in concept_subclasses: continue` filter from `find_owl_classes`. Classes like `EducationLevelConcept` import as regular ontology classes with `rdfs:subClassOf skos:Concept` stored as a superclass edge (uses Stripe 2 infrastructure). Pending Andrew's confirmation on class list presentation — can filter by `skos:Concept` superclass if noisy.
+
+#### RDF parser
+
+- New function: `extract_restrictions(g, class_uris)` — parse `rdfs:subClassOf` blank nodes with `owl:Restriction`, extract `owl:onProperty` and `owl:allValuesFrom`. Return structured list.
+- New function: `extract_concept_type_uris(g, concept_uri)` — collect non-`skos:Concept` `rdf:type` URIs.
+- Update `_check_unsupported_restrictions` to enumerate which restrictions were found (property URI + value URI), not just count.
+
+#### Import
+
+- Create `ClassRestriction` records from parsed restrictions.
+- Store `concept_type_uris` on concepts during `_import_concepts`.
+- Concept-typed classes imported via existing `_import_classes` (no longer excluded).
+
+#### Snapshot + published JSON
+
+- `SnapshotClass`: add `restrictions: list[dict]` (each with `on_property_uri`, `restriction_type`, `value_uri`)
+- `SnapshotConcept.from_concept`: populate `concept_type_uris` from DB column
+- Reader: emit `restrictions` on classes, `type_uris` on concepts
+- Published schema: add both fields
+
+#### Export
+
+- Emit `rdfs:subClassOf [ a owl:Restriction ; owl:onProperty ... ; owl:allValuesFrom ... ]` for each restriction.
+- Emit extra `rdf:type` triples for each concept's `concept_type_uris`.
+- Concept-typed classes export their `rdfs:subClassOf skos:Concept` via standard Stripe 2 export code.
+
+#### Acceptance criteria
+
+- [ ] All 11 `allValuesFrom` restrictions round-trip through import/export
+- [ ] Concept-typed classes imported as ontology classes with `skos:Concept` superclass
+- [ ] Concepts preserve OWL type URIs (`concept_type_uris`)
+- [ ] Restriction export produces correct blank-node structure
+- [ ] Concept `rdf:type` triples emitted for dual-typed concepts
+- [ ] Import warning enumerates specific restrictions found
+
+---
+
 ## Finishing Touches (on #108)
 
 After all stripes merge. Tasks on the epic, not separate issues.
@@ -337,7 +389,7 @@ After all stripes merge. Tasks on the epic, not separate issues.
 ### Golden roundtrip tests
 
 Create `backend/tests/fixtures/rdf/` with:
-1. `evrepo-like-full.ttl` — all features: subClassOf, unionOf, property types, range_class, concept dual-typing
+1. `evrepo-like-full.ttl` — all features: subClassOf, unionOf, property types, range_class, concept dual-typing, restrictions, concept-typed classes
 2. `class-cycle.ttl` — circular subClassOf → must fail validation
 3. `malformed-union.ttl` — unionOf with non-URI members or unterminated list
 4. `rdf-property-no-range.ttl` — rdf:Property with no rdfs:range
@@ -357,50 +409,52 @@ Golden test: import → snapshot → validate → render JSON → export → `is
 | **Applicability closure** | `classAncestors` signal, `isApplicable` helper, inherited property display in both UIs. Depends on #109 + #110. |
 | **Remove scalar `domain_class` column** | Drop transitional column. Separate migration. |
 | **Class tree rendering** | Render class list as tree in ProjectPane. Design decision on visual treatment. |
-| **Concept type editing** | UI for editing `concept_type_uris` (currently read-only). Scope TBD. |
+| **Concept type editing UI** | UI for editing `concept_type_uris` (read-only in first pass). |
+| **Restriction editing UI** | UI for viewing/editing `allValuesFrom` restrictions on classes (read-only in first pass). |
 
 ---
 
 ## Cross-cutting File Tracker
 
-| File | S1 (fmt) | #109 pipe | #109 UI | #110 pipe | #110 UI | #111 pipe | #111 UI |
-|---|---|---|---|---|---|---|---|
-| **Models** | | | | | | | |
-| `models/class_superclass.py` | | new | | | | | |
-| `models/property_domain_class.py` | | | | new | | | |
-| `models/ontology_class.py` | | modify | | | | | |
-| `models/concept.py` | | modify | | | | | |
-| `models/property.py` | | | | modify | | modify | |
-| `models/__init__.py` | | modify | | modify | | | |
-| **Services** | | | | | | | |
-| `services/rdf_parser.py` | modify | modify | | modify | | | |
-| `services/skos_import_service.py` | | modify | | modify | | modify | |
-| `services/ontology_class_service.py` | | | modify | | | | |
-| `services/property_service.py` | | | | | modify | | modify |
-| `services/snapshot_service.py` | modify | | | | | | |
-| `services/reader_file_service.py` | modify | | | | | | |
-| `services/skos_export_service.py` | | modify | | modify | | modify | |
-| **Schemas** | | | | | | | |
-| `schemas/snapshot.py` | modify | modify | | modify | | modify | |
-| `schemas/ontology_class.py` | | | modify | | | | |
-| `schemas/property.py` | | | | | modify | | modify |
-| `schemas/skos_import.py` | | | | modify | | | |
-| **API** | | | | | | | |
-| `api/ontology_classes.py` | | | modify | | | | |
-| **Docs** | | | | | | | |
-| `vocabulary.schema.json` | modify | | | | | | |
-| **Frontend** | | | | | | | |
-| `types/models.ts` | | | modify | | modify | | modify |
-| `ClassDetailPane.tsx` | | | modify | | modify | | |
-| `PropertyDetail.tsx` (builder) | | | | | modify | | modify |
-| **Feedback UI** | | | | | | | |
-| `api/published.ts` | modify | | | | | | |
-| `ClassDetail.tsx` (feedback) | | | modify | | modify | | |
-| `PropertyDetail.tsx` (feedback) | | | | | modify | | modify |
-| **Seed** | | | | | | | |
-| `taxonomy_builder/seed.py` | | modify | | | | | |
-| **Migrations** | | | | | | | |
-| `alembic/versions/` | | new | | new | | new | |
+| File | S1 (fmt) | #109 pipe | #109 UI | #110 pipe | #110 UI | #111 pipe | #111 UI | S5 (constraints) |
+|---|---|---|---|---|---|---|---|---|
+| **Models** | | | | | | | | |
+| `models/class_superclass.py` | | new | | | | | | |
+| `models/class_restriction.py` | | | | | | | | new |
+| `models/property_domain_class.py` | | | | new | | | | |
+| `models/ontology_class.py` | | modify | | | | | | |
+| `models/concept.py` | | | | | | | | modify |
+| `models/property.py` | | | | modify | | modify | | |
+| `models/__init__.py` | | modify | | modify | | | | modify |
+| **Services** | | | | | | | | |
+| `services/rdf_parser.py` | modify | modify | | modify | | | | modify |
+| `services/skos_import_service.py` | | modify | | modify | | modify | | modify |
+| `services/ontology_class_service.py` | | | modify | | | | | |
+| `services/property_service.py` | | | | | modify | | modify | |
+| `services/snapshot_service.py` | modify | | | | | | | |
+| `services/reader_file_service.py` | modify | | | | | | | modify |
+| `services/skos_export_service.py` | | modify | | modify | | modify | | modify |
+| **Schemas** | | | | | | | | |
+| `schemas/snapshot.py` | modify | modify | | modify | | modify | | modify |
+| `schemas/ontology_class.py` | | | modify | | | | | |
+| `schemas/property.py` | | | | | modify | | modify | |
+| `schemas/skos_import.py` | | | | modify | | | | |
+| **API** | | | | | | | | |
+| `api/ontology_classes.py` | | | modify | | | | | |
+| **Docs** | | | | | | | | |
+| `vocabulary.schema.json` | modify | | | | | | | modify |
+| **Frontend** | | | | | | | | |
+| `types/models.ts` | | | modify | | modify | | modify | |
+| `ClassDetailPane.tsx` | | | modify | | modify | | | |
+| `PropertyDetail.tsx` (builder) | | | | | modify | | modify | |
+| **Feedback UI** | | | | | | | | |
+| `api/published.ts` | modify | | | | | | | |
+| `ClassDetail.tsx` (feedback) | | | modify | | modify | | | |
+| `PropertyDetail.tsx` (feedback) | | | | | modify | | modify | |
+| **Seed** | | | | | | | | |
+| `taxonomy_builder/seed.py` | | modify | | | | | | |
+| **Migrations** | | | | | | | | |
+| `alembic/versions/` | | new | | new | | new | | new |
 
 ---
 
@@ -415,7 +469,8 @@ Golden test: import → snapshot → validate → render JSON → export → `is
 | Issue | Scope | Depends on |
 |---|---|---|
 | **Format scaffold** | Stripe 1. Could be a task on #108 instead. | nothing |
-| **Class hierarchy management UI** | #109 UI: API endpoints, schema, ClassDetailPane, feedback ClassDetail, concept type display | #109 pipeline |
+| **Class hierarchy management UI** | #109 UI: API endpoints, schema, ClassDetailPane, feedback ClassDetail | #109 pipeline |
 | **Multi-domain property editing UI** | #110 UI: schema, multi-select picker, ClassDetailPane filter, feedback display | #110 pipeline |
 | **Property type editing UI** | #111 UI: schema, type selector with range enforcement, feedback display | #111 pipeline |
+| **Constraint system preservation** | Stripe 5: restriction table, concept dual-typing, concept-typed class import. All `allValuesFrom` restrictions round-trip. | #109 pipeline (needs superclass infrastructure) |
 | **Applicability closure** | classAncestors, isApplicable, inherited property display in both UIs | #109 UI + #110 UI |
