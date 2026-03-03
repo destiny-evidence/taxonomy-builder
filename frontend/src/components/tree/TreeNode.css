@@ -158,11 +158,11 @@
 
 /* Search match highlight */
 .tree-node__row--match {
-  background: var(--color-warning-light, #fef3c7);
+  background: var(--color-warning-light);
 }
 
 .tree-node__row--match:hover {
-  background: var(--color-warning-light, #fef3c7);
+  background: var(--color-warning-light);
 }
 
 /* Non-matching (dimmed) during search */
