@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { ClassDetail } from "../../../src/components/classes/ClassDetail";
 import { classesApi } from "../../../src/api/classes";
-import { ApiError } from "../../../src/api/client";
 import type { OntologyClass } from "../../../src/types/models";
 
 vi.mock("../../../src/api/classes");
@@ -184,7 +183,7 @@ describe("ClassDetail", () => {
     });
 
     it("shows error on 409 conflict", async () => {
-      vi.mocked(classesApi.update).mockRejectedValue(new ApiError(409, "Conflict"));
+      vi.mocked(classesApi.update).mockRejectedValue(new Error("A class with this identifier already exists"));
 
       renderView();
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
@@ -222,7 +221,7 @@ describe("ClassDetail", () => {
 
     it("shows error when delete fails with 409", async () => {
       vi.mocked(classesApi.delete).mockRejectedValue(
-        new ApiError(409, "Cannot delete"),
+        new Error("Cannot delete because it is referenced by one or more properties"),
       );
 
       renderView();
@@ -314,7 +313,7 @@ describe("ClassDetail", () => {
     });
 
     it("shows error on 409 conflict during create", async () => {
-      vi.mocked(classesApi.create).mockRejectedValue(new ApiError(409, "Conflict"));
+      vi.mocked(classesApi.create).mockRejectedValue(new Error("A class with this identifier already exists"));
 
       renderCreate();
       const labelInput = screen.getByLabelText(/label/i);

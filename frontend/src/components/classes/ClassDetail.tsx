@@ -3,7 +3,6 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { classesApi } from "../../api/classes";
-import { ApiError } from "../../api/client";
 import type { OntologyClass, OntologyClassCreate } from "../../types/models";
 import { toCamelCase, validateIdentifier } from "../../utils/strings";
 import { formatDatetime } from "../../utils/dates";
@@ -121,11 +120,7 @@ export function ClassDetail(props: ClassDetailProps) {
         props.onRefresh();
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setSaveError("A class with this identifier already exists");
-      } else {
-        setSaveError(err instanceof Error ? err.message : isCreateMode ? "Failed to create class" : "Failed to save class");
-      }
+      setSaveError(err instanceof Error ? err.message : isCreateMode ? "Failed to create class" : "Failed to save class");
     } finally {
       setSaveLoading(false);
     }
@@ -193,11 +188,7 @@ export function ClassDetail(props: ClassDetailProps) {
       (props as ViewEditProps).onDeleted();
     } catch (err) {
       setShowDeleteConfirm(false);
-      if (err instanceof ApiError && err.status === 409) {
-        setDeleteError("Cannot delete this class because it is referenced by one or more properties");
-      } else {
-        setDeleteError(err instanceof Error ? err.message : "Failed to delete class");
-      }
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete class");
     } finally {
       setDeleteLoading(false);
     }
