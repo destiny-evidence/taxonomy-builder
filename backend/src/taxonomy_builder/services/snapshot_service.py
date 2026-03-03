@@ -128,6 +128,30 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
 
     class_uris = {cls.uri for cls in snapshot.classes if cls.uri}
 
+    # Well-known external URIs allowed as superclass targets
+    well_known_superclass_uris = {
+        "http://www.w3.org/2004/02/skos/core#Concept",
+        "http://www.w3.org/2002/07/owl#Thing",
+        "http://www.w3.org/2000/01/rdf-schema#Resource",
+    }
+
+    for cls in snapshot.classes or []:
+        for superclass_uri in cls.superclass_uris or []:
+            if superclass_uri not in class_uris and superclass_uri not in well_known_superclass_uris:
+                errors.append(
+                    ValidationError(
+                        code="broken_superclass_ref",
+                        message=(
+                            f"class '{cls.label}' references superclass"
+                            f" '{superclass_uri}' which is not in the"
+                            " project's ontology classes."
+                        ),
+                        entity_type="class",
+                        entity_id=cls.id,
+                        entity_label=cls.label,
+                    )
+                )
+
     for prop in snapshot.properties or []:
         if prop.range_scheme_id and prop.range_scheme_id not in scheme_ids:
             errors.append(
@@ -139,20 +163,21 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                     entity_label=prop.label,
                 )
             )
-        if prop.domain_class and prop.domain_class not in class_uris:
-            errors.append(
-                ValidationError(
-                    code="broken_domain_class_ref",
-                    message=(
-                        f"property '{prop.label}' references domain class"
-                        f" '{prop.domain_class}' which is not in the"
-                        " project's ontology classes."
-                    ),
-                    entity_type="property",
-                    entity_id=prop.id,
-                    entity_label=prop.label,
+        for domain_uri in prop.domain_class_uris or []:
+            if domain_uri not in class_uris:
+                errors.append(
+                    ValidationError(
+                        code="broken_domain_class_ref",
+                        message=(
+                            f"property '{prop.label}' references domain class"
+                            f" '{domain_uri}' which is not in the"
+                            " project's ontology classes."
+                        ),
+                        entity_type="property",
+                        entity_id=prop.id,
+                        entity_label=prop.label,
+                    )
                 )
-            )
         if prop.range_class and prop.range_class not in class_uris:
             errors.append(
                 ValidationError(
