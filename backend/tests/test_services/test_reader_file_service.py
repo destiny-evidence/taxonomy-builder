@@ -61,6 +61,7 @@ def _make_snapshot(
                 "alt_labels": ["Crimson"],
                 "broader_ids": [],
                 "related_ids": [str(CONCEPT_B_ID)],
+                "concept_type_uris": [],
             },
             {
                 "id": str(CONCEPT_B_ID),
@@ -83,6 +84,7 @@ def _make_snapshot(
                 "alt_labels": [],
                 "broader_ids": [str(CONCEPT_B_ID)],
                 "related_ids": [],
+                "concept_type_uris": [],
             },
         ]
     if properties is None:
@@ -94,6 +96,8 @@ def _make_snapshot(
                 "label": "Risk Color",
                 "description": "Color for risk.",
                 "domain_class": "http://example.org/Finding",
+                "domain_class_uris": ["http://example.org/Finding"],
+                "property_type": "object",
                 "range_scheme_id": str(SCHEME_ID),
                 "range_scheme_uri": "http://example.org/colors",
                 "range_datatype": None,
@@ -111,6 +115,7 @@ def _make_snapshot(
                 "label": "Finding",
                 "description": "A finding.",
                 "scope_note": None,
+                "superclass_uris": [],
             }
         ]
     return {
@@ -253,13 +258,34 @@ class TestRenderVocabulary:
         assert concept["definition"] is None
         assert concept["scope_note"] is None
 
-    def test_domain_class_renamed_to_domain_class_uri(self):
+    def test_domain_class_uris_is_array(self):
         version = _make_version()
         result = json.loads(ReaderFileService.render_vocabulary(version))
         prop = result["properties"][0]
-        assert "domain_class_uri" in prop
+        assert "domain_class_uris" in prop
+        assert "domain_class_uri" not in prop
         assert "domain_class" not in prop
-        assert prop["domain_class_uri"] == "http://example.org/Finding"
+        assert prop["domain_class_uris"] == ["http://example.org/Finding"]
+
+    def test_property_type_present(self):
+        version = _make_version()
+        result = json.loads(ReaderFileService.render_vocabulary(version))
+        prop = result["properties"][0]
+        assert prop["property_type"] == "object"
+
+    def test_class_superclasses_present(self):
+        version = _make_version()
+        result = json.loads(ReaderFileService.render_vocabulary(version))
+        cls = result["classes"][0]
+        assert "superclasses" in cls
+        assert cls["superclasses"] == []
+
+    def test_concept_type_uris_present(self):
+        version = _make_version()
+        result = json.loads(ReaderFileService.render_vocabulary(version))
+        concept = result["schemes"][0]["concepts"][str(CONCEPT_A_ID)]
+        assert "type_uris" in concept
+        assert concept["type_uris"] == []
 
     def test_property_fields_preserved(self):
         version = _make_version()
