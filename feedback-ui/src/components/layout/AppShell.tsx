@@ -61,7 +61,7 @@ export function AppShell() {
         <div class="app-shell__header-left">
           {isProjectView ? (
             <>
-              <span class="app-shell__breadcrumb-link" onClick={navigateHome}>
+              <span class="app-shell__breadcrumb-link" role="link" tabIndex={0} onClick={navigateHome} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") navigateHome(); }}>
                 Vocabularies
               </span>
               <svg class="app-shell__breadcrumb-sep" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -69,7 +69,10 @@ export function AppShell() {
               </svg>
               <span
                 class="app-shell__title app-shell__title--link"
+                role="link"
+                tabIndex={0}
                 onClick={handleProjectNameClick}
+                onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") handleProjectNameClick(); }}
               >
                 {projectName.value || "Taxonomy Reader"}
                 {selectedVersion.value && (

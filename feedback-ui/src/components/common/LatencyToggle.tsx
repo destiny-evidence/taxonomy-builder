@@ -10,6 +10,7 @@ export function LatencyToggle() {
         type="number"
         min={0}
         step={100}
+        tabIndex={-1}
         value={artificialLatency.value}
         onInput={(e) => {
           artificialLatency.value = parseInt(
@@ -23,6 +24,7 @@ export function LatencyToggle() {
       <label class="latency-toggle__checkbox-label">
         <input
           type="checkbox"
+          tabIndex={-1}
           checked={bypassCache.value}
           onChange={(e) => {
             bypassCache.value = (e.target as HTMLInputElement).checked;

@@ -34,7 +34,7 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
 
   return (
     <div class="detail">
-      <h1 class="detail__title">{prop.label}</h1>
+      <h1 class="detail__title" tabIndex={0}>{prop.label}</h1>
       <div class="detail__uri">{prop.uri}</div>
 
       {prop.description && (
