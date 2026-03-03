@@ -5,6 +5,7 @@
   "published_at": "2026-03-01T09:00:00Z",
   "publisher": "Jane Smith",
   "pre_release": false,
+  "previous_version_id": "01965a00-0000-7000-8000-c00000000001",
   "project": {
     "id": "01965a00-0000-7000-8000-000000000000",
     "name": "Demo Taxonomy",
@@ -175,6 +176,7 @@
       "range_scheme_id": "01965a00-0000-7000-8000-000000000001",
       "range_scheme_uri": "http://example.org/demo/colors",
       "range_datatype": null,
+      "range_class": null,
       "cardinality": "single",
       "required": false
     }

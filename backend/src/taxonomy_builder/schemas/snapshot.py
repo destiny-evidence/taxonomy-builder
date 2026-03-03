@@ -10,10 +10,17 @@ Use model_construct() to bypass validation when building snapshots of
 potentially-invalid projects (e.g. for preview).
 """
 
+from typing import Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from pydantic_core import PydanticCustomError
+
+from taxonomy_builder.models.concept import Concept
+from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
+from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.property import Property
 
 
 class SnapshotConcept(BaseModel):
@@ -61,6 +68,22 @@ class SnapshotConcept(BaseModel):
             )
         return v
 
+    @classmethod
+    def from_concept(cls, concept: Concept) -> Self:
+        """Generate a SnapshotConcept from a Concept"""
+        return cls.model_construct(
+            id=concept.id,
+            identifier=concept.identifier,
+            uri=concept.uri,
+            pref_label=concept.pref_label,
+            definition=concept.definition,
+            scope_note=concept.scope_note,
+            alt_labels=list(concept.alt_labels),
+            broader_ids=[b.id for b in concept.broader],
+            related_ids=[r.id for r in concept.related],
+        )
+
+
 
 class SnapshotScheme(BaseModel):
     """A concept scheme within a snapshot."""
@@ -106,6 +129,16 @@ class SnapshotScheme(BaseModel):
                 },
             )
         return v
+
+    @classmethod
+    def from_scheme(cls, scheme: ConceptScheme) -> Self:
+        return cls.model_construct(
+            id=scheme.id,
+            title=scheme.title,
+            description=scheme.description,
+            uri=scheme.uri,
+            concepts=[SnapshotConcept.from_concept(c) for c in scheme.concepts],
+        )
 
 
 class SnapshotProperty(BaseModel):
@@ -171,6 +204,23 @@ class SnapshotProperty(BaseModel):
             )
         return self
 
+    @classmethod
+    def from_property(cls, property: Property) -> Self:
+        return SnapshotProperty.model_construct(
+            id=property.id,
+            identifier=property.identifier,
+            uri=property.uri,
+            label=property.label,
+            description=property.description,
+            domain_class=property.domain_class,
+            range_scheme_id=property.range_scheme_id,
+            range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
+            range_class=property.range_class,
+            range_datatype=property.range_datatype,
+            cardinality=property.cardinality,
+            required=property.required,
+        )
+
 
 class SnapshotClass(BaseModel):
     """An ontology class within a snapshot."""
@@ -214,6 +264,17 @@ class SnapshotClass(BaseModel):
             )
         return v
 
+    @classmethod
+    def from_class(cls, ontology_class: OntologyClass) -> Self:
+        return cls.model_construct(
+            id=ontology_class.id,
+            identifier=ontology_class.identifier,
+            uri=ontology_class.uri,
+            label=ontology_class.label,
+            description=ontology_class.description,
+            scope_note=ontology_class.scope_note,
+        )
+
 
 class SnapshotProjectMetadata(BaseModel):
     """Project metadata within a snapshot."""
@@ -238,6 +299,15 @@ class SnapshotProjectMetadata(BaseModel):
             )
         return v
 
+    @classmethod
+    def from_project(cls, project: Project) -> Self:
+        return SnapshotProjectMetadata.model_construct(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            namespace=project.namespace,
+        )
+
 
 class SnapshotVocabulary(BaseModel):
     """Complete immutable snapshot of a project's vocabulary."""
@@ -260,6 +330,15 @@ class SnapshotVocabulary(BaseModel):
                 {},
             )
         return v
+
+    @classmethod
+    def from_project(cls, project: Project) -> Self:
+        return cls.model_construct(
+            project=SnapshotProjectMetadata.from_project(project),
+            concept_schemes=[SnapshotScheme.from_scheme(s) for s in project.schemes],
+            properties=[SnapshotProperty.from_property(p) for p in project.properties],
+            classes=[SnapshotClass.from_class(c) for c in project.ontology_classes],
+        )
 
 
 class ValidationError(BaseModel):

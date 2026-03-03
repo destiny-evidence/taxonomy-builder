@@ -461,7 +461,7 @@ async def test_unresolve_comment_succeeds_for_any_user(
     assert response.status_code == 204
 
     # Verify comment is resolved
-    db_session.refresh(comment)
+    await db_session.refresh(comment)
     assert comment.resolved_by is None
 
 @pytest.mark.asyncio

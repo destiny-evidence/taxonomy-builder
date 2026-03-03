@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
 
@@ -17,6 +18,14 @@ class ProjectNotFoundError(Exception):
     def __init__(self, project_id: UUID) -> None:
         self.project_id = project_id
         super().__init__(f"Project with id '{project_id}' not found")
+
+
+class VersionNotFoundError(Exception):
+    """Raised when a published version is not found."""
+
+    def __init__(self, version: str) -> None:
+        self.version = version
+        super().__init__(f"Published version '{version}' not found")
 
 
 class ProjectNameExistsError(Exception):
@@ -130,3 +139,18 @@ class ProjectService:
 
         await self.db.delete(project)
         await self.db.flush()
+
+    async def get_project_version(
+        self, project_id: UUID, version: str
+    ) -> PublishedVersion:
+        """Get a published version by version string, scoped to a project."""
+        result = await self.db.execute(
+            select(PublishedVersion).where(
+                PublishedVersion.version == version,
+                PublishedVersion.project_id == project_id,
+            )
+        )
+        published = result.scalar_one_or_none()
+        if published is None:
+            raise VersionNotFoundError(version)
+        return published

@@ -1,10 +1,11 @@
 """Tests for SKOS Export Service."""
 
-from uuid import uuid4
+from datetime import datetime
+from uuid import uuid4, uuid7
 
 import pytest
 from rdflib import Graph
-from rdflib.namespace import DCTERMS, RDF, SKOS
+from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
@@ -12,7 +13,16 @@ from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
-from taxonomy_builder.services.skos_export_service import SKOSExportService, SchemeNotFoundError
+from taxonomy_builder.models.published_version import PublishedVersion
+from taxonomy_builder.schemas.snapshot import (
+    SnapshotClass,
+    SnapshotConcept,
+    SnapshotProjectMetadata,
+    SnapshotProperty,
+    SnapshotScheme,
+    SnapshotVocabulary,
+)
+from taxonomy_builder.services.skos_export_service import SchemeNotFoundError, SKOSExportService
 
 
 @pytest.fixture
@@ -528,3 +538,381 @@ async def test_export_related_is_symmetric(
     cats_related = list(g.objects(cats_uri, SKOS.related))
     assert len(cats_related) == 1
     assert str(cats_related[0]) == str(dogs_uri)
+
+
+# Published version export tests
+
+
+@pytest.fixture
+def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
+    """Build a SnapshotVocabulary from existing DB fixtures for test use."""
+    animal_id = uuid4()
+    mammal_id = uuid4()
+
+    return SnapshotVocabulary(
+        project=SnapshotProjectMetadata(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            namespace="http://example.org/namespace"
+        ),
+        concept_schemes=[
+            SnapshotScheme(
+                id=scheme.id,
+                title=scheme.title,
+                description=scheme.description,
+                uri=scheme.uri,
+                concepts=[
+                    SnapshotConcept(
+                        id=animal_id,
+                        pref_label="Animals",
+                        identifier="animals",
+                        uri=f"{scheme.uri}/animals",
+                        definition="Living organisms",
+                        alt_labels=["Fauna"],
+                    ),
+                    SnapshotConcept(
+                        id=mammal_id,
+                        pref_label="Mammals",
+                        identifier="mammals",
+                        uri=f"{scheme.uri}/mammals",
+                        broader_ids=[animal_id],
+                    ),
+                ],
+            )
+        ],
+        properties=[
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="studyType",
+                label="Study Type",
+                uri="http://example.org/ontology/studyType",
+                description="The type of study",
+                domain_class="http://example.org/ontology/Study",
+                range_scheme_id=scheme.id,
+                range_scheme_uri=scheme.uri,
+                cardinality="single",
+                required=True,
+            ),
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="sampleSize",
+                label="Sample Size",
+                uri="http://example.org/ontology/sampleSize",
+                domain_class="http://example.org/ontology/Study",
+                range_datatype="xsd:integer",
+                cardinality="single",
+                required=False,
+            ),
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="primaryOutcome",
+                label="Primary Outcome",
+                uri="http://example.org/ontology/primaryOutcome",
+                domain_class="http://example.org/ontology/Study",
+                range_class="http://example.org/ontology/Outcome",
+                cardinality="single",
+                required=False,
+            ),
+        ],
+        classes=[
+            SnapshotClass(
+                id=uuid4(),
+                identifier="Study",
+                label="Study",
+                uri="http://example.org/ontology/Study",
+                description="A research study",
+                scope_note="Use for individual studies",
+            ),
+            SnapshotClass(
+                id=uuid4(),
+                identifier="Outcome",
+                label="Outcome",
+                uri="http://example.org/ontology/Outcome",
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+async def published_version(
+    db_session: AsyncSession, project: Project, snapshot: SnapshotVocabulary
+) -> PublishedVersion:
+    """Create a published version with the default snapshot."""
+    published = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now()
+    )
+    db_session.add(published)
+    await db_session.flush()
+    await db_session.refresh(published)
+    return published
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_basic(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test exporting a published version produces valid SKOS RDF."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should contain the scheme
+    scheme_uri = next(g.subjects(RDF.type, SKOS.ConceptScheme))
+    assert str(scheme_uri) == "http://example.org/taxonomy"
+    assert str(g.value(scheme_uri, DCTERMS.title)) == "Test Taxonomy"
+
+    # Should contain both concepts
+    concepts = list(g.subjects(RDF.type, SKOS.Concept))
+    assert len(concepts) == 2
+
+    # Animals should be a top concept
+    top_concepts = list(g.objects(scheme_uri, SKOS.hasTopConcept))
+    assert len(top_concepts) == 1
+    assert "animals" in str(top_concepts[0])
+
+    # Mammals should have broader -> Animals
+    mammals_uri = next(u for u in concepts if "mammals" in str(u))
+    broader = g.value(mammals_uri, SKOS.broader)
+    assert "animals" in str(broader)
+
+    # Animals should have alt label
+    animals_uri = next(u for u in concepts if "animals" in str(u))
+    alt_labels = [str(label) for label in g.objects(animals_uri, SKOS.altLabel)]
+    assert alt_labels == ["Fauna"]
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_xml(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that export_published_version serializes as RDF/XML."""
+    result = await export_service.export_published_version(published_version, "xml")
+
+    g = Graph()
+    g.parse(data=result, format="xml")
+    assert len(list(g.subjects(RDF.type, SKOS.Concept))) == 2
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_jsonld(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that export_published_version serializes as JSON-LD."""
+    import json
+
+    result = await export_service.export_published_version(published_version, "json-ld")
+
+    g = Graph()
+    g.parse(data=result, format="json-ld")
+    assert len(list(g.subjects(RDF.type, SKOS.Concept))) == 2
+
+    parsed = json.loads(result)
+    assert isinstance(parsed, (dict, list))
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_multiple_schemes(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    snapshot: SnapshotVocabulary,
+) -> None:
+    """Test exporting a published version with multiple concept schemes."""
+    additional_scheme = SnapshotScheme(
+        id=uuid4(),
+        title="Second Scheme",
+        uri="http://example.org/second",
+        concepts=[
+            SnapshotConcept(
+                id=uuid4(),
+                pref_label="Beta",
+                uri="http://example.org/second/beta",
+            ),
+        ],
+    )
+
+    snapshot.concept_schemes.append(additional_scheme)
+
+    published = PublishedVersion(
+        project_id=snapshot.project.id,
+        version="2.0",
+        title="v2.0",
+        snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now()
+    )
+    db_session.add(published)
+    await db_session.flush()
+    await db_session.refresh(published)
+
+    result = await export_service.export_published_version(published, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should have two concept schemes
+    schemes = list(g.subjects(RDF.type, SKOS.ConceptScheme))
+    assert len(schemes) == 2
+
+    # Should have two concepts total
+    concepts = list(g.subjects(RDF.type, SKOS.Concept))
+    assert len(concepts) == 3
+
+
+# Class export tests
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_includes_classes(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that OWL classes from the snapshot are included in the export."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should contain both classes
+    classes = list(g.subjects(RDF.type, OWL.Class))
+    assert len(classes) == 2
+
+    class_uris = {str(c) for c in classes}
+    assert "http://example.org/ontology/Study" in class_uris
+    assert "http://example.org/ontology/Outcome" in class_uris
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_class_metadata(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that class metadata (label, description, scope note) is exported."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    study_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.Class) if "Study" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(study_uri, RDFS.label)) == "Study"
+
+    # Should have description
+    assert str(g.value(study_uri, DCTERMS.description)) == "A research study"
+
+    # Should have scope note
+    assert str(g.value(study_uri, SKOS.scopeNote)) == "Use for individual studies"
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_class_without_optional_fields(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that classes without description/scope_note export cleanly."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    outcome_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.Class) if "Outcome" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(outcome_uri, RDFS.label)) == "Outcome"
+
+    # Should not have description or scope note
+    assert g.value(outcome_uri, DCTERMS.description) is None
+    assert g.value(outcome_uri, SKOS.scopeNote) is None
+
+
+# Property export tests
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_includes_properties(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that OWL properties from the snapshot are included in the export."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    # Should contain the object property
+    obj_props = list(g.subjects(RDF.type, OWL.ObjectProperty))
+    assert len(obj_props) == 1
+    assert "studyType" in str(obj_props[0])
+
+    # Should contain the datatype property
+    dt_props = list(g.subjects(RDF.type, OWL.DatatypeProperty))
+    assert len(dt_props) == 1
+    assert "sampleSize" in str(dt_props[0])
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_object_property_metadata(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that object property metadata (label, description, domain, range) is exported."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.ObjectProperty) if "studyType" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(prop_uri, RDFS.label)) == "Study Type"
+
+    # Should have description
+    assert str(g.value(prop_uri, DCTERMS.description)) == "The type of study"
+
+    # Should have domain pointing to the class URI
+    assert str(g.value(prop_uri, RDFS.domain)) == "http://example.org/ontology/Study"
+
+    # Should have range pointing to the concept scheme
+    assert str(g.value(prop_uri, RDFS.range)) == "http://example.org/taxonomy"
+
+
+@pytest.mark.asyncio
+async def test_export_published_version_datatype_property(
+    export_service: SKOSExportService,
+    published_version: PublishedVersion,
+) -> None:
+    """Test that datatype properties are exported with correct type and range."""
+    result = await export_service.export_published_version(published_version, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = next(
+        uri for uri in g.subjects(RDF.type, OWL.DatatypeProperty) if "sampleSize" in str(uri)
+    )
+
+    # Should have label
+    assert str(g.value(prop_uri, RDFS.label)) == "Sample Size"
+
+    # Should have domain pointing to the class URI
+    assert str(g.value(prop_uri, RDFS.domain)) == "http://example.org/ontology/Study"
+
+    # Should have range as XSD datatype
+    assert g.value(prop_uri, RDFS.range) == XSD.integer
+
+    # Should not have description (not set)
+    assert g.value(prop_uri, DCTERMS.description) is None

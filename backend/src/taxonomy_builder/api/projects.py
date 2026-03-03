@@ -1,17 +1,32 @@
 """Projects API endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
+from fastapi.responses import Response
 
-from taxonomy_builder.api.dependencies import CurrentUser, get_import_service, get_project_service
+from taxonomy_builder.api.dependencies import (
+    CurrentUser,
+    get_export_service,
+    get_import_service,
+    get_project_service,
+)
+from taxonomy_builder.api.utils import slugify
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from taxonomy_builder.schemas.publishing import VERSION_PATTERN
 from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse
 from taxonomy_builder.services.project_service import (
     ProjectNameExistsError,
     ProjectNotFoundError,
     ProjectService,
+    VersionNotFoundError,
+)
+from taxonomy_builder.services.skos_export_service import (
+    FORMAT_CONFIG,
+    ExportFormat,
+    SKOSExportService,
 )
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
@@ -28,6 +43,7 @@ async def list_projects(
 ) -> list[Project]:
     """List all projects."""
     return await service.list_projects()
+
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
@@ -123,3 +139,32 @@ async def import_skos(
             return await import_service.execute(project_id, content, filename)
     except InvalidRDFError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/{project_id}/versions/{version_id}/export")
+async def export_version(
+    project_id: UUID,
+    version_id: Annotated[str, Path(pattern=VERSION_PATTERN)],
+    current_user: CurrentUser,
+    format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
+    project_service: ProjectService = Depends(get_project_service),
+    export_service: SKOSExportService = Depends(get_export_service),
+) -> Response:
+    """Export a published project version as SKOS RDF."""
+    try:
+        published_version = await project_service.get_project_version(project_id, version_id)
+    except VersionNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    rdflib_format, content_type, extension = FORMAT_CONFIG[format]
+    content = await export_service.export_published_version(published_version, rdflib_format)
+    filename = (
+        f"{published_version.project.name}-{published_version.version}-{published_version.title}"
+    )
+    filename = f"{slugify(filename)}{extension}"
+
+    return Response(
+        content=content,
+        media_type=f"{content_type}; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

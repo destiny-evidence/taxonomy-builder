@@ -1,13 +1,13 @@
 """ConceptScheme API endpoints."""
 
 import re
-from enum import Enum
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
 from taxonomy_builder.api.dependencies import get_export_service, get_scheme_service
+from taxonomy_builder.api.utils import slugify
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept_scheme import (
     ConceptSchemeCreate,
@@ -22,7 +22,11 @@ from taxonomy_builder.services.concept_scheme_service import (
     SchemeTitleExistsError,
 )
 from taxonomy_builder.services.skos_export_service import (
+    FORMAT_CONFIG,
+    ExportFormat,
     SKOSExportService,
+)
+from taxonomy_builder.services.skos_export_service import (
     SchemeNotFoundError as ExportSchemeNotFoundError,
 )
 
@@ -31,30 +35,6 @@ project_schemes_router = APIRouter(prefix="/api/projects", tags=["schemes"])
 
 # Router for direct scheme operations
 schemes_router = APIRouter(prefix="/api/schemes", tags=["schemes"])
-
-
-class ExportFormat(str, Enum):
-    """Supported export formats."""
-
-    TTL = "ttl"
-    XML = "xml"
-    JSONLD = "jsonld"
-
-
-# Format to RDFLib format string and content type mapping
-FORMAT_CONFIG = {
-    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl"),
-    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf"),
-    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld"),
-}
-
-
-def slugify(text: str) -> str:
-    """Convert text to a URL-safe slug."""
-    text = text.lower()
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[\s_]+", "-", text)
-    return text.strip("-")
 
 
 @project_schemes_router.get("/{project_id}/schemes", response_model=list[ConceptSchemeRead])

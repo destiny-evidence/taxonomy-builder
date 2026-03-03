@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/preact";
+import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { ExportModal } from "../../../src/components/schemes/ExportModal";
+
+// Mock the schemes API
+vi.mock("../../../src/api/schemes", async () => {
+  const actual = await vi.importActual("../../../src/api/schemes");
+  return {
+    ...actual,
+    schemesApi: {
+      exportScheme: vi.fn(),
+    },
+  };
+});
+
+import { schemesApi } from "../../../src/api/schemes";
 
 // Mock HTMLDialogElement methods for jsdom
 beforeEach(() => {
@@ -15,6 +28,24 @@ describe("ExportModal", () => {
     schemeTitle: "Animal Kingdom",
     onClose: vi.fn(),
   };
+
+  beforeEach(() => {
+    // Default: exportScheme resolves with a blob
+    vi.mocked(schemesApi.exportScheme).mockResolvedValue({
+      blob: new Blob(["content"], { type: "text/turtle" }),
+      filename: "test-scheme.ttl",
+    });
+
+    // Mock URL.createObjectURL / revokeObjectURL
+    vi.stubGlobal("URL", {
+      ...globalThis.URL,
+      createObjectURL: vi.fn(() => "blob:mock-url"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    // Prevent jsdom "Not implemented: navigation" warning from a.click()
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  });
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -42,25 +73,21 @@ describe("ExportModal", () => {
     expect(xmlRadio.checked).toBe(true);
   });
 
-  it("calls window.open with correct URL on download", () => {
-    const mockOpen = vi.fn();
-    vi.stubGlobal("open", mockOpen);
-
+  it("calls exportScheme with correct params on download", async () => {
     render(<ExportModal {...defaultProps} />);
 
     const downloadButton = screen.getByText("Download");
     fireEvent.click(downloadButton);
 
-    expect(mockOpen).toHaveBeenCalledWith(
-      "/api/schemes/test-scheme-123/export?format=ttl",
-      "_blank"
-    );
+    await waitFor(() => {
+      expect(schemesApi.exportScheme).toHaveBeenCalledWith(
+        "test-scheme-123",
+        "ttl"
+      );
+    });
   });
 
-  it("uses selected format in download URL", () => {
-    const mockOpen = vi.fn();
-    vi.stubGlobal("open", mockOpen);
-
+  it("uses selected format in export call", async () => {
     render(<ExportModal {...defaultProps} />);
 
     const jsonldRadio = screen.getByDisplayValue("jsonld");
@@ -69,14 +96,15 @@ describe("ExportModal", () => {
     const downloadButton = screen.getByText("Download");
     fireEvent.click(downloadButton);
 
-    expect(mockOpen).toHaveBeenCalledWith(
-      "/api/schemes/test-scheme-123/export?format=jsonld",
-      "_blank"
-    );
+    await waitFor(() => {
+      expect(schemesApi.exportScheme).toHaveBeenCalledWith(
+        "test-scheme-123",
+        "jsonld"
+      );
+    });
   });
 
-  it("calls onClose after download", () => {
-    vi.stubGlobal("open", vi.fn());
+  it("calls onClose after download completes", async () => {
     const onClose = vi.fn();
 
     render(<ExportModal {...defaultProps} onClose={onClose} />);
@@ -84,7 +112,9 @@ describe("ExportModal", () => {
     const downloadButton = screen.getByText("Download");
     fireEvent.click(downloadButton);
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 
   it("calls onClose when cancel button clicked", () => {
