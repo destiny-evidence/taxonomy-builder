@@ -864,3 +864,112 @@ async def test_preview_ambiguous_range_not_resolved(
         "educationProp" in w and "multiple schemes" in w
         for w in result.warnings
     )
+
+
+# --- Import validation integration tests ---
+
+
+FILE_URI_SCHEME_TTL = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<MyScheme> a skos:ConceptScheme ;
+    rdfs:label "Bad Scheme" .
+
+<Concept1> a skos:Concept ;
+    skos:inScheme <MyScheme> ;
+    skos:prefLabel "Concept One" .
+"""
+# Note: no @base, so rdflib resolves <MyScheme> etc. to file:// URIs
+
+
+UNRESOLVED_DOMAIN_IMPORT_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:myProp a owl:DatatypeProperty ;
+    rdfs:label "My Prop" ;
+    rdfs:domain ex:NonExistentClass ;
+    rdfs:range xsd:string .
+"""
+
+
+@pytest.mark.asyncio
+async def test_preview_file_uri_returns_invalid(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Preview of file with file:// URIs returns valid=false with errors."""
+    result = await import_service.preview(
+        project.id, FILE_URI_SCHEME_TTL, "test.ttl"
+    )
+
+    assert result.valid is False
+    error_issues = [vi for vi in result.validation_issues if vi.severity == "error"]
+    assert len(error_issues) > 0
+    assert any("file://" in vi.message for vi in error_issues)
+
+
+@pytest.mark.asyncio
+async def test_execute_file_uri_refused(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Execute refuses to import file with file:// URIs."""
+    from taxonomy_builder.services.skos_import_service import SKOSImportError
+
+    with pytest.raises(SKOSImportError, match="file://"):
+        await import_service.execute(
+            project.id, FILE_URI_SCHEME_TTL, "test.ttl"
+        )
+
+
+@pytest.mark.asyncio
+async def test_preview_includes_validation_warnings(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Preview includes domain validation warnings in validation_issues."""
+    result = await import_service.preview(
+        project.id, UNRESOLVED_DOMAIN_IMPORT_TTL, "test.ttl"
+    )
+
+    assert result.valid is True
+    warning_issues = [vi for vi in result.validation_issues if vi.severity == "warning"]
+    assert any("NonExistentClass" in vi.message for vi in warning_issues)
+
+
+@pytest.mark.asyncio
+async def test_preview_includes_validation_issues(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Preview includes structured validation_issues field."""
+    result = await import_service.preview(
+        project.id, UNRESOLVED_DOMAIN_IMPORT_TTL, "test.ttl"
+    )
+
+    assert hasattr(result, "validation_issues")
+    assert len(result.validation_issues) > 0
+    # Should have a warning-severity issue about unresolved domain
+    warning_issues = [
+        vi for vi in result.validation_issues if vi.severity == "warning"
+    ]
+    assert len(warning_issues) >= 1
+
+
+@pytest.mark.asyncio
+async def test_execute_includes_validation_issues(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Execute result includes structured validation_issues."""
+    result = await import_service.execute(
+        project.id, UNRESOLVED_DOMAIN_IMPORT_TTL, "test.ttl"
+    )
+
+    assert hasattr(result, "validation_issues")
+    warning_issues = [
+        vi for vi in result.validation_issues if vi.severity == "warning"
+    ]
+    assert len(warning_issues) >= 1

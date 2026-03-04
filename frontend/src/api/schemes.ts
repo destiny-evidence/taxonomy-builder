@@ -33,6 +33,13 @@ export interface PropertyPreview {
   range_scheme_title: string | null;
 }
 
+export interface ValidationIssue {
+  severity: "error" | "warning" | "info";
+  type: string;
+  message: string;
+  entity_uri: string | null;
+}
+
 export interface ImportPreview {
   valid: boolean;
   schemes: SchemePreview[];
@@ -44,6 +51,7 @@ export interface ImportPreview {
   properties_count: number;
   warnings: string[];
   errors: string[];
+  validation_issues: ValidationIssue[];
 }
 
 export interface SchemeCreated {
@@ -59,6 +67,7 @@ export interface ImportResult {
   classes_created: { id: string; identifier: string; label: string }[];
   properties_created: { id: string; identifier: string; label: string }[];
   warnings: string[];
+  validation_issues: ValidationIssue[];
 }
 
 function importRequest<T>(
