@@ -16,7 +16,7 @@ def _graph(ttl: bytes) -> Graph:
     return parse_rdf(ttl, "turtle")
 
 
-# --- file:// URI detection (severity: error) ---
+# --- URI scheme validation (severity: error) ---
 
 
 FILE_URI_TTL = b"""
@@ -83,6 +83,36 @@ def test_valid_uris_no_errors():
 
     assert not result.has_errors
     assert len(result.errors) == 0
+
+
+UNSUPPORTED_SCHEME_TTL = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+<ftp://example.org/MyClass> a owl:Class ;
+    rdfs:label "My Class" .
+"""
+
+
+def test_unsupported_uri_scheme_produces_errors():
+    """TTL with non-http(s) URI schemes (e.g. ftp://) produces errors."""
+    g = _graph(UNSUPPORTED_SCHEME_TTL)
+    result = validate_graph(g, set())
+
+    assert result.has_errors
+    scheme_errors = [e for e in result.errors if e.type == "unsupported_uri_scheme"]
+    assert len(scheme_errors) >= 1
+    assert "ftp" in scheme_errors[0].message
+
+
+def test_file_uri_has_base_hint():
+    """file:// URIs get a specific hint about missing @base directive."""
+    g = _graph(FILE_URI_TTL)
+    result = validate_graph(g, set())
+
+    file_errors = [e for e in result.errors if e.type == "file_uri"]
+    assert len(file_errors) >= 1
+    assert "@base" in file_errors[0].message
 
 
 # --- Unresolved domain class (severity: warning) ---

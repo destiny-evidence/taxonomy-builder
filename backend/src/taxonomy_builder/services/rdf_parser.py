@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import Literal as LiteralType
+from urllib.parse import urlparse
 
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
@@ -96,7 +97,7 @@ def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
         ))
         return result
 
-    _check_file_uris(g, result)
+    _check_uri_schemes(g, result)
     _check_unresolved_domains(g, class_uris, result)
     _check_rdf_properties(g, result)
     _check_unsupported_subclasses(g, result)
@@ -107,21 +108,39 @@ def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
     return result
 
 
-def _check_file_uris(g: Graph, result: ValidationResult) -> None:
-    """Detect file:// URIs in subjects and objects."""
+_ALLOWED_URI_SCHEMES = {"http", "https"}
+
+
+def _check_uri_schemes(g: Graph, result: ValidationResult) -> None:
+    """Detect URIs with non-http(s) schemes in subjects and objects."""
     seen: set[str] = set()
     for s, _p, o in g:
         for node in (s, o):
             if isinstance(node, URIRef):
                 uri_str = str(node)
-                if uri_str.startswith("file://") and uri_str not in seen:
-                    seen.add(uri_str)
+                if uri_str in seen:
+                    continue
+                scheme = urlparse(uri_str).scheme
+                if scheme in _ALLOWED_URI_SCHEMES:
+                    continue
+                seen.add(uri_str)
+                if scheme == "file":
                     result.errors.append(ValidationIssue(
                         severity="error",
                         type="file_uri",
                         message=(
                             f"file:// URI detected: {uri_str} — "
                             f"this usually means the file is missing an @base directive"
+                        ),
+                        entity_uri=uri_str,
+                    ))
+                else:
+                    result.errors.append(ValidationIssue(
+                        severity="error",
+                        type="unsupported_uri_scheme",
+                        message=(
+                            f"Unsupported URI scheme '{scheme}:' in {uri_str} — "
+                            f"only http:// and https:// URIs are supported"
                         ),
                         entity_uri=uri_str,
                     ))
