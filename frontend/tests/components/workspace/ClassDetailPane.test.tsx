@@ -62,22 +62,36 @@ const mockProperties: Property[] = [
 ];
 
 // Mock ontologyClasses to provide class info
-vi.mock("../../../src/state/ontology", async () => {
-  const actual = await vi.importActual("../../../src/state/ontology");
+vi.mock("../../../src/state/classes", async () => {
+  const actual = await vi.importActual("../../../src/state/classes");
   return {
     ...actual,
     ontologyClasses: {
       value: [
-        { id: "cls-1", uri: "http://example.org/Person", label: "Person", description: "A human being" },
-        { id: "cls-2", uri: "http://example.org/Organization", label: "Organization", description: null },
+        { id: "cls-1", project_id: "proj-1", identifier: "Person", uri: "http://example.org/Person", label: "Person", description: "A human being", scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+        { id: "cls-2", project_id: "proj-1", identifier: "Organization", uri: "http://example.org/Organization", label: "Organization", description: null, scope_note: null, created_at: "2024-01-02T00:00:00Z", updated_at: "2024-01-02T00:00:00Z" },
       ],
     },
   };
 });
 
+vi.mock("../../../src/components/classes/ClassDetail", () => ({
+  ClassDetail: (props: Record<string, unknown>) => {
+    const cls = props.ontologyClass as { label: string; description: string | null } | undefined;
+    return (
+      <div data-testid="class-detail">
+        {cls && <span>{cls.label}</span>}
+        {cls?.description && <span>{cls.description}</span>}
+      </div>
+    );
+  },
+}));
+
 describe("ClassDetailPane", () => {
   const mockOnPropertySelect = vi.fn();
   const mockOnSchemeNavigate = vi.fn();
+  const mockOnRefresh = vi.fn();
+  const mockOnClassDeleted = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -94,6 +108,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -107,6 +123,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -120,6 +138,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -135,6 +155,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -149,6 +171,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -163,6 +187,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -176,6 +202,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -189,6 +217,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -205,6 +235,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -220,6 +252,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -235,6 +269,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -255,6 +291,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -272,6 +310,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 
@@ -290,6 +330,8 @@ describe("ClassDetailPane", () => {
           projectId="proj-1"
           onPropertySelect={mockOnPropertySelect}
           onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
         />
       );
 

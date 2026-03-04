@@ -1,7 +1,7 @@
 import { PropertyDetail } from "../properties/PropertyDetail";
 import { SchemePreview } from "../properties/SchemePreview";
 import { selectedProperty, selectedPropertyId, creatingProperty } from "../../state/properties";
-import { ontologyClasses } from "../../state/ontology";
+import { ontologyClasses } from "../../state/classes";
 import { datatypeLabel } from "../../types/models";
 import "./PropertyPane.css";
 

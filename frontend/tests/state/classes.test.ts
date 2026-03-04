@@ -3,19 +3,51 @@ import {
   ontologyClasses,
   selectedClassUri,
   selectedClass,
-} from "../../src/state/ontology";
+  creatingClass,
+} from "../../src/state/classes";
 import type { OntologyClass } from "../../src/types/models";
 
 const mockClasses: OntologyClass[] = [
-  { id: "1", uri: "http://example.org/Investigation", label: "Investigation", description: "A research effort" },
-  { id: "2", uri: "http://example.org/Finding", label: "Finding", description: "A specific result" },
-  { id: "3", uri: "http://example.org/Intervention", label: "Intervention", description: null },
+  {
+    id: "1",
+    project_id: "proj-1",
+    identifier: "Investigation",
+    uri: "http://example.org/Investigation",
+    label: "Investigation",
+    description: "A research effort",
+    scope_note: null,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+  },
+  {
+    id: "2",
+    project_id: "proj-1",
+    identifier: "Finding",
+    uri: "http://example.org/Finding",
+    label: "Finding",
+    description: "A specific result",
+    scope_note: "Represents measured findings",
+    created_at: "2024-01-02T00:00:00Z",
+    updated_at: "2024-01-02T00:00:00Z",
+  },
+  {
+    id: "3",
+    project_id: "proj-1",
+    identifier: "Intervention",
+    uri: "http://example.org/Intervention",
+    label: "Intervention",
+    description: null,
+    scope_note: null,
+    created_at: "2024-01-03T00:00:00Z",
+    updated_at: "2024-01-03T00:00:00Z",
+  },
 ];
 
-describe("ontology state", () => {
+describe("classes state", () => {
   beforeEach(() => {
     ontologyClasses.value = [];
     selectedClassUri.value = null;
+    creatingClass.value = null;
   });
 
   describe("signals", () => {
@@ -26,6 +58,10 @@ describe("ontology state", () => {
     it("selectedClassUri starts as null", () => {
       expect(selectedClassUri.value).toBeNull();
     });
+
+    it("creatingClass starts as null", () => {
+      expect(creatingClass.value).toBeNull();
+    });
   });
 
   describe("ontologyClasses signal", () => {
@@ -33,6 +69,19 @@ describe("ontology state", () => {
       ontologyClasses.value = mockClasses;
       expect(ontologyClasses.value).toHaveLength(3);
       expect(ontologyClasses.value[0].label).toBe("Investigation");
+    });
+  });
+
+  describe("creatingClass signal", () => {
+    it("holds config when set", () => {
+      creatingClass.value = { projectId: "proj-1" };
+      expect(creatingClass.value).toEqual({ projectId: "proj-1" });
+    });
+
+    it("can be cleared", () => {
+      creatingClass.value = { projectId: "proj-1" };
+      creatingClass.value = null;
+      expect(creatingClass.value).toBeNull();
     });
   });
 

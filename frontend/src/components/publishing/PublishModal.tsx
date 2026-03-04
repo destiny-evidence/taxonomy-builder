@@ -10,6 +10,7 @@ import {
 import { FEEDBACK_URL } from "../../config";
 import { projectsApi } from "../../api/projects";
 import type { ExportFormat } from "../../api/schemes";
+import { formatDate } from "../../utils/dates";
 import "./PublishModal.css";
 
 interface ExportButtonProps {
@@ -596,14 +597,6 @@ export function PublishModal({
       </div>
     );
   }
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 function formatGroupedCount(items: Array<{ entity_type: string }>): string {

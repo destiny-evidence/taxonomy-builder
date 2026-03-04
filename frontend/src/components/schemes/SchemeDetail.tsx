@@ -5,6 +5,7 @@ import { schemesApi } from "../../api/schemes";
 import { ApiError } from "../../api/client";
 import { schemes, currentScheme } from "../../state/schemes";
 import type { ConceptScheme } from "../../types/models";
+import { formatDatetime } from "../../utils/dates";
 import "./SchemeDetail.css";
 
 interface SchemeDetailProps {
@@ -16,17 +17,6 @@ interface EditDraft {
   title: string;
   uri: string;
   description: string;
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
@@ -204,11 +194,11 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
 
             <div class="scheme-detail__meta">
               <span class="scheme-detail__meta-item">
-                Created {formatDate(scheme.created_at)}
+                Created {formatDatetime(scheme.created_at)}
               </span>
               <span class="scheme-detail__meta-separator">•</span>
               <span class="scheme-detail__meta-item">
-                Updated {formatDate(scheme.updated_at)}
+                Updated {formatDatetime(scheme.updated_at)}
               </span>
             </div>
 

@@ -1,8 +1,9 @@
 import { useState } from "preact/hooks";
 import { Button } from "../common/Button";
+import { ClassDetail } from "../classes/ClassDetail";
 import { HistoryPanel } from "../history/HistoryPanel";
 import { useResizeHandle } from "../../hooks/useResizeHandle";
-import { ontologyClasses } from "../../state/ontology";
+import { ontologyClasses } from "../../state/classes";
 import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
 import { historyVersion } from "../../state/history";
 import { datatypeLabel } from "../../types/models";
@@ -13,6 +14,8 @@ interface ClassDetailPaneProps {
   projectId: string;
   onPropertySelect: (propertyId: string) => void;
   onSchemeNavigate: (schemeId: string) => void;
+  onRefresh: () => void;
+  onClassDeleted: () => void;
 }
 
 export function ClassDetailPane({
@@ -20,6 +23,8 @@ export function ClassDetailPane({
   projectId,
   onPropertySelect,
   onSchemeNavigate,
+  onRefresh,
+  onClassDeleted,
 }: ClassDetailPaneProps) {
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const { height: sectionHeight, onResizeStart } = useResizeHandle();
@@ -30,9 +35,6 @@ export function ClassDetailPane({
     (p) => p.range_class === classUri && p.domain_class !== classUri,
   );
 
-  const classLabel = ontologyClass?.label ?? classUri;
-  const classDescription = ontologyClass?.description;
-
   function handleAddProperty() {
     creatingProperty.value = { projectId, domainClassUri: classUri };
     selectedPropertyId.value = null;
@@ -41,9 +43,15 @@ export function ClassDetailPane({
   return (
     <div class="class-detail-pane">
       <div class="class-detail-pane__header">
-        <h2 class="class-detail-pane__title">{classLabel}</h2>
-        {classDescription && (
-          <p class="class-detail-pane__description">{classDescription}</p>
+        {ontologyClass ? (
+          <ClassDetail
+            key={ontologyClass.id}
+            ontologyClass={ontologyClass}
+            onRefresh={onRefresh}
+            onDeleted={onClassDeleted}
+          />
+        ) : (
+          <h2 class="class-detail-pane__title">{classUri}</h2>
         )}
       </div>
 

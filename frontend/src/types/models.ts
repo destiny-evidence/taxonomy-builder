@@ -257,11 +257,31 @@ export interface FeedbackManagerRead {
   responded_by_name: string | null;
 }
 
-// ============ Ontology ============
+// ============ Ontology Classes ============
 export interface OntologyClass {
   id: string;
-  uri: string;
+  project_id: string;
+  identifier: string;
   label: string;
   description: string | null;
+  scope_note: string | null;
+  uri: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OntologyClassCreate {
+  identifier: string;
+  label: string;
+  description?: string | null;
+  scope_note?: string | null;
+  uri?: string | null;
+}
+
+export interface OntologyClassUpdate {
+  identifier?: string;
+  label?: string;
+  description?: string | null;
+  scope_note?: string | null;
 }
 

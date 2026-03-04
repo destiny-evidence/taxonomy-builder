@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.ontology_class import OntologyClass
+from taxonomy_builder.models.property import Property
 from taxonomy_builder.schemas.ontology_class import OntologyClassCreate, OntologyClassUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
 from taxonomy_builder.services.project_service import ProjectService
@@ -52,6 +53,16 @@ class ProjectNamespaceRequiredError(Exception):
         self.project_id = project_id
         super().__init__(
             "Project namespace required to create ontology classes without explicit URI"
+        )
+
+
+class OntologyClassReferencedByPropertyError(Exception):
+    """Raised when attempting to delete a class that is referenced by properties."""
+
+    def __init__(self, class_id: UUID) -> None:
+        self.class_id = class_id
+        super().__init__(
+            f"Ontology class '{class_id}' cannot be deleted because it is referenced by one or more properties"
         )
 
 
@@ -237,6 +248,18 @@ class OntologyClassService:
         ontology_class = await self.get_ontology_class(ontology_class_id)
         if ontology_class is None:
             return False
+
+        result = await self.db.execute(
+            select(Property.id).where(
+                Property.project_id == ontology_class.project_id,
+                or_(
+                    Property.domain_class == ontology_class.uri,
+                    Property.range_class == ontology_class.uri,
+                ),
+            )
+        )
+        if result.first() is not None:
+            raise OntologyClassReferencedByPropertyError(ontology_class_id)
 
         before = self._serialize_ontology_class(ontology_class)
         project_id = ontology_class.project_id
