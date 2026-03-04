@@ -229,3 +229,5 @@ class SKOSExportService:
             g.add((class_uri, DCTERMS.description, Literal(snapshot_class.description)))
         if snapshot_class.scope_note:
             g.add((class_uri, SKOS.scopeNote, Literal(snapshot_class.scope_note)))
+        for superclass_uri in snapshot_class.superclass_uris:
+            g.add((class_uri, RDFS.subClassOf, URIRef(superclass_uri)))

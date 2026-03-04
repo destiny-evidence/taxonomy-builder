@@ -16,11 +16,10 @@ from taxonomy_builder.models import (
     Concept,
     ConceptBroader,
     ConceptScheme,
-    OntologyClass,
     Project,
-    Property,
     User,
 )
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.publishing import PublishRequest
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
@@ -28,7 +27,12 @@ from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.publishing_service import PublishingService
 from taxonomy_builder.services.reader_file_service import ReaderFileService
+from taxonomy_builder.services.skos_import_service import SKOSImportService
 from taxonomy_builder.services.snapshot_service import SnapshotService
+
+_EVREPO_CORE_TTL = (
+    Path(__file__).parent.parent.parent.parent / "vocab" / "evrepo-core" / "evrepo-core.ttl"
+)
 
 
 async def create_seed_data(session: AsyncSession) -> dict:
@@ -244,125 +248,12 @@ async def create_seed_data(session: AsyncSession) -> dict:
     await session.flush()
     created["concepts"] += 5
 
-    # Ontology classes from evrepo-core
-    ns = project.namespace
-    class_data = [
-        ("Investigation", "Investigation", "A research investigation or study."),
-        ("Finding", "Finding", "A finding or result reported by an investigation."),
-        ("Intervention", "Intervention", "An intervention evaluated in a study."),
-        ("Outcome", "Outcome", "A measured outcome of an intervention."),
-        (
-            "EffectEstimate",
-            "Effect Estimate",
-            "A quantitative estimate of an intervention's effect.",
-        ),
-        ("Context", "Context", "The context in which a study was conducted."),
-        ("Funder", "Funder", "An entity that funded a study."),
-        ("Implementer", "Implementer", "An entity that implemented an intervention."),
-    ]
-    classes = {}
-    for identifier, label, description in class_data:
-        cls = OntologyClass(
-            project_id=project.id,
-            identifier=identifier,
-            label=label,
-            description=description,
-            uri=f"{ns}/{identifier}",
-        )
-        session.add(cls)
-        classes[identifier] = cls
-    await session.flush()
-    created["classes"] += len(class_data)
-
-    # Properties from evrepo-core — exercising all three range types
-    property_records = [
-        # class-to-class (range_class)
-        Property(
-            project_id=project.id,
-            identifier="hasFinding",
-            label="has finding",
-            description="Links an investigation to one of its findings.",
-            domain_class=f"{ns}/Investigation",
-            range_class=f"{ns}/Finding",
-            cardinality="multiple",
-            uri=f"{ns}/hasFinding",
-        ),
-        Property(
-            project_id=project.id,
-            identifier="evaluates",
-            label="evaluates",
-            description="Links a finding to the intervention it evaluates.",
-            domain_class=f"{ns}/Finding",
-            range_class=f"{ns}/Intervention",
-            cardinality="single",
-            uri=f"{ns}/evaluates",
-        ),
-        Property(
-            project_id=project.id,
-            identifier="hasContext",
-            label="has context",
-            description="Links a finding to its study context.",
-            domain_class=f"{ns}/Finding",
-            range_class=f"{ns}/Context",
-            cardinality="single",
-            uri=f"{ns}/hasContext",
-        ),
-        Property(
-            project_id=project.id,
-            identifier="hasEffectEstimate",
-            label="has effect estimate",
-            description="Links a finding to a quantitative effect estimate.",
-            domain_class=f"{ns}/Finding",
-            range_class=f"{ns}/EffectEstimate",
-            cardinality="multiple",
-            uri=f"{ns}/hasEffectEstimate",
-        ),
-        Property(
-            project_id=project.id,
-            identifier="implementedBy",
-            label="implemented by",
-            description="Links an intervention to its implementing entity.",
-            domain_class=f"{ns}/Intervention",
-            range_class=f"{ns}/Implementer",
-            cardinality="multiple",
-            uri=f"{ns}/implementedBy",
-        ),
-        # class-to-scheme (range_scheme_id)
-        Property(
-            project_id=project.id,
-            identifier="studyDesign",
-            label="study design",
-            description="The study design used by an investigation.",
-            domain_class=f"{ns}/Investigation",
-            range_scheme_id=study_designs.id,
-            cardinality="single",
-            uri=f"{ns}/studyDesign",
-        ),
-        # class-to-datatype (range_datatype)
-        Property(
-            project_id=project.id,
-            identifier="effectSize",
-            label="effect size",
-            description="The numeric effect size of an effect estimate.",
-            domain_class=f"{ns}/EffectEstimate",
-            range_datatype="xsd:decimal",
-            cardinality="single",
-            uri=f"{ns}/effectSize",
-        ),
-        Property(
-            project_id=project.id,
-            identifier="outcomeDescription",
-            label="outcome description",
-            description="A textual description of an outcome.",
-            domain_class=f"{ns}/Outcome",
-            range_datatype="xsd:string",
-            cardinality="single",
-            uri=f"{ns}/outcomeDescription",
-        ),
-    ]
-    session.add_all(property_records)
-    await session.flush()
-    created["properties"] += len(property_records)
+    # Import ontology classes and properties from evrepo-core TTL
+    import_service = SKOSImportService(session)
+    ttl_content = _EVREPO_CORE_TTL.read_bytes()
+    import_result = await import_service.execute(project.id, ttl_content, "evrepo-core.ttl")
+    created["classes"] += len(import_result.classes_created)
+    created["properties"] += len(import_result.properties_created)
 
     # Create another project with a simpler structure
     demo_project = Project(
@@ -468,7 +359,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
         .selectinload(ConceptScheme.concepts)
         .selectinload(Concept._related_as_object),
         selectinload(Project.properties),
-        selectinload(Project.ontology_classes),
+        selectinload(Project.ontology_classes).selectinload(OntologyClass.superclasses),
     ]
     result = await session.execute(
         select(Project)
