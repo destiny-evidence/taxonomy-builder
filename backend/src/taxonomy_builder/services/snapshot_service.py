@@ -61,18 +61,15 @@ class SnapshotService:
                 SnapshotScheme.from_scheme(scheme)
             )
 
-        # Ensure superclasses are loaded for all ontology classes in a single query
-        if project.ontology_classes:
-            await self.db.execute(
-                select(OntologyClass)
-                .where(OntologyClass.project_id == project_id)
-                .options(selectinload(OntologyClass.superclasses))
-            )
+        result = await self.db.execute(
+            select(OntologyClass)
+            .where(OntologyClass.project_id == project_id)
+            .options(selectinload(OntologyClass.superclasses))
+        )
+        ontology_classes = result.scalars().all()
 
         properties = [SnapshotProperty.from_property(p) for p in project.properties]
-        classes = [
-            SnapshotClass.from_class(ontology_class) for ontology_class in project.ontology_classes
-        ]
+        classes = [SnapshotClass.from_class(ontology_class) for ontology_class in ontology_classes]
 
         return SnapshotVocabulary.model_construct(
             project=SnapshotProjectMetadata.from_project(project),
