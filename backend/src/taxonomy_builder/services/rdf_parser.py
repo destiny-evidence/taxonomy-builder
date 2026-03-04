@@ -100,7 +100,7 @@ def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
     _check_uri_schemes(g, result)
     _check_unresolved_domains(g, class_uris, result)
     _check_rdf_properties(g, result)
-    _check_unsupported_subclasses(g, result)
+    _check_superclass_cycles(g, result)
     _check_unsupported_union_domains(g, result)
     _check_unsupported_named_individuals(g, result)
     _check_unsupported_restrictions(g, result)
@@ -186,29 +186,21 @@ def _check_rdf_properties(g: Graph, result: ValidationResult) -> None:
             ))
 
 
-def _check_unsupported_subclasses(g: Graph, result: ValidationResult) -> None:
-    """Detect rdfs:subClassOf between ontology classes (not concept subclasses)."""
+def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
+    """Detect cycles in rdfs:subClassOf edges between ontology classes."""
     concept_subclasses = find_concept_subclasses(g)
-    count = 0
-    for s, _p, o in g.triples((None, RDFS.subClassOf, None)):
-        if not isinstance(s, URIRef) or not isinstance(o, URIRef):
-            continue
-        # Skip subClassOf skos:Concept (that's normal concept typing)
-        if o == SKOS.Concept:
-            continue
-        # Skip if the subject is a concept subclass (already handled)
-        if s in concept_subclasses:
-            continue
-        count += 1
-
-    if count:
-        result.info.append(ValidationIssue(
-            severity="info",
-            type="unsupported_subclass",
-            message=(
-                f"Found {count} subclass relationship{'s' if count != 1 else ''} "
-                f"between ontology classes — not yet supported (#109)"
-            ),
+    owl_classes = find_owl_classes(g)
+    class_metadata = [
+        extract_class_metadata(g, cls, concept_subclasses=concept_subclasses)
+        for cls in owl_classes
+    ]
+    cycles = detect_superclass_cycles(class_metadata)
+    if cycles:
+        cycle_desc = ", ".join(f"{a} → {b}" for a, b in cycles)
+        result.errors.append(ValidationIssue(
+            severity="error",
+            type="superclass_cycle",
+            message=f"Cycle detected in rdfs:subClassOf hierarchy: {cycle_desc}",
         ))
 
 
@@ -405,9 +397,16 @@ def find_owl_classes(g: Graph) -> list[URIRef]:
     return classes
 
 
-def extract_class_metadata(g: Graph, class_uri: URIRef) -> dict:
-    """Extract label, description, scope_note for an OWL class."""
+def extract_class_metadata(
+    g: Graph,
+    class_uri: URIRef,
+    *,
+    concept_subclasses: set[URIRef] | None = None,
+) -> dict:
+    """Extract label, description, scope_note, and superclass_uris for an OWL class."""
     uri_str = str(class_uri)
+    if concept_subclasses is None:
+        concept_subclasses = set()
 
     label = g.value(class_uri, RDFS.label)
     if not label:
@@ -418,13 +417,54 @@ def extract_class_metadata(g: Graph, class_uri: URIRef) -> dict:
     description = g.value(class_uri, RDFS.comment)
     scope_note = g.value(class_uri, SKOS.scopeNote)
 
+    # Collect superclass URIs, filtering out blank nodes, skos:Concept, and concept subclasses
+    superclass_uris: list[str] = []
+    for obj in g.objects(class_uri, RDFS.subClassOf):
+        if not isinstance(obj, URIRef):
+            continue
+        if obj == SKOS.Concept:
+            continue
+        if obj in concept_subclasses:
+            continue
+        superclass_uris.append(str(obj))
+
     return {
         "identifier": get_identifier_from_uri(class_uri),
         "label": str(label),
         "description": str(description) if description else None,
         "scope_note": str(scope_note) if scope_note else None,
         "uri": uri_str,
+        "superclass_uris": sorted(superclass_uris),
     }
+
+
+def detect_superclass_cycles(class_metadata: list[dict]) -> list[tuple[str, str]]:
+    """Detect cycles in superclass edges via DFS. Returns list of cycle-forming edges."""
+    # Build adjacency: child → superclasses
+    children: dict[str, list[str]] = {}
+    for cm in class_metadata:
+        children[cm["uri"]] = cm.get("superclass_uris", [])
+
+    WHITE, GREY, BLACK = 0, 1, 2
+    color: dict[str, int] = {uri: WHITE for uri in children}
+    cycle_edges: list[tuple[str, str]] = []
+
+    def dfs(node: str) -> None:
+        color[node] = GREY
+        for parent in children.get(node, []):
+            if parent not in color:
+                continue  # external URI, skip
+            if color[parent] == GREY:
+                cycle_edges.append((node, parent))
+            elif color[parent] == WHITE:
+                dfs(parent)
+        color[node] = BLACK
+
+    for uri in children:
+        if color[uri] == WHITE:
+            dfs(uri)
+
+    return cycle_edges
 
 
 # --- OWL property helpers ---
@@ -606,7 +646,11 @@ def analyze_graph(g: Graph) -> dict:
                 )
 
     owl_classes = find_owl_classes(g)
-    class_metadata = [extract_class_metadata(g, cls) for cls in owl_classes]
+    concept_subs = find_concept_subclasses(g)
+    class_metadata = [
+        extract_class_metadata(g, cls, concept_subclasses=concept_subs)
+        for cls in owl_classes
+    ]
 
     owl_properties = find_properties(g)
     property_metadata = [

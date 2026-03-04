@@ -1,6 +1,7 @@
 """SQLAlchemy models."""
 
 from taxonomy_builder.models.change_event import ChangeEvent
+from taxonomy_builder.models.class_superclass import ClassSuperclass
 from taxonomy_builder.models.comment import Comment
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
@@ -15,6 +16,7 @@ from taxonomy_builder.models.user import User
 
 __all__ = [
     "ChangeEvent",
+    "ClassSuperclass",
     "Comment",
     "Concept",
     "ConceptBroader",

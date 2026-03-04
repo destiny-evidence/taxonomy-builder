@@ -236,7 +236,13 @@ class SnapshotProperty(BaseModel):
             description=property.description,
             domain_class=property.domain_class,
             domain_class_uris=[property.domain_class],
-            property_type="datatype" if property.range_datatype else "object",
+            property_type=(
+                "datatype"
+                if property.range_datatype
+                else "object"
+                if property.range_class or property.range_scheme_id
+                else "rdf"
+            ),
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
             range_class=property.range_class,
