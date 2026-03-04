@@ -2,6 +2,9 @@
 
 from uuid import UUID, uuid4
 
+import pytest
+from pydantic import ValidationError as PydanticValidationError
+
 from taxonomy_builder.schemas.snapshot import (
     SnapshotClass,
     SnapshotConcept,
@@ -423,9 +426,7 @@ class TestRequireValidRange:
 
     def test_object_type_requires_exactly_one_range(self) -> None:
         """object property with no range should fail."""
-        import pytest
-
-        with pytest.raises(Exception):
+        with pytest.raises(PydanticValidationError):
             SnapshotProperty(
                 id=uuid4(),
                 identifier="prop1",
@@ -442,9 +443,7 @@ class TestRequireValidRange:
 
     def test_datatype_type_requires_exactly_one_range(self) -> None:
         """datatype property with no range should fail."""
-        import pytest
-
-        with pytest.raises(Exception):
+        with pytest.raises(PydanticValidationError):
             SnapshotProperty(
                 id=uuid4(),
                 identifier="prop1",

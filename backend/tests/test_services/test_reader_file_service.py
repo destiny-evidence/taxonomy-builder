@@ -73,6 +73,7 @@ def _make_snapshot(
                 "alt_labels": [],
                 "broader_ids": [],
                 "related_ids": [str(CONCEPT_A_ID)],
+                "concept_type_uris": [],
             },
             {
                 "id": str(CONCEPT_CHILD_ID),

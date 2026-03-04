@@ -394,6 +394,32 @@ def test_owl_restriction_detected():
     assert "dropped on import" in restriction_warnings[0].message
 
 
+OWL_ALL_VALUES_FROM_TTL = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/> .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:codedValue ;
+        owl:allValuesFrom ex:StringType
+    ] .
+"""
+
+
+def test_all_values_from_restriction_enumerated():
+    """allValuesFrom restrictions are enumerated with property and value in the warning."""
+    g = _graph(OWL_ALL_VALUES_FROM_TTL)
+    result = validate_graph(g, set())
+
+    restriction_warnings = [w for w in result.warnings if w.type == "unsupported_restriction"]
+    assert len(restriction_warnings) == 1
+    assert "codedValue" in restriction_warnings[0].message
+    assert "allValuesFrom" in restriction_warnings[0].message
+    assert "StringType" in restriction_warnings[0].message
+
+
 # --- Empty graph detection ---
 
 

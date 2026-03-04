@@ -163,7 +163,7 @@
     },
     "classes": {
       "type": "array",
-      "description": "Ontology classes (domain entities). Referenced by properties via domain_class_uri.",
+      "description": "Ontology classes (domain entities). Referenced by properties via domain_class_uris.",
       "items": {
         "type": "object",
         "required": ["id", "identifier", "uri", "label", "superclasses"],

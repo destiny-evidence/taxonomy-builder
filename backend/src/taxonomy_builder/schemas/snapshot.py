@@ -10,7 +10,7 @@ Use model_construct() to bypass validation when building snapshots of
 potentially-invalid projects (e.g. for preview).
 """
 
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
@@ -153,7 +153,7 @@ class SnapshotProperty(BaseModel):
     description: str | None = None
     domain_class: str = ""  # kept for backward compat; domain_class_uris is authoritative
     domain_class_uris: list[str] = Field(default_factory=list)
-    property_type: str = "object"
+    property_type: Literal["object", "datatype", "rdf"] = "object"
     range_scheme_id: UUID | None = None
     range_scheme_uri: str | None = None
     range_datatype: str | None = None
