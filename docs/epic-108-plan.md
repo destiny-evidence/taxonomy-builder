@@ -41,7 +41,7 @@ For the earlier Codex-generated draft, see `docs/epic-108-issue-drafts-rewrite.m
 
 **External superclass URIs validated via allowlist.** When a class has `rdfs:subClassOf skos:Concept`, the target URI won't be in the project's class set. Rather than allowing any external URI (which wouldn't catch typos) or blocking all external URIs (which would reject valid ontologies), we maintain a small allowlist of well-known URIs: `skos:Concept`, `owl:Thing`, `rdfs:Resource`. Superclass URIs are validated against project classes plus this allowlist.
 
-**Concept-typed classes imported as ontology classes.** The parser currently excludes classes that are `rdfs:subClassOf skos:Concept` (like `EffectSizeMetricConcept`) from the ontology class list. We remove this exclusion — they import as regular ontology classes, and their `rdfs:subClassOf skos:Concept` edge round-trips through the standard export code. If the class list gets noisy, a computed `concept_type_class` distinction can be derived from superclass URIs later — no schema change needed, just UI filtering.
+**Concept-typed classes imported as ontology classes (pending Andrew's confirmation).** The parser currently excludes classes that are `rdfs:subClassOf skos:Concept` (like `EffectSizeMetricConcept`) from the ontology class list. We propose removing this exclusion so they import as regular ontology classes, and their `rdfs:subClassOf skos:Concept` edge round-trips through the standard export code. This is necessary for the constraint system (Stripe 5) — restrictions reference these classes, and they only resolve if imported. Andrew initially said concept-typed classes should be an "export concern"; we've asked whether importing them is acceptable given the restriction dependency. If the class list gets noisy, a computed `concept_type_class` distinction can be derived from superclass URIs — no schema change needed, just UI filtering.
 
 ### Data model — concept dual-typing
 
@@ -173,20 +173,20 @@ Update the format 1.0 schema in place with all new fields. Purge existing publis
 - Republish seed projects after purge to verify new schema shape
 
 **Import warnings** (`services/rdf_parser.py`):
-- Upgrade `_check_unsupported_restrictions`: `info` → `warning`
+- Upgrade `_check_unsupported_restrictions`: `info` → `warning`, now enumerates each restriction found (property name, restriction type, value) instead of just a count. Message says "dropped on import" until Stripe 5 adds preservation.
 - `_check_unsupported_named_individuals`: stays `info`
 
-**Acceptance criteria:**
-- [ ] Published JSON schema updated with new fields
-- [ ] `FORMAT_VERSION` remains `"1.0"`
-- [ ] `classes[].superclasses` is `[]` for existing projects
-- [ ] Concepts include `type_uris: []` in published JSON
-- [ ] `properties[].domain_class_uris` wraps existing scalar in a list
-- [ ] `properties[].property_type` inferred as `"object"` or `"datatype"`
-- [ ] `rdf` property type with no range passes snapshot validation
-- [ ] Old published artifacts purged from blob storage
-- [ ] OWL restriction import warning is `warning` severity
-- [ ] Existing tests pass
+**Acceptance criteria:** DONE (branch `feature/108-format-scaffold`)
+- [x] Published JSON schema updated with new fields
+- [x] `FORMAT_VERSION` remains `"1.0"`
+- [x] `classes[].superclasses` is `[]` for existing projects
+- [x] Concepts include `type_uris: []` in published JSON
+- [x] `properties[].domain_class_uris` wraps existing scalar in a list
+- [x] `properties[].property_type` inferred as `"object"` or `"datatype"`
+- [x] `rdf` property type with no range passes snapshot validation
+- [x] OWL restriction import warning is `warning` severity with enumerated details
+- [x] Feedback-ui types and components updated for new field names
+- [x] 808 backend tests pass, 40 feedback-ui tests pass, lint clean
 
 ---
 
