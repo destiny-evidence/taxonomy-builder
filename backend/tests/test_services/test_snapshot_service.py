@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.class_superclass import ClassSuperclass
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_related import ConceptRelated
@@ -397,3 +398,37 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
     assert len(snapshot.classes) == 1
     assert snapshot.classes[0].id == ont_cls.id
     assert snapshot.classes[0].uri == "http://example.org/vocab/Finding"
+
+
+@pytest.mark.asyncio
+async def test_snapshot_class_superclass_uris(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """SnapshotClass built from a project snapshot includes superclass_uris from DB."""
+    parent = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="http://example.org/vocab/Finding",
+    )
+    child = OntologyClass(
+        project_id=project.id,
+        identifier="QuantitativeFinding",
+        label="Quantitative Finding",
+        uri="http://example.org/vocab/QuantitativeFinding",
+    )
+    db_session.add_all([parent, child])
+    await db_session.flush()
+    await db_session.refresh(parent)
+    await db_session.refresh(child)
+
+    db_session.add(ClassSuperclass(class_id=child.id, superclass_id=parent.id))
+    await db_session.flush()
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+
+    classes_by_id = {c.identifier: c for c in snapshot.classes}
+    assert classes_by_id["QuantitativeFinding"].superclass_uris == [
+        "http://example.org/vocab/Finding"
+    ]
+    assert classes_by_id["Finding"].superclass_uris == []

@@ -3,7 +3,9 @@
 from uuid import UUID
 
 from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.schemas.snapshot import (
@@ -57,6 +59,14 @@ class SnapshotService:
             scheme.concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
             schemes.append(
                 SnapshotScheme.from_scheme(scheme)
+            )
+
+        # Ensure superclasses are loaded for all ontology classes in a single query
+        if project.ontology_classes:
+            await self.db.execute(
+                select(OntologyClass)
+                .where(OntologyClass.project_id == project_id)
+                .options(selectinload(OntologyClass.superclasses))
             )
 
         properties = [SnapshotProperty.from_property(p) for p in project.properties]

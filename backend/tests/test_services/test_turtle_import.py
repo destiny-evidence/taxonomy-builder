@@ -427,3 +427,88 @@ ex:Concept1 a skos:Concept ;
         assert result.total_concepts_created == 1
         assert len(result.classes_created) == 0
         assert len(result.properties_created) == 0
+
+    @pytest.mark.asyncio
+    async def test_superclass_relationship_stored(
+        self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    ) -> None:
+        """rdfs:subClassOf between OWL classes creates a ClassSuperclass join row."""
+        ttl = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:QuantitativeFinding a owl:Class ;
+    rdfs:label "Quantitative Finding" ;
+    rdfs:subClassOf ex:Finding .
+"""
+        await import_service.execute(project.id, ttl, "test.ttl")
+
+        classes = (
+            await db_session.execute(
+                select(OntologyClass).where(OntologyClass.project_id == project.id)
+            )
+        ).scalars().all()
+        quant = next(c for c in classes if c.identifier == "QuantitativeFinding")
+        await db_session.refresh(quant)
+
+        assert len(quant.superclasses) == 1
+        assert quant.superclasses[0].identifier == "Finding"
+
+    @pytest.mark.asyncio
+    async def test_unresolvable_superclass_emits_warning(
+        self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    ) -> None:
+        """Class with a superclass URI not present in the project emits a warning."""
+        ttl = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:QuantitativeFinding a owl:Class ;
+    rdfs:label "Quantitative Finding" ;
+    rdfs:subClassOf ex:Finding .
+"""
+        result = await import_service.execute(project.id, ttl, "test.ttl")
+
+        assert any("Finding" in w for w in result.warnings)
+
+    @pytest.mark.asyncio
+    async def test_cross_file_superclass_resolved(
+        self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    ) -> None:
+        """Superclass imported in an earlier file is resolved in a later import."""
+        await import_service.execute(project.id, b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+""", "base.ttl")
+
+        result = await import_service.execute(project.id, b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:QuantitativeFinding a owl:Class ;
+    rdfs:label "Quantitative Finding" ;
+    rdfs:subClassOf ex:Finding .
+""", "subclass.ttl")
+
+        assert not any("superclass" in w.lower() for w in result.warnings)
+
+        classes = (
+            await db_session.execute(
+                select(OntologyClass).where(OntologyClass.project_id == project.id)
+            )
+        ).scalars().all()
+        quant = next(c for c in classes if c.identifier == "QuantitativeFinding")
+        await db_session.refresh(quant)
+
+        assert len(quant.superclasses) == 1
+        assert quant.superclasses[0].identifier == "Finding"

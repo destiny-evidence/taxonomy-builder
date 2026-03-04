@@ -304,7 +304,9 @@ class SnapshotClass(BaseModel):
             label=ontology_class.label,
             description=ontology_class.description,
             scope_note=ontology_class.scope_note,
-            superclass_uris=[],
+            superclass_uris=sorted(
+                sc.uri for sc in ontology_class.superclasses if sc.uri
+            ),
         )
 
 
