@@ -13,7 +13,7 @@ The vocabulary is split across two namespaces, layered so that sector-specific e
 
 **[`esea/`](esea/)** — Education Sector Evidence Architecture. Extends the core with education-specific concept schemes covering all 24 taxonomy fields (169 concepts), CodingAnnotation subclasses with OWL restrictions, and domain properties.
 
-- Namespace: `https://vocab.esea.education/`
+- Namespace: `https://vocab.esea.education/` (working draft — may change)
 - `esea-vocab.ttl` — SKOS concept schemes, OWL classes, and properties
 - `esea-context.jsonld` — JSON-LD @context for serialising evidence data
 - `example-finding.jsonld` — Worked example: a cluster RCT with per-arm data

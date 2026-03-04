@@ -13,6 +13,11 @@
 # The pragmatic workaround (issue #112) is to model this as a concept scheme
 # with three concepts. At export time, the exporter can optionally emit the
 # owl:oneOf pattern below instead of SKOS.
+#
+# NOTE: Modelling CodingStatus as a full SKOS vocabulary may be overkill.
+# A simple string field may be preferable until the enumeration pattern is
+# settled. This file illustrates the OWL pattern for reference, not as a
+# recommendation for the builder's representation.
 # =============================================================================
 
 evrepo:CodingStatus a owl:Class ;

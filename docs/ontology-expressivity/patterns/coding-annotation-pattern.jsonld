@@ -1,8 +1,6 @@
 {
   "@context": "../../../vocab/esea/esea-context.jsonld",
 
-  "_comment": "Three CodingAnnotation types: concept-valued, string, and numeric. Each wraps a coded value with provenance (codedBy, supportingText, status). The status property resolves to named individuals (evrepo:coded, evrepo:notApplicable, evrepo:notReported).",
-
   "educationLevel": [
     {
       "@type": "EducationLevelCodingAnnotation",

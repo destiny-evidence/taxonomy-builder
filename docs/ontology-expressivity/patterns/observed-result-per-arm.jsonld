@@ -1,8 +1,6 @@
 {
   "@context": "../../../vocab/esea/esea-context.jsonld",
 
-  "_comment": "A cluster RCT finding with per-arm ObservedResults and an EffectEstimate. Each ObservedResult links back to its Condition via forCondition. ObservedResult and EffectEstimate carry class-level provenance (codedBy, sourceLocation) directly — they do NOT use CodingAnnotation wrapping.",
-
   "@id": "_:finding-1",
   "@type": "Finding",
   "evaluates": {
