@@ -1,0 +1,156 @@
+{
+  "@context": "../../../vocab/esea/esea-context.jsonld",
+
+  "@id": "https://example.org/investigations/3ie-34810",
+  "@type": "Investigation",
+
+  "documentType": {
+    "@type": "DocumentTypeCodingAnnotation",
+    "codedValue": { "@id": "esea:C00008" },
+    "supportingText": "Journal article",
+    "codedBy": "3ie",
+    "status": "coded"
+  },
+
+  "funderResearch": {
+    "@type": "StringCodingAnnotation",
+    "codedValue": null,
+    "codedBy": "3ie",
+    "status": "notReported"
+  },
+
+  "isRetracted": false,
+  "dataSource": "3ie-DEP",
+
+  "hasFinding": [
+    {
+      "@id": "_:finding-employment-index",
+      "@type": "Finding",
+
+      "evaluates": {
+        "@id": "_:intervention-cnee",
+        "@type": "Intervention",
+
+        "educationTheme": [
+          {
+            "@type": "EducationThemeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00022" },
+            "supportingText": "An internship and apprenticeship programme enacted by the government of Senegal",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ],
+
+        "implementerType": {
+          "@type": "ImplementerTypeCodingAnnotation",
+          "codedValue": { "@id": "esea:C00137" },
+          "supportingText": "Government Of Senegal",
+          "codedBy": "3ie",
+          "status": "coded"
+        },
+
+        "implementationName": {
+          "@type": "StringCodingAnnotation",
+          "codedValue": "National State-Private Sector Employer Agreement (CNEE)",
+          "codedBy": "3ie",
+          "status": "coded"
+        },
+
+        "funderIntervention": {
+          "@type": "StringCodingAnnotation",
+          "codedValue": null,
+          "codedBy": "3ie",
+          "status": "notReported"
+        }
+      },
+
+      "comparedTo": {
+        "@id": "_:control-no-internship",
+        "@type": "ControlCondition"
+      },
+
+      "hasContext": {
+        "@type": "Context",
+
+        "educationLevel": [
+          {
+            "@type": "EducationLevelCodingAnnotation",
+            "codedValue": { "@id": "esea:C00005" },
+            "supportingText": "Workforce development and vocational education",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ],
+
+        "setting": [
+          {
+            "@type": "SettingCodingAnnotation",
+            "codedValue": { "@id": "esea:C00152" },
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ],
+
+        "country": {
+          "@type": "StringCodingAnnotation",
+          "codedValue": "SN",
+          "codedBy": "3ie",
+          "status": "coded"
+        },
+
+        "participants": [
+          {
+            "@type": "StringCodingAnnotation",
+            "codedValue": "Households with internship/apprenticeship programme participants",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ]
+      },
+
+      "hasOutcome": {
+        "@type": "Outcome",
+        "outcome": [
+          {
+            "@type": "OutcomeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00130" },
+            "supportingText": "Access to employment (p71, t4)",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ]
+      },
+
+      "sampleFeatures": [
+        {
+          "@type": "SampleFeaturesCodingAnnotation",
+          "codedValue": { "@id": "esea:C00187" },
+          "supportingText": "Sub-group analysis by sex — (p71) Table 4",
+          "codedBy": "3ie",
+          "status": "coded"
+        }
+      ]
+    },
+
+    {
+      "@id": "_:finding-employment-type",
+      "@type": "Finding",
+
+      "evaluates": { "@id": "_:intervention-cnee" },
+      "comparedTo": { "@id": "_:control-no-internship" },
+
+      "hasOutcome": {
+        "@type": "Outcome",
+        "outcome": [
+          {
+            "@type": "OutcomeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00130" },
+            "supportingText": "Regular employment (p72, fig.1)",
+            "codedBy": "3ie",
+            "status": "coded"
+          }
+        ]
+      }
+    }
+  ]
+}

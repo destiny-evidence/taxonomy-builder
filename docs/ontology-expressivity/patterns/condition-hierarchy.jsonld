@@ -1,0 +1,52 @@
+{
+  "@context": "../../../vocab/esea/esea-context.jsonld",
+
+  "@graph": [
+    {
+      "@id": "_:finding-rct",
+      "@type": "Finding",
+      "evaluates": {
+        "@id": "_:intervention-phonics",
+        "@type": "Intervention",
+        "implementationName": {
+          "@type": "StringCodingAnnotation",
+          "codedValue": "Structured phonics programme",
+          "codedBy": "EEF",
+          "status": "coded"
+        },
+        "educationTheme": [
+          {
+            "@type": "EducationThemeCodingAnnotation",
+            "codedValue": { "@id": "esea:C00074" },
+            "codedBy": "EEF",
+            "status": "coded"
+          }
+        ],
+        "duration": {
+          "@type": "NumericCodingAnnotation",
+          "codedValue": 24,
+          "supportingText": "24 weeks",
+          "codedBy": "EEF",
+          "status": "coded"
+        }
+      },
+      "comparedTo": {
+        "@id": "_:control-bau",
+        "@type": "ControlCondition"
+      }
+    },
+
+    {
+      "@id": "_:finding-prepost",
+      "@type": "Finding",
+      "evaluates": {
+        "@id": "_:post-test",
+        "@type": "TemporalCondition"
+      },
+      "comparedTo": {
+        "@id": "_:pre-test",
+        "@type": "TemporalCondition"
+      }
+    }
+  ]
+}
