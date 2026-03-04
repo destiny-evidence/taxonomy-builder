@@ -36,6 +36,7 @@ export interface ConceptTreeNode {
   id: string;
   label: string;
   children: ConceptTreeNode[];
+  broaderCount: number;
 }
 
 /**
@@ -63,6 +64,7 @@ function buildConceptTree(scheme: VocabScheme): ConceptTreeNode[] {
     return {
       id,
       label: concept.pref_label,
+      broaderCount: concept.broader.length,
       children: kids
         .map((childId) => {
           const child = concepts[childId];

@@ -44,7 +44,7 @@ export function ClassDetail({ classId }: ClassDetailProps) {
 
   return (
     <div class="detail">
-      <h1 class="detail__title">{cls.label}</h1>
+      <h1 class="detail__title" tabIndex={0}>{cls.label}</h1>
       <div class="detail__uri">{cls.uri}</div>
 
       {cls.description && (

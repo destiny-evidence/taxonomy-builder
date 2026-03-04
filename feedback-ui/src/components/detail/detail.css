@@ -6,6 +6,13 @@
   font-size: var(--font-size-2xl);
   font-weight: 600;
   margin-bottom: var(--spacing-md);
+  outline: none;
+}
+
+.detail__entity-type {
+  font-weight: 400;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
 }
 
 .detail__section {
@@ -55,6 +62,7 @@
   font-size: var(--font-size-sm);
   color: var(--color-primary);
   cursor: pointer;
+  text-decoration: underline;
 }
 
 .detail__link:hover {

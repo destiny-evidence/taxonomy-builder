@@ -31,7 +31,7 @@ export function Sidebar() {
   const hasSchemes = vocab.schemes.length > 0;
 
   return (
-    <div class="sidebar">
+    <nav class="sidebar" aria-label="Vocabulary navigation">
       <SearchBar />
       {!hasSearchQuery && (
         <>
@@ -48,6 +48,6 @@ export function Sidebar() {
           <DataModelSection />
         </>
       )}
-    </div>
+    </nav>
   );
 }
