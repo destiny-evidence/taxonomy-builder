@@ -399,33 +399,54 @@ class SKOSImportService:
             known_identifiers.add(cm["identifier"])
             to_create.append((ont_class, cm))
 
-        if not to_create:
-            return [], []
-
-        await self.db.flush()
-        for ont_class, _ in to_create:
-            await self.db.refresh(ont_class)
+        if to_create:
+            await self.db.flush()
+            for ont_class, _ in to_create:
+                await self.db.refresh(ont_class)
 
         # Build combined URI→id map: existing + newly created
         class_uri_to_id: dict[str, UUID] = dict(existing_class_uri_to_id or {})
         for ont_class, cm in to_create:
             class_uri_to_id[cm["uri"]] = ont_class.id
 
-        # Create ClassSuperclass rows; collect warnings for unresolvable superclasses
+        # Wire ClassSuperclass edges for all classes in this import (new and existing).
+        # Querying existing edges first prevents PK violations on re-import.
+        all_class_ids = {
+            class_uri_to_id[cm["uri"]]
+            for cm in class_metadata
+            if cm["uri"] in class_uri_to_id and cm.get("superclass_uris")
+        }
+        existing_edges: set[tuple[UUID, UUID]] = set()
+        if all_class_ids:
+            edges_result = await self.db.execute(
+                select(ClassSuperclass.class_id, ClassSuperclass.superclass_id)
+                .where(ClassSuperclass.class_id.in_(all_class_ids))
+            )
+            existing_edges = {(row.class_id, row.superclass_id) for row in edges_result}
+
         warnings: list[str] = []
-        for ont_class, cm in to_create:
+        edges_added = False
+        for cm in class_metadata:
+            if cm["uri"] not in class_uri_to_id:
+                continue
+            class_id = class_uri_to_id[cm["uri"]]
             for superclass_uri in cm.get("superclass_uris", []):
                 if superclass_uri in class_uri_to_id:
-                    self.db.add(ClassSuperclass(
-                        class_id=ont_class.id,
-                        superclass_id=class_uri_to_id[superclass_uri],
-                    ))
+                    superclass_id = class_uri_to_id[superclass_uri]
+                    if (class_id, superclass_id) not in existing_edges:
+                        self.db.add(ClassSuperclass(
+                            class_id=class_id,
+                            superclass_id=superclass_id,
+                        ))
+                        existing_edges.add((class_id, superclass_id))
+                        edges_added = True
                 else:
                     warnings.append(
                         f"Superclass <{superclass_uri}> not found in project "
                         f"(referenced by <{cm['uri']}>)"
                     )
-        await self.db.flush()
+        if to_create or edges_added:
+            await self.db.flush()
 
         created: list[ClassCreatedResponse] = []
         for ont_class, cm in to_create:
