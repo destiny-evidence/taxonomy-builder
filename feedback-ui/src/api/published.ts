@@ -56,6 +56,7 @@ export interface VocabConcept {
   alt_labels: string[];
   broader: string[];
   related: string[];
+  type_uris: string[];
 }
 
 export interface VocabScheme {
@@ -74,6 +75,7 @@ export interface VocabClass {
   label: string;
   description: string | null;
   scope_note: string | null;
+  superclasses: string[];
 }
 
 export interface VocabProperty {
@@ -82,7 +84,8 @@ export interface VocabProperty {
   uri: string;
   label: string;
   description: string | null;
-  domain_class_uri: string;
+  domain_class_uris: string[];
+  property_type: "object" | "datatype" | "rdf";
   range_scheme_id: string | null;
   range_scheme_uri: string | null;
   range_datatype: string | null;

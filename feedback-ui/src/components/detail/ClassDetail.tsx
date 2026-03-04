@@ -34,7 +34,7 @@ export function ClassDetail({ classId }: ClassDetailProps) {
 
   // Properties that use this class as domain
   const domainProperties = allProperties.filter(
-    (p) => p.domain_class_uri === cls.uri
+Why    (p) => p.domain_class_uris.includes(cls.uri)
   );
 
   // Properties that use this class as range

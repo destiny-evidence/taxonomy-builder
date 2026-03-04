@@ -112,7 +112,7 @@
             "propertyNames": { "type": "string", "format": "uuid" },
             "additionalProperties": {
               "type": "object",
-              "required": ["pref_label", "uri", "alt_labels", "broader", "related"],
+              "required": ["pref_label", "uri", "alt_labels", "broader", "related", "type_uris"],
               "additionalProperties": false,
               "properties": {
                 "pref_label": {
@@ -149,6 +149,11 @@
                   "type": "array",
                   "items": { "type": "string", "format": "uuid" },
                   "description": "UUIDs of related concepts (symmetric SKOS related). Empty array if none."
+                },
+                "type_uris": {
+                  "type": "array",
+                  "items": { "type": "string", "format": "uri" },
+                  "description": "OWL class type URIs beyond skos:Concept. Empty array if none."
                 }
               }
             }
@@ -161,7 +166,7 @@
       "description": "Ontology classes (domain entities). Referenced by properties via domain_class_uri.",
       "items": {
         "type": "object",
-        "required": ["id", "identifier", "uri", "label"],
+        "required": ["id", "identifier", "uri", "label", "superclasses"],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -189,43 +194,22 @@
           "scope_note": {
             "type": ["string", "null"],
             "description": "Scope note clarifying when to use this class."
+          },
+          "superclasses": {
+            "type": "array",
+            "items": { "type": "string", "format": "uri" },
+            "description": "URIs of direct superclasses (rdfs:subClassOf). Empty array if none."
           }
         }
       }
     },
     "properties": {
       "type": "array",
-      "description": "Property definitions linking ontology classes to concept schemes or datatypes. Navigate from class (via domain_class_uri) or from scheme (via range_scheme_id).",
+      "description": "Property definitions linking ontology classes to concept schemes or datatypes. Navigate from class (via domain_class_uris) or from scheme (via range_scheme_id).",
       "items": {
         "type": "object",
-        "required": ["id", "identifier", "uri", "label", "domain_class_uri", "cardinality", "required"],
+        "required": ["id", "identifier", "uri", "label", "domain_class_uris", "property_type", "cardinality", "required"],
         "additionalProperties": false,
-        "oneOf": [
-          {
-            "properties": {
-              "range_scheme_id": { "type": "string" },
-              "range_datatype": { "type": "null" },
-              "range_class": { "type": "null" }
-            },
-            "required": ["range_scheme_id", "range_scheme_uri"]
-          },
-          {
-            "properties": {
-              "range_scheme_id": { "type": "null" },
-              "range_datatype": { "type": "string" },
-              "range_class": { "type": "null" }
-            },
-            "required": ["range_datatype"]
-          },
-          {
-            "properties": {
-              "range_scheme_id": { "type": "null" },
-              "range_datatype": { "type": "null" },
-              "range_class": { "type": "string" }
-            },
-            "required": ["range_class"]
-          }
-        ],
         "properties": {
           "id": {
             "type": "string",
@@ -249,10 +233,16 @@
             "type": ["string", "null"],
             "description": "Coding guidance for data entry."
           },
-          "domain_class_uri": {
+          "domain_class_uris": {
+            "type": "array",
+            "items": { "type": "string", "format": "uri" },
+            "minItems": 1,
+            "description": "URIs of ontology classes this property applies to."
+          },
+          "property_type": {
             "type": "string",
-            "format": "uri",
-            "description": "URI of the ontology class this property applies to. Resolve from the classes array."
+            "enum": ["object", "datatype", "rdf"],
+            "description": "OWL property classification: object (range is scheme/class), datatype (range is XSD type), or rdf (polymorphic, range optional)."
           },
           "range_scheme_id": {
             "type": ["string", "null"],
