@@ -1173,7 +1173,8 @@ esea:implementationDescription a owl:ObjectProperty ;
     rdfs:label "implementation description"@en ;
     rdfs:comment "Type of implementation activity or modality. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Intervention ;
-    rdfs:range esea:ImplementationDescriptionCodingAnnotation .
+    rdfs:range esea:ImplementationDescriptionCodingAnnotation ;
+    rdfs:subPropertyOf evrepo:description .
 
 # --- Concept Scheme ---
 
@@ -1653,7 +1654,8 @@ esea:implementationName a owl:ObjectProperty ;
     rdfs:label "implementation name"@en ;
     rdfs:comment "Name or title of the intervention. Open text field."@en ;
     rdfs:domain evrepo:Intervention ;
-    rdfs:range evrepo:StringCodingAnnotation .
+    rdfs:range evrepo:StringCodingAnnotation ;
+    rdfs:subPropertyOf evrepo:name .
 
 
 # #############################################################################
