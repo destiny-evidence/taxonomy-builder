@@ -7,7 +7,6 @@ from taxonomy_builder.services.rdf_parser import (
     detect_superclass_cycles,
     extract_class_metadata,
     extract_property_metadata,
-    find_owl_classes,
     find_properties,
     parse_rdf,
     validate_graph,
@@ -273,7 +272,6 @@ def test_subclass_no_longer_flagged_as_unsupported():
 def test_extract_class_metadata_includes_superclass_uris():
     """extract_class_metadata() should include superclass_uris for classes with rdfs:subClassOf."""
     g = _graph(SUBCLASS_OF_CLASSES_TTL)
-    owl_classes = find_owl_classes(g)
 
     from rdflib import URIRef
     obs_uri = URIRef("http://example.org/ObservedResult")
@@ -306,6 +304,7 @@ ex:SpecialConcept a owl:Class ;
 """
     g = _graph(ttl)
     from rdflib import URIRef
+
     from taxonomy_builder.services.rdf_parser import find_concept_subclasses
     concept_subs = find_concept_subclasses(g)
 

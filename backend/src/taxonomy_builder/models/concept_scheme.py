@@ -28,7 +28,7 @@ class ConceptScheme(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
-    project: Mapped["Project"] = relationship(back_populates="schemes")
-    concepts: Mapped[list["Concept"]] = relationship(
+    project: Mapped[Project] = relationship(back_populates="schemes")
+    concepts: Mapped[list[Concept]] = relationship(
         back_populates="scheme", cascade="all, delete-orphan", lazy="selectin"
     )

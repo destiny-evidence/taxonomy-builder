@@ -119,6 +119,7 @@ async def test_add_related_orders_ids(
 
     # Query the raw table to verify ordering
     from sqlalchemy import select
+
     from taxonomy_builder.models.concept_related import ConceptRelated
 
     result = await db_session.execute(select(ConceptRelated))

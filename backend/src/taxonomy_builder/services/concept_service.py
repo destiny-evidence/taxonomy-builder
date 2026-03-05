@@ -37,7 +37,7 @@ class BroaderRelationshipExistsError(Exception):
     def __init__(self, concept_id: UUID, broader_concept_id: UUID) -> None:
         self.concept_id = concept_id
         self.broader_concept_id = broader_concept_id
-        super().__init__(f"Broader relationship already exists")
+        super().__init__("Broader relationship already exists")
 
 
 class BroaderRelationshipNotFoundError(Exception):
@@ -46,7 +46,7 @@ class BroaderRelationshipNotFoundError(Exception):
     def __init__(self, concept_id: UUID, broader_concept_id: UUID) -> None:
         self.concept_id = concept_id
         self.broader_concept_id = broader_concept_id
-        super().__init__(f"Broader relationship not found")
+        super().__init__("Broader relationship not found")
 
 
 class CycleDetectedError(Exception):
@@ -72,7 +72,7 @@ class RelatedRelationshipExistsError(Exception):
     def __init__(self, concept_id: UUID, related_concept_id: UUID) -> None:
         self.concept_id = concept_id
         self.related_concept_id = related_concept_id
-        super().__init__(f"Related relationship already exists")
+        super().__init__("Related relationship already exists")
 
 
 class RelatedRelationshipNotFoundError(Exception):
@@ -81,7 +81,7 @@ class RelatedRelationshipNotFoundError(Exception):
     def __init__(self, concept_id: UUID, related_concept_id: UUID) -> None:
         self.concept_id = concept_id
         self.related_concept_id = related_concept_id
-        super().__init__(f"Related relationship not found")
+        super().__init__("Related relationship not found")
 
 
 class RelatedSelfReferenceError(Exception):
@@ -89,7 +89,7 @@ class RelatedSelfReferenceError(Exception):
 
     def __init__(self, concept_id: UUID) -> None:
         self.concept_id = concept_id
-        super().__init__(f"A concept cannot be related to itself")
+        super().__init__("A concept cannot be related to itself")
 
 
 class RelatedSameSchemeError(Exception):
@@ -98,7 +98,7 @@ class RelatedSameSchemeError(Exception):
     def __init__(self, concept_id: UUID, related_concept_id: UUID) -> None:
         self.concept_id = concept_id
         self.related_concept_id = related_concept_id
-        super().__init__(f"Related concepts must be in the same scheme")
+        super().__init__("Related concepts must be in the same scheme")
 
 
 class ConceptService:

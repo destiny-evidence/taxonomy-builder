@@ -145,7 +145,10 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
 
     for cls in snapshot.classes or []:
         for superclass_uri in cls.superclass_uris or []:
-            if superclass_uri not in class_uris and superclass_uri not in WELL_KNOWN_SUPERCLASS_URIS:
+            if (
+                superclass_uri not in class_uris
+                and superclass_uri not in WELL_KNOWN_SUPERCLASS_URIS
+            ):
                 errors.append(
                     ValidationError(
                         code="broken_superclass_ref",

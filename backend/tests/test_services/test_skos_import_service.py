@@ -377,6 +377,7 @@ async def test_execute_simple_scheme(
 
     # Verify database
     from sqlalchemy import select
+
     from taxonomy_builder.models.concept import Concept
 
     schemes = (
@@ -455,6 +456,7 @@ async def test_execute_creates_broader_relationships(
     # Verify in database
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
+
     from taxonomy_builder.models.concept import Concept
 
     scheme_id = result.schemes_created[0].id
@@ -485,6 +487,7 @@ async def test_execute_alt_labels(
 
     # Verify in database
     from sqlalchemy import select
+
     from taxonomy_builder.models.concept import Concept
 
     scheme_id = result.schemes_created[0].id
@@ -509,6 +512,7 @@ async def test_execute_extracts_identifier_from_uri(
     )
 
     from sqlalchemy import select
+
     from taxonomy_builder.models.concept import Concept
 
     scheme_id = result.schemes_created[0].id
@@ -585,6 +589,7 @@ async def test_execute_property_without_domain_skipped_with_warning(
 ) -> None:
     """Property without rdfs:domain is skipped; domained property is imported."""
     from sqlalchemy import select
+
     from taxonomy_builder.models.property import Property
 
     result = await import_service.execute(
@@ -730,6 +735,7 @@ async def test_execute_allow_multiple_sets_cardinality(
 ) -> None:
     """eef:allowMultiple true -> 'multiple', false -> 'single', absent -> 'single'."""
     from sqlalchemy import select
+
     from taxonomy_builder.models.property import Property
 
     result = await import_service.execute(
@@ -782,6 +788,7 @@ async def test_execute_duplicate_property_identifier_skipped(
 ) -> None:
     """Two properties with different URIs but same identifier: second is skipped."""
     from sqlalchemy import select
+
     from taxonomy_builder.models.property import Property
 
     result = await import_service.execute(

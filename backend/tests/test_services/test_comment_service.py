@@ -1,8 +1,8 @@
 """Tests for the CommentService."""
 
+import uuid
 from datetime import datetime
 from uuid import UUID
-import uuid
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession

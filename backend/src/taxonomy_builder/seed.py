@@ -1,8 +1,8 @@
 """Seed database with sample data for development."""
 
 import asyncio
-from datetime import datetime
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import select

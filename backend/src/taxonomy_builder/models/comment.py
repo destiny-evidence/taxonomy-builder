@@ -42,11 +42,11 @@ class Comment(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    user: Mapped["User"] = relationship(
+    user: Mapped[User] = relationship(
         foreign_keys=[user_id], lazy="selectin"
     )
 
-    resolver: Mapped["User"] = relationship(
+    resolver: Mapped[User] = relationship(
         foreign_keys=[resolved_by], lazy="selectin"
     )
 

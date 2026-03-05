@@ -70,8 +70,8 @@ class PublishedVersion(Base):
         ),
     )
 
-    project: Mapped["Project"] = relationship(lazy="selectin")
-    previous_version: Mapped["PublishedVersion | None"] = relationship(
+    project: Mapped[Project] = relationship(lazy="selectin")
+    previous_version: Mapped[PublishedVersion | None] = relationship(
         remote_side="PublishedVersion.id", lazy="selectin"
     )
 

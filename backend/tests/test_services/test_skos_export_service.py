@@ -1,7 +1,7 @@
 """Tests for SKOS Export Service."""
 
 from datetime import datetime
-from uuid import uuid4, uuid7
+from uuid import uuid4
 
 import pytest
 from rdflib import Graph

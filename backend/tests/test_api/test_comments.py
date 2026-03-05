@@ -85,7 +85,7 @@ async def other_user(db_session: AsyncSession) -> User:
 @pytest.fixture
 async def auth_client(
     client: AsyncClient, user: User
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Client with mocked authentication returning the test user."""
 
     async def override_current_user() -> AuthenticatedUser:
@@ -105,7 +105,7 @@ async def auth_client(
 @pytest.fixture
 async def other_auth_client(
     client: AsyncClient, other_user: User
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Client authenticated as a different user."""
 
     async def override_current_user() -> AuthenticatedUser:

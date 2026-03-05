@@ -27,12 +27,12 @@ class Project(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
-    schemes: Mapped[list["ConceptScheme"]] = relationship(
+    schemes: Mapped[list[ConceptScheme]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
-    properties: Mapped[list["Property"]] = relationship(
+    properties: Mapped[list[Property]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
-    ontology_classes: Mapped[list["OntologyClass"]] = relationship(
+    ontology_classes: Mapped[list[OntologyClass]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
