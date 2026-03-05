@@ -55,6 +55,18 @@ evrepo:Condition a owl:Class ;
     rdfs:label "Condition"@en ;
     rdfs:comment "A state or context in which measurements were taken — the circumstances under which observations were made."@en .
 
+evrepo:name a owl:DatatypeProperty ;
+    rdfs:label "name"@en ;
+    rdfs:domain evrepo:Condition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Short name or title for this condition (e.g. intervention programme name, control label)."@en .
+
+evrepo:description a owl:DatatypeProperty ;
+    rdfs:label "description"@en ;
+    rdfs:domain evrepo:Condition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Free-text description of this condition."@en .
+
 evrepo:Intervention a owl:Class ;
     rdfs:subClassOf evrepo:Condition ;
     rdfs:label "Intervention"@en ;
@@ -322,13 +334,15 @@ evrepo:confidenceLevel a owl:DatatypeProperty ;
 
 evrepo:confidenceIntervalLower a owl:DatatypeProperty ;
     rdfs:label "confidence interval lower bound"@en ;
-    rdfs:domain evrepo:EffectEstimate ;
-    rdfs:range xsd:decimal .
+    rdfs:domain [ a owl:Class ; owl:unionOf ( evrepo:EffectEstimate evrepo:ObservedResult ) ] ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Applies to EffectEstimate (effect size CI) and ObservedResult (group mean CI)."@en .
 
 evrepo:confidenceIntervalUpper a owl:DatatypeProperty ;
     rdfs:label "confidence interval upper bound"@en ;
-    rdfs:domain evrepo:EffectEstimate ;
-    rdfs:range xsd:decimal .
+    rdfs:domain [ a owl:Class ; owl:unionOf ( evrepo:EffectEstimate evrepo:ObservedResult ) ] ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Applies to EffectEstimate (effect size CI) and ObservedResult (group mean CI)."@en .
 
 evrepo:baselineAdjusted a owl:DatatypeProperty ;
     rdfs:label "baseline adjusted"@en ;
