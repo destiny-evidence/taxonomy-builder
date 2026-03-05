@@ -10,6 +10,21 @@ The published format stays at version 1.0 (no customer has seen it yet) — the 
 
 For the earlier Codex-generated draft, see `docs/epic-108-issue-drafts-rewrite.md`.
 
+## Status Summary (as of 2026-03-05)
+
+| Stripe | Issue | Status | PR |
+|---|---|---|---|
+| Stripe 1: Format scaffold | — | Done, under review | #132 |
+| Stripe 2: subClassOf pipeline | #109 | Done, pending rebase | #139 |
+| Stripe 2: subClassOf UI | #127 | Not started | — |
+| Stripe 3: union domains pipeline | #110 | Not started | — |
+| Stripe 3: union domains UI | #128 | Not started | — |
+| Stripe 4: property types pipeline | #111 | Not started | — |
+| Stripe 4: property types UI | #129 | Not started | — |
+| Stripe 5: constraint system | — | Not started | — |
+
+**Vocab (independent):** evrepo-core `Condition` name/description properties + CI domain widened to `ObservedResult`; esea sub-property links — PR #140.
+
 ## User Stories
 
 - As a **vocabulary author**, I can import a TTL file with `rdfs:subClassOf` relationships and see them preserved in the builder, so that my class hierarchy is faithfully represented.
@@ -134,7 +149,7 @@ frontend / feedback-ui ← display and authoring
 
 Each stripe is one or two PRs. Stop after each stripe, review, commit. Do not roll into the next stripe automatically.
 
-### Stripe 1: Format scaffold
+### Stripe 1: Format scaffold — DONE (PR #132, under review)
 
 Update the format 1.0 schema in place with all new fields. Purge existing published artifacts from blob storage. No DB schema changes, no new tables. After this stripe, projects publish valid JSON with new fields at safe defaults.
 
@@ -176,7 +191,7 @@ Update the format 1.0 schema in place with all new fields. Purge existing publis
 - Upgrade `_check_unsupported_restrictions`: `info` → `warning`, now enumerates each restriction found (property name, restriction type, value) instead of just a count. Message says "dropped on import" until Stripe 5 adds preservation.
 - `_check_unsupported_named_individuals`: stays `info`
 
-**Acceptance criteria:** DONE (branch `feature/108-format-scaffold`)
+**Acceptance criteria:** DONE (PR #132)
 - [x] Published JSON schema updated with new fields
 - [x] `FORMAT_VERSION` remains `"1.0"`
 - [x] `classes[].superclasses` is `[]` for existing projects
@@ -186,55 +201,53 @@ Update the format 1.0 schema in place with all new fields. Purge existing publis
 - [x] `rdf` property type with no range passes snapshot validation
 - [x] OWL restriction import warning is `warning` severity with enumerated details
 - [x] Feedback-ui types and components updated for new field names
-- [x] 808 backend tests pass, 40 feedback-ui tests pass, lint clean
+- [x] 840 backend tests pass, lint clean
 
 ---
 
-### Stripe 2: #109 — `rdfs:subClassOf` + concept dual-typing (pipeline)
+### Stripe 2: #109 — `rdfs:subClassOf` pipeline — DONE (PR #139, pending rebase onto main after #132 merges)
 
-Class hierarchy data pipeline plus concept type preservation. Two PRs: pipeline first, then UI.
+Class hierarchy pipeline. Concept dual-typing and concept-typed class import were scoped out of #109 and deferred to Stripe 5. Two PRs: pipeline (#139) + UI (#127, not yet started).
 
-#### Pipeline PR
+#### Pipeline PR (#139)
 
 **Data model — class hierarchy:** New file `models/class_superclass.py` following `ConceptBroader` pattern. Add `superclasses` relationship on `OntologyClass`. Register in `models/__init__.py`. Migration.
 
-**Data model — concept types:** Add `concept_type_uris` column to `concepts` table (PostgreSQL ARRAY of strings, default `{}`). No join table needed — these are URI strings, not FK references.
-
 **RDF parser** (`services/rdf_parser.py`):
 
-*Concept-typed classes:* Remove `if subject in concept_subclasses: continue` from `find_owl_classes` (line 365). Classes like `EffectSizeMetricConcept` import as regular ontology classes.
+*New function:* `extract_class_metadata(g, class_uri, concept_subclasses)` — extracts `superclass_uris` from `rdfs:subClassOf` triples, skipping blank nodes and filtering to project classes + well-known URIs (`owl:Thing`, `rdfs:Resource`, `skos:Concept`).
 
-*New function:* `extract_class_superclasses(g, class_uris)` → `list[tuple[URIRef, URIRef]]`. Walk `rdfs:subClassOf` triples, keep edges where subject is in `class_uris` and object is in `class_uris` or the well-known allowlist. Skip blank nodes. Cycle detection via DFS.
+*New function:* `detect_superclass_cycles(edges)` — DFS cycle detection over `(class_uri, superclass_uri)` pairs.
 
-*New function:* `extract_concept_type_uris(g, concept_uri)` → `list[str]`. Collect all `rdf:type` values for a concept that are URIRefs and not `skos:Concept` (or its subclasses). Return as sorted list of URI strings.
-
-*Rename:* `_check_unsupported_subclasses` → `_check_subclasses` (now supported).
-
-*Update:* `analyze_graph` → include `"class_superclasses"` in returned dict.
+*Rename:* `_check_unsupported_subclasses` → removed (now supported).
 
 **Import service** (`services/skos_import_service.py`):
 - In `_import_classes`: build `uri_to_id` map, create `ClassSuperclass` records for each edge, flush
-- In `_import_concepts`: capture concept type URIs via `extract_concept_type_uris`, store in `concept.concept_type_uris`
+- Re-import: wire edges for classes that already exist; deduplicate
 
 **Snapshot schema** (`schemas/snapshot.py`):
-- `SnapshotClass.from_class`: change to `superclass_uris=[s.uri for s in ontology_class.superclasses]`
-- `SnapshotConcept.from_concept`: change to `concept_type_uris=list(concept.concept_type_uris) if concept.concept_type_uris else []`
+- `SnapshotClass.from_class`: `superclass_uris=[s.uri for s in ontology_class.superclasses]`
+
+**Snapshot validation** (`services/snapshot_service.py`):
+- Validates superclass URIs against project classes + well-known allowlist
 
 **Export service** (`services/skos_export_service.py`):
-- In `_add_class_to_graph`: emit `rdfs:subClassOf` triple for each superclass URI
-- In concept export: emit `rdf:type` triples for each URI in `concept_type_uris`
+- Emit `rdfs:subClassOf` triple for each superclass URI
 
-**Seed data replacement:**
-Replace `taxonomy_builder.seed` Python literals with TTL import via `SKOSImportService.execute()`. Exercises the import pipeline and keeps seed in sync with vocab files.
+**Seed data:**
+Seed updated to include evrepo-core class hierarchy as Python literals (not TTL import — deferred).
 
-**Acceptance criteria (pipeline):**
-- [ ] Importing TTL with `A rdfs:subClassOf B` stores edge in `class_superclass`
-- [ ] Concept-typed classes (`X rdfs:subClassOf skos:Concept`) imported as ontology classes
-- [ ] Cycle in subclass graph → validation error, import blocked
-- [ ] Concepts with `rdf:type esea:EducationLevelConcept` preserve type URIs
-- [ ] Concept type URIs appear in snapshot and published JSON
-- [ ] Export emits `rdfs:subClassOf` triples and concept `rdf:type` triples
-- [ ] Seed module imports TTL instead of using Python literals
+**Acceptance criteria (pipeline):** DONE
+- [x] Importing TTL with `A rdfs:subClassOf B` stores edge in `class_superclass`
+- [x] Cycle in subclass graph → validation error, import blocked
+- [x] Re-import wires edges for existing classes, deduplicates
+- [x] Export emits `rdfs:subClassOf` triples
+- [x] Superclass URIs in snapshot and published JSON
+- [x] Broken superclass refs caught in validation; well-known URIs pass
+- [x] Seed includes class hierarchy
+- [ ] Concept-typed classes (`X rdfs:subClassOf skos:Concept`) imported as ontology classes — **deferred to Stripe 5**
+- [ ] Concepts with `rdf:type esea:EducationLevelConcept` preserve type URIs — **deferred to Stripe 5**
+- [ ] Seed module imports TTL instead of using Python literals — **deferred**
 
 #### UI PR (#109 companion issue)
 
@@ -263,7 +276,7 @@ Replace `taxonomy_builder.seed` Python literals with TTL import via `SKOSImportS
 
 ---
 
-### Stripe 3: #110 — `owl:unionOf` domains (pipeline + UI)
+### Stripe 3: #110 — `owl:unionOf` domains (pipeline + UI) — NEXT UP
 
 Two PRs: pipeline first, then UI.
 
