@@ -307,6 +307,30 @@ evrepo:events a owl:DatatypeProperty ;
     rdfs:range xsd:integer ;
     rdfs:comment "Number of events for binary outcomes."@en .
 
+evrepo:truePositive a owl:DatatypeProperty ;
+    rdfs:label "true positive"@en ;
+    rdfs:domain evrepo:ObservedResult ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Count of test-positive, reference-positive cases."@en .
+
+evrepo:falsePositive a owl:DatatypeProperty ;
+    rdfs:label "false positive"@en ;
+    rdfs:domain evrepo:ObservedResult ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Count of test-positive, reference-negative cases."@en .
+
+evrepo:falseNegative a owl:DatatypeProperty ;
+    rdfs:label "false negative"@en ;
+    rdfs:domain evrepo:ObservedResult ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Count of test-negative, reference-positive cases."@en .
+
+evrepo:trueNegative a owl:DatatypeProperty ;
+    rdfs:label "true negative"@en ;
+    rdfs:domain evrepo:ObservedResult ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Count of test-negative, reference-negative cases."@en .
+
 # =============================================================================
 # EffectEstimate Properties
 # =============================================================================
@@ -385,8 +409,8 @@ evrepo:EffectSizeMetricScheme a skos:ConceptScheme ;
     rdfs:label "Effect Size Metric"@en ;
     rdfs:comment "Controlled vocabulary of effect size metrics."@en ;
     skos:hasTopConcept evrepo:hedgesG , evrepo:cohensD , evrepo:glassDelta ,
-        evrepo:oddsRatio , evrepo:riskRatio , evrepo:meanDifference ,
-        evrepo:correlationR .
+        evrepo:oddsRatio , evrepo:riskRatio , evrepo:riskDifference ,
+        evrepo:meanDifference , evrepo:correlationR .
 
 evrepo:hedgesG a evrepo:EffectSizeMetricConcept , skos:Concept ;
     skos:inScheme evrepo:EffectSizeMetricScheme ;
@@ -422,6 +446,11 @@ evrepo:correlationR a evrepo:EffectSizeMetricConcept , skos:Concept ;
     skos:inScheme evrepo:EffectSizeMetricScheme ;
     skos:topConceptOf evrepo:EffectSizeMetricScheme ;
     skos:prefLabel "Correlation (r)"@en .
+
+evrepo:riskDifference a evrepo:EffectSizeMetricConcept , skos:Concept ;
+    skos:inScheme evrepo:EffectSizeMetricScheme ;
+    skos:topConceptOf evrepo:EffectSizeMetricScheme ;
+    skos:prefLabel "Risk difference"@en .
 
 # --- Estimate Source ---
 
