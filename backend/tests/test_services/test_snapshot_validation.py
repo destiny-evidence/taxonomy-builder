@@ -47,6 +47,7 @@ def _stub_property(**overrides):
         label="Test Prop",
         description=None,
         domain_class="",
+        domain_classes=[],
         range_datatype=None,
         range_scheme_id=None,
         range_scheme=None,
