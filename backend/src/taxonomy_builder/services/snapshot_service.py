@@ -22,6 +22,14 @@ from taxonomy_builder.schemas.snapshot import (
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 
+# Well-known external URIs allowed as superclass targets (not required to exist
+# in the project's own class list).
+WELL_KNOWN_SUPERCLASS_URIS = frozenset({
+    "http://www.w3.org/2004/02/skos/core#Concept",
+    "http://www.w3.org/2002/07/owl#Thing",
+    "http://www.w3.org/2000/01/rdf-schema#Resource",
+})
+
 
 class SnapshotService:
     """Service for building complete project snapshots."""
@@ -128,16 +136,9 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
 
     class_uris = {cls.uri for cls in snapshot.classes if cls.uri}
 
-    # Well-known external URIs allowed as superclass targets
-    well_known_superclass_uris = {
-        "http://www.w3.org/2004/02/skos/core#Concept",
-        "http://www.w3.org/2002/07/owl#Thing",
-        "http://www.w3.org/2000/01/rdf-schema#Resource",
-    }
-
     for cls in snapshot.classes or []:
         for superclass_uri in cls.superclass_uris or []:
-            if superclass_uri not in class_uris and superclass_uri not in well_known_superclass_uris:
+            if superclass_uri not in class_uris and superclass_uri not in WELL_KNOWN_SUPERCLASS_URIS:
                 errors.append(
                     ValidationError(
                         code="broken_superclass_ref",

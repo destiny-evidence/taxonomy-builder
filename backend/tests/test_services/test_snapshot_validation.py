@@ -1,5 +1,6 @@
 """Tests for snapshot validation via Pydantic validators."""
 
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -14,6 +15,59 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotVocabulary,
 )
 from taxonomy_builder.services.snapshot_service import validate_snapshot
+
+
+# ---------------------------------------------------------------------------
+# Lightweight stubs for ORM objects so we can test from_* factory methods
+# without a database session.
+# ---------------------------------------------------------------------------
+
+def _stub_concept(**overrides):
+    """Stub mimicking a Concept ORM instance for from_concept()."""
+    defaults = dict(
+        id=uuid4(),
+        identifier="term",
+        uri="http://example.org/term",
+        pref_label="Term",
+        definition=None,
+        scope_note=None,
+        alt_labels=[],
+        broader=[],
+        related=[],
+    )
+    return SimpleNamespace(**(defaults | overrides))
+
+
+def _stub_property(**overrides):
+    """Stub mimicking a Property ORM instance for from_property()."""
+    defaults = dict(
+        id=uuid4(),
+        identifier="prop1",
+        uri="http://example.org/prop1",
+        label="Test Prop",
+        description=None,
+        domain_class="",
+        range_datatype=None,
+        range_scheme_id=None,
+        range_scheme=None,
+        range_class=None,
+        cardinality="single",
+        required=False,
+    )
+    return SimpleNamespace(**(defaults | overrides))
+
+
+def _stub_ontology_class(**overrides):
+    """Stub mimicking an OntologyClass ORM instance for from_class()."""
+    defaults = dict(
+        id=uuid4(),
+        identifier="finding",
+        uri="http://example.org/Finding",
+        label="Finding",
+        description=None,
+        scope_note=None,
+    )
+    return SimpleNamespace(**(defaults | overrides))
 
 
 def _project_meta() -> SnapshotProjectMetadata:
@@ -297,14 +351,7 @@ class TestSnapshotClassSuperclassUris:
 
     def test_from_class_sets_empty_superclass_uris(self) -> None:
         """from_class() should set superclass_uris=[] when class has no superclasses."""
-        # Using model_construct to simulate from_class output
-        cls = SnapshotClass.model_construct(
-            id=uuid4(),
-            identifier="finding",
-            uri="http://example.org/Finding",
-            label="Finding",
-            superclass_uris=[],
-        )
+        cls = SnapshotClass.from_class(_stub_ontology_class())
         assert cls.superclass_uris == []
 
     def test_superclass_uris_in_snapshot(self) -> None:
@@ -343,14 +390,7 @@ class TestSnapshotConceptTypeUris:
 
     def test_from_concept_sets_empty_type_uris(self) -> None:
         """from_concept() should set concept_type_uris=[] by default."""
-        concept = SnapshotConcept.model_construct(
-            id=uuid4(),
-            pref_label="Term",
-            uri="http://example.org/term",
-            broader_ids=[],
-            related_ids=[],
-            concept_type_uris=[],
-        )
+        concept = SnapshotConcept.from_concept(_stub_concept())
         assert concept.concept_type_uris == []
 
 
@@ -359,34 +399,24 @@ class TestSnapshotPropertyNewFields:
 
     def test_domain_class_uris_wraps_scalar(self) -> None:
         """from_property() should wrap scalar domain_class in a list."""
-        prop = SnapshotProperty.model_construct(
-            id=uuid4(),
-            identifier="prop1",
-            uri="http://example.org/prop1",
-            label="Test Prop",
-            domain_class_uris=["http://example.org/Class"],
-            property_type="object",
+        stub = _stub_property(
+            domain_class="http://example.org/Class",
             range_datatype="xsd:string",
-            cardinality="single",
-            required=False,
         )
+        prop = SnapshotProperty.from_property(stub)
         assert prop.domain_class_uris == ["http://example.org/Class"]
-        assert prop.property_type == "object"
 
     def test_property_type_inferred_datatype(self) -> None:
         """Properties with range_datatype should infer property_type='datatype'."""
-        prop = SnapshotProperty.model_construct(
-            id=uuid4(),
-            identifier="prop1",
-            uri="http://example.org/prop1",
-            label="Test Prop",
-            domain_class_uris=["http://example.org/Class"],
-            property_type="datatype",
-            range_datatype="xsd:string",
-            cardinality="single",
-            required=False,
-        )
+        stub = _stub_property(range_datatype="xsd:string")
+        prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "datatype"
+
+    def test_property_type_inferred_object(self) -> None:
+        """Properties without range_datatype should infer property_type='object'."""
+        stub = _stub_property(range_datatype=None)
+        prop = SnapshotProperty.from_property(stub)
+        assert prop.property_type == "object"
 
 
 class TestRequireValidRange:
@@ -454,6 +484,40 @@ class TestRequireValidRange:
                 range_scheme_id=None,
                 range_datatype=None,
                 range_class=None,
+                cardinality="single",
+                required=False,
+            )
+
+    def test_object_type_rejects_multiple_ranges(self) -> None:
+        """object property with more than one range should fail."""
+        with pytest.raises(PydanticValidationError):
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="prop1",
+                uri="http://example.org/prop1",
+                label="Test Prop",
+                domain_class_uris=["http://example.org/Class"],
+                property_type="object",
+                range_scheme_id=uuid4(),
+                range_scheme_uri="http://example.org/scheme",
+                range_datatype="xsd:string",
+                range_class=None,
+                cardinality="single",
+                required=False,
+            )
+
+    def test_rdf_type_rejects_multiple_ranges(self) -> None:
+        """rdf:Property with more than one range should fail."""
+        with pytest.raises(PydanticValidationError):
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="codedValue",
+                uri="http://example.org/codedValue",
+                label="Coded Value",
+                domain_class_uris=["http://example.org/Class"],
+                property_type="rdf",
+                range_datatype="xsd:string",
+                range_class="http://example.org/Class",
                 cardinality="single",
                 required=False,
             )
