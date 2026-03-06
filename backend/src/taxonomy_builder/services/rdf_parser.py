@@ -101,7 +101,6 @@ def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
     _check_unresolved_domains(g, class_uris, result)
     _check_rdf_properties(g, result)
     _check_superclass_cycles(g, result)
-    _check_unsupported_union_domains(g, result)
     _check_unsupported_named_individuals(g, result)
     _check_unsupported_restrictions(g, result)
 
@@ -156,19 +155,25 @@ def _check_unresolved_domains(
 
     for uri, _ptype in find_properties(g):
         domain = g.value(uri, RDFS.domain)
-        if not isinstance(domain, URIRef):
-            continue
-        domain_str = str(domain)
-        if domain_str not in all_class_uris:
-            result.warnings.append(ValidationIssue(
-                severity="warning",
-                type="unresolved_domain",
-                message=(
-                    f"Property '{get_identifier_from_uri(uri)}' has domain "
-                    f"'{domain_str}' which doesn't match any class in the project"
-                ),
-                entity_uri=str(uri),
-            ))
+        # Collect domain URIs: plain URIRef or union members
+        domain_strs: list[str] = []
+        if isinstance(domain, URIRef):
+            domain_strs = [str(domain)]
+        elif isinstance(domain, BNode):
+            domain_strs = _resolve_union_all(g, domain)
+
+        for domain_str in domain_strs:
+            if domain_str not in all_class_uris:
+                result.warnings.append(ValidationIssue(
+                    severity="warning",
+                    type="unresolved_domain",
+                    message=(
+                        f"Property '{get_identifier_from_uri(uri)}' has domain "
+                        f"'{domain_str}' which doesn't match any class "
+                        f"in the project"
+                    ),
+                    entity_uri=str(uri),
+                ))
 
 
 def _check_rdf_properties(g: Graph, result: ValidationResult) -> None:
@@ -203,22 +208,6 @@ def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
             message=f"Cycle detected in rdfs:subClassOf hierarchy: {cycle_desc}",
         ))
 
-
-def _check_unsupported_union_domains(g: Graph, result: ValidationResult) -> None:
-    """Detect owl:unionOf in property domains."""
-    # find_properties() includes owl:ObjectProperty, owl:DatatypeProperty, and rdf:Property
-    for uri, _ptype in find_properties(g):
-        domain = g.value(uri, RDFS.domain)
-        if isinstance(domain, BNode) and (domain, OWL.unionOf, None) in g:
-            result.info.append(ValidationIssue(
-                severity="info",
-                type="unsupported_union_domain",
-                message=(
-                    f"Property '{get_identifier_from_uri(uri)}' has a union domain "
-                    f"— only first class will be used (#110)"
-                ),
-                entity_uri=str(uri),
-            ))
 
 
 def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> None:
@@ -518,16 +507,19 @@ def find_properties(g: Graph) -> list[tuple[URIRef, str]]:
     return properties
 
 
-def _resolve_union_first(g: Graph, bnode: BNode) -> URIRef | None:
-    """Extract the first URIRef from an owl:unionOf RDF list on a blank node."""
+def _resolve_union_all(g: Graph, bnode: BNode) -> list[str]:
+    """Extract all URIRefs from an owl:unionOf RDF Collection on a blank node."""
     union_list = g.value(bnode, OWL.unionOf)
     if union_list is None:
-        return None
-    # Walk rdf:first/rdf:rest list
-    first = g.value(union_list, RDF.first)
-    if isinstance(first, URIRef):
-        return first
-    return None
+        return []
+    uris: list[str] = []
+    node = union_list
+    while node is not None and node != RDF.nil:
+        first = g.value(node, RDF.first)
+        if isinstance(first, URIRef):
+            uris.append(str(first))
+        node = g.value(node, RDF.rest)
+    return uris
 
 
 def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dict:
@@ -542,14 +534,12 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
     domain = g.value(prop_uri, RDFS.domain)
     range_val = g.value(prop_uri, RDFS.range)
 
-    # Resolve union domains to first class in the union
-    domain_uri: str | None = None
+    # Resolve domain: plain URIRef → [uri], BNode with owl:unionOf → all members
+    domain_uris: list[str] = []
     if isinstance(domain, URIRef):
-        domain_uri = str(domain)
+        domain_uris = [str(domain)]
     elif isinstance(domain, BNode):
-        first_class = _resolve_union_first(g, domain)
-        if first_class is not None:
-            domain_uri = str(first_class)
+        domain_uris = _resolve_union_all(g, domain)
 
     # Read allowMultiple annotation for cardinality (any namespace)
     cardinality = "single"
@@ -564,7 +554,7 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
         "label": str(label),
         "description": str(description) if description else None,
         "property_type": prop_type,
-        "domain_uri": domain_uri,
+        "domain_uris": domain_uris,
         "range_uri": str(range_val) if isinstance(range_val, URIRef) else None,
         "uri": str(prop_uri),
         "cardinality": cardinality,

@@ -270,7 +270,7 @@ class SKOSImportService:
             if pm["uri"] in known_uris or pm["identifier"] in known_ids:
                 continue
 
-            if not pm["domain_uri"]:
+            if not pm["domain_uris"]:
                 warnings.append(
                     f"Property '{pm['identifier']}' skipped: "
                     f"no rdfs:domain declared"
@@ -300,7 +300,7 @@ class SKOSImportService:
                     identifier=pm["identifier"],
                     label=pm["label"],
                     property_type=pm["property_type"],
-                    domain_class_uri=pm["domain_uri"],
+                    domain_class_uri=pm["domain_uris"][0] if pm["domain_uris"] else None,
                     range_uri=pm["range_uri"],
                     range_scheme_title=range_scheme_title,
                 )
@@ -633,7 +633,8 @@ class SKOSImportService:
             if pm["uri"] in known_uris or identifier in known_ids:
                 continue
 
-            domain_uri = pm["domain_uri"]
+            domain_uris = pm["domain_uris"]
+            domain_uri = domain_uris[0] if domain_uris else None
             if not domain_uri:
                 warnings.append(
                     f"Property '{identifier}' skipped: "

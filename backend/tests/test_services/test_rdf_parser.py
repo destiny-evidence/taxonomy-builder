@@ -433,27 +433,27 @@ ex:title a owl:DatatypeProperty ;
 """
 
 
-def test_union_domain_detected():
-    """owl:unionOf in property domain produces info message."""
+def test_union_domain_no_unsupported_info():
+    """owl:unionOf in property domain no longer emits unsupported info (#110)."""
     g = _graph(UNION_DOMAIN_TTL)
     result = validate_graph(g, set())
 
     union_infos = [i for i in result.info if i.type == "unsupported_union_domain"]
-    assert len(union_infos) == 1
-    assert "title" in union_infos[0].message
-    assert "#110" in union_infos[0].message
+    assert len(union_infos) == 0
 
 
-def test_union_domain_extracts_first_class():
-    """extract_property_metadata resolves union domain to first class URI."""
+def test_union_domain_extracts_all_classes():
+    """extract_property_metadata resolves union domain to all class URIs."""
     g = _graph(UNION_DOMAIN_TTL)
     props = find_properties(g)
     assert len(props) == 1
     uri, ptype = props[0]
 
     metadata = extract_property_metadata(g, uri, ptype)
-    # Should extract ex:Finding (first in the union list), not None
-    assert metadata["domain_uri"] == "http://example.org/Finding"
+    assert sorted(metadata["domain_uris"]) == [
+        "http://example.org/Finding",
+        "http://example.org/Study",
+    ]
 
 
 UNION_DOMAIN_RDF_PROPERTY_TTL = b"""
@@ -473,14 +473,119 @@ ex:codedBy a rdf:Property ;
 """
 
 
-def test_union_domain_rdf_property_extracts_first_class():
-    """rdf:Property with union domain also extracts first class."""
+def test_union_domain_rdf_property_extracts_all_classes():
+    """rdf:Property with union domain extracts all class URIs."""
     g = _graph(UNION_DOMAIN_RDF_PROPERTY_TTL)
     props = find_properties(g)
     uri, ptype = [(u, t) for u, t in props if str(u).endswith("codedBy")][0]
 
     metadata = extract_property_metadata(g, uri, ptype)
-    assert metadata["domain_uri"] == "http://example.org/Finding"
+    assert sorted(metadata["domain_uris"]) == [
+        "http://example.org/CodingAnnotation",
+        "http://example.org/Finding",
+    ]
+
+
+THREE_MEMBER_UNION_TTL = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class .
+ex:CodingAnnotation a owl:Class .
+ex:Study a owl:Class .
+
+ex:supportingText a owl:DatatypeProperty ;
+    rdfs:label "Supporting Text" ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( ex:Finding ex:CodingAnnotation ex:Study )
+    ] ;
+    rdfs:range xsd:string .
+"""
+
+
+def test_three_member_union_extracts_all():
+    """extract_property_metadata on 3-member union returns all 3 URIs."""
+    g = _graph(THREE_MEMBER_UNION_TTL)
+    props = find_properties(g)
+    assert len(props) == 1
+    uri, ptype = props[0]
+
+    metadata = extract_property_metadata(g, uri, ptype)
+    assert sorted(metadata["domain_uris"]) == [
+        "http://example.org/CodingAnnotation",
+        "http://example.org/Finding",
+        "http://example.org/Study",
+    ]
+
+
+def test_plain_domain_returns_single_uri_list():
+    """Plain URIRef domain returns a one-element domain_uris list."""
+    ttl = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class .
+ex:title a owl:DatatypeProperty ;
+    rdfs:label "Title" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string .
+"""
+    g = _graph(ttl)
+    props = find_properties(g)
+    uri, ptype = props[0]
+    metadata = extract_property_metadata(g, uri, ptype)
+    assert metadata["domain_uris"] == ["http://example.org/Finding"]
+
+
+def test_no_domain_returns_empty_list():
+    """Property with no rdfs:domain returns domain_uris=[]."""
+    ttl = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:title a owl:DatatypeProperty ;
+    rdfs:label "Title" ;
+    rdfs:range xsd:string .
+"""
+    g = _graph(ttl)
+    props = find_properties(g)
+    uri, ptype = props[0]
+    metadata = extract_property_metadata(g, uri, ptype)
+    assert metadata["domain_uris"] == []
+
+
+def test_unresolved_union_domain_members_warn():
+    """_check_unresolved_domains warns for each unresolved URI in a union."""
+    ttl = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class .
+
+ex:title a owl:DatatypeProperty ;
+    rdfs:label "Title" ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( ex:Finding ex:Unknown ex:AlsoUnknown )
+    ] .
+"""
+    g = _graph(ttl)
+    known = {"http://example.org/Finding"}
+    result = validate_graph(g, known)
+    unresolved = [
+        w for w in result.warnings if w.type == "unresolved_domain"
+    ]
+    # Should warn about ex:Unknown and ex:AlsoUnknown but not ex:Finding
+    assert len(unresolved) == 2
+    messages = " ".join(w.message for w in unresolved)
+    assert "Unknown" in messages
+    assert "AlsoUnknown" in messages
 
 
 NAMED_INDIVIDUAL_TTL = b"""
