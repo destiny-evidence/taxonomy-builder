@@ -48,6 +48,7 @@ def _stub_property(**overrides):
         description=None,
         domain_class="",
         domain_classes=[],
+        property_type="object",
         range_datatype=None,
         range_scheme_id=None,
         range_scheme=None,
@@ -403,20 +404,21 @@ class TestSnapshotPropertyNewFields:
         """from_property() should wrap scalar domain_class in a list."""
         stub = _stub_property(
             domain_class="http://example.org/Class",
+            property_type="datatype",
             range_datatype="xsd:string",
         )
         prop = SnapshotProperty.from_property(stub)
         assert prop.domain_class_uris == ["http://example.org/Class"]
 
-    def test_property_type_inferred_datatype(self) -> None:
-        """Properties with range_datatype should infer property_type='datatype'."""
-        stub = _stub_property(range_datatype="xsd:string")
+    def test_property_type_from_column_datatype(self) -> None:
+        """property_type='datatype' passes through from column."""
+        stub = _stub_property(property_type="datatype", range_datatype="xsd:string")
         prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "datatype"
 
-    def test_property_type_inferred_object(self) -> None:
-        """Properties with range_class should infer property_type='object'."""
-        stub = _stub_property(range_datatype=None, range_class="http://example.org/Class")
+    def test_property_type_from_column_object(self) -> None:
+        """property_type='object' passes through from column."""
+        stub = _stub_property(property_type="object", range_class="http://example.org/Class")
         prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "object"
 
