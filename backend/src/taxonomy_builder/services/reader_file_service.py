@@ -54,6 +54,7 @@ class ReaderFileService:
                     "alt_labels": concept.alt_labels,
                     "broader": broader,
                     "related": [str(r) for r in concept.related_ids],
+                    "type_uris": concept.concept_type_uris,
                 }
             schemes.append(
                 {
@@ -75,7 +76,8 @@ class ReaderFileService:
                     "uri": prop.uri,
                     "label": prop.label,
                     "description": prop.description,
-                    "domain_class_uri": prop.domain_class,
+                    "domain_class_uris": prop.domain_class_uris,
+                    "property_type": prop.property_type,
                     "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
                     "range_scheme_uri": prop.range_scheme_uri,
                     "range_datatype": prop.range_datatype,
@@ -95,6 +97,7 @@ class ReaderFileService:
                     "label": cls.label,
                     "description": cls.description,
                     "scope_note": cls.scope_note,
+                    "superclasses": cls.superclass_uris,
                 }
             )
 

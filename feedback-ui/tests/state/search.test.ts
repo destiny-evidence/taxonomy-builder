@@ -37,6 +37,7 @@ describe("search state", () => {
           label: "Paint",
           description: null,
           scope_note: null,
+          superclasses: [],
         },
       ],
     });

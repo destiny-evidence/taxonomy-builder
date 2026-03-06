@@ -32,6 +32,7 @@ export function makeConcept(overrides: Record<string, unknown> = {}) {
     alt_labels: [] as string[],
     broader: [] as string[],
     related: [] as string[],
+    type_uris: [] as string[],
     ...overrides,
   };
 }

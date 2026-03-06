@@ -10,7 +10,7 @@ Use model_construct() to bypass validation when building snapshots of
 potentially-invalid projects (e.g. for preview).
 """
 
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
@@ -35,6 +35,7 @@ class SnapshotConcept(BaseModel):
     alt_labels: list[str] = Field(default_factory=list)
     broader_ids: list[UUID] = Field(default_factory=list)
     related_ids: list[UUID] = Field(default_factory=list)
+    concept_type_uris: list[str] = Field(default_factory=list)
 
     @field_validator("uri", mode="before")
     @classmethod
@@ -81,6 +82,7 @@ class SnapshotConcept(BaseModel):
             alt_labels=list(concept.alt_labels),
             broader_ids=[b.id for b in concept.broader],
             related_ids=[r.id for r in concept.related],
+            concept_type_uris=[],
         )
 
 
@@ -149,7 +151,9 @@ class SnapshotProperty(BaseModel):
     label: str
     uri: str
     description: str | None = None
-    domain_class: str
+    domain_class: str = ""  # kept for backward compat; domain_class_uris is authoritative
+    domain_class_uris: list[str] = Field(default_factory=list)
+    property_type: Literal["object", "datatype", "rdf"] = "object"
     range_scheme_id: UUID | None = None
     range_scheme_uri: str | None = None
     range_datatype: str | None = None
@@ -175,22 +179,40 @@ class SnapshotProperty(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def require_exactly_one_range(self) -> SnapshotProperty:
+    def require_valid_range(self) -> SnapshotProperty:
         has_scheme = self.range_scheme_id is not None
         has_datatype = self.range_datatype is not None
         has_class = self.range_class is not None
-        if sum((has_scheme, has_datatype, has_class)) != 1:
-            raise PydanticCustomError(
-                "property_invalid_range",
-                "Property '{label}' must have exactly one of"
-                " range scheme, range datatype, or range class.",
-                {
-                    "label": self.label,
-                    "entity_type": "property",
-                    "entity_id": str(self.id),
-                    "entity_label": self.label,
-                },
-            )
+        count = sum((has_scheme, has_datatype, has_class))
+
+        if self.property_type == "rdf":
+            # rdf:Property allows 0 or 1 range
+            if count > 1:
+                raise PydanticCustomError(
+                    "property_invalid_range",
+                    "Property '{label}' (rdf:Property) may have at most one range.",
+                    {
+                        "label": self.label,
+                        "entity_type": "property",
+                        "entity_id": str(self.id),
+                        "entity_label": self.label,
+                    },
+                )
+        else:
+            # object/datatype require exactly one range
+            if count != 1:
+                raise PydanticCustomError(
+                    "property_invalid_range",
+                    "Property '{label}' must have exactly one of"
+                    " range scheme, range datatype, or range class.",
+                    {
+                        "label": self.label,
+                        "entity_type": "property",
+                        "entity_id": str(self.id),
+                        "entity_label": self.label,
+                    },
+                )
+
         if has_scheme and self.range_scheme_uri is None:
             raise PydanticCustomError(
                 "property_missing_range_scheme_uri",
@@ -213,6 +235,8 @@ class SnapshotProperty(BaseModel):
             label=property.label,
             description=property.description,
             domain_class=property.domain_class,
+            domain_class_uris=[property.domain_class],
+            property_type="datatype" if property.range_datatype else "object",
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
             range_class=property.range_class,
@@ -231,6 +255,7 @@ class SnapshotClass(BaseModel):
     uri: str
     description: str | None = None
     scope_note: str | None = None
+    superclass_uris: list[str] = Field(default_factory=list)
 
     @field_validator("label", mode="after")
     @classmethod
@@ -273,6 +298,7 @@ class SnapshotClass(BaseModel):
             label=ontology_class.label,
             description=ontology_class.description,
             scope_note=ontology_class.scope_note,
+            superclass_uris=[],
         )
 
 

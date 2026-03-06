@@ -247,15 +247,32 @@ def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> 
 
 
 def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
-    """Detect owl:Restriction instances."""
-    count = sum(1 for _ in g.subjects(RDF.type, OWL.Restriction))
-    if count:
-        result.info.append(ValidationIssue(
-            severity="info",
+    """Detect owl:Restriction instances and enumerate what will be lost."""
+    restrictions: list[str] = []
+    for subject in g.subjects(RDF.type, OWL.Restriction):
+        on_prop = g.value(subject, OWL.onProperty)
+        prop_label = get_identifier_from_uri(on_prop) if isinstance(on_prop, URIRef) else "?"
+        for pred, label in [
+            (OWL.allValuesFrom, "allValuesFrom"),
+            (OWL.someValuesFrom, "someValuesFrom"),
+            (OWL.hasValue, "hasValue"),
+        ]:
+            value = g.value(subject, pred)
+            if value is not None:
+                value_label = get_identifier_from_uri(value) if isinstance(value, URIRef) else str(value)
+                restrictions.append(f"{prop_label} {label} {value_label}")
+                break
+        else:
+            restrictions.append(f"{prop_label} (unrecognised restriction type)")
+
+    if restrictions:
+        details = "; ".join(restrictions)
+        result.warnings.append(ValidationIssue(
+            severity="warning",
             type="unsupported_restriction",
             message=(
-                f"Found {count} OWL restriction{'s' if count != 1 else ''} "
-                f"— these will be skipped (#113)"
+                f"Found {len(restrictions)} OWL restriction{'s' if len(restrictions) != 1 else ''} "
+                f"that will be dropped on import: {details}"
             ),
         ))
 

@@ -1,6 +1,10 @@
 """Tests for snapshot validation via Pydantic validators."""
 
+from types import SimpleNamespace
 from uuid import UUID, uuid4
+
+import pytest
+from pydantic import ValidationError as PydanticValidationError
 
 from taxonomy_builder.schemas.snapshot import (
     SnapshotClass,
@@ -11,6 +15,59 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotVocabulary,
 )
 from taxonomy_builder.services.snapshot_service import validate_snapshot
+
+
+# ---------------------------------------------------------------------------
+# Lightweight stubs for ORM objects so we can test from_* factory methods
+# without a database session.
+# ---------------------------------------------------------------------------
+
+def _stub_concept(**overrides):
+    """Stub mimicking a Concept ORM instance for from_concept()."""
+    defaults = dict(
+        id=uuid4(),
+        identifier="term",
+        uri="http://example.org/term",
+        pref_label="Term",
+        definition=None,
+        scope_note=None,
+        alt_labels=[],
+        broader=[],
+        related=[],
+    )
+    return SimpleNamespace(**(defaults | overrides))
+
+
+def _stub_property(**overrides):
+    """Stub mimicking a Property ORM instance for from_property()."""
+    defaults = dict(
+        id=uuid4(),
+        identifier="prop1",
+        uri="http://example.org/prop1",
+        label="Test Prop",
+        description=None,
+        domain_class="",
+        range_datatype=None,
+        range_scheme_id=None,
+        range_scheme=None,
+        range_class=None,
+        cardinality="single",
+        required=False,
+    )
+    return SimpleNamespace(**(defaults | overrides))
+
+
+def _stub_ontology_class(**overrides):
+    """Stub mimicking an OntologyClass ORM instance for from_class()."""
+    defaults = dict(
+        id=uuid4(),
+        identifier="finding",
+        uri="http://example.org/Finding",
+        label="Finding",
+        description=None,
+        scope_note=None,
+    )
+    return SimpleNamespace(**(defaults | overrides))
 
 
 def _project_meta() -> SnapshotProjectMetadata:
@@ -289,6 +346,226 @@ class TestClassMissingLabel:
         assert any(e.code == "class_missing_label" for e in result.errors)
 
 
+class TestSnapshotClassSuperclassUris:
+    """SnapshotClass should carry superclass_uris field."""
+
+    def test_from_class_sets_empty_superclass_uris(self) -> None:
+        """from_class() should set superclass_uris=[] when class has no superclasses."""
+        cls = SnapshotClass.from_class(_stub_ontology_class())
+        assert cls.superclass_uris == []
+
+    def test_superclass_uris_in_snapshot(self) -> None:
+        """superclass_uris should be present and validatable in a snapshot."""
+        cls = _class("Finding", uri="http://example.org/Finding")
+        cls.superclass_uris = ["http://example.org/Entity"]
+
+        parent = _class("Entity", uri="http://example.org/Entity")
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, classes=[cls, parent]))
+        assert result.valid is True
+
+    def test_broken_superclass_ref(self) -> None:
+        """superclass_uris referencing non-existent class should fail validation."""
+        cls = _class("Finding", uri="http://example.org/Finding")
+        cls.superclass_uris = ["http://example.org/NonExistent"]
+
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, classes=[cls]))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "broken_superclass_ref"]
+        assert len(errors) == 1
+
+    def test_well_known_superclass_uri_allowed(self) -> None:
+        """Well-known URIs like skos:Concept should be allowed as superclass targets."""
+        cls = _class("MyConcept", uri="http://example.org/MyConcept")
+        cls.superclass_uris = ["http://www.w3.org/2004/02/skos/core#Concept"]
+
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, classes=[cls]))
+        assert result.valid is True
+
+
+class TestSnapshotConceptTypeUris:
+    """SnapshotConcept should carry concept_type_uris field."""
+
+    def test_from_concept_sets_empty_type_uris(self) -> None:
+        """from_concept() should set concept_type_uris=[] by default."""
+        concept = SnapshotConcept.from_concept(_stub_concept())
+        assert concept.concept_type_uris == []
+
+
+class TestSnapshotPropertyNewFields:
+    """SnapshotProperty should carry property_type and domain_class_uris."""
+
+    def test_domain_class_uris_wraps_scalar(self) -> None:
+        """from_property() should wrap scalar domain_class in a list."""
+        stub = _stub_property(
+            domain_class="http://example.org/Class",
+            range_datatype="xsd:string",
+        )
+        prop = SnapshotProperty.from_property(stub)
+        assert prop.domain_class_uris == ["http://example.org/Class"]
+
+    def test_property_type_inferred_datatype(self) -> None:
+        """Properties with range_datatype should infer property_type='datatype'."""
+        stub = _stub_property(range_datatype="xsd:string")
+        prop = SnapshotProperty.from_property(stub)
+        assert prop.property_type == "datatype"
+
+    def test_property_type_inferred_object(self) -> None:
+        """Properties without range_datatype should infer property_type='object'."""
+        stub = _stub_property(range_datatype=None)
+        prop = SnapshotProperty.from_property(stub)
+        assert prop.property_type == "object"
+
+
+class TestRequireValidRange:
+    """Range validation should be relaxed for rdf property type."""
+
+    def test_rdf_type_allows_zero_ranges(self) -> None:
+        """rdf:Property with no range should pass validation."""
+        prop = SnapshotProperty(
+            id=uuid4(),
+            identifier="codedValue",
+            uri="http://example.org/codedValue",
+            label="Coded Value",
+            domain_class_uris=["http://example.org/Class"],
+            property_type="rdf",
+            range_scheme_id=None,
+            range_datatype=None,
+            range_class=None,
+            cardinality="single",
+            required=False,
+        )
+        assert prop.property_type == "rdf"
+
+    def test_rdf_type_allows_one_range(self) -> None:
+        """rdf:Property with one range should pass validation."""
+        prop = SnapshotProperty(
+            id=uuid4(),
+            identifier="codedValue",
+            uri="http://example.org/codedValue",
+            label="Coded Value",
+            domain_class_uris=["http://example.org/Class"],
+            property_type="rdf",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        )
+        assert prop.range_datatype == "xsd:string"
+
+    def test_object_type_requires_exactly_one_range(self) -> None:
+        """object property with no range should fail."""
+        with pytest.raises(PydanticValidationError):
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="prop1",
+                uri="http://example.org/prop1",
+                label="Test Prop",
+                domain_class_uris=["http://example.org/Class"],
+                property_type="object",
+                range_scheme_id=None,
+                range_datatype=None,
+                range_class=None,
+                cardinality="single",
+                required=False,
+            )
+
+    def test_datatype_type_requires_exactly_one_range(self) -> None:
+        """datatype property with no range should fail."""
+        with pytest.raises(PydanticValidationError):
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="prop1",
+                uri="http://example.org/prop1",
+                label="Test Prop",
+                domain_class_uris=["http://example.org/Class"],
+                property_type="datatype",
+                range_scheme_id=None,
+                range_datatype=None,
+                range_class=None,
+                cardinality="single",
+                required=False,
+            )
+
+    def test_object_type_rejects_multiple_ranges(self) -> None:
+        """object property with more than one range should fail."""
+        with pytest.raises(PydanticValidationError):
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="prop1",
+                uri="http://example.org/prop1",
+                label="Test Prop",
+                domain_class_uris=["http://example.org/Class"],
+                property_type="object",
+                range_scheme_id=uuid4(),
+                range_scheme_uri="http://example.org/scheme",
+                range_datatype="xsd:string",
+                range_class=None,
+                cardinality="single",
+                required=False,
+            )
+
+    def test_rdf_type_rejects_multiple_ranges(self) -> None:
+        """rdf:Property with more than one range should fail."""
+        with pytest.raises(PydanticValidationError):
+            SnapshotProperty(
+                id=uuid4(),
+                identifier="codedValue",
+                uri="http://example.org/codedValue",
+                label="Coded Value",
+                domain_class_uris=["http://example.org/Class"],
+                property_type="rdf",
+                range_datatype="xsd:string",
+                range_class="http://example.org/Class",
+                cardinality="single",
+                required=False,
+            )
+
+
+class TestDomainClassUrisValidation:
+    """_validate_references should check domain_class_uris (list) not domain_class (scalar)."""
+
+    def test_all_domain_uris_must_resolve(self) -> None:
+        """Each URI in domain_class_uris must exist in project classes."""
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class_uris=["http://example.org/Class", "http://example.org/NonExistent"],
+            property_type="object",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        )
+        cls = _class("Class", uri="http://example.org/Class")
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "broken_domain_class_ref"]
+        assert len(errors) == 1
+
+    def test_all_domain_uris_valid(self) -> None:
+        """All URIs resolving should pass."""
+        cls_a = _class("A", uri="http://example.org/A", identifier="a")
+        cls_b = _class("B", uri="http://example.org/B", identifier="b")
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class_uris=["http://example.org/A", "http://example.org/B"],
+            property_type="object",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        )
+        scheme = _scheme(concepts=[_concept("Term")])
+        result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls_a, cls_b]))
+        assert result.valid is True
+
+
 class TestBrokenDomainClassRef:
     def test_property_domain_class_not_in_classes(self) -> None:
         prop = SnapshotProperty.model_construct(
@@ -296,7 +573,7 @@ class TestBrokenDomainClassRef:
             identifier="prop1",
             uri="http://example.org/prop1",
             label="Test Property",
-            domain_class="http://example.org/NonExistent",
+            domain_class_uris=["http://example.org/NonExistent"],
             range_datatype="xsd:string",
             cardinality="one",
             required=False,
@@ -317,7 +594,7 @@ class TestBrokenDomainClassRef:
             identifier="prop1",
             uri="http://example.org/prop1",
             label="Test Property",
-            domain_class="http://example.org/Class",
+            domain_class_uris=["http://example.org/Class"],
             range_datatype="xsd:string",
             cardinality="one",
             required=False,

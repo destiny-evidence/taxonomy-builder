@@ -17,9 +17,10 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
   const prop = findProperty(propertyId);
   if (!prop) return <div class="detail">Property not found</div>;
 
-  // Resolve domain class label
-  const domainClass = (vocabulary.value?.classes ?? []).find(
-    (c) => c.uri === prop.domain_class_uri
+  // Resolve domain class labels
+  const allClasses = vocabulary.value?.classes ?? [];
+  const domainClasses = allClasses.filter(
+    (c) => prop.domain_class_uris.includes(c.uri)
   );
 
   // Resolve range scheme title
@@ -53,19 +54,24 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
         <div class="detail__meta-row">
           <div class="detail__meta-item">
             <strong>Domain: </strong>
-            {domainClass ? (
-              <span
-                class="detail__link"
-                onClick={() => {
-                  const version = selectedVersion.value;
-                  const projectId = currentProjectId.value;
-                  if (version && projectId) navigate(projectId, version, "class", domainClass.id);
-                }}
-              >
-                {domainClass.label}
-              </span>
+            {domainClasses.length > 0 ? (
+              domainClasses.map((dc, i) => (
+                <span key={dc.id}>
+                  {i > 0 && ", "}
+                  <span
+                    class="detail__link"
+                    onClick={() => {
+                      const version = selectedVersion.value;
+                      const projectId = currentProjectId.value;
+                      if (version && projectId) navigate(projectId, version, "class", dc.id);
+                    }}
+                  >
+                    {dc.label}
+                  </span>
+                </span>
+              ))
             ) : (
-              prop.domain_class_uri
+              prop.domain_class_uris.join(", ")
             )}
           </div>
 

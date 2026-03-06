@@ -30,6 +30,7 @@ from taxonomy_builder.services.skos_export_service import (
 )
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
+    SKOSImportError,
     SKOSImportService,
 )
 
@@ -137,7 +138,7 @@ async def import_skos(
             return await import_service.preview(project_id, content, filename)
         else:
             return await import_service.execute(project_id, content, filename)
-    except InvalidRDFError as e:
+    except (InvalidRDFError, SKOSImportError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
