@@ -1202,3 +1202,55 @@ async def test_preview_returns_domain_class_uris(
         "http://example.org/Finding",
         "http://example.org/Study",
     ]
+
+
+# --- property_type persistence tests (#111) ---
+
+
+PROPERTY_TYPE_TTL = b"""
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ; rdfs:label "Finding" .
+
+ex:supportingText a rdf:Property ;
+    rdfs:label "Supporting Text" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string .
+
+ex:title a owl:DatatypeProperty ;
+    rdfs:label "Title" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string .
+
+ex:evaluates a owl:ObjectProperty ;
+    rdfs:label "Evaluates" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range ex:Finding .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_persists_property_type(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Import persists property_type from parser for all three types."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.property import Property
+
+    await import_service.execute(project.id, PROPERTY_TYPE_TTL, "test.ttl")
+
+    props = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalars().all()
+    by_id = {p.identifier: p for p in props}
+
+    assert by_id["supportingText"].property_type == "rdf"
+    assert by_id["title"].property_type == "datatype"
+    assert by_id["evaluates"].property_type == "object"
