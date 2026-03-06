@@ -228,6 +228,13 @@ class SnapshotProperty(BaseModel):
 
     @classmethod
     def from_property(cls, property: Property) -> Self:
+        if property.range_datatype:
+            ptype = "datatype"
+        elif property.range_class or property.range_scheme_id:
+            ptype = "object"
+        else:
+            ptype = "rdf"
+
         return SnapshotProperty.model_construct(
             id=property.id,
             identifier=property.identifier,
@@ -236,13 +243,7 @@ class SnapshotProperty(BaseModel):
             description=property.description,
             domain_class=property.domain_class,
             domain_class_uris=[property.domain_class],
-            property_type=(
-                "datatype"
-                if property.range_datatype
-                else "object"
-                if property.range_class or property.range_scheme_id
-                else "rdf"
-            ),
+            property_type=ptype,
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
             range_class=property.range_class,

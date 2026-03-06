@@ -191,7 +191,7 @@ def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
     concept_subclasses = find_concept_subclasses(g)
     owl_classes = find_owl_classes(g)
     class_metadata = [
-        extract_class_metadata(g, cls, concept_subclasses=concept_subclasses)
+        extract_class_metadata(g, cls, exclude_superclass_uris=concept_subclasses)
         for cls in owl_classes
     ]
     cycles = detect_superclass_cycles(class_metadata)
@@ -401,12 +401,12 @@ def extract_class_metadata(
     g: Graph,
     class_uri: URIRef,
     *,
-    concept_subclasses: set[URIRef] | None = None,
+    exclude_superclass_uris: set[URIRef] | None = None,
 ) -> dict:
     """Extract label, description, scope_note, and superclass_uris for an OWL class."""
     uri_str = str(class_uri)
-    if concept_subclasses is None:
-        concept_subclasses = set()
+    if exclude_superclass_uris is None:
+        exclude_superclass_uris = set()
 
     label = g.value(class_uri, RDFS.label)
     if not label:
@@ -417,14 +417,14 @@ def extract_class_metadata(
     description = g.value(class_uri, RDFS.comment)
     scope_note = g.value(class_uri, SKOS.scopeNote)
 
-    # Collect superclass URIs, filtering out blank nodes, skos:Concept, and concept subclasses
+    # Collect superclass URIs, filtering out blank nodes, skos:Concept, and excluded URIs
     superclass_uris: list[str] = []
     for obj in g.objects(class_uri, RDFS.subClassOf):
         if not isinstance(obj, URIRef):
             continue
         if obj == SKOS.Concept:
             continue
-        if obj in concept_subclasses:
+        if obj in exclude_superclass_uris:
             continue
         superclass_uris.append(str(obj))
 
@@ -438,31 +438,31 @@ def extract_class_metadata(
     }
 
 
-def detect_superclass_cycles(class_metadata: list[dict]) -> list[tuple[str, str]]:
+def detect_superclass_cycles(classes_metadata: list[dict]) -> list[tuple[str, str]]:
     """Detect cycles in superclass edges via DFS. Returns list of cycle-forming edges."""
     # Build adjacency: child → superclasses
-    children: dict[str, list[str]] = {}
-    for cm in class_metadata:
-        children[cm["uri"]] = cm.get("superclass_uris", [])
+    superclasses_by_uri: dict[str, list[str]] = {}
+    for cm in classes_metadata:
+        superclasses_by_uri[cm["uri"]] = cm.get("superclass_uris", [])
 
-    WHITE, GREY, BLACK = 0, 1, 2
-    color: dict[str, int] = {uri: WHITE for uri in children}
+    UNVISITED, IN_PROGRESS, COMPLETE = 0, 1, 2
+    status: dict[str, int] = {uri: UNVISITED for uri in superclasses_by_uri}
     cycle_edges: list[tuple[str, str]] = []
 
-    def dfs(node: str) -> None:
-        color[node] = GREY
-        for parent in children.get(node, []):
-            if parent not in color:
+    def visit(node: str) -> None:
+        status[node] = IN_PROGRESS
+        for parent in superclasses_by_uri.get(node, []):
+            if parent not in status:
                 continue  # external URI, skip
-            if color[parent] == GREY:
+            if status[parent] == IN_PROGRESS:
                 cycle_edges.append((node, parent))
-            elif color[parent] == WHITE:
-                dfs(parent)
-        color[node] = BLACK
+            elif status[parent] == UNVISITED:
+                visit(parent)
+        status[node] = COMPLETE
 
-    for uri in children:
-        if color[uri] == WHITE:
-            dfs(uri)
+    for uri in superclasses_by_uri:
+        if status[uri] == UNVISITED:
+            visit(uri)
 
     return cycle_edges
 
@@ -648,7 +648,7 @@ def analyze_graph(g: Graph) -> dict:
     owl_classes = find_owl_classes(g)
     concept_subs = find_concept_subclasses(g)
     class_metadata = [
-        extract_class_metadata(g, cls, concept_subclasses=concept_subs)
+        extract_class_metadata(g, cls, exclude_superclass_uris=concept_subs)
         for cls in owl_classes
     ]
 

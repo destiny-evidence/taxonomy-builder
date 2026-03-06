@@ -275,7 +275,7 @@ def test_extract_class_metadata_includes_superclass_uris():
 
     from rdflib import URIRef
     obs_uri = URIRef("http://example.org/ObservedResult")
-    metadata = extract_class_metadata(g, obs_uri, concept_subclasses=set())
+    metadata = extract_class_metadata(g, obs_uri, exclude_superclass_uris=set())
     assert metadata["superclass_uris"] == ["http://example.org/Finding"]
 
 
@@ -284,7 +284,7 @@ def test_extract_class_metadata_no_superclass():
     g = _graph(SUBCLASS_OF_CLASSES_TTL)
     from rdflib import URIRef
     finding_uri = URIRef("http://example.org/Finding")
-    metadata = extract_class_metadata(g, finding_uri, concept_subclasses=set())
+    metadata = extract_class_metadata(g, finding_uri, exclude_superclass_uris=set())
     assert metadata["superclass_uris"] == []
 
 
@@ -309,7 +309,7 @@ ex:SpecialConcept a owl:Class ;
     concept_subs = find_concept_subclasses(g)
 
     special_uri = URIRef("http://example.org/SpecialConcept")
-    metadata = extract_class_metadata(g, special_uri, concept_subclasses=concept_subs)
+    metadata = extract_class_metadata(g, special_uri, exclude_superclass_uris=concept_subs)
     # ConceptType is a concept subclass, so should be filtered out
     assert metadata["superclass_uris"] == []
 
@@ -334,7 +334,7 @@ ex:Child a owl:Class ;
     g = _graph(ttl)
     from rdflib import URIRef
     child_uri = URIRef("http://example.org/Child")
-    metadata = extract_class_metadata(g, child_uri, concept_subclasses=set())
+    metadata = extract_class_metadata(g, child_uri, exclude_superclass_uris=set())
     # Only the named URIRef superclass, not the blank node restriction
     assert metadata["superclass_uris"] == ["http://example.org/Parent"]
 
@@ -359,7 +359,7 @@ def test_detect_superclass_cycles_simple_cycle():
         {"uri": "http://example.org/B", "superclass_uris": ["http://example.org/A"]},
     ]
     cycles = detect_superclass_cycles(class_metadata)
-    assert len(cycles) > 0
+    assert len(cycles) == 1
 
 
 def test_detect_superclass_cycles_self_referential():
@@ -368,7 +368,20 @@ def test_detect_superclass_cycles_self_referential():
         {"uri": "http://example.org/A", "superclass_uris": ["http://example.org/A"]},
     ]
     cycles = detect_superclass_cycles(class_metadata)
-    assert len(cycles) > 0
+    assert len(cycles) == 1
+
+
+def test_detect_superclass_cycles_three_node_cycle():
+    """Transitive cycle A→B→C→A detected."""
+    class_metadata = [
+        {"uri": "http://example.org/A", "superclass_uris": ["http://example.org/B"]},
+        {"uri": "http://example.org/B", "superclass_uris": ["http://example.org/C"]},
+        {"uri": "http://example.org/C", "superclass_uris": ["http://example.org/A"]},
+    ]
+    cycles = detect_superclass_cycles(class_metadata)
+    assert len(cycles) == 1
+    # The cycle-forming back-edge should reference A
+    assert any("A" in edge[1] for edge in cycles)
 
 
 def test_detect_superclass_cycles_diamond_is_valid():
