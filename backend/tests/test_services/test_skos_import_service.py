@@ -980,3 +980,60 @@ async def test_execute_includes_validation_issues(
         vi for vi in result.validation_issues if vi.severity == "warning"
     ]
     assert len(warning_issues) >= 1
+
+
+# --- PropertyDomainClass join table tests (#110) ---
+
+
+SINGLE_DOMAIN_PROPERTY_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:title a owl:DatatypeProperty ;
+    rdfs:label "Title" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_creates_property_domain_class_row(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Import of single-domain property creates one PropertyDomainClass join row."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.property import Property
+    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
+
+    await import_service.execute(
+        project.id, SINGLE_DOMAIN_PROPERTY_TTL, "test.ttl"
+    )
+
+    prop = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalar_one()
+
+    # Should have one join row
+    rows = (
+        await db_session.execute(
+            select(PropertyDomainClass).where(
+                PropertyDomainClass.property_id == prop.id
+            )
+        )
+    ).scalars().all()
+    assert len(rows) == 1
+
+    # The domain_classes relationship should return the OntologyClass
+    assert len(prop.domain_classes) == 1
+    assert prop.domain_classes[0].uri == "http://example.org/Finding"
+
+    # Scalar column still populated
+    assert prop.domain_class == "http://example.org/Finding"

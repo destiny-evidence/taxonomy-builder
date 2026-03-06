@@ -11,6 +11,7 @@ from taxonomy_builder.models.feedback import Feedback
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.models.user import User
 
@@ -26,6 +27,7 @@ __all__ = [
     "OntologyClass",
     "Project",
     "Property",
+    "PropertyDomainClass",
     "PublishedVersion",
     "User",
 ]

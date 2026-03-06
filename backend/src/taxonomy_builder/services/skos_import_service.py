@@ -14,6 +14,7 @@ from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 from taxonomy_builder.schemas.skos_import import (
     ClassCreatedResponse,
     ClassPreviewResponse,
@@ -337,10 +338,12 @@ class SKOSImportService:
 
         validation_issues = _validation_to_responses(validation)
 
-        classes_created, superclass_warnings = await self._import_classes(
-            project_id, analysis["classes"],
-            existing.class_uris, existing.class_identifiers,
-            existing.class_uri_to_id,
+        classes_created, superclass_warnings, class_uri_to_id = (
+            await self._import_classes(
+                project_id, analysis["classes"],
+                existing.class_uris, existing.class_identifiers,
+                existing.class_uri_to_id,
+            )
         )
 
         schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
@@ -356,7 +359,7 @@ class SKOSImportService:
         properties_created, prop_warnings = await self._import_properties(
             g, project_id, analysis["properties"],
             existing.property_identifiers, existing.property_uris,
-            scheme_uri_to_id, class_uris,
+            scheme_uri_to_id, class_uris, class_uri_to_id,
         )
 
         return ImportResultResponse(
@@ -373,10 +376,11 @@ class SKOSImportService:
         self, project_id: UUID, class_metadata: list[dict],
         existing_class_uris: set[str], existing_identifiers: set[str],
         existing_class_uri_to_id: dict[str, UUID] | None = None,
-    ) -> tuple[list[ClassCreatedResponse], list[str]]:
+    ) -> tuple[list[ClassCreatedResponse], list[str], dict[str, UUID]]:
         """Create OntologyClass records and ClassSuperclass join rows.
 
-        Returns created responses and any unresolvable-superclass warnings.
+        Returns created responses, unresolvable-superclass warnings, and
+        class_uri_to_id map (existing + newly created).
         """
         known_uris = set(existing_class_uris)
         known_identifiers = set(existing_identifiers)
@@ -470,7 +474,7 @@ class SKOSImportService:
                     uri=cm["uri"],
                 )
             )
-        return created, warnings
+        return created, warnings, class_uri_to_id
 
     async def _import_schemes(
         self,
@@ -615,12 +619,14 @@ class SKOSImportService:
         existing_prop_uris: set[str],
         scheme_uri_to_id: dict[str, UUID],
         class_uris: set[str],
+        class_uri_to_id: dict[str, UUID] | None = None,
     ) -> tuple[list[PropertyCreatedResponse], list[str]]:
         """Create Property records, skipping duplicates, resolving ranges."""
         warnings: list[str] = []
         known_ids = set(existing_prop_ids)
         known_uris = set(existing_prop_uris)
-        to_create: list[Property] = []
+        uri_to_id = class_uri_to_id or {}
+        to_create: list[tuple[Property, str]] = []  # (prop, domain_uri)
 
         for pm in property_metadata:
             identifier = pm["identifier"]
@@ -681,15 +687,24 @@ class SKOSImportService:
             self.db.add(prop)
             known_ids.add(identifier)
             known_uris.add(pm["uri"])
-            to_create.append(prop)
+            to_create.append((prop, domain_uri))
 
         if to_create:
             await self.db.flush()
-            for prop in to_create:
+            for prop, _ in to_create:
                 await self.db.refresh(prop)
 
+            # Create PropertyDomainClass join rows
+            for prop, domain_uri in to_create:
+                if domain_uri in uri_to_id:
+                    self.db.add(PropertyDomainClass(
+                        property_id=prop.id,
+                        class_id=uri_to_id[domain_uri],
+                    ))
+            await self.db.flush()
+
         created: list[PropertyCreatedResponse] = []
-        for prop in to_create:
+        for prop, _ in to_create:
             await self._tracker.record(
                 project_id=project_id,
                 entity_type="property",
