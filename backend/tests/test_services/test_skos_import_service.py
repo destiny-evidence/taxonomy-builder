@@ -1037,3 +1037,168 @@ async def test_execute_creates_property_domain_class_row(
 
     # Scalar column still populated
     assert prop.domain_class == "http://example.org/Finding"
+
+
+UNION_DOMAIN_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ; rdfs:label "Finding" .
+ex:CodingAnnotation a owl:Class ; rdfs:label "Coding Annotation" .
+ex:Study a owl:Class ; rdfs:label "Study" .
+
+ex:supportingText a owl:DatatypeProperty ;
+    rdfs:label "Supporting Text" ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( ex:Finding ex:CodingAnnotation ex:Study )
+    ] ;
+    rdfs:range xsd:string .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_creates_multi_domain_rows(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Import of 3-class union domain creates 3 PropertyDomainClass rows."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.property import Property
+    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
+
+    await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
+
+    prop = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalar_one()
+
+    rows = (
+        await db_session.execute(
+            select(PropertyDomainClass).where(
+                PropertyDomainClass.property_id == prop.id
+            )
+        )
+    ).scalars().all()
+    assert len(rows) == 3
+
+    # Relationship returns all three classes
+    assert len(prop.domain_classes) == 3
+    uris = sorted(c.uri for c in prop.domain_classes)
+    assert uris == [
+        "http://example.org/CodingAnnotation",
+        "http://example.org/Finding",
+        "http://example.org/Study",
+    ]
+
+    # Scalar = first sorted URI
+    assert prop.domain_class == "http://example.org/CodingAnnotation"
+
+
+@pytest.mark.asyncio
+async def test_execute_reimport_replaces_domain_rows(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Re-import with different union members replaces rows and updates scalar."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.property import Property
+    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
+
+    # First import: 3-class union
+    await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
+
+    # Second import: different union (Finding + Study only, no CodingAnnotation)
+    updated_ttl = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ; rdfs:label "Finding" .
+ex:CodingAnnotation a owl:Class ; rdfs:label "Coding Annotation" .
+ex:Study a owl:Class ; rdfs:label "Study" .
+
+ex:supportingText a owl:DatatypeProperty ;
+    rdfs:label "Supporting Text" ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( ex:Finding ex:Study )
+    ] ;
+    rdfs:range xsd:string .
+"""
+    await import_service.execute(project.id, updated_ttl, "test.ttl")
+
+    prop = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalar_one()
+
+    rows = (
+        await db_session.execute(
+            select(PropertyDomainClass).where(
+                PropertyDomainClass.property_id == prop.id
+            )
+        )
+    ).scalars().all()
+    assert len(rows) == 2
+
+    uris = sorted(c.uri for c in prop.domain_classes)
+    assert uris == [
+        "http://example.org/Finding",
+        "http://example.org/Study",
+    ]
+
+    # Scalar updated to first sorted URI
+    assert prop.domain_class == "http://example.org/Finding"
+
+
+@pytest.mark.asyncio
+async def test_execute_reimport_same_domain_idempotent(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Re-import with unchanged domain is a no-op."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.property import Property
+    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
+
+    await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
+    await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
+
+    prop = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project.id)
+        )
+    ).scalar_one()
+
+    rows = (
+        await db_session.execute(
+            select(PropertyDomainClass).where(
+                PropertyDomainClass.property_id == prop.id
+            )
+        )
+    ).scalars().all()
+    # Still 3 rows, not duplicated
+    assert len(rows) == 3
+
+
+@pytest.mark.asyncio
+async def test_preview_returns_domain_class_uris(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """Preview response uses domain_class_uris (list) not domain_class_uri."""
+    result = await import_service.preview(
+        project.id, UNION_DOMAIN_TTL, "test.ttl"
+    )
+
+    assert len(result.properties) == 1
+    prop = result.properties[0]
+    assert sorted(prop.domain_class_uris) == [
+        "http://example.org/CodingAnnotation",
+        "http://example.org/Finding",
+        "http://example.org/Study",
+    ]
