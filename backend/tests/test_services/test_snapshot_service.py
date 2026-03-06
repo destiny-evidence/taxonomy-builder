@@ -515,3 +515,31 @@ async def test_snapshot_property_domain_class_uris_fallback_to_scalar(
     sp = snapshot.properties[0]
     assert sp.domain_class_uris == ["http://example.org/vocab/Finding"]
     assert sp.domain_class == ""  # deprecated; domain_class_uris is authoritative
+
+
+@pytest.mark.asyncio
+async def test_snapshot_property_type_from_column(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """from_property reads property_type from DB column, not inference."""
+    # rdf:Property with a range — inference would say "datatype", column says "rdf"
+    prop = Property(
+        project_id=project.id,
+        identifier="supportingText",
+        label="Supporting Text",
+        domain_class="http://example.org/vocab/Finding",
+        range_datatype="xsd:string",
+        property_type="rdf",
+        cardinality="single",
+        required=False,
+        uri="http://example.org/vocab/supportingText",
+    )
+    db_session.add(prop)
+    await db_session.flush()
+    await db_session.refresh(prop)
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+
+    sp = snapshot.properties[0]
+    # Must be "rdf" from column, NOT "datatype" from inference
+    assert sp.property_type == "rdf"
