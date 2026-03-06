@@ -432,3 +432,86 @@ async def test_snapshot_class_superclass_uris(
         "http://example.org/vocab/Finding"
     ]
     assert classes_by_id["Finding"].superclass_uris == []
+
+
+# --- SnapshotProperty.from_property domain_class_uris tests (#110) ---
+
+
+@pytest.mark.asyncio
+async def test_snapshot_property_domain_class_uris_from_join_table(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """from_property uses domain_classes relationship (sorted) over scalar."""
+    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
+
+    cls_a = OntologyClass(
+        project_id=project.id, identifier="Study",
+        label="Study", uri="http://example.org/vocab/Study",
+    )
+    cls_b = OntologyClass(
+        project_id=project.id, identifier="Finding",
+        label="Finding", uri="http://example.org/vocab/Finding",
+    )
+    db_session.add_all([cls_a, cls_b])
+    await db_session.flush()
+    await db_session.refresh(cls_a)
+    await db_session.refresh(cls_b)
+
+    prop = Property(
+        project_id=project.id,
+        identifier="title",
+        label="Title",
+        domain_class="http://example.org/vocab/Finding",
+        range_datatype="xsd:string",
+        cardinality="single",
+        required=False,
+        uri="http://example.org/vocab/title",
+    )
+    db_session.add(prop)
+    await db_session.flush()
+    await db_session.refresh(prop)
+
+    # Add join rows for both classes
+    db_session.add(PropertyDomainClass(
+        property_id=prop.id, class_id=cls_b.id,
+    ))
+    db_session.add(PropertyDomainClass(
+        property_id=prop.id, class_id=cls_a.id,
+    ))
+    await db_session.flush()
+    await db_session.refresh(prop)
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+
+    sp = snapshot.properties[0]
+    assert sp.domain_class_uris == [
+        "http://example.org/vocab/Finding",
+        "http://example.org/vocab/Study",
+    ]
+    assert sp.domain_class == "http://example.org/vocab/Finding"
+
+
+@pytest.mark.asyncio
+async def test_snapshot_property_domain_class_uris_fallback_to_scalar(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """from_property falls back to scalar when no join rows exist."""
+    prop = Property(
+        project_id=project.id,
+        identifier="title",
+        label="Title",
+        domain_class="http://example.org/vocab/Finding",
+        range_datatype="xsd:string",
+        cardinality="single",
+        required=False,
+        uri="http://example.org/vocab/title",
+    )
+    db_session.add(prop)
+    await db_session.flush()
+    await db_session.refresh(prop)
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+
+    sp = snapshot.properties[0]
+    assert sp.domain_class_uris == ["http://example.org/vocab/Finding"]
+    assert sp.domain_class == "http://example.org/vocab/Finding"

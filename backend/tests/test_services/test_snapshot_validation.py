@@ -431,6 +431,7 @@ def _fake_property(**overrides):
         "label": "Test Property",
         "description": None,
         "domain_class": "http://example.org/Class",
+        "domain_classes": [],
         "range_scheme_id": None,
         "range_scheme": None,
         "range_class": None,
