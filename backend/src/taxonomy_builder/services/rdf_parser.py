@@ -513,11 +513,19 @@ def _resolve_union_all(g: Graph, bnode: BNode) -> list[str]:
     if union_list is None:
         return []
     uris: list[str] = []
+    seen_nodes: set = set()
+    seen_uris: set[str] = set()
     node = union_list
     while node is not None and node != RDF.nil:
+        if node in seen_nodes:
+            break  # circular rdf:rest — bail out
+        seen_nodes.add(node)
         first = g.value(node, RDF.first)
         if isinstance(first, URIRef):
-            uris.append(str(first))
+            uri = str(first)
+            if uri not in seen_uris:
+                uris.append(uri)
+                seen_uris.add(uri)
         node = g.value(node, RDF.rest)
     return uris
 

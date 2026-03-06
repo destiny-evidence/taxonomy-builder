@@ -230,7 +230,7 @@ class SnapshotProperty(BaseModel):
     def from_property(cls, property: Property) -> Self:
         # Prioritize join table, fallback to scalar, then empty list
         if property.domain_classes:
-            uris = sorted(c.uri for c in property.domain_classes)
+            uris = [c.uri for c in property.domain_classes]
         elif property.domain_class:
             uris = [property.domain_class]
         else:

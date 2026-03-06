@@ -756,6 +756,9 @@ class SKOSImportService:
         class_uri_to_id: dict[str, UUID],
     ) -> None:
         """Replace PropertyDomainClass rows and update scalar for re-import."""
+        if not domain_uris:
+            return
+
         from sqlalchemy import delete, update
 
         # Delete existing join rows
