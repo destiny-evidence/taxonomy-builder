@@ -66,6 +66,7 @@ def _stub_ontology_class(**overrides):
         label="Finding",
         description=None,
         scope_note=None,
+        superclasses=[],
     )
     return SimpleNamespace(**(defaults | overrides))
 
@@ -413,8 +414,8 @@ class TestSnapshotPropertyNewFields:
         assert prop.property_type == "datatype"
 
     def test_property_type_inferred_object(self) -> None:
-        """Properties without range_datatype should infer property_type='object'."""
-        stub = _stub_property(range_datatype=None)
+        """Properties with range_class should infer property_type='object'."""
+        stub = _stub_property(range_datatype=None, range_class="http://example.org/Class")
         prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "object"
 
