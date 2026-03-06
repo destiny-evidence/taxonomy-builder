@@ -214,6 +214,8 @@ class SKOSExportService:
         elif snapshot_property.range_datatype:
             g.add((prop_uri, RDF.type, OWL.DatatypeProperty))
             g.add((prop_uri, RDFS.range, XSD[snapshot_property.range_datatype.split(":")[-1]]))
+        else:
+            g.add((prop_uri, RDF.type, RDF.Property))
 
         g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
 
