@@ -228,13 +228,21 @@ def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> 
 
 
 def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
-    """Detect owl:Restriction instances and enumerate what will be lost."""
+    """Detect OWL restrictions we don't handle and warn about them.
+
+    allValuesFrom restrictions are handled (stored in class_restriction table),
+    so only warn about other types (someValuesFrom, hasValue, etc.).
+    """
     restrictions: list[str] = []
     for subject in g.subjects(RDF.type, OWL.Restriction):
         on_prop = g.value(subject, OWL.onProperty)
         prop_label = get_identifier_from_uri(on_prop) if isinstance(on_prop, URIRef) else "?"
+
+        # Skip allValuesFrom — we handle it
+        if g.value(subject, OWL.allValuesFrom) is not None:
+            continue
+
         for pred, label in [
-            (OWL.allValuesFrom, "allValuesFrom"),
             (OWL.someValuesFrom, "someValuesFrom"),
             (OWL.hasValue, "hasValue"),
         ]:
@@ -252,7 +260,7 @@ def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
             severity="warning",
             type="unsupported_restriction",
             message=(
-                f"Found {len(restrictions)} OWL restriction{'s' if len(restrictions) != 1 else ''} "
+                f"Found {len(restrictions)} unsupported OWL restriction{'s' if len(restrictions) != 1 else ''} "
                 f"that will be dropped on import: {details}"
             ),
         ))
@@ -293,6 +301,23 @@ def find_all_concepts(g: Graph) -> set[URIRef]:
                 concepts.add(instance)
 
     return concepts
+
+
+def extract_concept_type_uris(g: Graph, concept_uri: URIRef) -> list[str]:
+    """Collect non-skos:Concept rdf:type URIs for a concept. Sorted and deduplicated.
+
+    Captures ALL rdf:type URIs except skos:Concept itself, for round-trip fidelity.
+    This includes concept-typed classes (subClassOf skos:Concept), utility marker
+    classes, owl:NamedIndividual, etc.
+    """
+    type_uris: set[str] = set()
+    for rdf_type in g.objects(concept_uri, RDF.type):
+        if not isinstance(rdf_type, URIRef):
+            continue
+        if rdf_type == SKOS.Concept:
+            continue
+        type_uris.add(str(rdf_type))
+    return sorted(type_uris)
 
 
 def find_concept_subclasses(g: Graph) -> set[URIRef]:
@@ -370,16 +395,12 @@ def count_broader_relationships(g: Graph, concepts: set[URIRef]) -> int:
 
 
 def find_owl_classes(g: Graph) -> list[URIRef]:
-    """Find owl:Class instances that are NOT subclasses of skos:Concept and not blank nodes."""
-    concept_subclasses = find_concept_subclasses(g)
-
+    """Find owl:Class instances, including concept-typed classes (subClassOf skos:Concept)."""
     classes: list[URIRef] = []
     for subject in g.subjects(RDF.type, OWL.Class):
         if not isinstance(subject, URIRef):
             continue
         if (subject, OWL.unionOf, None) in g:
-            continue
-        if subject in concept_subclasses:
             continue
         classes.append(subject)
 
@@ -406,12 +427,10 @@ def extract_class_metadata(
     description = g.value(class_uri, RDFS.comment)
     scope_note = g.value(class_uri, SKOS.scopeNote)
 
-    # Collect superclass URIs, filtering out blank nodes, skos:Concept, and excluded URIs
+    # Collect superclass URIs, filtering out blank nodes and excluded URIs
     superclass_uris: list[str] = []
     for obj in g.objects(class_uri, RDFS.subClassOf):
         if not isinstance(obj, URIRef):
-            continue
-        if obj == SKOS.Concept:
             continue
         if obj in exclude_superclass_uris:
             continue
@@ -425,6 +444,33 @@ def extract_class_metadata(
         "uri": uri_str,
         "superclass_uris": sorted(superclass_uris),
     }
+
+
+def extract_restrictions(g: Graph, class_uris: set[str]) -> list[dict]:
+    """Extract allValuesFrom restrictions from rdfs:subClassOf blank nodes.
+
+    Returns list of dicts: {class_uri, on_property_uri, restriction_type, value_uri}.
+    """
+    restrictions: list[dict] = []
+    for class_uri_str in sorted(class_uris):
+        class_uri = URIRef(class_uri_str)
+        for obj in g.objects(class_uri, RDFS.subClassOf):
+            if not isinstance(obj, BNode):
+                continue
+            if (obj, RDF.type, OWL.Restriction) not in g:
+                continue
+            on_prop = g.value(obj, OWL.onProperty)
+            if not isinstance(on_prop, URIRef):
+                continue
+            value = g.value(obj, OWL.allValuesFrom)
+            if value is not None:
+                restrictions.append({
+                    "class_uri": class_uri_str,
+                    "on_property_uri": str(on_prop),
+                    "restriction_type": "allValuesFrom",
+                    "value_uri": str(value),
+                })
+    return restrictions
 
 
 def detect_superclass_cycles(classes_metadata: list[dict]) -> list[tuple[str, str]]:
@@ -644,11 +690,13 @@ def analyze_graph(g: Graph) -> dict:
                 )
 
     owl_classes = find_owl_classes(g)
-    concept_subs = find_concept_subclasses(g)
     class_metadata = [
-        extract_class_metadata(g, cls, exclude_superclass_uris=concept_subs)
+        extract_class_metadata(g, cls)
         for cls in owl_classes
     ]
+
+    class_uri_set = {cm["uri"] for cm in class_metadata}
+    restrictions = extract_restrictions(g, class_uri_set)
 
     owl_properties = find_properties(g)
     property_metadata = [
@@ -662,4 +710,5 @@ def analyze_graph(g: Graph) -> dict:
         "warnings": warnings,
         "classes": class_metadata,
         "properties": property_metadata,
+        "restrictions": restrictions,
     }
