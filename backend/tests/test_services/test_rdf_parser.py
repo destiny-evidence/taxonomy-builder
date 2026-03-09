@@ -854,8 +854,8 @@ def test_extract_class_metadata_includes_skos_concept_superclass():
     assert "http://www.w3.org/2004/02/skos/core#Concept" in metadata["superclass_uris"]
 
 
-def test_unsupported_restriction_warning_for_somevaluesfrom():
-    """someValuesFrom should still produce a warning."""
+def test_somevaluesfrom_restriction_extracted():
+    """someValuesFrom should be extracted, not warned about."""
     ttl = b"""
     @prefix owl: <http://www.w3.org/2002/07/owl#> .
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -869,9 +869,35 @@ def test_unsupported_restriction_warning_for_somevaluesfrom():
     """
     g = _graph(ttl)
 
+    restrictions = extract_restrictions(g, {"http://example.org/Cls"})
+    assert len(restrictions) == 1
+    assert restrictions[0]["restriction_type"] == "someValuesFrom"
+    assert restrictions[0]["value_uri"] == "http://example.org/Range"
+
+    # No unsupported warning
     result = validate_graph(g, {"http://example.org/Cls"})
     restriction_warnings = [
         w for w in result.warnings if w.type == "unsupported_restriction"
     ]
-    assert len(restriction_warnings) == 1
-    assert "someValuesFrom" in restriction_warnings[0].message
+    assert len(restriction_warnings) == 0
+
+
+def test_hasvalue_restriction_extracted():
+    """hasValue should be extracted."""
+    ttl = b"""
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix ex: <http://example.org/> .
+
+    ex:Cls a owl:Class ;
+        rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty ex:status ;
+            owl:hasValue ex:Active ] ;
+        rdfs:label "Cls" .
+    """
+    g = _graph(ttl)
+
+    restrictions = extract_restrictions(g, {"http://example.org/Cls"})
+    assert len(restrictions) == 1
+    assert restrictions[0]["restriction_type"] == "hasValue"
+    assert restrictions[0]["value_uri"] == "http://example.org/Active"

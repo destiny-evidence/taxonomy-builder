@@ -7,6 +7,9 @@ from urllib.parse import urlparse
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
 
+from taxonomy_builder.models.class_restriction import RestrictionType
+from taxonomy_builder.ontology_constants import WELL_KNOWN_SUPERCLASS_URIREFS
+
 # XSD namespace prefix for abbreviating datatype URIs
 XSD_NS = str(XSD)
 
@@ -196,12 +199,11 @@ def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
     # Exclude only well-known external URIs from cycle analysis, not all
     # concept-typed classes. Since #144, concept-typed classes are part of the
     # ontology and their edges must participate in cycle detection.
-    from taxonomy_builder.ontology_constants import WELL_KNOWN_SUPERCLASS_URIREFS
-
-    well_known = WELL_KNOWN_SUPERCLASS_URIREFS
     owl_classes = find_owl_classes(g)
     class_metadata = [
-        extract_class_metadata(g, cls, exclude_superclass_uris=well_known)
+        extract_class_metadata(
+            g, cls, exclude_superclass_uris=WELL_KNOWN_SUPERCLASS_URIREFS,
+        )
         for cls in owl_classes
     ]
     cycles = detect_superclass_cycles(class_metadata)
@@ -235,29 +237,21 @@ def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> 
 def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
     """Detect OWL restrictions we don't handle and warn about them.
 
-    allValuesFrom restrictions are handled (stored in class_restriction table),
-    so only warn about other types (someValuesFrom, hasValue, etc.).
+    Value restrictions (allValuesFrom, someValuesFrom, hasValue) are handled
+    and stored in the class_restriction table. Only warn about cardinality
+    restrictions and unrecognised types.
     """
+    handled = {OWL.allValuesFrom, OWL.someValuesFrom, OWL.hasValue}
     restrictions: list[str] = []
     for subject in g.subjects(RDF.type, OWL.Restriction):
         on_prop = g.value(subject, OWL.onProperty)
         prop_label = get_identifier_from_uri(on_prop) if isinstance(on_prop, URIRef) else "?"
 
-        # Skip allValuesFrom — we handle it
-        if g.value(subject, OWL.allValuesFrom) is not None:
+        # Skip value restrictions — we handle them
+        if any(g.value(subject, pred) is not None for pred in handled):
             continue
 
-        for pred, label in [
-            (OWL.someValuesFrom, "someValuesFrom"),
-            (OWL.hasValue, "hasValue"),
-        ]:
-            value = g.value(subject, pred)
-            if value is not None:
-                value_label = get_identifier_from_uri(value) if isinstance(value, URIRef) else str(value)
-                restrictions.append(f"{prop_label} {label} {value_label}")
-                break
-        else:
-            restrictions.append(f"{prop_label} (unrecognised restriction type)")
+        restrictions.append(f"{prop_label} (unrecognised restriction type)")
 
     if restrictions:
         details = "; ".join(restrictions)
@@ -452,10 +446,17 @@ def extract_class_metadata(
 
 
 def extract_restrictions(g: Graph, class_uris: set[str]) -> list[dict]:
-    """Extract allValuesFrom restrictions from rdfs:subClassOf blank nodes.
+    """Extract value restrictions from rdfs:subClassOf blank nodes.
 
+    Handles allValuesFrom, someValuesFrom, and hasValue.
     Returns list of dicts: {class_uri, on_property_uri, restriction_type, value_uri}.
     """
+    _OWL_PREDICATES = [
+        (OWL.allValuesFrom, RestrictionType.ALL_VALUES_FROM),
+        (OWL.someValuesFrom, RestrictionType.SOME_VALUES_FROM),
+        (OWL.hasValue, RestrictionType.HAS_VALUE),
+    ]
+
     restrictions: list[dict] = []
     for class_uri_str in sorted(class_uris):
         class_uri = URIRef(class_uri_str)
@@ -467,18 +468,20 @@ def extract_restrictions(g: Graph, class_uris: set[str]) -> list[dict]:
             on_prop = g.value(obj, OWL.onProperty)
             if not isinstance(on_prop, URIRef):
                 continue
-            value = g.value(obj, OWL.allValuesFrom)
-            if value is None:
-                continue
-            if not isinstance(value, URIRef):
-                # Skip anonymous class expressions (blank-node fillers)
-                continue
-            restrictions.append({
-                "class_uri": class_uri_str,
-                "on_property_uri": str(on_prop),
-                "restriction_type": "allValuesFrom",
-                "value_uri": str(value),
-            })
+            for predicate, rtype in _OWL_PREDICATES:
+                value = g.value(obj, predicate)
+                if value is None:
+                    continue
+                if not isinstance(value, URIRef):
+                    # Skip anonymous class expressions (blank-node fillers)
+                    continue
+                restrictions.append({
+                    "class_uri": class_uri_str,
+                    "on_property_uri": str(on_prop),
+                    "restriction_type": rtype.value,
+                    "value_uri": str(value),
+                })
+                break  # one predicate per restriction bnode
     return restrictions
 
 

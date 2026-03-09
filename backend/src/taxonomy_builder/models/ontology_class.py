@@ -8,9 +8,9 @@ from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from taxonomy_builder.database import Base
+from taxonomy_builder.models.class_restriction import ClassRestriction
 
 if TYPE_CHECKING:
-    from taxonomy_builder.models.class_restriction import ClassRestriction
     from taxonomy_builder.models.project import Project
 
 

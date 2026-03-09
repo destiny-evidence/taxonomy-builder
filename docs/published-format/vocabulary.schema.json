@@ -215,7 +215,7 @@
                 },
                 "restriction_type": {
                   "type": "string",
-                  "enum": ["allValuesFrom"],
+                  "enum": ["allValuesFrom", "someValuesFrom", "hasValue"],
                   "description": "Type of OWL restriction."
                 },
                 "value_uri": {

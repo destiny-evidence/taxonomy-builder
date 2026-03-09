@@ -1,5 +1,6 @@
 """ClassRestriction model for OWL restriction pass-through."""
 
+from enum import StrEnum
 from uuid import UUID, uuid7
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
@@ -8,11 +9,20 @@ from sqlalchemy.orm import Mapped, mapped_column
 from taxonomy_builder.database import Base
 
 
+class RestrictionType(StrEnum):
+    """Supported OWL restriction types."""
+
+    ALL_VALUES_FROM = "allValuesFrom"
+    SOME_VALUES_FROM = "someValuesFrom"
+    HAS_VALUE = "hasValue"
+
+
 class ClassRestriction(Base):
     """Structured pass-through for OWL restrictions on ontology classes.
 
-    Stores allValuesFrom (and potentially other) restrictions that appear as
-    anonymous rdfs:subClassOf superclasses in the source ontology.
+    Stores value restrictions (allValuesFrom, someValuesFrom, hasValue)
+    that appear as anonymous rdfs:subClassOf superclasses in the source
+    ontology.
     """
 
     __tablename__ = "class_restrictions"

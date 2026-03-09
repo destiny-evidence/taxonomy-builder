@@ -14,6 +14,8 @@ from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+
+from taxonomy_builder.models.class_restriction import RestrictionType
 from pydantic_core import PydanticCustomError
 
 from taxonomy_builder.models.concept import Concept
@@ -258,7 +260,7 @@ class SnapshotRestriction(BaseModel):
     """An OWL restriction on an ontology class (structured pass-through)."""
 
     on_property_uri: str
-    restriction_type: Literal["allValuesFrom"]
+    restriction_type: RestrictionType
     value_uri: str
 
 
