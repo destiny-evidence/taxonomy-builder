@@ -490,10 +490,30 @@ class SKOSImportService:
         restrictions: list[dict],
         class_uri_to_id: dict[str, UUID],
     ) -> None:
-        """Create ClassRestriction records for allValuesFrom restrictions."""
-        if not restrictions:
+        """Replace ClassRestriction records for classes in this import.
+
+        Deletes existing restrictions for affected classes first, then
+        inserts the new set. This makes re-import idempotent and removes
+        stale restrictions when the source file changes.
+        """
+        # Resolve which class IDs are affected by this import
+        affected_class_ids = {
+            class_uri_to_id[r["class_uri"]]
+            for r in restrictions
+            if r["class_uri"] in class_uri_to_id
+        }
+        if not affected_class_ids:
             return
 
+        # Delete existing restrictions for affected classes
+        from sqlalchemy import delete
+        await self.db.execute(
+            delete(ClassRestriction).where(
+                ClassRestriction.class_id.in_(affected_class_ids)
+            )
+        )
+
+        # Insert new restrictions
         for r in restrictions:
             class_id = class_uri_to_id.get(r["class_uri"])
             if class_id is None:

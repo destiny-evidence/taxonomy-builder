@@ -1359,3 +1359,87 @@ async def test_import_concept_type_uris(
     concept = (await db_session.execute(stmt)).scalar_one()
 
     assert concept.concept_type_uris == ["http://example.org/EducationLevelConcept"]
+
+
+# --- Restriction re-import stability tests (#144) ---
+
+
+RESTRICTION_TWO_RULES_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:CodingAnnotation a owl:Class ;
+    rdfs:label "CodingAnnotation" .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf ex:CodingAnnotation ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:codedValue ;
+        owl:allValuesFrom xsd:string
+    ] ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:targetScheme ;
+        owl:allValuesFrom ex:CodingAnnotation
+    ] ;
+    rdfs:label "String Annotation" .
+
+ex:codedValue a rdf:Property ;
+    rdfs:label "coded value" ;
+    rdfs:domain ex:CodingAnnotation .
+
+ex:targetScheme a rdf:Property ;
+    rdfs:label "target scheme" ;
+    rdfs:domain ex:CodingAnnotation .
+"""
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_idempotent(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing the same file does not duplicate restrictions."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    await import_service.execute(
+        project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
+    )
+    await import_service.execute(
+        project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
+    )
+
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_removes_stale(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing with fewer restrictions removes stale rows."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    # First import: 2 restrictions (codedValue + targetScheme)
+    await import_service.execute(
+        project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 2
+
+    # Second import: only 1 restriction (codedValue only)
+    await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].value_uri == "http://www.w3.org/2001/XMLSchema#string"
