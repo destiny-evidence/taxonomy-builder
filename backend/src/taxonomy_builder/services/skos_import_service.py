@@ -350,8 +350,16 @@ class SKOSImportService:
             )
         )
 
+        # Compute class IDs from this file only (not all project classes)
+        file_class_ids = {
+            class_uri_to_id[cm["uri"]]
+            for cm in analysis["classes"]
+            if cm["uri"] in class_uri_to_id
+        }
         await self._import_restrictions(
-            analysis.get("restrictions", []), class_uri_to_id,
+            analysis.get("restrictions", []),
+            class_uri_to_id,
+            file_class_ids,
         )
 
         schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
@@ -489,27 +497,20 @@ class SKOSImportService:
         self,
         restrictions: list[dict],
         class_uri_to_id: dict[str, UUID],
+        file_class_ids: set[UUID],
     ) -> None:
-        """Replace ClassRestriction records for classes in this import.
+        """Replace ClassRestriction records for classes in the current file.
 
-        Deletes existing restrictions for affected classes first, then
-        inserts the new set. This makes re-import idempotent and removes
-        stale restrictions when the source file changes.
+        Deletes existing restrictions for classes present in the file,
+        then inserts the new set. Classes not in the file are untouched.
         """
-        # Resolve which class IDs are affected by this import
-        affected_class_ids = {
-            class_uri_to_id[r["class_uri"]]
-            for r in restrictions
-            if r["class_uri"] in class_uri_to_id
-        }
-        if not affected_class_ids:
+        if not file_class_ids:
             return
 
-        # Delete existing restrictions for affected classes
-        from sqlalchemy import delete
+        # Delete existing restrictions only for classes in this file
         await self.db.execute(
             delete(ClassRestriction).where(
-                ClassRestriction.class_id.in_(affected_class_ids)
+                ClassRestriction.class_id.in_(file_class_ids)
             )
         )
 

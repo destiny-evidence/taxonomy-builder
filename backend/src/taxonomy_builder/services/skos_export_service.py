@@ -264,5 +264,4 @@ class SKOSExportService:
             g.add((class_uri, RDFS.subClassOf, bnode))
             g.add((bnode, RDF.type, OWL.Restriction))
             g.add((bnode, OWL.onProperty, URIRef(restriction.on_property_uri)))
-            if restriction.restriction_type == "allValuesFrom":
-                g.add((bnode, OWL.allValuesFrom, URIRef(restriction.value_uri)))
+            g.add((bnode, OWL.allValuesFrom, URIRef(restriction.value_uri)))

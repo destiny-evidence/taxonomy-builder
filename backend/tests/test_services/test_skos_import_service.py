@@ -1443,3 +1443,98 @@ async def test_reimport_restrictions_removes_stale(
     rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
     assert len(rows) == 1
     assert rows[0].value_uri == "http://www.w3.org/2001/XMLSchema#string"
+
+
+RESTRICTION_NONE_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:CodingAnnotation a owl:Class ;
+    rdfs:label "CodingAnnotation" .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf ex:CodingAnnotation ;
+    rdfs:label "String Annotation" .
+
+ex:codedValue a rdf:Property ;
+    rdfs:label "coded value" ;
+    rdfs:domain ex:CodingAnnotation .
+"""
+
+RESTRICTION_OTHER_CLASS_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:OtherClass a owl:Class ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:otherProp ;
+        owl:allValuesFrom xsd:integer
+    ] ;
+    rdfs:label "Other Class" .
+
+ex:otherProp a rdf:Property ;
+    rdfs:label "other prop" ;
+    rdfs:domain ex:OtherClass .
+"""
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_clears_when_all_removed(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing a class with zero restrictions clears its old ones."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    # First import: has restriction
+    await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 1
+
+    # Second import: same class, no restrictions
+    await import_service.execute(
+        project.id, RESTRICTION_NONE_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_does_not_touch_other_classes(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing file A must not delete restrictions from file B."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    # Import file A: StringAnnotation with restriction
+    await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "a.ttl",
+    )
+    # Import file B: OtherClass with restriction
+    await import_service.execute(
+        project.id, RESTRICTION_OTHER_CLASS_TTL, "b.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 2
+
+    # Re-import file A without restrictions
+    await import_service.execute(
+        project.id, RESTRICTION_NONE_TTL, "a.ttl",
+    )
+    # StringAnnotation's restriction gone, OtherClass's survives
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].on_property_uri == "http://example.org/otherProp"

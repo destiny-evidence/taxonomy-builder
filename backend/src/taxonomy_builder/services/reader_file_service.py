@@ -98,7 +98,14 @@ class ReaderFileService:
                     "description": cls.description,
                     "scope_note": cls.scope_note,
                     "superclasses": cls.superclass_uris,
-                    "restrictions": [r.model_dump() for r in cls.restrictions],
+                    "restrictions": [
+                        {
+                            "on_property_uri": r.on_property_uri,
+                            "restriction_type": r.restriction_type,
+                            "value_uri": r.value_uri,
+                        }
+                        for r in cls.restrictions
+                    ],
                 }
             )
 

@@ -196,11 +196,9 @@ def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
     # Exclude only well-known external URIs from cycle analysis, not all
     # concept-typed classes. Since #144, concept-typed classes are part of the
     # ontology and their edges must participate in cycle detection.
-    well_known = {
-        SKOS.Concept,
-        OWL.Thing,
-        URIRef("http://www.w3.org/2000/01/rdf-schema#Resource"),
-    }
+    from taxonomy_builder.ontology_constants import WELL_KNOWN_SUPERCLASS_URIREFS
+
+    well_known = WELL_KNOWN_SUPERCLASS_URIREFS
     owl_classes = find_owl_classes(g)
     class_metadata = [
         extract_class_metadata(g, cls, exclude_superclass_uris=well_known)
