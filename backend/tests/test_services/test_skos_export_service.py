@@ -19,6 +19,7 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotProperty,
+    SnapshotRestriction,
     SnapshotScheme,
     SnapshotVocabulary,
 )
@@ -1266,11 +1267,11 @@ async def test_export_restriction_blank_nodes(
                 label="String Annotation",
                 uri="http://example.org/StringAnnotation",
                 superclass_uris=["http://example.org/CodingAnnotation"],
-                restrictions=[{
-                    "on_property_uri": "http://example.org/codedValue",
-                    "restriction_type": "allValuesFrom",
-                    "value_uri": "http://www.w3.org/2001/XMLSchema#string",
-                }],
+                restrictions=[SnapshotRestriction(
+                    on_property_uri="http://example.org/codedValue",
+                    restriction_type="allValuesFrom",
+                    value_uri="http://www.w3.org/2001/XMLSchema#string",
+                )],
             ),
         ],
     )

@@ -11,6 +11,7 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotProperty,
+    SnapshotRestriction,
     SnapshotScheme,
     SnapshotVocabulary,
 )
@@ -687,14 +688,14 @@ class TestSnapshotClassRestrictions:
             uri="http://example.org/StringAnnotation",
             label="String Annotation",
             superclass_uris=["http://example.org/CodingAnnotation"],
-            restrictions=[{
-                "on_property_uri": "http://example.org/codedValue",
-                "restriction_type": "allValuesFrom",
-                "value_uri": "http://www.w3.org/2001/XMLSchema#string",
-            }],
+            restrictions=[SnapshotRestriction(
+                on_property_uri="http://example.org/codedValue",
+                restriction_type="allValuesFrom",
+                value_uri="http://www.w3.org/2001/XMLSchema#string",
+            )],
         )
         assert len(cls.restrictions) == 1
-        assert cls.restrictions[0]["restriction_type"] == "allValuesFrom"
+        assert cls.restrictions[0].restriction_type == "allValuesFrom"
 
     def test_from_class_populates_restrictions(self) -> None:
         restriction = SimpleNamespace(
@@ -705,11 +706,10 @@ class TestSnapshotClassRestrictions:
         stub = _stub_ontology_class(restrictions=[restriction])
         cls = SnapshotClass.from_class(stub)
         assert len(cls.restrictions) == 1
-        assert cls.restrictions[0] == {
-            "on_property_uri": "http://example.org/codedValue",
-            "restriction_type": "allValuesFrom",
-            "value_uri": "http://www.w3.org/2001/XMLSchema#string",
-        }
+        r = cls.restrictions[0]
+        assert r.on_property_uri == "http://example.org/codedValue"
+        assert r.restriction_type == "allValuesFrom"
+        assert r.value_uri == "http://www.w3.org/2001/XMLSchema#string"
 
     def test_from_class_empty_restrictions(self) -> None:
         cls = SnapshotClass.from_class(_stub_ontology_class())

@@ -193,10 +193,17 @@ def _check_rdf_properties(g: Graph, result: ValidationResult) -> None:
 
 def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
     """Detect cycles in rdfs:subClassOf edges between ontology classes."""
-    concept_subclasses = find_concept_subclasses(g)
+    # Exclude only well-known external URIs from cycle analysis, not all
+    # concept-typed classes. Since #144, concept-typed classes are part of the
+    # ontology and their edges must participate in cycle detection.
+    well_known = {
+        SKOS.Concept,
+        OWL.Thing,
+        URIRef("http://www.w3.org/2000/01/rdf-schema#Resource"),
+    }
     owl_classes = find_owl_classes(g)
     class_metadata = [
-        extract_class_metadata(g, cls, exclude_superclass_uris=concept_subclasses)
+        extract_class_metadata(g, cls, exclude_superclass_uris=well_known)
         for cls in owl_classes
     ]
     cycles = detect_superclass_cycles(class_metadata)
@@ -463,13 +470,17 @@ def extract_restrictions(g: Graph, class_uris: set[str]) -> list[dict]:
             if not isinstance(on_prop, URIRef):
                 continue
             value = g.value(obj, OWL.allValuesFrom)
-            if value is not None:
-                restrictions.append({
-                    "class_uri": class_uri_str,
-                    "on_property_uri": str(on_prop),
-                    "restriction_type": "allValuesFrom",
-                    "value_uri": str(value),
-                })
+            if value is None:
+                continue
+            if not isinstance(value, URIRef):
+                # Skip anonymous class expressions (blank-node fillers)
+                continue
+            restrictions.append({
+                "class_uri": class_uri_str,
+                "on_property_uri": str(on_prop),
+                "restriction_type": "allValuesFrom",
+                "value_uri": str(value),
+            })
     return restrictions
 
 

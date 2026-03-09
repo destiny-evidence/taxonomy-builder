@@ -254,6 +254,14 @@ class SnapshotProperty(BaseModel):
         )
 
 
+class SnapshotRestriction(BaseModel):
+    """An OWL restriction on an ontology class (structured pass-through)."""
+
+    on_property_uri: str
+    restriction_type: Literal["allValuesFrom"]
+    value_uri: str
+
+
 class SnapshotClass(BaseModel):
     """An ontology class within a snapshot."""
 
@@ -264,7 +272,7 @@ class SnapshotClass(BaseModel):
     description: str | None = None
     scope_note: str | None = None
     superclass_uris: list[str] = Field(default_factory=list)
-    restrictions: list[dict] = Field(default_factory=list)
+    restrictions: list[SnapshotRestriction] = Field(default_factory=list)
 
     @field_validator("label", mode="after")
     @classmethod
@@ -310,14 +318,17 @@ class SnapshotClass(BaseModel):
             superclass_uris=sorted(
                 sc.uri for sc in ontology_class.superclasses if sc.uri
             ),
-            restrictions=[
-                {
-                    "on_property_uri": r.on_property_uri,
-                    "restriction_type": r.restriction_type,
-                    "value_uri": r.value_uri,
-                }
-                for r in ontology_class.restrictions
-            ],
+            restrictions=sorted(
+                [
+                    SnapshotRestriction(
+                        on_property_uri=r.on_property_uri,
+                        restriction_type=r.restriction_type,
+                        value_uri=r.value_uri,
+                    )
+                    for r in ontology_class.restrictions
+                ],
+                key=lambda r: (r.on_property_uri, r.restriction_type, r.value_uri),
+            ),
         )
 
 
