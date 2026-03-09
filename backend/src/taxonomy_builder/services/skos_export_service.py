@@ -211,9 +211,13 @@ class SKOSExportService:
             "datatype": OWL.DatatypeProperty,
             "rdf": RDF.Property,
         }
-        g.add((prop_uri, RDF.type, type_map.get(
-            snapshot_property.property_type, RDF.Property
-        )))
+        rdf_type = type_map.get(snapshot_property.property_type)
+        if rdf_type is None:
+            raise ValueError(
+                f"Unknown property_type '{snapshot_property.property_type}'"
+                f" for {prop_uri}"
+            )
+        g.add((prop_uri, RDF.type, rdf_type))
 
         # Emit range (independent of property_type)
         if snapshot_property.range_scheme_uri:
