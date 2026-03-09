@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -320,7 +320,6 @@ class PropertyService:
 
             # Clear stale join rows — scalar is now the source of truth
             # until #128 adds multi-domain CRUD support
-            from sqlalchemy import delete
 
             from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 

@@ -250,7 +250,7 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
     assert p.uri == "http://example.org/vocab/testProp"
     assert p.label == "Test Property"
     assert p.description == "A test property"
-    assert p.domain_class == "http://example.org/vocab/Finding"
+    assert p.domain_class == ""  # deprecated; domain_class_uris is authoritative
     assert p.range_scheme_id == scheme.id
     assert p.range_scheme_uri == "http://example.org/range"
     assert p.range_datatype is None
@@ -488,7 +488,7 @@ async def test_snapshot_property_domain_class_uris_from_join_table(
         "http://example.org/vocab/Finding",
         "http://example.org/vocab/Study",
     ]
-    assert sp.domain_class == "http://example.org/vocab/Finding"
+    assert sp.domain_class == ""  # deprecated; domain_class_uris is authoritative
 
 
 @pytest.mark.asyncio
@@ -514,4 +514,4 @@ async def test_snapshot_property_domain_class_uris_fallback_to_scalar(
 
     sp = snapshot.properties[0]
     assert sp.domain_class_uris == ["http://example.org/vocab/Finding"]
-    assert sp.domain_class == "http://example.org/vocab/Finding"
+    assert sp.domain_class == ""  # deprecated; domain_class_uris is authoritative

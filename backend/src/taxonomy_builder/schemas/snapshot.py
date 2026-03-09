@@ -242,7 +242,7 @@ class SnapshotProperty(BaseModel):
             uri=property.uri,
             label=property.label,
             description=property.description,
-            domain_class=uris[0] if uris else "",
+            domain_class="",  # deprecated; domain_class_uris is authoritative
             domain_class_uris=uris,
             property_type=(
                 "datatype"

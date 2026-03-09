@@ -5,7 +5,7 @@ from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import SKOS
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.class_superclass import ClassSuperclass
@@ -758,8 +758,6 @@ class SKOSImportService:
         """Replace PropertyDomainClass rows and update scalar for re-import."""
         if not domain_uris:
             return
-
-        from sqlalchemy import delete, update
 
         # Delete existing join rows
         await self.db.execute(
