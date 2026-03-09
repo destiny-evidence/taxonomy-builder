@@ -13,7 +13,9 @@ async def test_seed_creates_class_superclass_rows(db_session: AsyncSession) -> N
     """Seed imports evrepo-core.ttl and creates ClassSuperclass rows for rdfs:subClassOf."""
     created = await create_seed_data(db_session)
 
-    assert created["classes"] == 15, "Expected 15 ontology classes from evrepo-core.ttl"
+    assert created["classes"] == 17, (
+        "Expected 17 ontology classes from evrepo-core.ttl (includes concept-typed)"
+    )
     assert created["properties"] == 40, "Expected 40 properties from evrepo-core.ttl"
 
     result = await db_session.execute(select(ClassSuperclass))

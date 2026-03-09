@@ -1,8 +1,6 @@
 """Tests for RDF parser validation — validate_graph() and rdf:Property support."""
 
-from rdflib import Graph
-
-from rdflib import URIRef
+from rdflib import Graph, URIRef
 
 from taxonomy_builder.services.rdf_parser import (
     ValidationResult,

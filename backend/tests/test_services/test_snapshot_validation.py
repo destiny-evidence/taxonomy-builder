@@ -16,7 +16,6 @@ from taxonomy_builder.schemas.snapshot import (
 )
 from taxonomy_builder.services.snapshot_service import validate_snapshot
 
-
 # ---------------------------------------------------------------------------
 # Lightweight stubs for ORM objects so we can test from_* factory methods
 # without a database session.

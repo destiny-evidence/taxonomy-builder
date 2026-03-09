@@ -46,7 +46,7 @@ ex:Outcome a owl:Class ;
     rdfs:label "Outcome" ;
     skos:scopeNote "Used in evidence synthesis" .
 
-# Concept subclass (should NOT become OntologyClass)
+# Concept-typed class (included as OntologyClass since #144)
 ex:EducationLevel a owl:Class ;
     rdfs:subClassOf skos:Concept ;
     rdfs:label "Education Level" .
@@ -144,14 +144,14 @@ class TestPreview:
         result = await import_service.preview(project.id, FULL_ONTOLOGY_TTL, "test.ttl")
 
         assert result.valid is True
-        assert result.classes_count == 2  # Finding, Outcome (not EducationLevel)
+        assert result.classes_count == 3  # Finding, Outcome, EducationLevel
         assert len(result.schemes) == 2
         assert result.total_concepts_count == 3
         assert result.properties_count == 4
 
-        # Class detail
+        # Class detail (concept-typed classes included since #144)
         identifiers = {c.identifier for c in result.classes}
-        assert identifiers == {"Finding", "Outcome"}
+        assert identifiers == {"Finding", "Outcome", "EducationLevel"}
 
         # Property detail
         edu = next(p for p in result.properties if p.identifier == "educationLevel")
@@ -184,16 +184,16 @@ class TestExecute:
         """Import creates classes, schemes, concepts, and properties."""
         result = await import_service.execute(project.id, FULL_ONTOLOGY_TTL, "test.ttl")
 
-        assert len(result.classes_created) == 2
+        assert len(result.classes_created) == 3
         assert len(result.schemes_created) == 2
         assert result.total_concepts_created == 3
         assert len(result.properties_created) == 4
 
     @pytest.mark.asyncio
-    async def test_concept_subclasses_excluded_from_classes(
+    async def test_concept_typed_classes_included(
         self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
     ) -> None:
-        """Classes with rdfs:subClassOf skos:Concept are not OntologyClass records."""
+        """Concept-typed classes are included as OntologyClass records (#144)."""
         await import_service.execute(project.id, FULL_ONTOLOGY_TTL, "test.ttl")
 
         classes = (
@@ -201,7 +201,7 @@ class TestExecute:
                 select(OntologyClass).where(OntologyClass.project_id == project.id)
             )
         ).scalars().all()
-        assert {c.identifier for c in classes} == {"Finding", "Outcome"}
+        assert {c.identifier for c in classes} == {"Finding", "Outcome", "EducationLevel"}
 
     @pytest.mark.asyncio
     async def test_class_metadata_stored(
