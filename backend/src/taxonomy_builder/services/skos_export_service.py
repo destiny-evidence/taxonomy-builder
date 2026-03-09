@@ -176,6 +176,8 @@ class SKOSExportService:
             concept_uri = concept_uris[concept.id]
 
             g.add((concept_uri, RDF.type, SKOS.Concept))
+            for type_uri in concept.concept_type_uris:
+                g.add((concept_uri, RDF.type, URIRef(type_uri)))
             g.add((concept_uri, SKOS.prefLabel, Literal(concept.pref_label)))
             g.add((concept_uri, SKOS.inScheme, scheme_uri))
 
@@ -257,3 +259,10 @@ class SKOSExportService:
             g.add((class_uri, SKOS.scopeNote, Literal(snapshot_class.scope_note)))
         for superclass_uri in snapshot_class.superclass_uris:
             g.add((class_uri, RDFS.subClassOf, URIRef(superclass_uri)))
+        for restriction in snapshot_class.restrictions:
+            bnode = BNode()
+            g.add((class_uri, RDFS.subClassOf, bnode))
+            g.add((bnode, RDF.type, OWL.Restriction))
+            g.add((bnode, OWL.onProperty, URIRef(restriction["on_property_uri"])))
+            if restriction["restriction_type"] == "allValuesFrom":
+                g.add((bnode, OWL.allValuesFrom, URIRef(restriction["value_uri"])))
