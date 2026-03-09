@@ -98,6 +98,7 @@ class ReaderFileService:
                     "description": cls.description,
                     "scope_note": cls.scope_note,
                     "superclasses": cls.superclass_uris,
+                    "restrictions": cls.restrictions,
                 }
             )
 

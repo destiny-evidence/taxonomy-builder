@@ -64,7 +64,10 @@ class SnapshotService:
         result = await self.db.execute(
             select(OntologyClass)
             .where(OntologyClass.project_id == project_id)
-            .options(selectinload(OntologyClass.superclasses))
+            .options(
+                selectinload(OntologyClass.superclasses),
+                selectinload(OntologyClass.restrictions),
+            )
         )
         ontology_classes = result.scalars().all()
 

@@ -82,7 +82,7 @@ class SnapshotConcept(BaseModel):
             alt_labels=list(concept.alt_labels),
             broader_ids=[b.id for b in concept.broader],
             related_ids=[r.id for r in concept.related],
-            concept_type_uris=[],
+            concept_type_uris=sorted(concept.concept_type_uris or []),
         )
 
 
@@ -264,6 +264,7 @@ class SnapshotClass(BaseModel):
     description: str | None = None
     scope_note: str | None = None
     superclass_uris: list[str] = Field(default_factory=list)
+    restrictions: list[dict] = Field(default_factory=list)
 
     @field_validator("label", mode="after")
     @classmethod
@@ -309,6 +310,14 @@ class SnapshotClass(BaseModel):
             superclass_uris=sorted(
                 sc.uri for sc in ontology_class.superclasses if sc.uri
             ),
+            restrictions=[
+                {
+                    "on_property_uri": r.on_property_uri,
+                    "restriction_type": r.restriction_type,
+                    "value_uri": r.value_uri,
+                }
+                for r in ontology_class.restrictions
+            ],
         )
 
 

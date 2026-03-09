@@ -199,6 +199,32 @@
             "type": "array",
             "items": { "type": "string", "format": "uri" },
             "description": "URIs of direct superclasses (rdfs:subClassOf). Empty array if none."
+          },
+          "restrictions": {
+            "type": "array",
+            "description": "OWL restrictions (allValuesFrom) on this class, stored as structured pass-through.",
+            "items": {
+              "type": "object",
+              "required": ["on_property_uri", "restriction_type", "value_uri"],
+              "additionalProperties": false,
+              "properties": {
+                "on_property_uri": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "URI of the property the restriction applies to (owl:onProperty)."
+                },
+                "restriction_type": {
+                  "type": "string",
+                  "enum": ["allValuesFrom"],
+                  "description": "Type of OWL restriction."
+                },
+                "value_uri": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "URI of the value class or datatype (owl:allValuesFrom target)."
+                }
+              }
+            }
           }
         }
       }
