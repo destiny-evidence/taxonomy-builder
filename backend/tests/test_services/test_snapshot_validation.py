@@ -48,6 +48,7 @@ def _stub_property(**overrides):
         description=None,
         domain_class="",
         domain_classes=[],
+        property_type="object",
         range_datatype=None,
         range_scheme_id=None,
         range_scheme=None,
@@ -403,20 +404,21 @@ class TestSnapshotPropertyNewFields:
         """from_property() should wrap scalar domain_class in a list."""
         stub = _stub_property(
             domain_class="http://example.org/Class",
+            property_type="datatype",
             range_datatype="xsd:string",
         )
         prop = SnapshotProperty.from_property(stub)
         assert prop.domain_class_uris == ["http://example.org/Class"]
 
-    def test_property_type_inferred_datatype(self) -> None:
-        """Properties with range_datatype should infer property_type='datatype'."""
-        stub = _stub_property(range_datatype="xsd:string")
+    def test_property_type_from_column_datatype(self) -> None:
+        """property_type='datatype' passes through from column."""
+        stub = _stub_property(property_type="datatype", range_datatype="xsd:string")
         prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "datatype"
 
-    def test_property_type_inferred_object(self) -> None:
-        """Properties with range_class should infer property_type='object'."""
-        stub = _stub_property(range_datatype=None, range_class="http://example.org/Class")
+    def test_property_type_from_column_object(self) -> None:
+        """property_type='object' passes through from column."""
+        stub = _stub_property(property_type="object", range_class="http://example.org/Class")
         prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "object"
 
@@ -433,6 +435,7 @@ def _fake_property(**overrides):
         "description": None,
         "domain_class": "http://example.org/Class",
         "domain_classes": [],
+        "property_type": "object",
         "range_scheme_id": None,
         "range_scheme": None,
         "range_class": None,
@@ -444,31 +447,31 @@ def _fake_property(**overrides):
     return SimpleNamespace(**defaults)
 
 
-class TestFromPropertyTypeInference:
-    """from_property() should infer property_type with three-way fallback."""
+class TestFromPropertyTypeColumn:
+    """from_property() reads property_type from the column."""
 
     def test_datatype_property(self) -> None:
-        """Properties with range_datatype infer as 'datatype'."""
-        prop = _fake_property(range_datatype="xsd:string")
+        """property_type='datatype' passes through from column."""
+        prop = _fake_property(property_type="datatype", range_datatype="xsd:string")
         snap = SnapshotProperty.from_property(prop)
         assert snap.property_type == "datatype"
 
     def test_object_property_with_range_class(self) -> None:
-        """Properties with range_class (no datatype) infer as 'object'."""
-        prop = _fake_property(range_class="http://example.org/Target")
+        """property_type='object' passes through from column."""
+        prop = _fake_property(property_type="object", range_class="http://example.org/Target")
         snap = SnapshotProperty.from_property(prop)
         assert snap.property_type == "object"
 
     def test_object_property_with_range_scheme(self) -> None:
-        """Properties with range_scheme_id (no datatype) infer as 'object'."""
+        """property_type='object' passes through from column."""
         scheme = _fake_property(uri="http://example.org/scheme")
-        prop = _fake_property(range_scheme_id=uuid4(), range_scheme=scheme)
+        prop = _fake_property(property_type="object", range_scheme_id=uuid4(), range_scheme=scheme)
         snap = SnapshotProperty.from_property(prop)
         assert snap.property_type == "object"
 
     def test_rdf_property_no_range(self) -> None:
-        """Properties with no range infer as 'rdf'."""
-        prop = _fake_property()
+        """property_type='rdf' passes through from column."""
+        prop = _fake_property(property_type="rdf")
         snap = SnapshotProperty.from_property(prop)
         assert snap.property_type == "rdf"
 

@@ -48,6 +48,9 @@ class Property(Base):
 
     # Cardinality and optionality
     cardinality: Mapped[str] = mapped_column(String(20), nullable=False)  # 'single' or 'multiple'
+    property_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="object"
+    )
     required: Mapped[bool] = mapped_column(default=False)
     uri: Mapped[str] = mapped_column(String(2048), nullable=False)
 

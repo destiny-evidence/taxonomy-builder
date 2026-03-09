@@ -590,6 +590,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 description="The type of study",
                 domain_class="http://example.org/ontology/Study",
                 domain_class_uris=["http://example.org/ontology/Study"],
+                property_type="object",
                 range_scheme_id=scheme.id,
                 range_scheme_uri=scheme.uri,
                 cardinality="single",
@@ -602,6 +603,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 uri="http://example.org/ontology/sampleSize",
                 domain_class="http://example.org/ontology/Study",
                 domain_class_uris=["http://example.org/ontology/Study"],
+                property_type="datatype",
                 range_datatype="xsd:integer",
                 cardinality="single",
                 required=False,
@@ -613,6 +615,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 uri="http://example.org/ontology/primaryOutcome",
                 domain_class="http://example.org/ontology/Study",
                 domain_class_uris=["http://example.org/ontology/Study"],
+                property_type="object",
                 range_class="http://example.org/ontology/Outcome",
                 cardinality="single",
                 required=False,
@@ -1188,3 +1191,46 @@ async def test_export_range_class_emits_triple(
     assert (prop_uri, RDF.type, OWL.ObjectProperty) in g
     # Should have rdfs:range pointing to the class
     assert str(g.value(prop_uri, RDFS.range)) == "http://example.org/Outcome"
+
+
+@pytest.mark.asyncio
+async def test_export_rdf_property_with_range(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """rdf:Property with rdfs:range exports as rdf:Property, not DatatypeProperty."""
+    from rdflib import URIRef
+
+    snap = _make_published_snapshot(project, [
+        SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="supportingText",
+            label="Supporting Text",
+            uri="http://example.org/supportingText",
+            domain_class="http://example.org/Finding",
+            domain_class_uris=["http://example.org/Finding"],
+            property_type="rdf",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        ),
+    ])
+    pv = PublishedVersion(
+        project_id=project.id, version="1.0", title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/supportingText")
+    # Must be rdf:Property, NOT owl:DatatypeProperty
+    assert (prop_uri, RDF.type, RDF.Property) in g
+    assert (prop_uri, RDF.type, OWL.DatatypeProperty) not in g
+    # Range should still be emitted
+    assert g.value(prop_uri, RDFS.range) == XSD.string

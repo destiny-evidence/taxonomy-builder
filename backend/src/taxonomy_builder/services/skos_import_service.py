@@ -695,6 +695,7 @@ class SKOSImportService:
                 range_datatype=range_datatype,
                 range_class=range_class,
                 cardinality=pm["cardinality"],
+                property_type=prop_type,
                 required=False,
                 uri=pm["uri"],
             )

@@ -244,13 +244,7 @@ class SnapshotProperty(BaseModel):
             description=property.description,
             domain_class="",  # deprecated; domain_class_uris is authoritative
             domain_class_uris=uris,
-            property_type=(
-                "datatype"
-                if property.range_datatype
-                else "object"
-                if property.range_class or property.range_scheme_id
-                else "rdf"
-            ),
+            property_type=property.property_type,
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
             range_class=property.range_class,

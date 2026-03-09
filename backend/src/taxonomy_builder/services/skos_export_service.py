@@ -205,17 +205,27 @@ class SKOSExportService:
         """Add an OWL property to an RDF graph."""
         prop_uri = URIRef(snapshot_property.uri)
 
+        # Emit rdf:type from property_type column
+        type_map = {
+            "object": OWL.ObjectProperty,
+            "datatype": OWL.DatatypeProperty,
+            "rdf": RDF.Property,
+        }
+        rdf_type = type_map.get(snapshot_property.property_type)
+        if rdf_type is None:
+            raise ValueError(
+                f"Unknown property_type '{snapshot_property.property_type}'"
+                f" for {prop_uri}"
+            )
+        g.add((prop_uri, RDF.type, rdf_type))
+
+        # Emit range (independent of property_type)
         if snapshot_property.range_scheme_uri:
-            g.add((prop_uri, RDF.type, OWL.ObjectProperty))
             g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_scheme_uri)))
         elif snapshot_property.range_class:
-            g.add((prop_uri, RDF.type, OWL.ObjectProperty))
             g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_class)))
         elif snapshot_property.range_datatype:
-            g.add((prop_uri, RDF.type, OWL.DatatypeProperty))
             g.add((prop_uri, RDFS.range, XSD[snapshot_property.range_datatype.split(":")[-1]]))
-        else:
-            g.add((prop_uri, RDF.type, RDF.Property))
 
         g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
 
