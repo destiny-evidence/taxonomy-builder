@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from taxonomy_builder.database import Base
 
 if TYPE_CHECKING:
+    from taxonomy_builder.models.class_restriction import ClassRestriction
     from taxonomy_builder.models.project import Project
 
 
@@ -60,4 +61,11 @@ class OntologyClass(Base):
         secondaryjoin="OntologyClass.id == class_superclass.c.class_id",
         lazy="selectin",
         viewonly=True,
+    )
+
+    # OWL restrictions (structured pass-through)
+    restrictions: Mapped[list[ClassRestriction]] = relationship(
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        order_by="ClassRestriction.on_property_uri",
     )
