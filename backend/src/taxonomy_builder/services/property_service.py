@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -317,6 +317,17 @@ class PropertyService:
         # Validate domain class if being updated
         if "domain_class" in update_data:
             await self._validate_domain_class(prop.project_id, update_data["domain_class"])
+
+            # Clear stale join rows — scalar is now the source of truth
+            # until #128 adds multi-domain CRUD support
+
+            from taxonomy_builder.models.property_domain_class import PropertyDomainClass
+
+            await self.db.execute(
+                delete(PropertyDomainClass).where(
+                    PropertyDomainClass.property_id == prop.id
+                )
+            )
 
         # Apply updates
         for key, value in update_data.items():

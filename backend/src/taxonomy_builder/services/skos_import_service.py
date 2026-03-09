@@ -5,7 +5,7 @@ from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import SKOS
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.class_superclass import ClassSuperclass
@@ -14,6 +14,7 @@ from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 from taxonomy_builder.schemas.skos_import import (
     ClassCreatedResponse,
     ClassPreviewResponse,
@@ -62,6 +63,7 @@ class ExistingProjectData:
     class_identifiers: set[str] = field(default_factory=set)
     property_identifiers: set[str] = field(default_factory=set)
     property_uris: set[str] = field(default_factory=set)
+    property_uri_to_id: dict[str, UUID] = field(default_factory=dict)
 
 
 def _validation_to_responses(
@@ -187,6 +189,7 @@ class SKOSImportService:
             class_identifiers={c.identifier for c in existing_classes},
             property_identifiers={p.identifier for p in existing_props},
             property_uris={p.uri for p in existing_props},
+            property_uri_to_id={p.uri: p.id for p in existing_props},
         )
 
     def _preview_schemes(
@@ -269,7 +272,7 @@ class SKOSImportService:
             if pm["uri"] in known_uris or pm["identifier"] in known_ids:
                 continue
 
-            if not pm["domain_uri"]:
+            if not pm["domain_uris"]:
                 warnings.append(
                     f"Property '{pm['identifier']}' skipped: "
                     f"no rdfs:domain declared"
@@ -299,7 +302,7 @@ class SKOSImportService:
                     identifier=pm["identifier"],
                     label=pm["label"],
                     property_type=pm["property_type"],
-                    domain_class_uri=pm["domain_uri"],
+                    domain_class_uris=pm["domain_uris"],
                     range_uri=pm["range_uri"],
                     range_scheme_title=range_scheme_title,
                 )
@@ -337,10 +340,12 @@ class SKOSImportService:
 
         validation_issues = _validation_to_responses(validation)
 
-        classes_created, superclass_warnings = await self._import_classes(
-            project_id, analysis["classes"],
-            existing.class_uris, existing.class_identifiers,
-            existing.class_uri_to_id,
+        classes_created, superclass_warnings, class_uri_to_id = (
+            await self._import_classes(
+                project_id, analysis["classes"],
+                existing.class_uris, existing.class_identifiers,
+                existing.class_uri_to_id,
+            )
         )
 
         schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
@@ -356,7 +361,8 @@ class SKOSImportService:
         properties_created, prop_warnings = await self._import_properties(
             g, project_id, analysis["properties"],
             existing.property_identifiers, existing.property_uris,
-            scheme_uri_to_id, class_uris,
+            scheme_uri_to_id, class_uris, class_uri_to_id,
+            existing.property_uri_to_id,
         )
 
         return ImportResultResponse(
@@ -373,10 +379,11 @@ class SKOSImportService:
         self, project_id: UUID, class_metadata: list[dict],
         existing_class_uris: set[str], existing_identifiers: set[str],
         existing_class_uri_to_id: dict[str, UUID] | None = None,
-    ) -> tuple[list[ClassCreatedResponse], list[str]]:
+    ) -> tuple[list[ClassCreatedResponse], list[str], dict[str, UUID]]:
         """Create OntologyClass records and ClassSuperclass join rows.
 
-        Returns created responses and any unresolvable-superclass warnings.
+        Returns created responses, unresolvable-superclass warnings, and
+        class_uri_to_id map (existing + newly created).
         """
         known_uris = set(existing_class_uris)
         known_identifiers = set(existing_identifiers)
@@ -470,7 +477,7 @@ class SKOSImportService:
                     uri=cm["uri"],
                 )
             )
-        return created, warnings
+        return created, warnings, class_uri_to_id
 
     async def _import_schemes(
         self,
@@ -615,20 +622,33 @@ class SKOSImportService:
         existing_prop_uris: set[str],
         scheme_uri_to_id: dict[str, UUID],
         class_uris: set[str],
+        class_uri_to_id: dict[str, UUID] | None = None,
+        existing_prop_uri_to_id: dict[str, UUID] | None = None,
     ) -> tuple[list[PropertyCreatedResponse], list[str]]:
         """Create Property records, skipping duplicates, resolving ranges."""
         warnings: list[str] = []
         known_ids = set(existing_prop_ids)
         known_uris = set(existing_prop_uris)
-        to_create: list[Property] = []
+        uri_to_id = class_uri_to_id or {}
+        prop_uri_to_id = existing_prop_uri_to_id or {}
+        to_create: list[tuple[Property, list[str]]] = []  # (prop, domain_uris)
 
         for pm in property_metadata:
             identifier = pm["identifier"]
             if pm["uri"] in known_uris or identifier in known_ids:
+                # Re-import: update domain classes for existing property
+                if pm["uri"] in prop_uri_to_id:
+                    domain_uris = sorted(pm["domain_uris"])
+                    if domain_uris:
+                        await self._update_property_domains(
+                            prop_uri_to_id[pm["uri"]],
+                            domain_uris,
+                            uri_to_id,
+                        )
                 continue
 
-            domain_uri = pm["domain_uri"]
-            if not domain_uri:
+            domain_uris = sorted(pm["domain_uris"])
+            if not domain_uris:
                 warnings.append(
                     f"Property '{identifier}' skipped: "
                     f"no rdfs:domain declared"
@@ -670,7 +690,7 @@ class SKOSImportService:
                 identifier=identifier,
                 label=pm["label"],
                 description=pm["description"],
-                domain_class=domain_uri,
+                domain_class=domain_uris[0],
                 range_scheme_id=range_scheme_id,
                 range_datatype=range_datatype,
                 range_class=range_class,
@@ -681,15 +701,25 @@ class SKOSImportService:
             self.db.add(prop)
             known_ids.add(identifier)
             known_uris.add(pm["uri"])
-            to_create.append(prop)
+            to_create.append((prop, domain_uris))
 
         if to_create:
             await self.db.flush()
-            for prop in to_create:
+            for prop, _ in to_create:
                 await self.db.refresh(prop)
 
+            # Create PropertyDomainClass join rows
+            for prop, d_uris in to_create:
+                for d_uri in d_uris:
+                    if d_uri in uri_to_id:
+                        self.db.add(PropertyDomainClass(
+                            property_id=prop.id,
+                            class_id=uri_to_id[d_uri],
+                        ))
+            await self.db.flush()
+
         created: list[PropertyCreatedResponse] = []
-        for prop in to_create:
+        for prop, _ in to_create:
             await self._tracker.record(
                 project_id=project_id,
                 entity_type="property",
@@ -718,6 +748,39 @@ class SKOSImportService:
             )
 
         return created, warnings
+
+    async def _update_property_domains(
+        self,
+        property_id: UUID,
+        domain_uris: list[str],
+        class_uri_to_id: dict[str, UUID],
+    ) -> None:
+        """Replace PropertyDomainClass rows and update scalar for re-import."""
+        if not domain_uris:
+            return
+
+        # Delete existing join rows
+        await self.db.execute(
+            delete(PropertyDomainClass).where(
+                PropertyDomainClass.property_id == property_id
+            )
+        )
+
+        # Insert new rows
+        for uri in domain_uris:
+            if uri in class_uri_to_id:
+                self.db.add(PropertyDomainClass(
+                    property_id=property_id,
+                    class_id=class_uri_to_id[uri],
+                ))
+
+        # Update scalar to first sorted URI
+        await self.db.execute(
+            update(Property)
+            .where(Property.id == property_id)
+            .values(domain_class=domain_uris[0])
+        )
+        await self.db.flush()
 
     async def _get_unique_title(self, project_id: UUID, base_title: str) -> str:
         """Get a unique title, appending (2), (3), etc. if needed."""

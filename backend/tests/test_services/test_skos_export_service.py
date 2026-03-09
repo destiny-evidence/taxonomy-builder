@@ -589,6 +589,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 uri="http://example.org/ontology/studyType",
                 description="The type of study",
                 domain_class="http://example.org/ontology/Study",
+                domain_class_uris=["http://example.org/ontology/Study"],
                 range_scheme_id=scheme.id,
                 range_scheme_uri=scheme.uri,
                 cardinality="single",
@@ -600,6 +601,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 label="Sample Size",
                 uri="http://example.org/ontology/sampleSize",
                 domain_class="http://example.org/ontology/Study",
+                domain_class_uris=["http://example.org/ontology/Study"],
                 range_datatype="xsd:integer",
                 cardinality="single",
                 required=False,
@@ -610,6 +612,7 @@ def snapshot(project: Project, scheme: ConceptScheme) -> SnapshotVocabulary:
                 label="Primary Outcome",
                 uri="http://example.org/ontology/primaryOutcome",
                 domain_class="http://example.org/ontology/Study",
+                domain_class_uris=["http://example.org/ontology/Study"],
                 range_class="http://example.org/ontology/Outcome",
                 cardinality="single",
                 required=False,
@@ -934,10 +937,12 @@ async def test_export_published_version_includes_properties(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    # Should contain the object property
+    # Should contain the object properties (studyType + primaryOutcome)
     obj_props = list(g.subjects(RDF.type, OWL.ObjectProperty))
-    assert len(obj_props) == 1
-    assert "studyType" in str(obj_props[0])
+    assert len(obj_props) == 2
+    obj_prop_strs = {str(p) for p in obj_props}
+    assert any("studyType" in s for s in obj_prop_strs)
+    assert any("primaryOutcome" in s for s in obj_prop_strs)
 
     # Should contain the datatype property
     dt_props = list(g.subjects(RDF.type, OWL.DatatypeProperty))
@@ -999,3 +1004,187 @@ async def test_export_published_version_datatype_property(
 
     # Should not have description (not set)
     assert g.value(prop_uri, DCTERMS.description) is None
+
+
+# --- Multi-domain export tests (#110) ---
+
+
+def _make_published_snapshot(
+    project: Project,
+    properties: list[SnapshotProperty],
+    classes: list[SnapshotClass] | None = None,
+) -> SnapshotVocabulary:
+    """Helper: build a minimal SnapshotVocabulary with given properties."""
+    return SnapshotVocabulary.model_construct(
+        project=SnapshotProjectMetadata.model_construct(
+            id=project.id,
+            name="Test",
+            namespace="http://example.org/",
+        ),
+        concept_schemes=[
+            SnapshotScheme.model_construct(
+                id=uuid4(),
+                title="S",
+                uri="http://example.org/s",
+                concepts=[
+                    SnapshotConcept.model_construct(
+                        id=uuid4(),
+                        pref_label="C",
+                        uri="http://example.org/s/c",
+                        alt_labels=[],
+                        broader_ids=[],
+                        related_ids=[],
+                        concept_type_uris=[],
+                    )
+                ],
+            )
+        ],
+        properties=properties,
+        classes=classes or [],
+    )
+
+
+@pytest.mark.asyncio
+async def test_export_single_domain_plain_triple(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """Single-domain property emits plain rdfs:domain <URI> triple."""
+    from rdflib import URIRef
+
+    snap = _make_published_snapshot(project, [
+        SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="title",
+            label="Title",
+            uri="http://example.org/title",
+            domain_class="http://example.org/Finding",
+            domain_class_uris=["http://example.org/Finding"],
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        ),
+    ])
+    pv = PublishedVersion(
+        project_id=project.id, version="1.0", title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/title")
+    domain = g.value(prop_uri, RDFS.domain)
+    # Should be a plain URIRef, not a blank node
+    assert isinstance(domain, URIRef)
+    assert str(domain) == "http://example.org/Finding"
+
+
+@pytest.mark.asyncio
+async def test_export_multi_domain_union(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """Multi-domain property emits owl:unionOf RDF Collection."""
+    from rdflib import BNode, URIRef
+
+    snap = _make_published_snapshot(project, [
+        SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="supportingText",
+            label="Supporting Text",
+            uri="http://example.org/supportingText",
+            domain_class="http://example.org/CodingAnnotation",
+            domain_class_uris=[
+                "http://example.org/CodingAnnotation",
+                "http://example.org/Finding",
+                "http://example.org/Study",
+            ],
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        ),
+    ])
+    pv = PublishedVersion(
+        project_id=project.id, version="1.0", title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/supportingText")
+    domain = g.value(prop_uri, RDFS.domain)
+
+    # Domain should be a blank node with owl:unionOf
+    assert isinstance(domain, BNode)
+    assert (domain, RDF.type, OWL.Class) in g
+
+    # Extract union members via rdf:first/rdf:rest chain
+    union_list = g.value(domain, OWL.unionOf)
+    assert union_list is not None
+
+    members: list[str] = []
+    node = union_list
+    while node is not None and node != RDF.nil:
+        first = g.value(node, RDF.first)
+        if isinstance(first, URIRef):
+            members.append(str(first))
+        node = g.value(node, RDF.rest)
+
+    assert sorted(members) == [
+        "http://example.org/CodingAnnotation",
+        "http://example.org/Finding",
+        "http://example.org/Study",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_export_range_class_emits_triple(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """Property with range_class emits rdfs:range and owl:ObjectProperty."""
+    from rdflib import URIRef
+
+    snap = _make_published_snapshot(project, [
+        SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="primaryOutcome",
+            label="Primary Outcome",
+            uri="http://example.org/primaryOutcome",
+            domain_class="http://example.org/Study",
+            domain_class_uris=["http://example.org/Study"],
+            range_class="http://example.org/Outcome",
+            cardinality="single",
+            required=False,
+        ),
+    ])
+    pv = PublishedVersion(
+        project_id=project.id, version="1.0", title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/primaryOutcome")
+    # Should be typed as ObjectProperty
+    assert (prop_uri, RDF.type, OWL.ObjectProperty) in g
+    # Should have rdfs:range pointing to the class
+    assert str(g.value(prop_uri, RDFS.range)) == "http://example.org/Outcome"

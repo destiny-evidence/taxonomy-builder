@@ -40,7 +40,7 @@ class PropertyPreviewResponse(BaseModel):
     identifier: str
     label: str
     property_type: str  # "object" or "datatype"
-    domain_class_uri: str | None
+    domain_class_uris: list[str] = Field(default_factory=list)
     range_uri: str | None
     range_scheme_title: str | None  # resolved scheme title, if matched
 

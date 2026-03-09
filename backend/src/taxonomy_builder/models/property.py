@@ -11,6 +11,7 @@ from taxonomy_builder.database import Base, UrlString
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.concept_scheme import ConceptScheme
+    from taxonomy_builder.models.ontology_class import OntologyClass
     from taxonomy_builder.models.project import Project
 
 
@@ -57,3 +58,8 @@ class Property(Base):
     # Relationships
     project: Mapped[Project] = relationship(back_populates="properties", lazy="selectin")
     range_scheme: Mapped[ConceptScheme | None] = relationship(lazy="selectin")
+    domain_classes: Mapped[list[OntologyClass]] = relationship(
+        secondary="property_domain_class",
+        lazy="selectin",
+        order_by="OntologyClass.uri",
+    )

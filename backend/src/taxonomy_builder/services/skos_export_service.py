@@ -3,7 +3,8 @@
 from enum import StrEnum
 from uuid import UUID
 
-from rdflib import Graph, Literal, URIRef
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.collection import Collection
 from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SKOS, XSD
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -207,14 +208,28 @@ class SKOSExportService:
         if snapshot_property.range_scheme_uri:
             g.add((prop_uri, RDF.type, OWL.ObjectProperty))
             g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_scheme_uri)))
+        elif snapshot_property.range_class:
+            g.add((prop_uri, RDF.type, OWL.ObjectProperty))
+            g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_class)))
         elif snapshot_property.range_datatype:
             g.add((prop_uri, RDF.type, OWL.DatatypeProperty))
             g.add((prop_uri, RDFS.range, XSD[snapshot_property.range_datatype.split(":")[-1]]))
+        else:
+            g.add((prop_uri, RDF.type, RDF.Property))
 
         g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
-        # TODO(#110): Use domain_class_uris when multi-domain export is implemented
-        if snapshot_property.domain_class:
-            g.add((prop_uri, RDFS.domain, URIRef(snapshot_property.domain_class)))
+
+        # Emit domain: plain triple for single, owl:unionOf for multi
+        uris = snapshot_property.domain_class_uris
+        if len(uris) == 1:
+            g.add((prop_uri, RDFS.domain, URIRef(uris[0])))
+        elif len(uris) > 1:
+            bnode = BNode()
+            g.add((bnode, RDF.type, OWL.Class))
+            g.add((prop_uri, RDFS.domain, bnode))
+            union_bnode = BNode()
+            Collection(g, union_bnode, [URIRef(u) for u in sorted(uris)])
+            g.add((bnode, OWL.unionOf, union_bnode))
 
         if snapshot_property.description:
             g.add((prop_uri, DCTERMS.description, Literal(snapshot_property.description)))

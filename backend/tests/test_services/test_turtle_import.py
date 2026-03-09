@@ -156,7 +156,7 @@ class TestPreview:
         # Property detail
         edu = next(p for p in result.properties if p.identifier == "educationLevel")
         assert edu.property_type == "object"
-        assert edu.domain_class_uri == "http://example.org/Finding"
+        assert edu.domain_class_uris == ["http://example.org/Finding"]
 
         sample = next(p for p in result.properties if p.identifier == "sampleSize")
         assert sample.property_type == "datatype"
