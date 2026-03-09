@@ -44,7 +44,7 @@ class PublishRequest(BaseModel):
     pre_release: bool = False
 
     @model_validator(mode="after")
-    def version_matches_pre_release_flag(self) -> "PublishRequest":
+    def version_matches_pre_release_flag(self) -> PublishRequest:
         import re
 
         has_suffix = bool(re.search(PRE_RELEASE_SUFFIX, self.version))

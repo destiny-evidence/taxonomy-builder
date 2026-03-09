@@ -3,7 +3,9 @@
 from uuid import UUID
 
 from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.schemas.snapshot import (
@@ -59,10 +61,15 @@ class SnapshotService:
                 SnapshotScheme.from_scheme(scheme)
             )
 
+        result = await self.db.execute(
+            select(OntologyClass)
+            .where(OntologyClass.project_id == project_id)
+            .options(selectinload(OntologyClass.superclasses))
+        )
+        ontology_classes = result.scalars().all()
+
         properties = [SnapshotProperty.from_property(p) for p in project.properties]
-        classes = [
-            SnapshotClass.from_class(ontology_class) for ontology_class in project.ontology_classes
-        ]
+        classes = [SnapshotClass.from_class(ontology_class) for ontology_class in ontology_classes]
 
         return SnapshotVocabulary.model_construct(
             project=SnapshotProjectMetadata.from_project(project),
@@ -138,7 +145,10 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
 
     for cls in snapshot.classes or []:
         for superclass_uri in cls.superclass_uris or []:
-            if superclass_uri not in class_uris and superclass_uri not in WELL_KNOWN_SUPERCLASS_URIS:
+            if (
+                superclass_uri not in class_uris
+                and superclass_uri not in WELL_KNOWN_SUPERCLASS_URIS
+            ):
                 errors.append(
                     ValidationError(
                         code="broken_superclass_ref",

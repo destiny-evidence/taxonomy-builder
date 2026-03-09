@@ -66,6 +66,7 @@ def _stub_ontology_class(**overrides):
         label="Finding",
         description=None,
         scope_note=None,
+        superclasses=[],
     )
     return SimpleNamespace(**(defaults | overrides))
 
@@ -413,10 +414,61 @@ class TestSnapshotPropertyNewFields:
         assert prop.property_type == "datatype"
 
     def test_property_type_inferred_object(self) -> None:
-        """Properties without range_datatype should infer property_type='object'."""
-        stub = _stub_property(range_datatype=None)
+        """Properties with range_class should infer property_type='object'."""
+        stub = _stub_property(range_datatype=None, range_class="http://example.org/Class")
         prop = SnapshotProperty.from_property(stub)
         assert prop.property_type == "object"
+
+
+def _fake_property(**overrides):
+    """Create a fake Property-like object for testing from_property()."""
+    from types import SimpleNamespace
+
+    defaults = {
+        "id": uuid4(),
+        "identifier": "prop1",
+        "uri": "http://example.org/prop1",
+        "label": "Test Property",
+        "description": None,
+        "domain_class": "http://example.org/Class",
+        "range_scheme_id": None,
+        "range_scheme": None,
+        "range_class": None,
+        "range_datatype": None,
+        "cardinality": "single",
+        "required": False,
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+class TestFromPropertyTypeInference:
+    """from_property() should infer property_type with three-way fallback."""
+
+    def test_datatype_property(self) -> None:
+        """Properties with range_datatype infer as 'datatype'."""
+        prop = _fake_property(range_datatype="xsd:string")
+        snap = SnapshotProperty.from_property(prop)
+        assert snap.property_type == "datatype"
+
+    def test_object_property_with_range_class(self) -> None:
+        """Properties with range_class (no datatype) infer as 'object'."""
+        prop = _fake_property(range_class="http://example.org/Target")
+        snap = SnapshotProperty.from_property(prop)
+        assert snap.property_type == "object"
+
+    def test_object_property_with_range_scheme(self) -> None:
+        """Properties with range_scheme_id (no datatype) infer as 'object'."""
+        scheme = _fake_property(uri="http://example.org/scheme")
+        prop = _fake_property(range_scheme_id=uuid4(), range_scheme=scheme)
+        snap = SnapshotProperty.from_property(prop)
+        assert snap.property_type == "object"
+
+    def test_rdf_property_no_range(self) -> None:
+        """Properties with no range infer as 'rdf'."""
+        prop = _fake_property()
+        snap = SnapshotProperty.from_property(prop)
+        assert snap.property_type == "rdf"
 
 
 class TestRequireValidRange:

@@ -29,7 +29,7 @@ class Concept(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
-    scheme: Mapped["ConceptScheme"] = relationship(back_populates="concepts", lazy="selectin")
+    scheme: Mapped[ConceptScheme] = relationship(back_populates="concepts", lazy="selectin")
 
     @property
     def uri(self) -> str | None:
@@ -40,13 +40,13 @@ class Concept(Base):
         return f"{base_uri.rstrip('/')}/{self.identifier}"
 
     # SKOS broader/narrower relationships (many-to-many via concept_broader)
-    broader: Mapped[list["Concept"]] = relationship(
+    broader: Mapped[list[Concept]] = relationship(
         secondary="concept_broader",
         primaryjoin="Concept.id == concept_broader.c.concept_id",
         secondaryjoin="Concept.id == concept_broader.c.broader_concept_id",
         lazy="selectin",
     )
-    narrower: Mapped[list["Concept"]] = relationship(
+    narrower: Mapped[list[Concept]] = relationship(
         secondary="concept_broader",
         primaryjoin="Concept.id == concept_broader.c.broader_concept_id",
         secondaryjoin="Concept.id == concept_broader.c.concept_id",
@@ -56,14 +56,14 @@ class Concept(Base):
 
     # SKOS related relationships (symmetric, many-to-many via concept_related)
     # Since related is symmetric, we query both directions
-    _related_as_subject: Mapped[list["Concept"]] = relationship(
+    _related_as_subject: Mapped[list[Concept]] = relationship(
         secondary="concept_related",
         primaryjoin="Concept.id == concept_related.c.concept_id",
         secondaryjoin="Concept.id == concept_related.c.related_concept_id",
         lazy="selectin",
         viewonly=True,
     )
-    _related_as_object: Mapped[list["Concept"]] = relationship(
+    _related_as_object: Mapped[list[Concept]] = relationship(
         secondary="concept_related",
         primaryjoin="Concept.id == concept_related.c.related_concept_id",
         secondaryjoin="Concept.id == concept_related.c.concept_id",
@@ -72,7 +72,7 @@ class Concept(Base):
     )
 
     @property
-    def related(self) -> list["Concept"]:
+    def related(self) -> list[Concept]:
         """Get all related concepts (union of both directions)."""
         seen: set[UUID] = set()
         result: list[Concept] = []

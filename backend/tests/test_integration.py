@@ -43,7 +43,7 @@ async def _create_integration_user() -> User:
 
 
 @pytest.fixture
-async def integration_client() -> AsyncGenerator[AsyncClient, None]:
+async def integration_client() -> AsyncGenerator[AsyncClient]:
     """Provide a client that tests the REAL get_db implementation.
 
     Does NOT override get_db, so we test the actual commit/rollback behavior.

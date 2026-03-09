@@ -1,14 +1,11 @@
 """Tests for the AuthService."""
 
-from datetime import datetime
-from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.user import User
-from taxonomy_builder.services.auth_service import AuthService, AuthenticationError
+from taxonomy_builder.services.auth_service import AuthService
 
 
 @pytest.mark.asyncio

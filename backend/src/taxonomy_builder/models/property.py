@@ -55,5 +55,5 @@ class Property(Base):
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
     # Relationships
-    project: Mapped["Project"] = relationship(back_populates="properties", lazy="selectin")
-    range_scheme: Mapped["ConceptScheme | None"] = relationship(lazy="selectin")
+    project: Mapped[Project] = relationship(back_populates="properties", lazy="selectin")
+    range_scheme: Mapped[ConceptScheme | None] = relationship(lazy="selectin")

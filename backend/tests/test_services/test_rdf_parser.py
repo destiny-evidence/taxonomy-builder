@@ -4,6 +4,8 @@ from rdflib import Graph
 
 from taxonomy_builder.services.rdf_parser import (
     ValidationResult,
+    detect_superclass_cycles,
+    extract_class_metadata,
     extract_property_metadata,
     find_properties,
     parse_rdf,
@@ -255,26 +257,164 @@ ex:ConceptSubclass a owl:Class ;
 """
 
 
-def test_subclass_between_owl_classes_info():
-    """rdfs:subClassOf between non-concept owl:Classes produces info message."""
+def test_subclass_no_longer_flagged_as_unsupported():
+    """rdfs:subClassOf between owl:Classes is now supported — no info message."""
     g = _graph(SUBCLASS_OF_CLASSES_TTL)
     result = validate_graph(g, set())
 
-    subclass_infos = [i for i in result.info if i.type == "unsupported_subclass"]
-    assert len(subclass_infos) == 1
-    assert "2" in subclass_infos[0].message  # 2 subclass relationships
-    assert "#109" in subclass_infos[0].message
+    unsupported = [i for i in result.info if i.type == "unsupported_subclass"]
+    assert len(unsupported) == 0
 
 
-def test_subclass_of_skos_concept_not_flagged():
-    """rdfs:subClassOf skos:Concept is normal behaviour, not flagged."""
+# --- superclass_uris extraction ---
+
+
+def test_extract_class_metadata_includes_superclass_uris():
+    """extract_class_metadata() should include superclass_uris for classes with rdfs:subClassOf."""
     g = _graph(SUBCLASS_OF_CLASSES_TTL)
-    result = validate_graph(g, set())
 
-    # Only the two non-concept subclass relationships should be flagged
-    subclass_infos = [i for i in result.info if i.type == "unsupported_subclass"]
-    assert len(subclass_infos) == 1
-    # ConceptSubclass -> skos:Concept should NOT be in the count
+    from rdflib import URIRef
+    obs_uri = URIRef("http://example.org/ObservedResult")
+    metadata = extract_class_metadata(g, obs_uri, exclude_superclass_uris=set())
+    assert metadata["superclass_uris"] == ["http://example.org/Finding"]
+
+
+def test_extract_class_metadata_no_superclass():
+    """Classes without rdfs:subClassOf should have empty superclass_uris."""
+    g = _graph(SUBCLASS_OF_CLASSES_TTL)
+    from rdflib import URIRef
+    finding_uri = URIRef("http://example.org/Finding")
+    metadata = extract_class_metadata(g, finding_uri, exclude_superclass_uris=set())
+    assert metadata["superclass_uris"] == []
+
+
+def test_extract_class_metadata_filters_skos_concept_superclass():
+    """superclass_uris should exclude skos:Concept and concept subclasses."""
+    ttl = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ex: <http://example.org/> .
+
+ex:ConceptType a owl:Class ;
+    rdfs:subClassOf skos:Concept .
+
+ex:SpecialConcept a owl:Class ;
+    rdfs:subClassOf ex:ConceptType .
+"""
+    g = _graph(ttl)
+    from rdflib import URIRef
+
+    from taxonomy_builder.services.rdf_parser import find_concept_subclasses
+    concept_subs = find_concept_subclasses(g)
+
+    special_uri = URIRef("http://example.org/SpecialConcept")
+    metadata = extract_class_metadata(g, special_uri, exclude_superclass_uris=concept_subs)
+    # ConceptType is a concept subclass, so should be filtered out
+    assert metadata["superclass_uris"] == []
+
+
+def test_extract_class_metadata_filters_blank_node_superclass():
+    """superclass_uris should exclude blank nodes (OWL restrictions)."""
+    ttl = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/> .
+
+ex:Parent a owl:Class .
+
+ex:Child a owl:Class ;
+    rdfs:subClassOf ex:Parent ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:title ;
+        owl:allValuesFrom ex:StringType
+    ] .
+"""
+    g = _graph(ttl)
+    from rdflib import URIRef
+    child_uri = URIRef("http://example.org/Child")
+    metadata = extract_class_metadata(g, child_uri, exclude_superclass_uris=set())
+    # Only the named URIRef superclass, not the blank node restriction
+    assert metadata["superclass_uris"] == ["http://example.org/Parent"]
+
+
+# --- Cycle detection ---
+
+
+def test_detect_superclass_cycles_no_cycle():
+    """DAG with no cycles returns empty list."""
+    class_metadata = [
+        {"uri": "http://example.org/A", "superclass_uris": ["http://example.org/B"]},
+        {"uri": "http://example.org/B", "superclass_uris": ["http://example.org/C"]},
+        {"uri": "http://example.org/C", "superclass_uris": []},
+    ]
+    assert detect_superclass_cycles(class_metadata) == []
+
+
+def test_detect_superclass_cycles_simple_cycle():
+    """Direct cycle A→B→A detected."""
+    class_metadata = [
+        {"uri": "http://example.org/A", "superclass_uris": ["http://example.org/B"]},
+        {"uri": "http://example.org/B", "superclass_uris": ["http://example.org/A"]},
+    ]
+    cycles = detect_superclass_cycles(class_metadata)
+    assert len(cycles) == 1
+
+
+def test_detect_superclass_cycles_self_referential():
+    """Self-loop A→A detected."""
+    class_metadata = [
+        {"uri": "http://example.org/A", "superclass_uris": ["http://example.org/A"]},
+    ]
+    cycles = detect_superclass_cycles(class_metadata)
+    assert len(cycles) == 1
+
+
+def test_detect_superclass_cycles_three_node_cycle():
+    """Transitive cycle A→B→C→A detected."""
+    class_metadata = [
+        {"uri": "http://example.org/A", "superclass_uris": ["http://example.org/B"]},
+        {"uri": "http://example.org/B", "superclass_uris": ["http://example.org/C"]},
+        {"uri": "http://example.org/C", "superclass_uris": ["http://example.org/A"]},
+    ]
+    cycles = detect_superclass_cycles(class_metadata)
+    assert len(cycles) == 1
+    # The cycle-forming back-edge should reference A
+    assert any("A" in edge[1] for edge in cycles)
+
+
+def test_detect_superclass_cycles_diamond_is_valid():
+    """Diamond hierarchy (D→B, D→C, B→A, C→A) is a valid DAG, no cycles."""
+    class_metadata = [
+        {"uri": "http://example.org/D", "superclass_uris": ["http://example.org/B", "http://example.org/C"]},
+        {"uri": "http://example.org/B", "superclass_uris": ["http://example.org/A"]},
+        {"uri": "http://example.org/C", "superclass_uris": ["http://example.org/A"]},
+        {"uri": "http://example.org/A", "superclass_uris": []},
+    ]
+    assert detect_superclass_cycles(class_metadata) == []
+
+
+def test_validate_graph_cycle_produces_error():
+    """Cycle in subClassOf should produce an error-severity validation issue."""
+    ttl = b"""
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/> .
+
+ex:A a owl:Class ;
+    rdfs:label "A" ;
+    rdfs:subClassOf ex:B .
+
+ex:B a owl:Class ;
+    rdfs:label "B" ;
+    rdfs:subClassOf ex:A .
+"""
+    g = _graph(ttl)
+    result = validate_graph(g, set())
+    assert result.has_errors
+    cycle_errors = [e for e in result.errors if e.type == "superclass_cycle"]
+    assert len(cycle_errors) == 1
 
 
 UNION_DOMAIN_TTL = b"""

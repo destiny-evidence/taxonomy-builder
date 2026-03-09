@@ -43,6 +43,21 @@ class OntologyClass(Base):
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
     # Relationships
-    project: Mapped["Project"] = relationship(
+    project: Mapped[Project] = relationship(
         back_populates="ontology_classes", lazy="selectin"
+    )
+
+    # rdfs:subClassOf relationships (many-to-many via class_superclass)
+    superclasses: Mapped[list[OntologyClass]] = relationship(
+        secondary="class_superclass",
+        primaryjoin="OntologyClass.id == class_superclass.c.class_id",
+        secondaryjoin="OntologyClass.id == class_superclass.c.superclass_id",
+        lazy="selectin",
+    )
+    subclasses: Mapped[list[OntologyClass]] = relationship(
+        secondary="class_superclass",
+        primaryjoin="OntologyClass.id == class_superclass.c.superclass_id",
+        secondaryjoin="OntologyClass.id == class_superclass.c.class_id",
+        lazy="selectin",
+        viewonly=True,
     )

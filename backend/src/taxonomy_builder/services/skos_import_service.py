@@ -8,6 +8,7 @@ from rdflib.namespace import SKOS
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.class_superclass import ClassSuperclass
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
@@ -57,6 +58,7 @@ class ExistingProjectData:
     scheme_uri_to_id: dict[str, UUID] = field(default_factory=dict)
     scheme_uri_to_title: dict[str, str] = field(default_factory=dict)
     class_uris: set[str] = field(default_factory=set)
+    class_uri_to_id: dict[str, UUID] = field(default_factory=dict)
     class_identifiers: set[str] = field(default_factory=set)
     property_identifiers: set[str] = field(default_factory=set)
     property_uris: set[str] = field(default_factory=set)
@@ -181,6 +183,7 @@ class SKOSImportService:
             scheme_uri_to_id={s.uri: s.id for s in existing_schemes if s.uri},
             scheme_uri_to_title={s.uri: s.title for s in existing_schemes if s.uri},
             class_uris={c.uri for c in existing_classes},
+            class_uri_to_id={c.uri: c.id for c in existing_classes if c.uri},
             class_identifiers={c.identifier for c in existing_classes},
             property_identifiers={p.identifier for p in existing_props},
             property_uris={p.uri for p in existing_props},
@@ -334,9 +337,10 @@ class SKOSImportService:
 
         validation_issues = _validation_to_responses(validation)
 
-        classes_created = await self._import_classes(
+        classes_created, superclass_warnings = await self._import_classes(
             project_id, analysis["classes"],
             existing.class_uris, existing.class_identifiers,
+            existing.class_uri_to_id,
         )
 
         schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
@@ -361,15 +365,19 @@ class SKOSImportService:
             total_relationships_created=total_relationships,
             classes_created=classes_created,
             properties_created=properties_created,
-            warnings=prop_warnings,
+            warnings=superclass_warnings + prop_warnings,
             validation_issues=validation_issues,
         )
 
     async def _import_classes(
         self, project_id: UUID, class_metadata: list[dict],
         existing_class_uris: set[str], existing_identifiers: set[str],
-    ) -> list[ClassCreatedResponse]:
-        """Create OntologyClass records, skipping duplicates by URI (identifier fallback)."""
+        existing_class_uri_to_id: dict[str, UUID] | None = None,
+    ) -> tuple[list[ClassCreatedResponse], list[str]]:
+        """Create OntologyClass records and ClassSuperclass join rows.
+
+        Returns created responses and any unresolvable-superclass warnings.
+        """
         known_uris = set(existing_class_uris)
         known_identifiers = set(existing_identifiers)
 
@@ -391,12 +399,54 @@ class SKOSImportService:
             known_identifiers.add(cm["identifier"])
             to_create.append((ont_class, cm))
 
-        if not to_create:
-            return []
+        if to_create:
+            await self.db.flush()
+            for ont_class, _ in to_create:
+                await self.db.refresh(ont_class)
 
-        await self.db.flush()
-        for ont_class, _ in to_create:
-            await self.db.refresh(ont_class)
+        # Build combined URI→id map: existing + newly created
+        class_uri_to_id: dict[str, UUID] = dict(existing_class_uri_to_id or {})
+        for ont_class, cm in to_create:
+            class_uri_to_id[cm["uri"]] = ont_class.id
+
+        # Wire ClassSuperclass edges for all classes in this import (new and existing).
+        # Querying existing edges first prevents PK violations on re-import.
+        all_class_ids = {
+            class_uri_to_id[cm["uri"]]
+            for cm in class_metadata
+            if cm["uri"] in class_uri_to_id and cm.get("superclass_uris")
+        }
+        existing_edges: set[tuple[UUID, UUID]] = set()
+        if all_class_ids:
+            edges_result = await self.db.execute(
+                select(ClassSuperclass.class_id, ClassSuperclass.superclass_id)
+                .where(ClassSuperclass.class_id.in_(all_class_ids))
+            )
+            existing_edges = {(row.class_id, row.superclass_id) for row in edges_result}
+
+        warnings: list[str] = []
+        edges_added = False
+        for cm in class_metadata:
+            if cm["uri"] not in class_uri_to_id:
+                continue
+            class_id = class_uri_to_id[cm["uri"]]
+            for superclass_uri in cm.get("superclass_uris", []):
+                if superclass_uri in class_uri_to_id:
+                    superclass_id = class_uri_to_id[superclass_uri]
+                    if (class_id, superclass_id) not in existing_edges:
+                        self.db.add(ClassSuperclass(
+                            class_id=class_id,
+                            superclass_id=superclass_id,
+                        ))
+                        existing_edges.add((class_id, superclass_id))
+                        edges_added = True
+                else:
+                    warnings.append(
+                        f"Superclass <{superclass_uri}> not found in project "
+                        f"(referenced by <{cm['uri']}>)"
+                    )
+        if to_create or edges_added:
+            await self.db.flush()
 
         created: list[ClassCreatedResponse] = []
         for ont_class, cm in to_create:
@@ -420,7 +470,7 @@ class SKOSImportService:
                     uri=cm["uri"],
                 )
             )
-        return created
+        return created, warnings
 
     async def _import_schemes(
         self,

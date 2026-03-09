@@ -213,7 +213,8 @@ class SKOSExportService:
 
         g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
         # TODO(#110): Use domain_class_uris when multi-domain export is implemented
-        g.add((prop_uri, RDFS.domain, URIRef(snapshot_property.domain_class)))
+        if snapshot_property.domain_class:
+            g.add((prop_uri, RDFS.domain, URIRef(snapshot_property.domain_class)))
 
         if snapshot_property.description:
             g.add((prop_uri, DCTERMS.description, Literal(snapshot_property.description)))
@@ -229,3 +230,5 @@ class SKOSExportService:
             g.add((class_uri, DCTERMS.description, Literal(snapshot_class.description)))
         if snapshot_class.scope_note:
             g.add((class_uri, SKOS.scopeNote, Literal(snapshot_class.scope_note)))
+        for superclass_uri in snapshot_class.superclass_uris:
+            g.add((class_uri, RDFS.subClassOf, URIRef(superclass_uri)))

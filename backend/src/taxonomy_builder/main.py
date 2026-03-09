@@ -8,8 +8,8 @@ from fastapi import FastAPI, Response
 from sqlalchemy import text
 
 from taxonomy_builder.api.comments import comments_router, concept_comments_router
-from taxonomy_builder.api.feedback import feedback_router
 from taxonomy_builder.api.concepts import concepts_router, scheme_concepts_router
+from taxonomy_builder.api.feedback import feedback_router
 from taxonomy_builder.api.history import router as history_router
 from taxonomy_builder.api.ontology_classes import (
     ontology_classes_router,

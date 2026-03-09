@@ -16,7 +16,7 @@ from taxonomy_builder.models.user import User
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def _init_db() -> AsyncGenerator[None, None]:
+async def _init_db() -> AsyncGenerator[None]:
     """Initialize database manager for test session."""
     db_manager.init(settings.test_database_url)
     async with db_manager.engine.begin() as conn:
@@ -48,7 +48,7 @@ def blob_store() -> FilesystemBlobStore:
 
 
 @pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+async def db_session() -> AsyncGenerator[AsyncSession]:
     """Provide a database session for testing with transaction rollback.
 
     Each test gets its own transaction that is rolled back after the test,
@@ -75,7 +75,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Provide an async HTTP client for testing API endpoints.
 
     This client does NOT bypass authentication. Use it for:
@@ -84,7 +84,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     For most API tests, use `authenticated_client` instead.
     """
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
@@ -118,7 +118,7 @@ async def test_user(db_session: AsyncSession) -> User:
 async def authenticated_client(
     db_session: AsyncSession,
     test_user: User,
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Provide an async HTTP client with authentication bypassed.
 
     Use this fixture for most API tests. The get_current_user dependency
@@ -126,7 +126,7 @@ async def authenticated_client(
     actual JWT tokens.
     """
 
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     async def override_get_current_user() -> AuthenticatedUser:

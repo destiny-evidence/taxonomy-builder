@@ -1,7 +1,7 @@
 """Tests for SKOS Export Service."""
 
 from datetime import datetime
-from uuid import uuid4, uuid7
+from uuid import uuid4
 
 import pytest
 from rdflib import Graph
@@ -835,6 +835,89 @@ async def test_export_published_version_class_without_optional_fields(
     # Should not have description or scope note
     assert g.value(outcome_uri, DCTERMS.description) is None
     assert g.value(outcome_uri, SKOS.scopeNote) is None
+
+
+@pytest.mark.asyncio
+async def test_export_class_superclass_uris(
+    export_service: SKOSExportService,
+    db_session: AsyncSession,
+    project: Project,
+) -> None:
+    """Test that rdfs:subClassOf triples are emitted for each superclass_uri."""
+    from datetime import datetime
+
+    from taxonomy_builder.models.published_version import PublishedVersion
+    from taxonomy_builder.schemas.snapshot import SnapshotProjectMetadata, SnapshotScheme
+
+    snap = SnapshotVocabulary.model_construct(
+        project=SnapshotProjectMetadata.model_construct(
+            id=project.id,
+            name="Test",
+            namespace="http://example.org/",
+        ),
+        concept_schemes=[
+            SnapshotScheme.model_construct(
+                id=uuid4(),
+                title="S",
+                uri="http://example.org/s",
+                concepts=[
+                    SnapshotConcept.model_construct(
+                        id=uuid4(),
+                        pref_label="C",
+                        uri="http://example.org/s/c",
+                        alt_labels=[],
+                        broader_ids=[],
+                        related_ids=[],
+                        concept_type_uris=[],
+                    )
+                ],
+            )
+        ],
+        properties=[],
+        classes=[
+            SnapshotClass(
+                id=uuid4(),
+                identifier="Finding",
+                label="Finding",
+                uri="http://example.org/Finding",
+            ),
+            SnapshotClass(
+                id=uuid4(),
+                identifier="QuantitativeFinding",
+                label="Quantitative Finding",
+                uri="http://example.org/QuantitativeFinding",
+                superclass_uris=["http://example.org/Finding"],
+            ),
+        ],
+    )
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    from rdflib import URIRef
+
+    subclass_triples = list(
+        g.triples((URIRef("http://example.org/QuantitativeFinding"), RDFS.subClassOf, None))
+    )
+    assert len(subclass_triples) == 1
+    assert str(subclass_triples[0][2]) == "http://example.org/Finding"
+
+    # Finding has no superclasses, so no subClassOf triple
+    finding_subclass = list(
+        g.triples((URIRef("http://example.org/Finding"), RDFS.subClassOf, None))
+    )
+    assert len(finding_subclass) == 0
 
 
 # Property export tests

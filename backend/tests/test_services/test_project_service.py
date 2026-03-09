@@ -5,11 +5,10 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectUpdate
 from taxonomy_builder.services.project_service import (
-    ProjectNotFoundError,
     ProjectNameExistsError,
+    ProjectNotFoundError,
     ProjectService,
 )
 

@@ -48,4 +48,4 @@ class CommentRead(BaseModel):
     user: CommentAuthor
     resolver: CommentAuthor | None = None
     can_delete: bool = False  # Computed at API layer
-    replies: list["CommentRead"] = []  # Nested replies for threaded response
+    replies: list[CommentRead] = []  # Nested replies for threaded response

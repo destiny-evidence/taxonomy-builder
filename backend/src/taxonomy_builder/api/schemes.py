@@ -1,6 +1,5 @@
 """ConceptScheme API endpoints."""
 
-import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

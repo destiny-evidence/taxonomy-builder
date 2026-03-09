@@ -2,15 +2,19 @@
 
 from taxonomy_builder.services.concept_scheme_service import (
     ConceptSchemeService,
-    ProjectNotFoundError as SchemeProjectNotFoundError,
     SchemeNotFoundError,
     SchemeTitleExistsError,
+)
+from taxonomy_builder.services.concept_scheme_service import (
+    ProjectNotFoundError as SchemeProjectNotFoundError,
 )
 from taxonomy_builder.services.concept_service import (
     BroaderRelationshipExistsError,
     BroaderRelationshipNotFoundError,
     ConceptNotFoundError,
     ConceptService,
+)
+from taxonomy_builder.services.concept_service import (
     SchemeNotFoundError as ConceptSchemeNotFoundError,
 )
 from taxonomy_builder.services.history_service import HistoryService
