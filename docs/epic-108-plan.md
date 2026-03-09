@@ -10,18 +10,20 @@ The published format stays at version 1.0 (no customer has seen it yet) — the 
 
 For the earlier Codex-generated draft, see `docs/epic-108-issue-drafts-rewrite.md`.
 
-## Status Summary (as of 2026-03-05)
+## Status Summary (as of 2026-03-09)
 
 | Stripe | Issue | Status | PR |
 |---|---|---|---|
-| Stripe 1: Format scaffold | — | Done, under review | #132 |
-| Stripe 2: subClassOf pipeline | #109 | Done, pending rebase | #139 |
+| Stripe 1: Format scaffold | — | **Merged** | #132 |
+| Stripe 2: subClassOf pipeline | #109 | Done, in review | #139 |
 | Stripe 2: subClassOf UI | #127 | Not started | — |
-| Stripe 3: union domains pipeline | #110 | Not started | — |
+| Stripe 3: union domains pipeline | #110 | Done, in review | #142 |
 | Stripe 3: union domains UI | #128 | Not started | — |
-| Stripe 4: property types pipeline | #111 | Not started | — |
+| Stripe 4: property types pipeline | #111 | Done, in review | #143 |
 | Stripe 4: property types UI | #129 | Not started | — |
-| Stripe 5: constraint system | — | Not started | — |
+| Stripe 5: constraint system | #144 | In progress | — |
+
+Backend pipeline PRs are stacked: each builds on the previous. Reviewing in order (139 → 142 → 143) is easiest. UI issues are independent and can start once their backend dependency merges.
 
 **Vocab (independent):** evrepo-core `Condition` name/description properties + CI domain widened to `ObservedResult`; esea sub-property links — PR #140.
 
@@ -56,7 +58,7 @@ For the earlier Codex-generated draft, see `docs/epic-108-issue-drafts-rewrite.m
 
 **External superclass URIs validated via allowlist.** When a class has `rdfs:subClassOf skos:Concept`, the target URI won't be in the project's class set. Rather than allowing any external URI (which wouldn't catch typos) or blocking all external URIs (which would reject valid ontologies), we maintain a small allowlist of well-known URIs: `skos:Concept`, `owl:Thing`, `rdfs:Resource`. Superclass URIs are validated against project classes plus this allowlist.
 
-**Concept-typed classes imported as ontology classes (pending Andrew's confirmation).** The parser currently excludes classes that are `rdfs:subClassOf skos:Concept` (like `EffectSizeMetricConcept`) from the ontology class list. We propose removing this exclusion so they import as regular ontology classes, and their `rdfs:subClassOf skos:Concept` edge round-trips through the standard export code. This is necessary for the constraint system (Stripe 5) — restrictions reference these classes, and they only resolve if imported. Andrew initially said concept-typed classes should be an "export concern"; we've asked whether importing them is acceptable given the restriction dependency. If the class list gets noisy, a computed `concept_type_class` distinction can be derived from superclass URIs — no schema change needed, just UI filtering.
+**Concept-typed classes imported as ontology classes.** The parser previously excluded classes that are `rdfs:subClassOf skos:Concept` (like `EffectSizeMetricConcept`) from the ontology class list. This exclusion is removed in Stripe 5 (#144) so they import as regular ontology classes, and their `rdfs:subClassOf skos:Concept` edge round-trips through the standard export code. This is necessary for the constraint system — restrictions reference these classes, and they only resolve if imported. Andrew confirmed this approach is acceptable (Slack 2026-03-05). If the class list gets noisy, a computed `concept_type_class` distinction can be derived from superclass URIs — no schema change needed, just UI filtering.
 
 ### Data model — concept dual-typing
 
@@ -96,7 +98,7 @@ The implementation is a narrow type-preservation slice: add `concept_type_uris: 
 
 **Golden roundtrip tests.** Fixture-driven: TTL → import → snapshot → publish → export → `rdflib.compare.isomorphic()` against original graph. `isomorphic()` handles blank-node comparison (fresh `BNode()` IDs on each parse make naive triple-set comparison impossible).
 
-**Seed replaced with TTL import.** The seed module currently hard-codes class/property data as Python literals. In Stripe 2, it's replaced with `SKOSImportService.execute()` importing the evrepo-core TTL file. This exercises the import pipeline and keeps seed data in sync with the vocab files.
+**Seed replaced with TTL import.** The seed module previously hard-coded class/property data as Python literals. In Stripe 2 (#109), it was replaced with `SKOSImportService.execute()` importing the evrepo-core TTL file directly. This exercises the import pipeline and keeps seed data in sync with the vocab files.
 
 ### Data model — OWL restriction preservation
 
@@ -149,7 +151,7 @@ frontend / feedback-ui ← display and authoring
 
 Each stripe is one or two PRs. Stop after each stripe, review, commit. Do not roll into the next stripe automatically.
 
-### Stripe 1: Format scaffold — DONE (PR #132, under review)
+### Stripe 1: Format scaffold — DONE (PR #132, merged)
 
 Update the format 1.0 schema in place with all new fields. Purge existing published artifacts from blob storage. No DB schema changes, no new tables. After this stripe, projects publish valid JSON with new fields at safe defaults.
 
@@ -205,9 +207,9 @@ Update the format 1.0 schema in place with all new fields. Purge existing publis
 
 ---
 
-### Stripe 2: #109 — `rdfs:subClassOf` pipeline — DONE (PR #139, pending rebase onto main after #132 merges)
+### Stripe 2: #109 — `rdfs:subClassOf` pipeline — DONE (PR #139, in review)
 
-Class hierarchy pipeline. Concept dual-typing and concept-typed class import were scoped out of #109 and deferred to Stripe 5. Two PRs: pipeline (#139) + UI (#127, not yet started).
+Class hierarchy pipeline. Concept dual-typing and concept-typed class import were scoped out of #109 and deferred to Stripe 5 (#144). Two PRs: pipeline (#139) + UI (#127, not yet started).
 
 #### Pipeline PR (#139)
 
@@ -235,7 +237,7 @@ Class hierarchy pipeline. Concept dual-typing and concept-typed class import wer
 - Emit `rdfs:subClassOf` triple for each superclass URI
 
 **Seed data:**
-Seed updated to include evrepo-core class hierarchy as Python literals (not TTL import — deferred).
+Seed replaced with `SKOSImportService.execute()` importing `vocab/evrepo-core/evrepo-core.ttl` directly. This exercises the import pipeline end-to-end and keeps seed data in sync with vocab files (Python literals removed).
 
 **Acceptance criteria (pipeline):** DONE
 - [x] Importing TTL with `A rdfs:subClassOf B` stores edge in `class_superclass`
@@ -245,9 +247,9 @@ Seed updated to include evrepo-core class hierarchy as Python literals (not TTL 
 - [x] Superclass URIs in snapshot and published JSON
 - [x] Broken superclass refs caught in validation; well-known URIs pass
 - [x] Seed includes class hierarchy
-- [ ] Concept-typed classes (`X rdfs:subClassOf skos:Concept`) imported as ontology classes — **deferred to Stripe 5**
-- [ ] Concepts with `rdf:type esea:EducationLevelConcept` preserve type URIs — **deferred to Stripe 5**
-- [ ] Seed module imports TTL instead of using Python literals — **deferred**
+- [x] Seed module imports TTL instead of using Python literals
+- [ ] Concept-typed classes (`X rdfs:subClassOf skos:Concept`) imported as ontology classes — **deferred to #144**
+- [ ] Concepts with `rdf:type esea:EducationLevelConcept` preserve type URIs — **deferred to #144**
 
 #### UI PR (#109 companion issue)
 
@@ -276,27 +278,27 @@ Seed updated to include evrepo-core class hierarchy as Python literals (not TTL 
 
 ---
 
-### Stripe 3: #110 — `owl:unionOf` domains (pipeline + UI) — NEXT UP
+### Stripe 3: #110 — `owl:unionOf` domains (pipeline + UI) — DONE (PR #142, in review)
 
 Two PRs: pipeline first, then UI.
 
-#### Pipeline PR
+#### Pipeline PR (#142)
 
 **Data model:** New file `models/property_domain_class.py`. Add `domain_classes` relationship on `Property`. Keep scalar `domain_class` column. Migration: add table + data migration from existing scalars.
 
-**RDF parser:** Replace `_resolve_union_first` with `_resolve_union_all`. Update `extract_property_metadata` to return `"domain_uris"` list. Remove `_check_unsupported_union_domains`.
+**RDF parser:** Replaced `_resolve_union_first` with `_resolve_union_all`. `extract_property_metadata` returns `"domain_uris"` list. `_check_unsupported_union_domains` removed.
 
-**Import service:** Read `domain_uris` list, create `PropertyDomainClass` records, sort alphabetically, set scalar to first.
+**Import service:** Reads `domain_uris` list, creates `PropertyDomainClass` records, sorts alphabetically, sets scalar to first. Includes cycle guard, deduplication, and empty-list guard.
 
 **Snapshot:** `domain_class_uris=sorted(c.uri for c in property.domain_classes)`.
 
-**Export:** Single domain → plain triple. Multiple → blank-node `owl:unionOf` RDF Collection, sorted.
+**Export:** Single domain → plain `rdfs:domain` triple. Multiple → blank-node `owl:unionOf` RDF Collection, sorted. Also emits `rdf:Property` type triple for rangeless properties.
 
-**Acceptance criteria (pipeline):**
-- [ ] Union domains stored as multiple `PropertyDomainClass` records
-- [ ] Malformed RDF Collection → warning, partial import
-- [ ] Domain URIs sorted alphabetically
-- [ ] Single-domain export: plain triple. Multi-domain: `owl:unionOf`, graph isomorphic
+**Acceptance criteria (pipeline):** DONE
+- [x] Union domains stored as multiple `PropertyDomainClass` records
+- [x] Malformed RDF Collection → warning, partial import
+- [x] Domain URIs sorted alphabetically
+- [x] Single-domain export: plain triple. Multi-domain: `owl:unionOf`, graph isomorphic
 
 #### UI PR (#110 companion issue)
 
@@ -315,24 +317,24 @@ Two PRs: pipeline first, then UI.
 
 ---
 
-### Stripe 4: #111 — Property type distinctions (pipeline + UI)
+### Stripe 4: #111 — Property type distinctions (pipeline + UI) — DONE (PR #143, in review)
 
-Two PRs or one — implementer's call.
+Two PRs: pipeline (#143) + UI (#129, not yet started).
 
-#### Pipeline
+#### Pipeline PR (#143)
 
-**Data model:** Add `property_type` column. NOT NULL, `server_default="object"`. Backfill `"datatype"` where `range_datatype` is set.
+**Data model:** Added `property_type` column. NOT NULL, `server_default="object"`. Backfilled `"datatype"` where `range_datatype` is set.
 
-**Import:** Persist `property_type` from parser. `rdf` with no range: all range columns `None`.
+**Import:** Persists `property_type` from parser. `rdf` with no range: all range columns `None`.
 
-**Snapshot:** `property_type=property.property_type`.
+**Snapshot:** `property_type=property.property_type`. Snapshot validation adjusted: `rdf` allows 0–1 ranges, `object`/`datatype` require exactly 1.
 
-**Export:** Emit correct `rdf:type` per property type. Fix missing `range_class` → `rdfs:range` emission.
+**Export:** Emits correct `rdf:type` per property type. Fixed missing `range_class` → `rdfs:range` emission.
 
-**Acceptance criteria (pipeline):**
-- [ ] `property_type` persisted for all three types
-- [ ] `rdf:Property` with no range passes validation
-- [ ] Export emits correct RDF type and `rdfs:range` for `range_class`
+**Acceptance criteria (pipeline):** DONE
+- [x] `property_type` persisted for all three types
+- [x] `rdf:Property` with no range passes validation
+- [x] Export emits correct RDF type and `rdfs:range` for `range_class`
 
 #### UI (#111 companion issue)
 
@@ -347,67 +349,75 @@ Two PRs or one — implementer's call.
 
 ---
 
-### Stripe 5: Constraint system (restrictions + concept-typed classes + dual-typing)
+### Stripe 5: Constraint system (restrictions + concept-typed classes + dual-typing) — IN PROGRESS (#144)
 
-The OWL constraint system round-trips as a package: restrictions reference concept-typed classes, which are meaningful because concepts are dual-typed as instances of them. All three pieces ship together.
+The OWL constraint system round-trips as a package: restrictions reference concept-typed classes, which are meaningful because concepts are dual-typed as instances of them. All three pieces ship together. Design doc: `docs/plans/2026-03-09-stripe-5-constraint-system.md`.
 
 #### Data model
 
-**`class_restriction` table:** `class_id` (FK → `ontology_classes.id`, CASCADE), `on_property_uri` (String), `restriction_type` (String, e.g. `"allValuesFrom"`), `value_uri` (String). Composite PK or separate PK with unique constraint.
+**`class_restriction` table:** UUID PK with composite unique constraint on `(class_id, on_property_uri, restriction_type, value_uri)`. `class_id` FK → `ontology_classes.id` with CASCADE. ORM relationship: `OntologyClass.restrictions` with `selectin` loading, ordered by `on_property_uri`.
 
-**`concept_type_uris` column on `concepts`:** PostgreSQL ARRAY of strings, default `{}`. Stores non-`skos:Concept` `rdf:type` URIs.
+**`concept_type_uris` column on `concepts`:** PostgreSQL ARRAY of strings, default `{}`. Stores non-`skos:Concept` `rdf:type` URIs. Deduplicated and sorted on import (matching `domain_class_uris` pattern from Stripe 3).
 
-**Concept-typed classes:** Remove `if subject in concept_subclasses: continue` filter from `find_owl_classes`. Classes like `EducationLevelConcept` import as regular ontology classes with `rdfs:subClassOf skos:Concept` stored as a superclass edge (uses Stripe 2 infrastructure). Pending Andrew's confirmation on class list presentation — can filter by `skos:Concept` superclass if noisy.
+**Concept-typed classes:** Removed the `if subject in concept_subclasses: continue` filter from `find_owl_classes`. Classes like `EducationLevelConcept` import as regular ontology classes with `rdfs:subClassOf skos:Concept` stored as a superclass edge (uses Stripe 2 infrastructure). Andrew confirmed this approach (Slack 2026-03-05). If the class list gets noisy, can filter by `skos:Concept` superclass in UI.
 
-#### RDF parser
+#### RDF parser — DONE
 
-- New function: `extract_restrictions(g, class_uris)` — parse `rdfs:subClassOf` blank nodes with `owl:Restriction`, extract `owl:onProperty` and `owl:allValuesFrom`. Return structured list.
-- New function: `extract_concept_type_uris(g, concept_uri)` — collect non-`skos:Concept` `rdf:type` URIs.
-- Update `_check_unsupported_restrictions` to enumerate which restrictions were found (property URI + value URI), not just count.
+- `extract_restrictions(g, class_uris)` — parses `rdfs:subClassOf` blank nodes with `owl:Restriction`, extracts `owl:onProperty` and `owl:allValuesFrom`. Returns structured list of dicts.
+- `extract_concept_type_uris(g, concept_uri)` — collects non-`skos:Concept` `rdf:type` URIs. Sorted, deduplicated.
+- `_check_unsupported_restrictions` updated to skip `allValuesFrom` (now handled) and only warn about unsupported types (`someValuesFrom`, `hasValue`, etc.) with enumerated details.
+- `find_owl_classes` no longer excludes concept subclasses.
 
-#### Import
+#### Import — DONE
 
-- Create `ClassRestriction` records from parsed restrictions.
-- Store `concept_type_uris` on concepts during `_import_concepts`.
+- `_import_restrictions()` creates `ClassRestriction` records from parsed restrictions. On re-import, replaces existing restrictions for affected classes.
+- `_import_concepts()` populates `concept_type_uris` from parser output.
 - Concept-typed classes imported via existing `_import_classes` (no longer excluded).
 
-#### Snapshot + published JSON
+#### Snapshot — DONE
 
-- `SnapshotClass`: add `restrictions: list[dict]` (each with `on_property_uri`, `restriction_type`, `value_uri`)
-- `SnapshotConcept.from_concept`: populate `concept_type_uris` from DB column
-- Reader: emit `restrictions` on classes, `type_uris` on concepts
-- Published schema: add both fields
+- `SnapshotClass`: `restrictions: list[dict]` populated from ORM relationship via `from_class()`.
+- `SnapshotConcept.from_concept`: reads `concept_type_uris` from DB column.
 
-#### Export
+#### Export — DONE
 
-- Emit `rdfs:subClassOf [ a owl:Restriction ; owl:onProperty ... ; owl:allValuesFrom ... ]` for each restriction.
-- Emit extra `rdf:type` triples for each concept's `concept_type_uris`.
+- `_add_class_to_graph()` emits `rdfs:subClassOf [ a owl:Restriction ; owl:onProperty <uri> ; owl:allValuesFrom <uri> ]` blank-node structure for each restriction.
+- `_add_scheme_to_graph()` emits additional `rdf:type` triples for concepts with non-empty `concept_type_uris`.
 - Concept-typed classes export their `rdfs:subClassOf skos:Concept` via standard Stripe 2 export code.
 
-#### Acceptance criteria
+#### Published format + reader — TODO
 
-- [ ] All 11 `allValuesFrom` restrictions round-trip through import/export
-- [ ] Concept-typed classes imported as ontology classes with `skos:Concept` superclass
-- [ ] Concepts preserve OWL type URIs (`concept_type_uris`)
-- [ ] Restriction export produces correct blank-node structure
-- [ ] Concept `rdf:type` triples emitted for dual-typed concepts
-- [ ] Import warning enumerates specific restrictions found
+- Published schema: add `classes[].restrictions` array field (each item: `on_property_uri`, `restriction_type`, `value_uri`)
+- Reader file service: wire `restrictions` on classes (reader already emits `type_uris` on concepts from Stripe 1)
+
+#### Acceptance criteria — IN PROGRESS
+
+- [x] All 11 `allValuesFrom` restrictions round-trip through import/export
+- [x] Concept-typed classes imported as ontology classes with `skos:Concept` superclass
+- [x] Concepts preserve OWL type URIs (`concept_type_uris`)
+- [x] Restriction export produces correct blank-node structure
+- [x] Concept `rdf:type` triples emitted for dual-typed concepts
+- [x] Import warning enumerates specific restrictions found (only for unsupported types)
+- [ ] Published format schema includes `restrictions` field
+- [ ] Round-trip integration test passes with full ESEA vocabulary
+- [ ] Full test suite + lint clean
 
 ---
 
 ## Finishing Touches (on #108)
 
-After all stripes merge. Tasks on the epic, not separate issues.
+After all pipeline stripes merge. Tasks on the epic, not separate issues.
 
-### Golden roundtrip tests
+### Golden roundtrip tests — PARTIALLY DONE
 
-Create `backend/tests/fixtures/rdf/` with:
-1. `evrepo-like-full.ttl` — all features: subClassOf, unionOf, property types, range_class, concept dual-typing, restrictions, concept-typed classes
-2. `class-cycle.ttl` — circular subClassOf → must fail validation
-3. `malformed-union.ttl` — unionOf with non-URI members or unterminated list
-4. `rdf-property-no-range.ttl` — rdf:Property with no rdfs:range
+`backend/tests/test_services/test_round_trip.py` exists with import → snapshot → export verification for restrictions, concept dual-typing, and concept-typed classes. Remaining fixture files to add:
 
-Golden test: import → snapshot → validate → render JSON → export → `isomorphic()`.
+1. ~~`evrepo-like-full.ttl`~~ — covered by `test_round_trip.py` inline TTL
+2. `class-cycle.ttl` — circular subClassOf → must fail validation (covered in parser tests)
+3. `malformed-union.ttl` — unionOf with non-URI members or unterminated list (covered in parser tests)
+4. `rdf-property-no-range.ttl` — rdf:Property with no rdfs:range (covered in export tests)
+
+Full `isomorphic()` golden test against the actual ESEA vocabulary is a manual validation step on #144.
 
 ### Publish representability gate
 
@@ -429,61 +439,64 @@ Golden test: import → snapshot → validate → render JSON → export → `is
 
 ## Cross-cutting File Tracker
 
-| File | S1 (fmt) | #109 pipe | #109 UI | #110 pipe | #110 UI | #111 pipe | #111 UI | S5 (constraints) |
+| File | S1 (fmt) | #109 pipe | #109 UI | #110 pipe | #110 UI | #111 pipe | #111 UI | S5 (#144) |
 |---|---|---|---|---|---|---|---|---|
 | **Models** | | | | | | | | |
-| `models/class_superclass.py` | | new | | | | | | |
-| `models/class_restriction.py` | | | | | | | | new |
-| `models/property_domain_class.py` | | | | new | | | | |
-| `models/ontology_class.py` | | modify | | | | | | |
-| `models/concept.py` | | | | | | | | modify |
-| `models/property.py` | | | | modify | | modify | | |
-| `models/__init__.py` | | modify | | modify | | | | modify |
+| `models/class_superclass.py` | | new ✓ | | | | | | |
+| `models/class_restriction.py` | | | | | | | | new ✓ |
+| `models/property_domain_class.py` | | | | new ✓ | | | | |
+| `models/ontology_class.py` | | modify ✓ | | | | | | modify ✓ |
+| `models/concept.py` | | | | | | | | modify ✓ |
+| `models/property.py` | | | | modify ✓ | | modify ✓ | | |
+| `models/__init__.py` | | modify ✓ | | modify ✓ | | | | modify ✓ |
 | **Services** | | | | | | | | |
-| `services/rdf_parser.py` | modify | modify | | modify | | | | modify |
-| `services/skos_import_service.py` | | modify | | modify | | modify | | modify |
+| `services/rdf_parser.py` | modify ✓ | modify ✓ | | modify ✓ | | | | modify ✓ |
+| `services/skos_import_service.py` | | modify ✓ | | modify ✓ | | modify ✓ | | modify ✓ |
 | `services/ontology_class_service.py` | | | modify | | | | | |
 | `services/property_service.py` | | | | | modify | | modify | |
-| `services/snapshot_service.py` | modify | | | | | | | |
-| `services/reader_file_service.py` | modify | | | | | | | modify |
-| `services/skos_export_service.py` | | modify | | modify | | modify | | modify |
+| `services/snapshot_service.py` | modify ✓ | | | | | | | |
+| `services/reader_file_service.py` | modify ✓ | | | | | | | modify |
+| `services/skos_export_service.py` | | modify ✓ | | modify ✓ | | modify ✓ | | modify ✓ |
 | **Schemas** | | | | | | | | |
-| `schemas/snapshot.py` | modify | modify | | modify | | modify | | modify |
+| `schemas/snapshot.py` | modify ✓ | modify ✓ | | modify ✓ | | modify ✓ | | modify ✓ |
 | `schemas/ontology_class.py` | | | modify | | | | | |
 | `schemas/property.py` | | | | | modify | | modify | |
-| `schemas/skos_import.py` | | | | modify | | | | |
+| `schemas/skos_import.py` | | | | modify ✓ | | | | |
 | **API** | | | | | | | | |
 | `api/ontology_classes.py` | | | modify | | | | | |
 | **Docs** | | | | | | | | |
-| `vocabulary.schema.json` | modify | | | | | | | modify |
+| `vocabulary.schema.json` | modify ✓ | | | | | | | modify |
 | **Frontend** | | | | | | | | |
 | `types/models.ts` | | | modify | | modify | | modify | |
 | `ClassDetailPane.tsx` | | | modify | | modify | | | |
 | `PropertyDetail.tsx` (builder) | | | | | modify | | modify | |
 | **Feedback UI** | | | | | | | | |
-| `api/published.ts` | modify | | | | | | | |
+| `api/published.ts` | modify ✓ | | | | | | | |
 | `ClassDetail.tsx` (feedback) | | | modify | | modify | | | |
 | `PropertyDetail.tsx` (feedback) | | | | | modify | | modify | |
 | **Seed** | | | | | | | | |
-| `taxonomy_builder/seed.py` | | modify | | | | | | |
+| `taxonomy_builder/seed.py` | | modify ✓ | | | | | | |
 | **Migrations** | | | | | | | | |
-| `alembic/versions/` | | new | | new | | new | | new |
+| `alembic/versions/` | | new ✓ | | new ✓ | | new ✓ | | new ✓ |
 
 ---
 
 ## GitHub Issues
 
-### Existing issues (backend pipeline)
+### Pipeline issues (backend)
 
-#109, #110, #111 already exist with good requirement bodies. This plan adds implementation detail but doesn't replace them.
+| Issue | Scope | PR | Status |
+|---|---|---|---|
+| #109 | subClassOf pipeline | #139 | Done, in review |
+| #110 | union domain pipeline | #142 | Done, in review |
+| #111 | property type pipeline | #143 | Done, in review |
+| #144 | constraint system (restrictions + dual-typing) | — | In progress |
 
-### New issues needed
+### UI companion issues
 
-| Issue | Scope | Depends on |
-|---|---|---|
-| **Format scaffold** | Stripe 1. Could be a task on #108 instead. | nothing |
-| **Class hierarchy management UI** | #109 UI: API endpoints, schema, ClassDetailPane, feedback ClassDetail | #109 pipeline |
-| **Multi-domain property editing UI** | #110 UI: schema, multi-select picker, ClassDetailPane filter, feedback display | #110 pipeline |
-| **Property type editing UI** | #111 UI: schema, type selector with range enforcement, feedback display | #111 pipeline |
-| **Constraint system preservation** | Stripe 5: restriction table, concept dual-typing, concept-typed class import. All `allValuesFrom` restrictions round-trip. | #109 pipeline (needs superclass infrastructure) |
-| **Applicability closure** | classAncestors, isApplicable, inherited property display in both UIs | #109 UI + #110 UI |
+| Issue | Scope | Depends on | Status |
+|---|---|---|---|
+| #127 | Class hierarchy UI | #109 + #125 | Not started |
+| #128 | Multi-domain editing UI | #110 | Not started |
+| #129 | Property type editing UI | #111 | Not started |
+| #130 | Applicability closure UI | #127 + #128 | Not started |
