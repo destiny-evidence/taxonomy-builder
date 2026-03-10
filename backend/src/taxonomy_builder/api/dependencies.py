@@ -38,8 +38,7 @@ class AuthenticatedUser:
     user: User
     org_id: str | None
     org_name: str | None
-    org_roles: list[str]
-    scopes: list[str]
+    realm_roles: list[str]
 
 
 async def get_current_user(
@@ -81,8 +80,7 @@ async def get_current_user(
             user=user,
             org_id=org_claims["org_id"],
             org_name=org_claims["org_name"],
-            org_roles=org_claims["roles"],
-            scopes=auth_service.extract_scopes(claims),
+            realm_roles=org_claims["roles"],
         )
     except AuthenticationError as e:
         raise HTTPException(
@@ -106,20 +104,20 @@ async def get_optional_user(
         return None
 
 
-def require_scope(scope: str):
-    """Dependency factory that checks for an OAuth2 scope in the token.
+def require_role(role: str):
+    """Dependency factory that checks for a realm role in the token.
 
     Wraps get_current_user — authenticates first, then checks authorization.
-    Returns 403 if the user's token lacks the required scope.
+    Returns 403 if the user lacks the required realm role.
     """
 
     async def check(
         user: AuthenticatedUser = Depends(get_current_user),
     ) -> AuthenticatedUser:
-        if scope not in user.scopes:
+        if role not in user.realm_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Scope '{scope}' required",
+                detail=f"Role '{role}' required",
             )
         return user
 
@@ -127,9 +125,9 @@ def require_scope(scope: str):
 
 
 # Type aliases for use in route function signatures
-CurrentUser = Annotated[AuthenticatedUser, Depends(require_scope("vocabulary.manager.all"))]
+CurrentUser = Annotated[AuthenticatedUser, Depends(require_role("vocabulary.manager"))]
 OptionalUser = Annotated[AuthenticatedUser | None, Depends(get_optional_user)]
-FeedbackUser = Annotated[AuthenticatedUser, Depends(require_scope("vocabulary.reviewer.all"))]
+FeedbackUser = Annotated[AuthenticatedUser, Depends(require_role("vocabulary.reviewer"))]
 
 
 # Service factory functions that inject user_id from the current user
@@ -138,7 +136,7 @@ FeedbackUser = Annotated[AuthenticatedUser, Depends(require_scope("vocabulary.re
 
 def get_comment_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> CommentService:
     """Dependency that provides a CommentService with user context."""
     from taxonomy_builder.services.comment_service import CommentService
@@ -148,7 +146,7 @@ def get_comment_service(
 
 def get_concept_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> ConceptService:
     """Dependency that provides a ConceptService with user context."""
     from taxonomy_builder.services.concept_service import ConceptService
@@ -158,7 +156,7 @@ def get_concept_service(
 
 def get_scheme_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> ConceptSchemeService:
     """Dependency that provides a ConceptSchemeService with user context."""
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
@@ -168,7 +166,7 @@ def get_scheme_service(
 
 def get_import_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> SKOSImportService:
     """Dependency that provides a SKOSImportService with user context."""
     from taxonomy_builder.services.skos_import_service import SKOSImportService
@@ -185,7 +183,7 @@ def get_history_service(db: AsyncSession = Depends(get_db)) -> HistoryService:
 
 def get_ontology_class_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> OntologyClassService:
     """Dependency that provides an OntologyClassService with user context."""
     from taxonomy_builder.services.ontology_class_service import OntologyClassService
@@ -197,7 +195,7 @@ def get_ontology_class_service(
 
 def get_project_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> ProjectService:
     """Dependency that provides a ProjectService with user context."""
     from taxonomy_builder.services.project_service import ProjectService
@@ -207,7 +205,7 @@ def get_project_service(
 
 def get_property_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> PropertyService:
     """Dependency that provides a PropertyService with user context."""
     from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
@@ -228,7 +226,7 @@ def get_export_service(db: AsyncSession = Depends(get_db)) -> SKOSExportService:
 
 def get_feedback_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.reviewer.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.reviewer")),
 ) -> FeedbackService:
     """Dependency that provides a FeedbackService for reader operations."""
     from taxonomy_builder.services.feedback_service import FeedbackService
@@ -243,7 +241,7 @@ def get_feedback_service(
 
 def get_manager_feedback_service(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_scope("vocabulary.manager.all")),
+    current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> FeedbackService:
     """Dependency that provides a FeedbackService for manager operations."""
     from taxonomy_builder.services.feedback_service import FeedbackService

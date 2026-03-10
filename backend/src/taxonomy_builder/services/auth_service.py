@@ -135,11 +135,6 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    def extract_scopes(self, token_claims: dict) -> list[str]:
-        """Extract granted scopes from the token's ``scope`` claim."""
-        scope_str = token_claims.get("scope", "")
-        return scope_str.split() if scope_str else []
-
     def extract_org_claims(self, token_claims: dict) -> dict:
         """Extract organization claims from Keycloak token.
 

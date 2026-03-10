@@ -1,105 +1,142 @@
 {
   "realm": "destiny",
   "enabled": true,
-  "sslRequired": "external",
-  "defaultSignatureAlgorithm": "RS256",
-  "accessTokenLifespan": 300,
-  "ssoSessionIdleTimeout": 1800,
-  "ssoSessionMaxLifespan": 36000,
-  "loginWithEmailAllowed": true,
-  "registrationAllowed": false,
-  "resetPasswordAllowed": true,
-  "rememberMe": true,
+  "sslRequired": "none",
   "roles": {
     "realm": [
       {
-        "name": "default-roles-destiny",
-        "description": "${role_default-roles}",
-        "composite": true,
-        "composites": {
-          "realm": ["offline_access", "uma_authorization"],
-          "client": {
-            "account": ["manage-account", "view-profile"]
-          }
-        }
-      },
-      {
-        "name": "offline_access",
-        "description": "${role_offline-access}",
-        "composite": false
-      },
-      {
-        "name": "uma_authorization",
-        "description": "${role_uma_authorization}",
-        "composite": false
-      },
-      {
         "name": "vocabulary.manager",
-        "description": "Manage vocabularies (create, edit, publish)",
         "composite": true,
-        "composites": {
-          "realm": ["vocabulary.reviewer"]
-        }
+        "composites": { "realm": ["vocabulary.reviewer"] }
       },
       {
         "name": "vocabulary.reviewer",
-        "description": "Review vocabularies and submit feedback",
         "composite": false
       }
     ]
   },
   "groups": [
-    {
-      "name": "vocabulary_managers",
-      "realmRoles": ["vocabulary.manager"]
-    },
-    {
-      "name": "vocabulary_reviewers",
-      "realmRoles": ["vocabulary.reviewer"]
-    }
-  ],
-  "defaultDefaultClientScopes": [
-    "role_list",
-    "profile",
-    "email",
-    "roles",
-    "web-origins",
-    "acr"
+    { "name": "vocabulary_managers", "realmRoles": ["vocabulary.manager"] },
+    { "name": "vocabulary_reviewers", "realmRoles": ["vocabulary.reviewer"] }
   ],
   "clientScopes": [
     {
-      "name": "vocabulary.manager.all",
-      "description": "Full vocabulary management access",
+      "name": "openid",
       "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true",
-        "consent.screen.text": "Manage vocabularies"
-      },
+      "attributes": { "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "config": { "id.token.claim": "true", "access.token.claim": "true" }
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "false" },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "groups",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "false",
+            "claim.name": "groups",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "vocabulary.manager.all",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true" },
       "protocolMappers": [
         {
           "name": "audience-resolve",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-resolve-mapper",
-          "consentRequired": false
+          "protocolMapper": "oidc-audience-resolve-mapper"
         }
       ]
     },
     {
       "name": "vocabulary.reviewer.all",
-      "description": "Vocabulary review and feedback access",
       "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true",
-        "consent.screen.text": "Review vocabularies and submit feedback"
-      },
+      "attributes": { "include.in.token.scope": "true" },
       "protocolMappers": [
         {
           "name": "audience-resolve",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-resolve-mapper",
-          "consentRequired": false
+          "protocolMapper": "oidc-audience-resolve-mapper"
         }
       ]
     }
@@ -110,30 +147,24 @@
       "enabled": true,
       "bearerOnly": true,
       "publicClient": false,
-      "protocol": "openid-connect",
-      "description": "Taxonomy Builder API (local development)"
+      "protocol": "openid-connect"
     },
     {
       "clientId": "taxonomy-builder-ui-local",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "protocol": "openid-connect",
-      "rootUrl": "http://localhost:3000",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
-      "description": "Taxonomy Builder UI (local development)",
-      "attributes": {
-        "pkce.code.challenge.method": "S256"
-      },
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
       "defaultClientScopes": [
         "openid",
         "profile",
         "email",
         "roles",
-        "web-origins",
+        "groups",
         "vocabulary.manager.all"
       ]
     },
@@ -142,22 +173,17 @@
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "protocol": "openid-connect",
-      "rootUrl": "http://localhost:4000",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:4000/*"],
-      "webOrigins": ["http://localhost:4000"],
-      "description": "Taxonomy Reader UI (local development)",
-      "attributes": {
-        "pkce.code.challenge.method": "S256"
-      },
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
       "defaultClientScopes": [
         "openid",
         "profile",
         "email",
         "roles",
-        "web-origins",
+        "groups",
         "vocabulary.reviewer.all"
       ]
     }
@@ -171,11 +197,7 @@
       "firstName": "Admin",
       "lastName": "User",
       "credentials": [
-        {
-          "type": "password",
-          "value": "admin",
-          "temporary": false
-        }
+        { "type": "password", "value": "admin", "temporary": false }
       ],
       "groups": ["vocabulary_managers"]
     },
@@ -187,11 +209,7 @@
       "firstName": "Reviewer",
       "lastName": "User",
       "credentials": [
-        {
-          "type": "password",
-          "value": "reviewer",
-          "temporary": false
-        }
+        { "type": "password", "value": "reviewer", "temporary": false }
       ],
       "groups": ["vocabulary_reviewers"]
     }

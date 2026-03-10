@@ -148,8 +148,7 @@ async def auth_client(
             user=user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            scopes=["vocabulary.reviewer.all"],
+            realm_roles=["vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -168,8 +167,7 @@ async def other_auth_client(
             user=other_user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            scopes=["vocabulary.reviewer.all"],
+            realm_roles=["vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -188,8 +186,7 @@ async def manager_client(
             user=user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            scopes=["vocabulary.manager.all", "vocabulary.reviewer.all"],
+            realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -1091,8 +1088,7 @@ async def test_reader_response_hides_manager_name(
     # Switch to other_user (manager) to respond
     async def manager_override() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=other_user, org_id=None, org_name=None, org_roles=[],
-            scopes=["vocabulary.manager.all", "vocabulary.reviewer.all"],
+            user=other_user, org_id=None, org_name=None, realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = manager_override
@@ -1105,8 +1101,7 @@ async def test_reader_response_hides_manager_name(
     # Switch back to user (reader) to check /mine
     async def reader_override() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=user, org_id=None, org_name=None, org_roles=[],
-            scopes=["vocabulary.reviewer.all"],
+            user=user, org_id=None, org_name=None, realm_roles=["vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = reader_override

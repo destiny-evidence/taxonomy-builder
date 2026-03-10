@@ -60,8 +60,7 @@ async def integration_client() -> AsyncGenerator[AsyncClient]:
             user=integration_user,
             org_id="integration-test-org",
             org_name="Integration Test Organization",
-            org_roles=["user"],
-            scopes=["vocabulary.manager.all", "vocabulary.reviewer.all"],
+            realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_get_current_user
