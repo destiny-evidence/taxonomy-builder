@@ -14,16 +14,6 @@ from taxonomy_builder.services.skos_import_service import (
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
 def import_service(db_session: AsyncSession) -> SKOSImportService:
     """Create import service instance."""
     return SKOSImportService(db_session)

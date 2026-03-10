@@ -26,20 +26,6 @@ async def project(db_session: AsyncSession) -> Project:
 
 
 @pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/concepts",
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
-
-
-@pytest.fixture
 async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
     """Create an ontology class in the test project."""
     cls = OntologyClass(

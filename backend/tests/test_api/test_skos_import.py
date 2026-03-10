@@ -10,16 +10,6 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 
 
-@pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
 # Sample SKOS files for testing
 
 SIMPLE_SCHEME_TTL = b"""

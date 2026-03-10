@@ -91,16 +91,6 @@ def _make_feedback(user: User, **overrides: Any) -> Feedback:
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
 async def published_version(
     db_session: AsyncSession, project: Project
 ) -> PublishedVersion:
