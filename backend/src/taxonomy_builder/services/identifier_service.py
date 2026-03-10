@@ -1,10 +1,13 @@
 """Identifier allocation, validation, and reconciliation service."""
 
+import re
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.concept import Concept
+from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 
 MAX_COUNTER = 999999
@@ -79,3 +82,78 @@ class IdentifierService:
         if project.identifier_prefix is None:
             raise PrefixRequiredError(project_id)
         raise CounterOverflowError(project_id)
+
+    async def validate_imported(
+        self, project_id: UUID, identifiers: list[str]
+    ) -> list[dict]:
+        """Validate a list of identifiers to be imported.
+
+        Returns a list of conflict dicts. Empty list means no conflicts.
+        """
+        conflicts: list[dict] = []
+
+        # Check for duplicates within the import list (one conflict per identifier)
+        seen: set[str] = set()
+        reported: set[str] = set()
+        for ident in identifiers:
+            if ident in seen and ident not in reported:
+                conflicts.append({
+                    "type": "duplicate_in_file",
+                    "identifier": ident,
+                    "message": f"Identifier '{ident}' appears multiple times in import file",
+                })
+                reported.add(ident)
+            seen.add(ident)
+
+        # Check for collisions with existing identifiers in project
+        unique_identifiers = list(seen)
+        if unique_identifiers:
+            result = await self.db.execute(
+                select(Concept.identifier)
+                .join(ConceptScheme, Concept.scheme_id == ConceptScheme.id)
+                .where(
+                    ConceptScheme.project_id == project_id,
+                    Concept.identifier.in_(unique_identifiers),
+                )
+            )
+            existing = {row[0] for row in result.fetchall()}
+            for ident in existing:
+                conflicts.append({
+                    "type": "collision",
+                    "identifier": ident,
+                    "message": f"Identifier '{ident}' already exists in project",
+                })
+
+        return conflicts
+
+    async def reconcile_counter(
+        self, project_id: UUID, imported_identifiers: list[str]
+    ) -> None:
+        """Advance project counter to account for imported identifiers.
+
+        Monotonic: never moves counter backward.
+        """
+        result = await self.db.execute(
+            select(Project.identifier_prefix).where(Project.id == project_id)
+        )
+        row = result.one_or_none()
+        if row is None or row[0] is None:
+            return
+
+        prefix = row[0]
+
+        # Match imported identifiers against ^{PREFIX}(\d+)$
+        pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
+        max_found = 0
+        for ident in imported_identifiers:
+            m = pattern.match(ident)
+            if m:
+                max_found = max(max_found, int(m.group(1)))
+
+        if max_found > 0:
+            # WHERE clause enforces monotonicity — never moves counter backward
+            await self.db.execute(
+                update(Project)
+                .where(Project.id == project_id, Project.identifier_counter < max_found)
+                .values(identifier_counter=max_found)
+            )

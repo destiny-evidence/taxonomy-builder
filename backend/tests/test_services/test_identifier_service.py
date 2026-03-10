@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.identifier_service import (
@@ -83,3 +84,106 @@ async def test_allocate_overflow_raises(
 
     await db_session.refresh(project_with_prefix)
     assert project_with_prefix.identifier_counter == 999999
+
+
+class TestValidateImported:
+    async def test_detects_duplicates_within_list(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        service = IdentifierService(db_session)
+        conflicts = await service.validate_imported(
+            project_with_prefix.id, ["EVD000001", "EVD000001", "EVD000001"]
+        )
+        dupes = [c for c in conflicts if c["type"] == "duplicate_in_file"]
+        assert len(dupes) == 1
+        assert dupes[0]["identifier"] == "EVD000001"
+
+    async def test_detects_collision_with_existing(
+        self,
+        db_session: AsyncSession,
+        project_with_prefix: Project,
+        scheme: ConceptScheme,
+    ) -> None:
+        concept = Concept(
+            scheme_id=scheme.id,
+            pref_label="Existing",
+            identifier="EVD000001",
+        )
+        db_session.add(concept)
+        await db_session.flush()
+
+        service = IdentifierService(db_session)
+        conflicts = await service.validate_imported(
+            project_with_prefix.id, ["EVD000001", "EVD000002"]
+        )
+        assert len(conflicts) == 1
+        assert conflicts[0]["identifier"] == "EVD000001"
+        assert conflicts[0]["type"] == "collision"
+
+    async def test_no_conflicts_for_unique_identifiers(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        service = IdentifierService(db_session)
+        conflicts = await service.validate_imported(
+            project_with_prefix.id, ["NEW001", "NEW002"]
+        )
+        assert conflicts == []
+
+
+class TestReconcileCounter:
+    async def test_advances_counter_to_max_matching_identifier(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        service = IdentifierService(db_session)
+        await service.reconcile_counter(
+            project_with_prefix.id, ["EVD000042", "EVD000010"]
+        )
+        await db_session.refresh(project_with_prefix)
+        assert project_with_prefix.identifier_counter == 42
+
+    async def test_does_not_move_counter_backward(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        project_with_prefix.identifier_counter = 100
+        await db_session.flush()
+
+        service = IdentifierService(db_session)
+        await service.reconcile_counter(
+            project_with_prefix.id, ["EVD000042"]
+        )
+        await db_session.refresh(project_with_prefix)
+        assert project_with_prefix.identifier_counter == 100
+
+    async def test_ignores_non_matching_prefixes(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        service = IdentifierService(db_session)
+        await service.reconcile_counter(
+            project_with_prefix.id, ["OTHER001", "CAT000050"]
+        )
+        await db_session.refresh(project_with_prefix)
+        assert project_with_prefix.identifier_counter == 0
+
+    async def test_skips_when_no_prefix_set(
+        self, db_session: AsyncSession
+    ) -> None:
+        project = Project(name="No Prefix Reconcile")
+        db_session.add(project)
+        await db_session.flush()
+        await db_session.refresh(project)
+
+        service = IdentifierService(db_session)
+        await service.reconcile_counter(project.id, ["EVD000042"])
+        await db_session.refresh(project)
+        assert project.identifier_counter == 0
+
+    async def test_case_sensitive_prefix_match(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        """evd000042 should NOT match prefix EVD."""
+        service = IdentifierService(db_session)
+        await service.reconcile_counter(
+            project_with_prefix.id, ["evd000042"]
+        )
+        await db_session.refresh(project_with_prefix)
+        assert project_with_prefix.identifier_counter == 0
