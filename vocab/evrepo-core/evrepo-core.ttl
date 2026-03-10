@@ -162,6 +162,12 @@ evrepo:forCondition a owl:ObjectProperty ;
     rdfs:range evrepo:Condition ;
     rdfs:comment "Which condition this arm data is for. Makes each ObservedResult self-describing without traversing back to the Finding."@en .
 
+evrepo:forOutcome a owl:ObjectProperty ;
+    rdfs:label "for outcome"@en ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range evrepo:Outcome ;
+    rdfs:comment "Which outcome this effect estimate is for. Makes each EffectEstimate self-describing without traversing back to the Finding."@en .
+
 # =============================================================================
 # CodingAnnotation Pattern — Base Class and Properties
 # =============================================================================
