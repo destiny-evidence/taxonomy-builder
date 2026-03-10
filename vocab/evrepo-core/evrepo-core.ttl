@@ -57,15 +57,19 @@ evrepo:Condition a owl:Class ;
 
 evrepo:name a owl:DatatypeProperty ;
     rdfs:label "name"@en ;
-    rdfs:domain evrepo:Condition ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( evrepo:Condition evrepo:Outcome )
+    ];
     rdfs:range xsd:string ;
-    rdfs:comment "Short name or title for this condition (e.g. intervention programme name, control label)."@en .
+    rdfs:comment "Short name or title for this condition or outcome (e.g. intervention programme name, control label)."@en .
 
 evrepo:description a owl:DatatypeProperty ;
     rdfs:label "description"@en ;
-    rdfs:domain evrepo:Condition ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( evrepo:Condition evrepo:Outcome )
+    ];
     rdfs:range xsd:string ;
-    rdfs:comment "Free-text description of this condition."@en .
+    rdfs:comment "Free-text description of this condition or outcome."@en .
 
 evrepo:Intervention a owl:Class ;
     rdfs:subClassOf evrepo:Condition ;
@@ -118,6 +122,7 @@ evrepo:hasOutcome a owl:ObjectProperty ;
     rdfs:domain evrepo:Finding ;
     rdfs:range evrepo:Outcome .
 
+
 # --- Comparison structure ---
 
 evrepo:evaluates a owl:ObjectProperty ;
@@ -156,6 +161,12 @@ evrepo:forCondition a owl:ObjectProperty ;
     rdfs:domain evrepo:ObservedResult ;
     rdfs:range evrepo:Condition ;
     rdfs:comment "Which condition this arm data is for. Makes each ObservedResult self-describing without traversing back to the Finding."@en .
+
+evrepo:forOutcome a owl:ObjectProperty ;
+    rdfs:label "for outcome"@en ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range evrepo:Outcome ;
+    rdfs:comment "Which outcome this effect estimate is for. Makes each EffectEstimate self-describing without traversing back to the Finding."@en .
 
 # =============================================================================
 # CodingAnnotation Pattern — Base Class and Properties
