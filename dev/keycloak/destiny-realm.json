@@ -1,0 +1,199 @@
+{
+  "realm": "destiny",
+  "enabled": true,
+  "sslRequired": "external",
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "loginWithEmailAllowed": true,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "default-roles-destiny",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": ["offline_access", "uma_authorization"],
+          "client": {
+            "account": ["manage-account", "view-profile"]
+          }
+        }
+      },
+      {
+        "name": "offline_access",
+        "description": "${role_offline-access}",
+        "composite": false
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}",
+        "composite": false
+      },
+      {
+        "name": "vocabulary.manager",
+        "description": "Manage vocabularies (create, edit, publish)",
+        "composite": true,
+        "composites": {
+          "realm": ["vocabulary.reviewer"]
+        }
+      },
+      {
+        "name": "vocabulary.reviewer",
+        "description": "Review vocabularies and submit feedback",
+        "composite": false
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "vocabulary_managers",
+      "realmRoles": ["vocabulary.manager"]
+    },
+    {
+      "name": "vocabulary_reviewers",
+      "realmRoles": ["vocabulary.reviewer"]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "role_list",
+    "profile",
+    "email",
+    "roles",
+    "web-origins",
+    "acr"
+  ],
+  "clientScopes": [
+    {
+      "name": "vocabulary.manager.all",
+      "description": "Full vocabulary management access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Manage vocabularies"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false
+        }
+      ]
+    },
+    {
+      "name": "vocabulary.reviewer.all",
+      "description": "Vocabulary review and feedback access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Review vocabularies and submit feedback"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "taxonomy-builder-api-local",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "description": "Taxonomy Builder API (local development)"
+    },
+    {
+      "clientId": "taxonomy-builder-ui-local",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "description": "Taxonomy Builder UI (local development)",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "vocabulary.manager.all"
+      ]
+    },
+    {
+      "clientId": "taxonomy-reader-ui-local",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "http://localhost:4000",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:4000/*"],
+      "webOrigins": ["http://localhost:4000"],
+      "description": "Taxonomy Reader UI (local development)",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "vocabulary.reviewer.all"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@localhost",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "groups": ["vocabulary_managers"]
+    },
+    {
+      "username": "reviewer",
+      "email": "reviewer@localhost",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Reviewer",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "reviewer",
+          "temporary": false
+        }
+      ],
+      "groups": ["vocabulary_reviewers"]
+    }
+  ]
+}

@@ -61,7 +61,7 @@ async def integration_client() -> AsyncGenerator[AsyncClient]:
             org_id="integration-test-org",
             org_name="Integration Test Organization",
             org_roles=["user"],
-            client_roles=["api-user", "feedback-user"],
+            scopes=["vocabulary.manager.all", "vocabulary.reviewer.all"],
         )
 
     app.dependency_overrides[get_current_user] = override_get_current_user
