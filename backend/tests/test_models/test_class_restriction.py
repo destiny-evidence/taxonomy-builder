@@ -50,7 +50,10 @@ async def test_create_restriction(db_session: AsyncSession, ontology_class: Onto
 
 
 @pytest.mark.asyncio
-async def test_restriction_via_relationship(db_session: AsyncSession, ontology_class: OntologyClass):
+async def test_restriction_via_relationship(
+    db_session: AsyncSession,
+    ontology_class: OntologyClass,
+):
     r = ClassRestriction(
         class_id=ontology_class.id,
         on_property_uri="http://example.org/codedValue",

@@ -122,7 +122,9 @@ class SKOSExportService:
 
         return graph.serialize(format=format)
 
-    async def export_published_version(self, published_version: PublishedVersion, format: str) -> str:
+    async def export_published_version(
+        self, published_version: PublishedVersion, format: str
+    ) -> str:
         """Export a published version's snapshot as SKOS RDF.
 
         Args:

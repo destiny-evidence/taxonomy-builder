@@ -108,7 +108,9 @@ class TestPreview:
             await db_session.delete(concept)
         scheme_result = await db_session.execute(select(ConceptScheme))
         scheme = scheme_result.scalar_one()
-        db_session.add(Concept(scheme_id=scheme.id, pref_label="Replacement", identifier="replacement"))
+        db_session.add(
+            Concept(scheme_id=scheme.id, pref_label="Replacement", identifier="replacement")
+        )
         await db_session.flush()
         db_session.expunge_all()
 

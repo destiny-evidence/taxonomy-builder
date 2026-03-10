@@ -115,7 +115,10 @@ async def create_seed_data(session: AsyncSession) -> dict:
         scheme_id=study_designs.id,
         identifier="rct",
         pref_label="Randomized Controlled Trial",
-        definition="An experimental study where participants are randomly allocated to intervention or control groups.",
+        definition=(
+            "An experimental study where participants are randomly"
+            " allocated to intervention or control groups."
+        ),
         scope_note="Considered the gold standard for testing interventions.",
         alt_labels=["RCT", "Randomised Controlled Trial"],
     )
@@ -148,7 +151,10 @@ async def create_seed_data(session: AsyncSession) -> dict:
         scheme_id=study_designs.id,
         identifier="systematic-review",
         pref_label="Systematic Review",
-        definition="A review using systematic methods to identify, select, and synthesize research.",
+        definition=(
+            "A review using systematic methods to identify,"
+            " select, and synthesize research."
+        ),
         scope_note="May or may not include meta-analysis.",
         alt_labels=["SR"],
     )

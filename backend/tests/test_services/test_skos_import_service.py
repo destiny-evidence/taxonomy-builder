@@ -1,33 +1,22 @@
 """Tests for SKOS Import Service."""
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from taxonomy_builder.models.class_restriction import ClassRestriction
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.property import Property
+from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
+    SKOSImportError,
     SKOSImportService,
 )
-
-
-@pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
-def import_service(db_session: AsyncSession) -> SKOSImportService:
-    """Create import service instance."""
-    return SKOSImportService(db_session)
-
 
 # Sample SKOS data for testing
 
@@ -190,9 +179,7 @@ This is not valid RDF at all.
 Just random text.
 """
 
-
 # Preview tests - single scheme
-
 
 @pytest.mark.asyncio
 async def test_preview_simple_scheme(
@@ -211,7 +198,6 @@ async def test_preview_simple_scheme(
     assert result.schemes[0].relationships_count == 1  # One broader relationship
     assert result.total_concepts_count == 2
     assert result.total_relationships_count == 1
-
 
 @pytest.mark.asyncio
 async def test_preview_multiple_schemes(
@@ -233,7 +219,6 @@ async def test_preview_multiple_schemes(
     assert scheme_a.concepts_count == 1
     assert scheme_b.concepts_count == 2
 
-
 @pytest.mark.asyncio
 async def test_preview_subclassed_concepts(
     import_service: SKOSImportService, project: Project
@@ -248,7 +233,6 @@ async def test_preview_subclassed_concepts(
     assert result.schemes[0].concepts_count == 2
     assert result.schemes[0].relationships_count == 1
 
-
 @pytest.mark.asyncio
 async def test_preview_missing_preflabel_warning(
     import_service: SKOSImportService, project: Project
@@ -262,7 +246,6 @@ async def test_preview_missing_preflabel_warning(
     assert len(result.schemes[0].warnings) > 0
     assert any("prefLabel" in w for w in result.schemes[0].warnings)
 
-
 @pytest.mark.asyncio
 async def test_preview_scheme_title_priority(
     import_service: SKOSImportService, project: Project
@@ -275,7 +258,6 @@ async def test_preview_scheme_title_priority(
     assert result.valid is True
     assert result.schemes[0].title == "RDFS Label Title"
 
-
 @pytest.mark.asyncio
 async def test_preview_orphan_concept_single_scheme(
     import_service: SKOSImportService, project: Project
@@ -287,7 +269,6 @@ async def test_preview_orphan_concept_single_scheme(
 
     assert result.valid is True
     assert result.schemes[0].concepts_count == 2  # Both concepts assigned
-
 
 @pytest.mark.asyncio
 async def test_preview_orphan_concept_multi_scheme_warning(
@@ -305,7 +286,6 @@ async def test_preview_orphan_concept_multi_scheme_warning(
     # Should have warning about skipped orphan
     assert any("OrphanConcept" in w or "orphan" in w.lower() for w in result.warnings)
 
-
 @pytest.mark.asyncio
 async def test_preview_top_concept_of(
     import_service: SKOSImportService, project: Project
@@ -318,9 +298,7 @@ async def test_preview_top_concept_of(
     assert result.valid is True
     assert result.schemes[0].concepts_count == 1
 
-
 # Error cases
-
 
 @pytest.mark.asyncio
 async def test_preview_invalid_rdf(
@@ -330,7 +308,6 @@ async def test_preview_invalid_rdf(
     with pytest.raises(InvalidRDFError):
         await import_service.preview(project.id, INVALID_RDF, "test.ttl")
 
-
 @pytest.mark.asyncio
 async def test_preview_unsupported_format(
     import_service: SKOSImportService, project: Project
@@ -338,7 +315,6 @@ async def test_preview_unsupported_format(
     """Test that unsupported file extension raises an error."""
     with pytest.raises(InvalidRDFError):
         await import_service.preview(project.id, SIMPLE_SCHEME_TTL, "test.xyz")
-
 
 @pytest.mark.asyncio
 async def test_preview_scheme_uri_conflict(
@@ -358,9 +334,7 @@ async def test_preview_scheme_uri_conflict(
     # Scheme should be skipped (already exists), so 0 new schemes
     assert len(result.schemes) == 0
 
-
 # Execute tests
-
 
 @pytest.mark.asyncio
 async def test_execute_simple_scheme(
@@ -378,9 +352,6 @@ async def test_execute_simple_scheme(
     assert result.total_relationships_created == 1
 
     # Verify database
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.concept import Concept
 
     schemes = (
         await db_session.execute(
@@ -397,7 +368,6 @@ async def test_execute_simple_scheme(
     ).scalars().all()
     assert len(concepts) == 2
 
-
 @pytest.mark.asyncio
 async def test_execute_multiple_schemes(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
@@ -411,7 +381,6 @@ async def test_execute_multiple_schemes(
     assert result.total_concepts_created == 3
 
     # Verify database
-    from sqlalchemy import select
 
     schemes = (
         await db_session.execute(
@@ -419,7 +388,6 @@ async def test_execute_multiple_schemes(
         )
     ).scalars().all()
     assert len(schemes) == 2
-
 
 @pytest.mark.asyncio
 async def test_execute_scheme_title_conflict_auto_rename(
@@ -443,7 +411,6 @@ async def test_execute_scheme_title_conflict_auto_rename(
     assert len(result.schemes_created) == 1
     assert result.schemes_created[0].title == "Test Scheme (2)"
 
-
 @pytest.mark.asyncio
 async def test_execute_creates_broader_relationships(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
@@ -456,10 +423,6 @@ async def test_execute_creates_broader_relationships(
     assert result.total_relationships_created == 1
 
     # Verify in database
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
-
-    from taxonomy_builder.models.concept import Concept
 
     scheme_id = result.schemes_created[0].id
     concepts = (
@@ -477,7 +440,6 @@ async def test_execute_creates_broader_relationships(
     assert len(concept_with_broader.broader) == 1
     assert concept_with_broader.broader[0].pref_label == "First Concept"
 
-
 @pytest.mark.asyncio
 async def test_execute_alt_labels(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
@@ -488,9 +450,6 @@ async def test_execute_alt_labels(
     )
 
     # Verify in database
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.concept import Concept
 
     scheme_id = result.schemes_created[0].id
     concepts = (
@@ -503,7 +462,6 @@ async def test_execute_alt_labels(
     assert dogs is not None
     assert set(dogs.alt_labels) == {"Canines", "Domestic dogs"}
 
-
 @pytest.mark.asyncio
 async def test_execute_extracts_identifier_from_uri(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
@@ -512,10 +470,6 @@ async def test_execute_extracts_identifier_from_uri(
     result = await import_service.execute(
         project.id, SIMPLE_SCHEME_TTL, "test.ttl"
     )
-
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.concept import Concept
 
     scheme_id = result.schemes_created[0].id
     concepts = (
@@ -528,9 +482,7 @@ async def test_execute_extracts_identifier_from_uri(
     assert concept1 is not None
     assert concept1.identifier == "Concept1"
 
-
 # Format detection tests
-
 
 @pytest.mark.asyncio
 async def test_format_detection_turtle(
@@ -541,7 +493,6 @@ async def test_format_detection_turtle(
         project.id, SIMPLE_SCHEME_TTL, "test.ttl"
     )
     assert result.valid is True
-
 
 @pytest.mark.asyncio
 async def test_format_detection_rdf_xml(
@@ -561,9 +512,7 @@ async def test_format_detection_rdf_xml(
     assert result.valid is True
     assert result.schemes[0].title == "Test Scheme"
 
-
 # --- Domain-less property tests ---
-
 
 PROPERTY_WITHOUT_DOMAIN_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -584,15 +533,11 @@ ex:domainedProp a owl:DatatypeProperty ;
     rdfs:range xsd:integer .
 """
 
-
 @pytest.mark.asyncio
 async def test_execute_property_without_domain_skipped_with_warning(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Property without rdfs:domain is skipped; domained property is imported."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
 
     result = await import_service.execute(
         project.id, PROPERTY_WITHOUT_DOMAIN_TTL, "test.ttl"
@@ -616,7 +561,6 @@ async def test_execute_property_without_domain_skipped_with_warning(
     ).scalars().all()
     assert len(props) == 1
 
-
 @pytest.mark.asyncio
 async def test_preview_property_without_domain_skipped_with_warning(
     import_service: SKOSImportService, project: Project
@@ -633,9 +577,7 @@ async def test_preview_property_without_domain_skipped_with_warning(
         for w in result.warnings
     )
 
-
 # --- Dual-typed property deduplication tests ---
-
 
 DUAL_TYPED_PROPERTY_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -652,7 +594,6 @@ ex:dualProp a owl:ObjectProperty, owl:DatatypeProperty ;
     rdfs:range xsd:string .
 """
 
-
 @pytest.mark.asyncio
 async def test_preview_dual_typed_property_not_duplicated(
     import_service: SKOSImportService, project: Project
@@ -664,7 +605,6 @@ async def test_preview_dual_typed_property_not_duplicated(
 
     assert result.properties_count == 1
     assert result.properties[0].property_type == "datatype"
-
 
 DUAL_TYPED_OBJECT_RANGE_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -683,7 +623,6 @@ ex:dualProp a owl:ObjectProperty, owl:DatatypeProperty ;
     rdfs:range ex:Outcome .
 """
 
-
 @pytest.mark.asyncio
 async def test_dual_typed_with_object_range_becomes_object(
     import_service: SKOSImportService, project: Project
@@ -696,9 +635,7 @@ async def test_dual_typed_with_object_range_becomes_object(
     assert result.properties_count == 1
     assert result.properties[0].property_type == "object"
 
-
 # --- eef:allowMultiple -> cardinality tests ---
-
 
 ALLOW_MULTIPLE_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -730,15 +667,11 @@ ex:defaultProp a owl:DatatypeProperty ;
     rdfs:range xsd:boolean .
 """
 
-
 @pytest.mark.asyncio
 async def test_execute_allow_multiple_sets_cardinality(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """eef:allowMultiple true -> 'multiple', false -> 'single', absent -> 'single'."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
 
     result = await import_service.execute(
         project.id, ALLOW_MULTIPLE_TTL, "test.ttl"
@@ -758,9 +691,7 @@ async def test_execute_allow_multiple_sets_cardinality(
     assert props["multiProp"].cardinality == "multiple"
     assert props["defaultProp"].cardinality == "single"
 
-
 # --- Duplicate property identifier tests ---
-
 
 DUPLICATE_PROPERTY_ID_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -783,15 +714,11 @@ ns2:title a owl:DatatypeProperty ;
     rdfs:range xsd:integer .
 """
 
-
 @pytest.mark.asyncio
 async def test_execute_duplicate_property_identifier_skipped(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Two properties with different URIs but same identifier: second is skipped."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
 
     result = await import_service.execute(
         project.id, DUPLICATE_PROPERTY_ID_TTL, "test.ttl"
@@ -807,7 +734,6 @@ async def test_execute_duplicate_property_identifier_skipped(
     ).scalars().all()
     assert len(props) == 1
 
-
 @pytest.mark.asyncio
 async def test_preview_duplicate_property_identifier_skipped(
     import_service: SKOSImportService, project: Project
@@ -819,9 +745,7 @@ async def test_preview_duplicate_property_identifier_skipped(
 
     assert result.properties_count == 1
 
-
 # --- Ambiguous range resolution tests ---
-
 
 AMBIGUOUS_RANGE_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -855,7 +779,6 @@ ex:educationProp a owl:ObjectProperty ;
     rdfs:range ex:EducationLevel .
 """
 
-
 @pytest.mark.asyncio
 async def test_preview_ambiguous_range_not_resolved(
     import_service: SKOSImportService, project: Project
@@ -874,9 +797,7 @@ async def test_preview_ambiguous_range_not_resolved(
         for w in result.warnings
     )
 
-
 # --- Import validation integration tests ---
-
 
 FILE_URI_SCHEME_TTL = b"""
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
@@ -890,7 +811,6 @@ FILE_URI_SCHEME_TTL = b"""
     skos:prefLabel "Concept One" .
 """
 # Note: no @base, so rdflib resolves <MyScheme> etc. to file:// URIs
-
 
 UNRESOLVED_DOMAIN_IMPORT_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -907,7 +827,6 @@ ex:myProp a owl:DatatypeProperty ;
     rdfs:range xsd:string .
 """
 
-
 @pytest.mark.asyncio
 async def test_preview_file_uri_returns_invalid(
     import_service: SKOSImportService, project: Project
@@ -922,19 +841,16 @@ async def test_preview_file_uri_returns_invalid(
     assert len(error_issues) > 0
     assert any("file://" in vi.message for vi in error_issues)
 
-
 @pytest.mark.asyncio
 async def test_execute_file_uri_refused(
     import_service: SKOSImportService, project: Project
 ) -> None:
     """Execute refuses to import file with file:// URIs."""
-    from taxonomy_builder.services.skos_import_service import SKOSImportError
 
     with pytest.raises(SKOSImportError, match="file://"):
         await import_service.execute(
             project.id, FILE_URI_SCHEME_TTL, "test.ttl"
         )
-
 
 @pytest.mark.asyncio
 async def test_preview_includes_validation_warnings(
@@ -948,7 +864,6 @@ async def test_preview_includes_validation_warnings(
     assert result.valid is True
     warning_issues = [vi for vi in result.validation_issues if vi.severity == "warning"]
     assert any("NonExistentClass" in vi.message for vi in warning_issues)
-
 
 @pytest.mark.asyncio
 async def test_preview_includes_validation_issues(
@@ -967,7 +882,6 @@ async def test_preview_includes_validation_issues(
     ]
     assert len(warning_issues) >= 1
 
-
 @pytest.mark.asyncio
 async def test_execute_includes_validation_issues(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
@@ -983,9 +897,7 @@ async def test_execute_includes_validation_issues(
     ]
     assert len(warning_issues) >= 1
 
-
 # --- PropertyDomainClass join table tests (#110) ---
-
 
 SINGLE_DOMAIN_PROPERTY_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -1002,16 +914,11 @@ ex:title a owl:DatatypeProperty ;
     rdfs:range xsd:string .
 """
 
-
 @pytest.mark.asyncio
 async def test_execute_creates_property_domain_class_row(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Import of single-domain property creates one PropertyDomainClass join row."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
-    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 
     await import_service.execute(
         project.id, SINGLE_DOMAIN_PROPERTY_TTL, "test.ttl"
@@ -1040,7 +947,6 @@ async def test_execute_creates_property_domain_class_row(
     # Scalar column still populated
     assert prop.domain_class == "http://example.org/Finding"
 
-
 UNION_DOMAIN_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -1059,16 +965,11 @@ ex:supportingText a owl:DatatypeProperty ;
     rdfs:range xsd:string .
 """
 
-
 @pytest.mark.asyncio
 async def test_execute_creates_multi_domain_rows(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Import of 3-class union domain creates 3 PropertyDomainClass rows."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
-    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 
     await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
 
@@ -1099,16 +1000,11 @@ async def test_execute_creates_multi_domain_rows(
     # Scalar = first sorted URI
     assert prop.domain_class == "http://example.org/CodingAnnotation"
 
-
 @pytest.mark.asyncio
 async def test_execute_reimport_replaces_domain_rows(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Re-import with different union members replaces rows and updates scalar."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
-    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 
     # First import: 3-class union
     await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
@@ -1157,16 +1053,11 @@ ex:supportingText a owl:DatatypeProperty ;
     # Scalar updated to first sorted URI
     assert prop.domain_class == "http://example.org/Finding"
 
-
 @pytest.mark.asyncio
 async def test_execute_reimport_same_domain_idempotent(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Re-import with unchanged domain is a no-op."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
-    from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 
     await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
     await import_service.execute(project.id, UNION_DOMAIN_TTL, "test.ttl")
@@ -1187,7 +1078,6 @@ async def test_execute_reimport_same_domain_idempotent(
     # Still 3 rows, not duplicated
     assert len(rows) == 3
 
-
 @pytest.mark.asyncio
 async def test_preview_returns_domain_class_uris(
     import_service: SKOSImportService, project: Project
@@ -1205,9 +1095,7 @@ async def test_preview_returns_domain_class_uris(
         "http://example.org/Study",
     ]
 
-
 # --- property_type persistence tests (#111) ---
-
 
 PROPERTY_TYPE_TTL = b"""
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -1234,15 +1122,11 @@ ex:evaluates a owl:ObjectProperty ;
     rdfs:range ex:Finding .
 """
 
-
 @pytest.mark.asyncio
 async def test_execute_persists_property_type(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
     """Import persists property_type from parser for all three types."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.property import Property
 
     await import_service.execute(project.id, PROPERTY_TYPE_TTL, "test.ttl")
 
@@ -1257,9 +1141,7 @@ async def test_execute_persists_property_type(
     assert by_id["title"].property_type == "datatype"
     assert by_id["evaluates"].property_type == "object"
 
-
 # --- Restriction import tests (#144) ---
-
 
 RESTRICTION_IMPORT_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -1308,7 +1190,6 @@ ex:Secondary a ex:EducationLevelConcept , skos:Concept ;
     skos:broader ex:Primary .
 """
 
-
 @pytest.mark.asyncio
 async def test_import_restrictions(
     db_session: AsyncSession, project: Project, import_service: SKOSImportService,
@@ -1318,9 +1199,7 @@ async def test_import_restrictions(
     )
     assert len(result.classes_created) == 2
 
-    from sqlalchemy import select as sel
-
-    stmt = sel(OntologyClass).where(
+    stmt = select(OntologyClass).where(
         OntologyClass.project_id == project.id,
         OntologyClass.identifier == "StringAnnotation",
     )
@@ -1333,7 +1212,6 @@ async def test_import_restrictions(
     assert r.restriction_type == "allValuesFrom"
     assert r.value_uri == "http://www.w3.org/2001/XMLSchema#string"
 
-
 @pytest.mark.asyncio
 async def test_import_concept_typed_class(
     db_session: AsyncSession, project: Project, import_service: SKOSImportService,
@@ -1344,7 +1222,6 @@ async def test_import_concept_typed_class(
     class_identifiers = {c.identifier for c in result.classes_created}
     assert "EducationLevelConcept" in class_identifiers
 
-
 @pytest.mark.asyncio
 async def test_import_concept_type_uris(
     db_session: AsyncSession, project: Project, import_service: SKOSImportService,
@@ -1353,16 +1230,12 @@ async def test_import_concept_type_uris(
         project.id, DUAL_TYPED_CONCEPT_TTL, "test.ttl",
     )
 
-    from sqlalchemy import select as sel
-
-    stmt = sel(Concept).where(Concept.pref_label == "Primary")
+    stmt = select(Concept).where(Concept.pref_label == "Primary")
     concept = (await db_session.execute(stmt)).scalar_one()
 
     assert concept.concept_type_uris == ["http://example.org/EducationLevelConcept"]
 
-
 # --- Restriction re-import stability tests (#144) ---
-
 
 RESTRICTION_TWO_RULES_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -1397,16 +1270,12 @@ ex:targetScheme a rdf:Property ;
     rdfs:domain ex:CodingAnnotation .
 """
 
-
 @pytest.mark.asyncio
 async def test_reimport_restrictions_idempotent(
     db_session: AsyncSession, project: Project,
     import_service: SKOSImportService,
 ):
     """Re-importing the same file does not duplicate restrictions."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.class_restriction import ClassRestriction
 
     await import_service.execute(
         project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
@@ -1418,16 +1287,12 @@ async def test_reimport_restrictions_idempotent(
     rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
     assert len(rows) == 2
 
-
 @pytest.mark.asyncio
 async def test_reimport_restrictions_removes_stale(
     db_session: AsyncSession, project: Project,
     import_service: SKOSImportService,
 ):
     """Re-importing with fewer restrictions removes stale rows."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.class_restriction import ClassRestriction
 
     # First import: 2 restrictions (codedValue + targetScheme)
     await import_service.execute(
@@ -1443,7 +1308,6 @@ async def test_reimport_restrictions_removes_stale(
     rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
     assert len(rows) == 1
     assert rows[0].value_uri == "http://www.w3.org/2001/XMLSchema#string"
-
 
 RESTRICTION_NONE_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -1483,16 +1347,12 @@ ex:otherProp a rdf:Property ;
     rdfs:domain ex:OtherClass .
 """
 
-
 @pytest.mark.asyncio
 async def test_reimport_restrictions_clears_when_all_removed(
     db_session: AsyncSession, project: Project,
     import_service: SKOSImportService,
 ):
     """Re-importing a class with zero restrictions clears its old ones."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.class_restriction import ClassRestriction
 
     # First import: has restriction
     await import_service.execute(
@@ -1508,16 +1368,12 @@ async def test_reimport_restrictions_clears_when_all_removed(
     rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
     assert len(rows) == 0
 
-
 @pytest.mark.asyncio
 async def test_reimport_restrictions_does_not_touch_other_classes(
     db_session: AsyncSession, project: Project,
     import_service: SKOSImportService,
 ):
     """Re-importing file A must not delete restrictions from file B."""
-    from sqlalchemy import select
-
-    from taxonomy_builder.models.class_restriction import ClassRestriction
 
     # Import file A: StringAnnotation with restriction
     await import_service.execute(

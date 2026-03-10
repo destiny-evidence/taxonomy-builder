@@ -176,7 +176,11 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_with_range_scheme(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
+        self,
+        db_session: AsyncSession,
+        project: Project,
+        scheme: ConceptScheme,
+        property_service: PropertyService,
     ) -> None:
         """Test creating a property with range_scheme_id."""
         service = property_service
@@ -261,7 +265,11 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_scheme_not_in_project(
-        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme, property_service: PropertyService
+        self,
+        db_session: AsyncSession,
+        project: Project,
+        other_scheme: ConceptScheme,
+        property_service: PropertyService,
     ) -> None:
         """Test that referencing a scheme from another project raises error."""
         service = property_service
@@ -323,7 +331,10 @@ class TestCreateProperty:
 
     @pytest.mark.asyncio
     async def test_create_property_domain_class_from_different_project(
-        self, project: Project, other_ontology_class: OntologyClass, property_service: PropertyService
+        self,
+        project: Project,
+        other_ontology_class: OntologyClass,
+        property_service: PropertyService,
     ) -> None:
         """Test that a domain class URI from a different project is rejected."""
         service = property_service
@@ -384,7 +395,12 @@ class TestListProperties:
 
     @pytest.mark.asyncio
     async def test_list_properties_excludes_other_projects(
-        self, db_session: AsyncSession, project: Project, other_project: Project, other_ontology_class: OntologyClass, property_service: PropertyService
+        self,
+        db_session: AsyncSession,
+        project: Project,
+        other_project: Project,
+        other_ontology_class: OntologyClass,
+        property_service: PropertyService,
     ) -> None:
         """Test that listing only returns properties for the specified project."""
         service = property_service
@@ -536,7 +552,11 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_change_range_scheme(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
+        self,
+        db_session: AsyncSession,
+        project: Project,
+        scheme: ConceptScheme,
+        property_service: PropertyService,
     ) -> None:
         """Test updating a property to use a different range scheme."""
         # Create a second scheme
@@ -567,7 +587,11 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_change_from_scheme_to_datatype(
-        self, db_session: AsyncSession, project: Project, scheme: ConceptScheme, property_service: PropertyService
+        self,
+        db_session: AsyncSession,
+        project: Project,
+        scheme: ConceptScheme,
+        property_service: PropertyService,
     ) -> None:
         """Test updating from range_scheme_id to range_datatype."""
         service = property_service
@@ -616,7 +640,11 @@ class TestUpdateProperty:
 
     @pytest.mark.asyncio
     async def test_update_property_invalid_range_scheme(
-        self, db_session: AsyncSession, project: Project, other_scheme: ConceptScheme, property_service: PropertyService
+        self,
+        db_session: AsyncSession,
+        project: Project,
+        other_scheme: ConceptScheme,
+        property_service: PropertyService,
     ) -> None:
         """Test that updating to a scheme from another project raises error."""
         service = property_service

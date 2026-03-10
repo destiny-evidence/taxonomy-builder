@@ -47,7 +47,11 @@ async def test_list_schemes_empty(authenticated_client: AsyncClient, project: Pr
 
 
 @pytest.mark.asyncio
-async def test_list_schemes(authenticated_client: AsyncClient, project: Project, scheme: ConceptScheme) -> None:
+async def test_list_schemes(
+    authenticated_client: AsyncClient,
+    project: Project,
+    scheme: ConceptScheme,
+) -> None:
     """Test listing schemes returns all schemes for project."""
     response = await authenticated_client.get(f"/api/projects/{project.id}/schemes")
     assert response.status_code == 200
@@ -89,7 +93,10 @@ async def test_create_scheme(authenticated_client: AsyncClient, project: Project
 
 
 @pytest.mark.asyncio
-async def test_create_scheme_title_only(authenticated_client: AsyncClient, project: Project) -> None:
+async def test_create_scheme_title_only(
+    authenticated_client: AsyncClient,
+    project: Project,
+) -> None:
     """Test creating a scheme with only title."""
     response = await authenticated_client.post(
         f"/api/projects/{project.id}/schemes",
@@ -115,7 +122,10 @@ async def test_create_scheme_duplicate_title(
 
 
 @pytest.mark.asyncio
-async def test_create_scheme_empty_title(authenticated_client: AsyncClient, project: Project) -> None:
+async def test_create_scheme_empty_title(
+    authenticated_client: AsyncClient,
+    project: Project,
+) -> None:
     """Test creating a scheme with empty title fails."""
     response = await authenticated_client.post(
         f"/api/projects/{project.id}/schemes",
@@ -184,7 +194,10 @@ async def test_update_scheme(authenticated_client: AsyncClient, scheme: ConceptS
 
 
 @pytest.mark.asyncio
-async def test_update_scheme_partial(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_update_scheme_partial(
+    authenticated_client: AsyncClient,
+    scheme: ConceptScheme,
+) -> None:
     """Test partial update of a scheme."""
     response = await authenticated_client.put(
         f"/api/schemes/{scheme.id}",
@@ -208,7 +221,10 @@ async def test_update_scheme_not_found(authenticated_client: AsyncClient) -> Non
 
 @pytest.mark.asyncio
 async def test_update_scheme_duplicate_title(
-    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    project: Project,
+    scheme: ConceptScheme,
 ) -> None:
     """Test updating scheme to duplicate title fails."""
     # Create another scheme
@@ -247,7 +263,10 @@ async def test_delete_scheme_not_found(authenticated_client: AsyncClient) -> Non
 
 @pytest.mark.asyncio
 async def test_delete_scheme_referenced_by_property(
-    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    project: Project,
+    scheme: ConceptScheme,
 ) -> None:
     """Test deleting a scheme that is referenced by a property fails."""
     from taxonomy_builder.models.property import Property

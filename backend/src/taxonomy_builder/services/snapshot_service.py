@@ -119,7 +119,10 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                     errors.append(
                         ValidationError(
                             code="broken_broader_ref",
-                            message=f"Concept '{concept.pref_label}' has a broader reference to a non-existent concept.",
+                            message=(
+                                f"Concept '{concept.pref_label}' has a broader"
+                                " reference to a non-existent concept."
+                            ),
                             entity_type="concept",
                             entity_id=concept.id,
                             entity_label=concept.pref_label,
@@ -130,7 +133,10 @@ def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:
                     errors.append(
                         ValidationError(
                             code="broken_related_ref",
-                            message=f"Concept '{concept.pref_label}' has a related reference to a non-existent concept.",
+                            message=(
+                                f"Concept '{concept.pref_label}' has a related"
+                                " reference to a non-existent concept."
+                            ),
                             entity_type="concept",
                             entity_id=concept.id,
                             entity_label=concept.pref_label,

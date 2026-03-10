@@ -13,30 +13,6 @@ from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.change_tracker import ChangeTracker
 
 
-@pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a concept scheme for testing."""
-    scheme = ConceptScheme(
-        project_id=project.id,
-        title="Test Scheme",
-        uri="http://example.org/concepts",
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
-
-
 @pytest.mark.asyncio
 async def test_record_creates_change_event(
     db_session: AsyncSession, project: Project, scheme: ConceptScheme

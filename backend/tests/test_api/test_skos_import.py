@@ -9,17 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 
-
-@pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
 # Sample SKOS files for testing
 
 SIMPLE_SCHEME_TTL = b"""
@@ -203,7 +192,8 @@ async def test_import_invalid_rdf(
     )
 
     assert response.status_code == 400
-    assert "parse" in response.json()["detail"].lower() or "rdf" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "parse" in detail or "rdf" in detail
 
 
 @pytest.mark.asyncio

@@ -13,16 +13,6 @@ from taxonomy_builder.models.project import Project
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
     scheme = ConceptScheme(
@@ -201,7 +191,10 @@ async def test_export_invalid_format(
 
 
 @pytest.mark.asyncio
-async def test_export_empty_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_export_empty_scheme(
+    authenticated_client: AsyncClient,
+    scheme: ConceptScheme,
+) -> None:
     """Test export works for scheme with no concepts."""
     response = await authenticated_client.get(f"/api/schemes/{scheme.id}/export")
 

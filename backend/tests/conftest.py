@@ -12,6 +12,8 @@ from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import Base, db_manager, get_db
 from taxonomy_builder.main import app
+from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.user import User
 
 
@@ -112,6 +114,36 @@ async def test_user(db_session: AsyncSession) -> User:
     # Detach from session to prevent expired state issues across requests
     db_session.expunge(user)
     return user
+
+
+@pytest.fixture
+async def project(db_session: AsyncSession) -> Project:
+    """Create a test project.
+
+    Override in test files that need a namespace, description, or different name.
+    """
+    project = Project(name="Test Project")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.fixture
+async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
+    """Create a test concept scheme.
+
+    Override in test files that need a different title, URI, or description.
+    """
+    scheme = ConceptScheme(
+        project_id=project.id,
+        title="Test Scheme",
+        uri="http://example.org/concepts",
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+    await db_session.refresh(scheme)
+    return scheme
 
 
 @pytest.fixture

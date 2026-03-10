@@ -134,7 +134,11 @@ class CommentService:
             top_level_subq = (
                 select(Comment.id)
                 .where(Comment.concept_id == concept_id, Comment.parent_comment_id.is_(None))
-                .where(Comment.resolved_at.isnot(None) if resolved else Comment.resolved_at.is_(None))
+                .where(
+                    Comment.resolved_at.isnot(None)
+                    if resolved
+                    else Comment.resolved_at.is_(None)
+                )
             )
             # Get top-level + their replies in one query
             query = query.where(

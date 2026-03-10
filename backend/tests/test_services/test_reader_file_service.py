@@ -583,7 +583,9 @@ class TestPublishReaderFiles:
                 pass
 
         version = await self._publish(db_session, publishable)
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, RecordingPurger())
+        service = ReaderFileService(
+            self._make_publishing_service(db_session), blob_store, RecordingPurger()
+        )
         await service.publish_reader_files(version)
 
         assert len(purged) == 1
@@ -607,7 +609,9 @@ class TestPublishReaderFiles:
 
         # First publish a release
         v1 = await self._publish(db_session, publishable, "1.0")
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, RecordingPurger())
+        service = ReaderFileService(
+            self._make_publishing_service(db_session), blob_store, RecordingPurger()
+        )
         await service.publish_reader_files(v1)
 
         # Now publish a pre-release
@@ -636,7 +640,9 @@ class TestPublishReaderFiles:
         version = await self._publish(
             db_session, publishable, "1.0-pre1", pre_release=True
         )
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, RecordingPurger())
+        service = ReaderFileService(
+            self._make_publishing_service(db_session), blob_store, RecordingPurger()
+        )
         await service.publish_reader_files(version)
 
         assert (tmp_path / "index.json").exists()

@@ -259,7 +259,8 @@ def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
             severity="warning",
             type="unsupported_restriction",
             message=(
-                f"Found {len(restrictions)} unsupported OWL restriction{'s' if len(restrictions) != 1 else ''} "
+                f"Found {len(restrictions)} unsupported OWL "
+                f"restriction{'s' if len(restrictions) != 1 else ''} "
                 f"that will be dropped on import: {details}"
             ),
         ))

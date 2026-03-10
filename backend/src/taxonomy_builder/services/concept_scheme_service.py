@@ -43,7 +43,8 @@ class SchemeReferencedByPropertyError(Exception):
     def __init__(self, scheme_id: UUID) -> None:
         self.scheme_id = scheme_id
         super().__init__(
-            f"Concept scheme '{scheme_id}' cannot be deleted because it is referenced by one or more properties"
+            f"Concept scheme '{scheme_id}' cannot be deleted because"
+            " it is referenced by one or more properties"
         )
 
 
