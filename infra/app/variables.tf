@@ -96,10 +96,15 @@ variable "keycloak_image_tag" {
   default     = "26"
 }
 
-variable "keycloak_realm_name" {
-  description = "Name of the Keycloak realm to create"
+variable "keycloak_url" {
+  description = "Base URL of the shared Keycloak instance"
   type        = string
-  default     = "taxonomy-builder"
+}
+
+variable "keycloak_realm_name" {
+  description = "Name of the Keycloak realm"
+  type        = string
+  default     = "destiny"
 }
 
 variable "existing_keycloak_realm_id" {
