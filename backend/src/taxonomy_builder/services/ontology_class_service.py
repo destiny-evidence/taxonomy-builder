@@ -62,7 +62,8 @@ class OntologyClassReferencedByPropertyError(Exception):
     def __init__(self, class_id: UUID) -> None:
         self.class_id = class_id
         super().__init__(
-            f"Ontology class '{class_id}' cannot be deleted because it is referenced by one or more properties"
+            f"Ontology class '{class_id}' cannot be deleted because"
+            " it is referenced by one or more properties"
         )
 
 

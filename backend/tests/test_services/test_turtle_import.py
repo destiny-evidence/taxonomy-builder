@@ -21,12 +21,6 @@ async def project(db_session: AsyncSession) -> Project:
     return project
 
 
-@pytest.fixture
-def import_service(db_session: AsyncSession) -> SKOSImportService:
-    """Create import service instance."""
-    return SKOSImportService(db_session)
-
-
 # --- Test data ---
 
 # Full ontology: classes, concept-subclasses, schemes, concepts, properties

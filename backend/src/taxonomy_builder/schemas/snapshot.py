@@ -14,10 +14,9 @@ from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
-
-from taxonomy_builder.models.class_restriction import RestrictionType
 from pydantic_core import PydanticCustomError
 
+from taxonomy_builder.models.class_restriction import RestrictionType
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.ontology_class import OntologyClass
