@@ -407,7 +407,7 @@ async def test_resolve_comment(
     assert response.status_code == 204
 
     # Verify comment is resolved
-    db_session.refresh(comment)
+    await db_session.refresh(comment)
     assert comment.resolved_at is not None
     assert comment.resolved_by == user.id
 
