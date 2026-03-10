@@ -11,11 +11,11 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotProperty,
+    SnapshotRestriction,
     SnapshotScheme,
     SnapshotVocabulary,
 )
 from taxonomy_builder.services.snapshot_service import validate_snapshot
-
 
 # ---------------------------------------------------------------------------
 # Lightweight stubs for ORM objects so we can test from_* factory methods
@@ -34,6 +34,7 @@ def _stub_concept(**overrides):
         alt_labels=[],
         broader=[],
         related=[],
+        concept_type_uris=[],
     )
     return SimpleNamespace(**(defaults | overrides))
 
@@ -69,6 +70,7 @@ def _stub_ontology_class(**overrides):
         description=None,
         scope_note=None,
         superclasses=[],
+        restrictions=[],
     )
     return SimpleNamespace(**(defaults | overrides))
 
@@ -396,6 +398,20 @@ class TestSnapshotConceptTypeUris:
         concept = SnapshotConcept.from_concept(_stub_concept())
         assert concept.concept_type_uris == []
 
+    def test_from_concept_populates_type_uris(self) -> None:
+        """from_concept() should read and sort concept_type_uris from model."""
+        stub = _stub_concept(
+            concept_type_uris=[
+                "http://example.org/ZetaConcept",
+                "http://example.org/AlphaConcept",
+            ],
+        )
+        concept = SnapshotConcept.from_concept(stub)
+        assert concept.concept_type_uris == [
+            "http://example.org/AlphaConcept",
+            "http://example.org/ZetaConcept",
+        ]
+
 
 class TestSnapshotPropertyNewFields:
     """SnapshotProperty should carry property_type and domain_class_uris."""
@@ -660,3 +676,41 @@ class TestBrokenDomainClassRef:
         scheme = _scheme(concepts=[concept])
         result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
         assert result.valid is True
+
+
+class TestSnapshotClassRestrictions:
+    """SnapshotClass should carry restrictions field."""
+
+    def test_restrictions_field_on_construct(self) -> None:
+        cls = SnapshotClass.model_construct(
+            id=uuid4(),
+            identifier="StringAnnotation",
+            uri="http://example.org/StringAnnotation",
+            label="String Annotation",
+            superclass_uris=["http://example.org/CodingAnnotation"],
+            restrictions=[SnapshotRestriction(
+                on_property_uri="http://example.org/codedValue",
+                restriction_type="allValuesFrom",
+                value_uri="http://www.w3.org/2001/XMLSchema#string",
+            )],
+        )
+        assert len(cls.restrictions) == 1
+        assert cls.restrictions[0].restriction_type == "allValuesFrom"
+
+    def test_from_class_populates_restrictions(self) -> None:
+        restriction = SimpleNamespace(
+            on_property_uri="http://example.org/codedValue",
+            restriction_type="allValuesFrom",
+            value_uri="http://www.w3.org/2001/XMLSchema#string",
+        )
+        stub = _stub_ontology_class(restrictions=[restriction])
+        cls = SnapshotClass.from_class(stub)
+        assert len(cls.restrictions) == 1
+        r = cls.restrictions[0]
+        assert r.on_property_uri == "http://example.org/codedValue"
+        assert r.restriction_type == "allValuesFrom"
+        assert r.value_uri == "http://www.w3.org/2001/XMLSchema#string"
+
+    def test_from_class_empty_restrictions(self) -> None:
+        cls = SnapshotClass.from_class(_stub_ontology_class())
+        assert cls.restrictions == []

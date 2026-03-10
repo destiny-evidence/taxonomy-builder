@@ -14,6 +14,8 @@ from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+
+from taxonomy_builder.models.class_restriction import RestrictionType
 from pydantic_core import PydanticCustomError
 
 from taxonomy_builder.models.concept import Concept
@@ -82,7 +84,7 @@ class SnapshotConcept(BaseModel):
             alt_labels=list(concept.alt_labels),
             broader_ids=[b.id for b in concept.broader],
             related_ids=[r.id for r in concept.related],
-            concept_type_uris=[],
+            concept_type_uris=sorted(concept.concept_type_uris or []),
         )
 
 
@@ -254,6 +256,14 @@ class SnapshotProperty(BaseModel):
         )
 
 
+class SnapshotRestriction(BaseModel):
+    """An OWL restriction on an ontology class (structured pass-through)."""
+
+    on_property_uri: str
+    restriction_type: RestrictionType
+    value_uri: str
+
+
 class SnapshotClass(BaseModel):
     """An ontology class within a snapshot."""
 
@@ -264,6 +274,7 @@ class SnapshotClass(BaseModel):
     description: str | None = None
     scope_note: str | None = None
     superclass_uris: list[str] = Field(default_factory=list)
+    restrictions: list[SnapshotRestriction] = Field(default_factory=list)
 
     @field_validator("label", mode="after")
     @classmethod
@@ -308,6 +319,17 @@ class SnapshotClass(BaseModel):
             scope_note=ontology_class.scope_note,
             superclass_uris=sorted(
                 sc.uri for sc in ontology_class.superclasses if sc.uri
+            ),
+            restrictions=sorted(
+                [
+                    SnapshotRestriction(
+                        on_property_uri=r.on_property_uri,
+                        restriction_type=r.restriction_type,
+                        value_uri=r.value_uri,
+                    )
+                    for r in ontology_class.restrictions
+                ],
+                key=lambda r: (r.on_property_uri, r.restriction_type, r.value_uri),
             ),
         )
 

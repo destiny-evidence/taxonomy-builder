@@ -1,12 +1,15 @@
 """Tests for RDF parser validation — validate_graph() and rdf:Property support."""
 
-from rdflib import Graph
+from rdflib import Graph, URIRef
 
 from taxonomy_builder.services.rdf_parser import (
     ValidationResult,
     detect_superclass_cycles,
     extract_class_metadata,
+    extract_concept_type_uris,
     extract_property_metadata,
+    extract_restrictions,
+    find_owl_classes,
     find_properties,
     parse_rdf,
     validate_graph,
@@ -273,7 +276,6 @@ def test_extract_class_metadata_includes_superclass_uris():
     """extract_class_metadata() should include superclass_uris for classes with rdfs:subClassOf."""
     g = _graph(SUBCLASS_OF_CLASSES_TTL)
 
-    from rdflib import URIRef
     obs_uri = URIRef("http://example.org/ObservedResult")
     metadata = extract_class_metadata(g, obs_uri, exclude_superclass_uris=set())
     assert metadata["superclass_uris"] == ["http://example.org/Finding"]
@@ -282,7 +284,6 @@ def test_extract_class_metadata_includes_superclass_uris():
 def test_extract_class_metadata_no_superclass():
     """Classes without rdfs:subClassOf should have empty superclass_uris."""
     g = _graph(SUBCLASS_OF_CLASSES_TTL)
-    from rdflib import URIRef
     finding_uri = URIRef("http://example.org/Finding")
     metadata = extract_class_metadata(g, finding_uri, exclude_superclass_uris=set())
     assert metadata["superclass_uris"] == []
@@ -303,7 +304,6 @@ ex:SpecialConcept a owl:Class ;
     rdfs:subClassOf ex:ConceptType .
 """
     g = _graph(ttl)
-    from rdflib import URIRef
 
     from taxonomy_builder.services.rdf_parser import find_concept_subclasses
     concept_subs = find_concept_subclasses(g)
@@ -332,7 +332,6 @@ ex:Child a owl:Class ;
     ] .
 """
     g = _graph(ttl)
-    from rdflib import URIRef
     child_uri = URIRef("http://example.org/Child")
     metadata = extract_class_metadata(g, child_uri, exclude_superclass_uris=set())
     # Only the named URIRef superclass, not the blank node restriction
@@ -653,16 +652,13 @@ ex:StringAnnotation a owl:Class ;
 """
 
 
-def test_all_values_from_restriction_enumerated():
-    """allValuesFrom restrictions are enumerated with property and value in the warning."""
+def test_all_values_from_restriction_not_warned():
+    """allValuesFrom restrictions are now handled — no unsupported_restriction warning."""
     g = _graph(OWL_ALL_VALUES_FROM_TTL)
     result = validate_graph(g, set())
 
     restriction_warnings = [w for w in result.warnings if w.type == "unsupported_restriction"]
-    assert len(restriction_warnings) == 1
-    assert "codedValue" in restriction_warnings[0].message
-    assert "allValuesFrom" in restriction_warnings[0].message
-    assert "StringType" in restriction_warnings[0].message
+    assert len(restriction_warnings) == 0
 
 
 # --- Empty graph detection ---
@@ -704,3 +700,204 @@ def test_validation_result_categorises_correctly():
     assert isinstance(result.errors, list)
     assert isinstance(result.warnings, list)
     assert isinstance(result.info, list)
+
+
+# --- Restriction extraction (#144) ---
+
+
+RESTRICTION_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:CodingAnnotation a owl:Class ;
+    rdfs:label "CodingAnnotation" .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf ex:CodingAnnotation ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:codedValue ;
+        owl:allValuesFrom xsd:string
+    ] ;
+    rdfs:label "String Annotation" .
+
+ex:codedValue a rdf:Property ;
+    rdfs:label "coded value" .
+"""
+
+CONCEPT_TYPED_CLASS_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ex: <http://example.org/> .
+
+ex:EducationLevelConcept a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Education Level Concept" .
+
+ex:EducationLevelScheme a skos:ConceptScheme ;
+    rdfs:label "Education Levels" .
+
+ex:Primary a ex:EducationLevelConcept , skos:Concept ;
+    skos:inScheme ex:EducationLevelScheme ;
+    skos:prefLabel "Primary" .
+"""
+
+
+def test_extract_restrictions():
+    g = _graph(RESTRICTION_TTL)
+    class_uris = find_owl_classes(g)
+    class_uri_set = {str(u) for u in class_uris}
+
+    restrictions = extract_restrictions(g, class_uri_set)
+
+    assert len(restrictions) == 1
+    r = restrictions[0]
+    assert r["class_uri"] == "http://example.org/StringAnnotation"
+    assert r["on_property_uri"] == "http://example.org/codedValue"
+    assert r["restriction_type"] == "allValuesFrom"
+    assert r["value_uri"] == "http://www.w3.org/2001/XMLSchema#string"
+
+
+def test_extract_restrictions_multiple():
+    """Multiple restrictions on different classes."""
+    ttl = b"""
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix ex: <http://example.org/> .
+
+    ex:Base a owl:Class ; rdfs:label "Base" .
+    ex:ClassA a owl:Class ;
+        rdfs:subClassOf ex:Base ;
+        rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty ex:value ;
+            owl:allValuesFrom xsd:string ] ;
+        rdfs:label "A" .
+    ex:ClassB a owl:Class ;
+        rdfs:subClassOf ex:Base ;
+        rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty ex:value ;
+            owl:allValuesFrom xsd:integer ] ;
+        rdfs:label "B" .
+    """
+    g = _graph(ttl)
+    class_uris = find_owl_classes(g)
+
+    restrictions = extract_restrictions(g, {str(u) for u in class_uris})
+    assert len(restrictions) == 2
+
+
+def test_extract_concept_type_uris():
+    g = _graph(CONCEPT_TYPED_CLASS_TTL)
+
+    concept_uri = URIRef("http://example.org/Primary")
+    type_uris = extract_concept_type_uris(g, concept_uri)
+
+    assert type_uris == ["http://example.org/EducationLevelConcept"]
+
+
+def test_extract_concept_type_uris_plain_concept():
+    """A plain skos:Concept should have no extra type URIs."""
+    ttl = b"""
+    @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+    @prefix ex: <http://example.org/> .
+
+    ex:Scheme a skos:ConceptScheme ; skos:prefLabel "S" .
+    ex:Concept1 a skos:Concept ;
+        skos:inScheme ex:Scheme ;
+        skos:prefLabel "C1" .
+    """
+    g = _graph(ttl)
+
+    type_uris = extract_concept_type_uris(g, URIRef("http://example.org/Concept1"))
+    assert type_uris == []
+
+
+def test_extract_concept_type_uris_captures_all_non_skos():
+    """Round-trip fidelity: capture ALL rdf:type URIs, not just concept subclasses."""
+    ttl = b"""
+    @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix ex: <http://example.org/> .
+
+    ex:Scheme a skos:ConceptScheme ; skos:prefLabel "S" .
+    ex:Thing a skos:Concept , ex:MarkerClass ;
+        skos:inScheme ex:Scheme ;
+        skos:prefLabel "Thing" .
+    """
+    g = _graph(ttl)
+
+    type_uris = extract_concept_type_uris(g, URIRef("http://example.org/Thing"))
+    assert "http://example.org/MarkerClass" in type_uris
+
+
+def test_find_owl_classes_includes_concept_typed():
+    """find_owl_classes should include concept-typed classes (subClassOf skos:Concept)."""
+    g = _graph(CONCEPT_TYPED_CLASS_TTL)
+
+    classes = find_owl_classes(g)
+    class_uris = {str(c) for c in classes}
+    assert "http://example.org/EducationLevelConcept" in class_uris
+
+
+def test_extract_class_metadata_includes_skos_concept_superclass():
+    """Concept-typed classes should have skos:Concept in superclass_uris."""
+    g = _graph(CONCEPT_TYPED_CLASS_TTL)
+
+    uri = URIRef("http://example.org/EducationLevelConcept")
+    metadata = extract_class_metadata(g, uri)
+
+    assert "http://www.w3.org/2004/02/skos/core#Concept" in metadata["superclass_uris"]
+
+
+def test_somevaluesfrom_restriction_extracted():
+    """someValuesFrom should be extracted, not warned about."""
+    ttl = b"""
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix ex: <http://example.org/> .
+
+    ex:Cls a owl:Class ;
+        rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty ex:prop ;
+            owl:someValuesFrom ex:Range ] ;
+        rdfs:label "Cls" .
+    """
+    g = _graph(ttl)
+
+    restrictions = extract_restrictions(g, {"http://example.org/Cls"})
+    assert len(restrictions) == 1
+    assert restrictions[0]["restriction_type"] == "someValuesFrom"
+    assert restrictions[0]["value_uri"] == "http://example.org/Range"
+
+    # No unsupported warning
+    result = validate_graph(g, {"http://example.org/Cls"})
+    restriction_warnings = [
+        w for w in result.warnings if w.type == "unsupported_restriction"
+    ]
+    assert len(restriction_warnings) == 0
+
+
+def test_hasvalue_restriction_extracted():
+    """hasValue should be extracted."""
+    ttl = b"""
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix ex: <http://example.org/> .
+
+    ex:Cls a owl:Class ;
+        rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty ex:status ;
+            owl:hasValue ex:Active ] ;
+        rdfs:label "Cls" .
+    """
+    g = _graph(ttl)
+
+    restrictions = extract_restrictions(g, {"http://example.org/Cls"})
+    assert len(restrictions) == 1
+    assert restrictions[0]["restriction_type"] == "hasValue"
+    assert restrictions[0]["value_uri"] == "http://example.org/Active"

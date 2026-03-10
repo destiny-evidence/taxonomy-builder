@@ -3,7 +3,9 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.skos_import_service import (
     InvalidRDFError,
@@ -1254,3 +1256,285 @@ async def test_execute_persists_property_type(
     assert by_id["supportingText"].property_type == "rdf"
     assert by_id["title"].property_type == "datatype"
     assert by_id["evaluates"].property_type == "object"
+
+
+# --- Restriction import tests (#144) ---
+
+
+RESTRICTION_IMPORT_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:CodingAnnotation a owl:Class ;
+    rdfs:label "CodingAnnotation" .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf ex:CodingAnnotation ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:codedValue ;
+        owl:allValuesFrom xsd:string
+    ] ;
+    rdfs:label "String Annotation" .
+
+ex:codedValue a rdf:Property ;
+    rdfs:label "coded value" ;
+    rdfs:domain ex:CodingAnnotation .
+"""
+
+DUAL_TYPED_CONCEPT_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ex: <http://example.org/> .
+
+ex:EducationLevelConcept a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Education Level Concept" .
+
+ex:EducationLevelScheme a skos:ConceptScheme ;
+    rdfs:label "Education Levels" .
+
+ex:Primary a ex:EducationLevelConcept , skos:Concept ;
+    skos:inScheme ex:EducationLevelScheme ;
+    skos:prefLabel "Primary" .
+
+ex:Secondary a ex:EducationLevelConcept , skos:Concept ;
+    skos:inScheme ex:EducationLevelScheme ;
+    skos:prefLabel "Secondary" ;
+    skos:broader ex:Primary .
+"""
+
+
+@pytest.mark.asyncio
+async def test_import_restrictions(
+    db_session: AsyncSession, project: Project, import_service: SKOSImportService,
+):
+    result = await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "test.ttl",
+    )
+    assert len(result.classes_created) == 2
+
+    from sqlalchemy import select as sel
+
+    stmt = sel(OntologyClass).where(
+        OntologyClass.project_id == project.id,
+        OntologyClass.identifier == "StringAnnotation",
+    )
+    cls = (await db_session.execute(stmt)).scalar_one()
+    await db_session.refresh(cls)
+
+    assert len(cls.restrictions) == 1
+    r = cls.restrictions[0]
+    assert r.on_property_uri == "http://example.org/codedValue"
+    assert r.restriction_type == "allValuesFrom"
+    assert r.value_uri == "http://www.w3.org/2001/XMLSchema#string"
+
+
+@pytest.mark.asyncio
+async def test_import_concept_typed_class(
+    db_session: AsyncSession, project: Project, import_service: SKOSImportService,
+):
+    result = await import_service.execute(
+        project.id, DUAL_TYPED_CONCEPT_TTL, "test.ttl",
+    )
+    class_identifiers = {c.identifier for c in result.classes_created}
+    assert "EducationLevelConcept" in class_identifiers
+
+
+@pytest.mark.asyncio
+async def test_import_concept_type_uris(
+    db_session: AsyncSession, project: Project, import_service: SKOSImportService,
+):
+    await import_service.execute(
+        project.id, DUAL_TYPED_CONCEPT_TTL, "test.ttl",
+    )
+
+    from sqlalchemy import select as sel
+
+    stmt = sel(Concept).where(Concept.pref_label == "Primary")
+    concept = (await db_session.execute(stmt)).scalar_one()
+
+    assert concept.concept_type_uris == ["http://example.org/EducationLevelConcept"]
+
+
+# --- Restriction re-import stability tests (#144) ---
+
+
+RESTRICTION_TWO_RULES_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:CodingAnnotation a owl:Class ;
+    rdfs:label "CodingAnnotation" .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf ex:CodingAnnotation ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:codedValue ;
+        owl:allValuesFrom xsd:string
+    ] ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:targetScheme ;
+        owl:allValuesFrom ex:CodingAnnotation
+    ] ;
+    rdfs:label "String Annotation" .
+
+ex:codedValue a rdf:Property ;
+    rdfs:label "coded value" ;
+    rdfs:domain ex:CodingAnnotation .
+
+ex:targetScheme a rdf:Property ;
+    rdfs:label "target scheme" ;
+    rdfs:domain ex:CodingAnnotation .
+"""
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_idempotent(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing the same file does not duplicate restrictions."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    await import_service.execute(
+        project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
+    )
+    await import_service.execute(
+        project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
+    )
+
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_removes_stale(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing with fewer restrictions removes stale rows."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    # First import: 2 restrictions (codedValue + targetScheme)
+    await import_service.execute(
+        project.id, RESTRICTION_TWO_RULES_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 2
+
+    # Second import: only 1 restriction (codedValue only)
+    await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].value_uri == "http://www.w3.org/2001/XMLSchema#string"
+
+
+RESTRICTION_NONE_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:CodingAnnotation a owl:Class ;
+    rdfs:label "CodingAnnotation" .
+
+ex:StringAnnotation a owl:Class ;
+    rdfs:subClassOf ex:CodingAnnotation ;
+    rdfs:label "String Annotation" .
+
+ex:codedValue a rdf:Property ;
+    rdfs:label "coded value" ;
+    rdfs:domain ex:CodingAnnotation .
+"""
+
+RESTRICTION_OTHER_CLASS_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/> .
+
+ex:OtherClass a owl:Class ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:otherProp ;
+        owl:allValuesFrom xsd:integer
+    ] ;
+    rdfs:label "Other Class" .
+
+ex:otherProp a rdf:Property ;
+    rdfs:label "other prop" ;
+    rdfs:domain ex:OtherClass .
+"""
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_clears_when_all_removed(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing a class with zero restrictions clears its old ones."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    # First import: has restriction
+    await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 1
+
+    # Second import: same class, no restrictions
+    await import_service.execute(
+        project.id, RESTRICTION_NONE_TTL, "test.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_reimport_restrictions_does_not_touch_other_classes(
+    db_session: AsyncSession, project: Project,
+    import_service: SKOSImportService,
+):
+    """Re-importing file A must not delete restrictions from file B."""
+    from sqlalchemy import select
+
+    from taxonomy_builder.models.class_restriction import ClassRestriction
+
+    # Import file A: StringAnnotation with restriction
+    await import_service.execute(
+        project.id, RESTRICTION_IMPORT_TTL, "a.ttl",
+    )
+    # Import file B: OtherClass with restriction
+    await import_service.execute(
+        project.id, RESTRICTION_OTHER_CLASS_TTL, "b.ttl",
+    )
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 2
+
+    # Re-import file A without restrictions
+    await import_service.execute(
+        project.id, RESTRICTION_NONE_TTL, "a.ttl",
+    )
+    # StringAnnotation's restriction gone, OtherClass's survives
+    rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].on_property_uri == "http://example.org/otherProp"

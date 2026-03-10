@@ -19,6 +19,7 @@ from taxonomy_builder.schemas.snapshot import (
     SnapshotConcept,
     SnapshotProjectMetadata,
     SnapshotProperty,
+    SnapshotRestriction,
     SnapshotScheme,
     SnapshotVocabulary,
 )
@@ -1234,3 +1235,125 @@ async def test_export_rdf_property_with_range(
     assert (prop_uri, RDF.type, OWL.DatatypeProperty) not in g
     # Range should still be emitted
     assert g.value(prop_uri, RDFS.range) == XSD.string
+
+
+# --- Restriction and concept dual-typing export tests (#144) ---
+
+
+@pytest.mark.asyncio
+async def test_export_restriction_blank_nodes(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """Restrictions should produce rdfs:subClassOf blank node with owl:Restriction."""
+    from rdflib import BNode, URIRef
+
+    snap = _make_published_snapshot(
+        project,
+        properties=[],
+        classes=[
+            SnapshotClass.model_construct(
+                id=uuid4(),
+                identifier="CodingAnnotation",
+                label="CodingAnnotation",
+                uri="http://example.org/CodingAnnotation",
+                superclass_uris=[],
+                restrictions=[],
+            ),
+            SnapshotClass.model_construct(
+                id=uuid4(),
+                identifier="StringAnnotation",
+                label="String Annotation",
+                uri="http://example.org/StringAnnotation",
+                superclass_uris=["http://example.org/CodingAnnotation"],
+                restrictions=[SnapshotRestriction(
+                    on_property_uri="http://example.org/codedValue",
+                    restriction_type="allValuesFrom",
+                    value_uri="http://www.w3.org/2001/XMLSchema#string",
+                )],
+            ),
+        ],
+    )
+    pv = PublishedVersion(
+        project_id=project.id, version="1.0", title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    class_uri = URIRef("http://example.org/StringAnnotation")
+    subclass_objects = list(g.objects(class_uri, RDFS.subClassOf))
+
+    # Should have 2 subClassOf: one URIRef (CodingAnnotation) + one BNode (restriction)
+    uriref_supers = [o for o in subclass_objects if isinstance(o, URIRef)]
+    bnodes = [o for o in subclass_objects if isinstance(o, BNode)]
+    assert len(uriref_supers) == 1
+    assert str(uriref_supers[0]) == "http://example.org/CodingAnnotation"
+    assert len(bnodes) == 1
+
+    bnode = bnodes[0]
+    assert (bnode, RDF.type, OWL.Restriction) in g
+    assert (bnode, OWL.onProperty, URIRef("http://example.org/codedValue")) in g
+    assert (bnode, OWL.allValuesFrom, URIRef("http://www.w3.org/2001/XMLSchema#string")) in g
+
+
+@pytest.mark.asyncio
+async def test_export_concept_dual_typing(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """Concepts with concept_type_uris should get additional rdf:type triples."""
+    from rdflib import URIRef
+
+    concept_id = uuid4()
+    snap = SnapshotVocabulary.model_construct(
+        project=SnapshotProjectMetadata.model_construct(
+            id=project.id,
+            name="Test",
+            namespace="http://example.org/",
+        ),
+        concept_schemes=[
+            SnapshotScheme.model_construct(
+                id=uuid4(),
+                title="Education Levels",
+                uri="http://example.org/EducationLevelScheme",
+                concepts=[
+                    SnapshotConcept.model_construct(
+                        id=concept_id,
+                        pref_label="Primary",
+                        identifier="Primary",
+                        uri="http://example.org/Primary",
+                        alt_labels=[],
+                        broader_ids=[],
+                        related_ids=[],
+                        concept_type_uris=["http://example.org/EducationLevelConcept"],
+                    ),
+                ],
+            )
+        ],
+        properties=[],
+        classes=[],
+    )
+    pv = PublishedVersion(
+        project_id=project.id, version="1.0", title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    concept_uri = URIRef("http://example.org/Primary")
+    types = set(g.objects(concept_uri, RDF.type))
+    assert SKOS.Concept in types
+    assert URIRef("http://example.org/EducationLevelConcept") in types

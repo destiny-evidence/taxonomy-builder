@@ -247,3 +247,30 @@ async def test_concept_alt_labels_clear(
     await db_session.refresh(concept)
 
     assert concept.alt_labels == []
+
+
+# concept_type_uris tests
+
+
+@pytest.mark.asyncio
+async def test_concept_type_uris_default(db_session: AsyncSession, scheme: ConceptScheme):
+    """concept_type_uris defaults to empty list."""
+    concept = Concept(scheme_id=scheme.id, pref_label="Test")
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+    assert concept.concept_type_uris == []
+
+
+@pytest.mark.asyncio
+async def test_concept_type_uris_stored(db_session: AsyncSession, scheme: ConceptScheme):
+    """concept_type_uris round-trips through DB."""
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test",
+        concept_type_uris=["http://example.org/EducationLevelConcept"],
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+    assert concept.concept_type_uris == ["http://example.org/EducationLevelConcept"]

@@ -26,6 +26,7 @@ class Concept(Base):
     definition: Mapped[str | None] = mapped_column(Text, nullable=True)
     scope_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     alt_labels: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    concept_type_uris: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 

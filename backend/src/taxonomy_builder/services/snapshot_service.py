@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.ontology_class import OntologyClass
+from taxonomy_builder.ontology_constants import WELL_KNOWN_SUPERCLASS_URIS
 from taxonomy_builder.schemas.snapshot import (
     DiffItem,
     DiffResult,
@@ -23,14 +24,6 @@ from taxonomy_builder.schemas.snapshot import (
 )
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
-
-# Well-known external URIs allowed as superclass targets (not required to exist
-# in the project's own class list).
-WELL_KNOWN_SUPERCLASS_URIS = frozenset({
-    "http://www.w3.org/2004/02/skos/core#Concept",
-    "http://www.w3.org/2002/07/owl#Thing",
-    "http://www.w3.org/2000/01/rdf-schema#Resource",
-})
 
 
 class SnapshotService:
@@ -64,7 +57,10 @@ class SnapshotService:
         result = await self.db.execute(
             select(OntologyClass)
             .where(OntologyClass.project_id == project_id)
-            .options(selectinload(OntologyClass.superclasses))
+            .options(
+                selectinload(OntologyClass.superclasses),
+                selectinload(OntologyClass.restrictions),
+            )
         )
         ontology_classes = result.scalars().all()
 

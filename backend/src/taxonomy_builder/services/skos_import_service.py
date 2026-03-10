@@ -8,6 +8,7 @@ from rdflib.namespace import SKOS
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.class_restriction import ClassRestriction
 from taxonomy_builder.models.class_superclass import ClassSuperclass
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
@@ -34,6 +35,7 @@ from taxonomy_builder.services.rdf_parser import (
     analyze_graph,
     count_broader_relationships,
     detect_format,
+    extract_concept_type_uris,
     get_concept_pref_label,
     get_identifier_from_uri,
     get_scheme_description,
@@ -348,6 +350,18 @@ class SKOSImportService:
             )
         )
 
+        # Compute class IDs from this file only (not all project classes)
+        file_class_ids = {
+            class_uri_to_id[cm["uri"]]
+            for cm in analysis["classes"]
+            if cm["uri"] in class_uri_to_id
+        }
+        await self._import_restrictions(
+            analysis.get("restrictions", []),
+            class_uri_to_id,
+            file_class_ids,
+        )
+
         schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
             await self._import_schemes(
                 g, project_id, analysis["schemes"], analysis["concepts_by_scheme"],
@@ -479,6 +493,41 @@ class SKOSImportService:
             )
         return created, warnings, class_uri_to_id
 
+    async def _import_restrictions(
+        self,
+        restrictions: list[dict],
+        class_uri_to_id: dict[str, UUID],
+        file_class_ids: set[UUID],
+    ) -> None:
+        """Replace ClassRestriction records for classes in the current file.
+
+        Deletes existing restrictions for classes present in the file,
+        then inserts the new set. Classes not in the file are untouched.
+        """
+        if not file_class_ids:
+            return
+
+        # Delete existing restrictions only for classes in this file
+        await self.db.execute(
+            delete(ClassRestriction).where(
+                ClassRestriction.class_id.in_(file_class_ids)
+            )
+        )
+
+        # Insert new restrictions
+        for r in restrictions:
+            class_id = class_uri_to_id.get(r["class_uri"])
+            if class_id is None:
+                continue
+            self.db.add(ClassRestriction(
+                class_id=class_id,
+                on_property_uri=r["on_property_uri"],
+                restriction_type=r["restriction_type"],
+                value_uri=r["value_uri"],
+            ))
+
+        await self.db.flush()
+
     async def _import_schemes(
         self,
         g: Graph,
@@ -570,6 +619,8 @@ class SKOSImportService:
                 if isinstance(alt, Literal):
                     alt_labels.append(str(alt))
 
+            concept_types = extract_concept_type_uris(g, concept_uri)
+
             concept = Concept(
                 scheme_id=scheme_id,
                 pref_label=pref_label,
@@ -577,6 +628,7 @@ class SKOSImportService:
                 definition=definition,
                 scope_note=scope_note,
                 alt_labels=alt_labels,
+                concept_type_uris=concept_types,
             )
             self.db.add(concept)
             uri_to_concept[concept_uri] = concept
