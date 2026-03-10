@@ -28,6 +28,7 @@ from taxonomy_builder.schemas.skos_import import (
     ValidationIssueResponse,
 )
 from taxonomy_builder.services.change_tracker import ChangeTracker
+from taxonomy_builder.services.identifier_service import IdentifierService
 from taxonomy_builder.services.rdf_parser import (
     InvalidRDFError,
     ValidationResult,
@@ -83,6 +84,19 @@ def _validation_to_responses(
     ]
 
 
+@dataclass
+class _ImportPreflight:
+    """Results of shared preflight checks for preview and execute."""
+
+    graph: Graph
+    analysis: dict
+    existing: ExistingProjectData
+    validation_issues: list[ValidationIssueResponse]
+    has_rdf_errors: bool
+    concept_identifiers: list[str]
+    identifier_conflicts: list[dict]
+
+
 class SKOSImportService:
     """Service for importing SKOS RDF files into concept schemes.
 
@@ -93,37 +107,72 @@ class SKOSImportService:
         self.db = db
         self._tracker = ChangeTracker(db, user_id)
 
+    async def _preflight(
+        self, project_id: UUID, content: bytes, filename: str
+    ) -> _ImportPreflight:
+        """Shared preflight: parse, validate, check identifier collisions."""
+        fmt = detect_format(filename)
+        g = parse_rdf(content, fmt)
+        analysis = analyze_graph(g)
+
+        existing = await self._load_existing_project_data(project_id)
+
+        file_class_uris = {cm["uri"] for cm in analysis["classes"]}
+        all_class_uris = existing.class_uris | file_class_uris
+
+        validation = validate_graph(g, all_class_uris)
+        validation_issues = _validation_to_responses(validation)
+
+        concept_identifiers = [
+            get_identifier_from_uri(concept_uri)
+            for scheme_uri in analysis["concepts_by_scheme"]
+            for concept_uri in analysis["concepts_by_scheme"][scheme_uri]
+        ]
+
+        identifier_conflicts: list[dict] = []
+        if concept_identifiers and not validation.has_errors:
+            id_service = IdentifierService(self.db)
+            identifier_conflicts = await id_service.validate_imported(
+                project_id, concept_identifiers
+            )
+            for conflict in identifier_conflicts:
+                validation_issues.append(
+                    ValidationIssueResponse(
+                        severity="error",
+                        type=f"identifier_{conflict['type']}",
+                        message=conflict["message"],
+                        entity_uri=None,
+                    )
+                )
+
+        return _ImportPreflight(
+            graph=g,
+            analysis=analysis,
+            existing=existing,
+            validation_issues=validation_issues,
+            has_rdf_errors=validation.has_errors,
+            concept_identifiers=concept_identifiers,
+            identifier_conflicts=identifier_conflicts,
+        )
+
     # --- Preview ---
 
     async def preview(
         self, project_id: UUID, content: bytes, filename: str
     ) -> ImportPreviewResponse:
         """Parse RDF and return preview without committing."""
-        fmt = detect_format(filename)
-        g = parse_rdf(content, fmt)
+        pf = await self._preflight(project_id, content, filename)
 
-        analysis = analyze_graph(g)
-
-        # Load existing project data for duplicate detection and range resolution
-        existing = await self._load_existing_project_data(project_id)
-
-        # Build class_uris for validation (existing + from file)
-        file_class_uris = {cm["uri"] for cm in analysis["classes"]}
-        all_class_uris = existing.class_uris | file_class_uris
-
-        # Run validation
-        validation = validate_graph(g, all_class_uris)
-        validation_issues = _validation_to_responses(validation)
-
-        # If validation has errors, return early with valid=false
-        if validation.has_errors:
+        if pf.has_rdf_errors:
             return ImportPreviewResponse(
                 valid=False,
                 schemes=[],
                 total_concepts_count=0,
                 total_relationships_count=0,
-                validation_issues=validation_issues,
+                validation_issues=pf.validation_issues,
             )
+
+        g, analysis, existing = pf.graph, pf.analysis, pf.existing
 
         # Build combined URI sets (existing + from file)
         scheme_uris = set(existing.scheme_uris)
@@ -140,7 +189,6 @@ class SKOSImportService:
         class_previews = self._preview_classes(
             analysis["classes"], existing.class_uris, existing.class_identifiers
         )
-        # Build class_uris from existing + those that will actually be created
         class_uris = existing.class_uris | {cp.uri for cp in class_previews}
         property_previews, prop_warnings = self._preview_properties(
             g, analysis["properties"], existing.property_identifiers,
@@ -148,7 +196,7 @@ class SKOSImportService:
         )
 
         return ImportPreviewResponse(
-            valid=True,
+            valid=not pf.identifier_conflicts,
             schemes=scheme_previews,
             total_concepts_count=total_concepts,
             total_relationships_count=total_relationships,
@@ -157,7 +205,7 @@ class SKOSImportService:
             classes_count=len(class_previews),
             properties_count=len(property_previews),
             warnings=analysis["warnings"] + prop_warnings,
-            validation_issues=validation_issues,
+            validation_issues=pf.validation_issues,
         )
 
     async def _load_existing_project_data(
@@ -320,27 +368,23 @@ class SKOSImportService:
         self, project_id: UUID, content: bytes, filename: str
     ) -> ImportResultResponse:
         """Parse RDF and create schemes/concepts/classes/properties in database."""
-        fmt = detect_format(filename)
-        g = parse_rdf(content, fmt)
+        pf = await self._preflight(project_id, content, filename)
 
-        analysis = analyze_graph(g)
-
-        # Load existing data once for duplicate detection and range resolution
-        existing = await self._load_existing_project_data(project_id)
-
-        # Build class_uris for validation (existing + from file)
-        file_class_uris = {cm["uri"] for cm in analysis["classes"]}
-        all_class_uris = existing.class_uris | file_class_uris
-
-        # Run validation — refuse to import if errors found
-        validation = validate_graph(g, all_class_uris)
-        if validation.has_errors:
-            error_msgs = "; ".join(e.message for e in validation.errors)
+        if pf.has_rdf_errors:
+            error_msgs = "; ".join(
+                i.message for i in pf.validation_issues if i.severity == "error"
+            )
             raise SKOSImportError(
                 f"Import blocked by validation errors: {error_msgs}"
             )
 
-        validation_issues = _validation_to_responses(validation)
+        if pf.identifier_conflicts:
+            msgs = "; ".join(c["message"] for c in pf.identifier_conflicts)
+            raise SKOSImportError(
+                f"Import blocked by identifier conflicts: {msgs}"
+            )
+
+        g, analysis, existing = pf.graph, pf.analysis, pf.existing
 
         classes_created, superclass_warnings, class_uri_to_id = (
             await self._import_classes(
@@ -350,7 +394,6 @@ class SKOSImportService:
             )
         )
 
-        # Compute class IDs from this file only (not all project classes)
         file_class_ids = {
             class_uri_to_id[cm["uri"]]
             for cm in analysis["classes"]
@@ -369,7 +412,13 @@ class SKOSImportService:
             )
         )
 
-        # Combine existing class URIs with those actually created (not skipped)
+        # Reconcile identifier counter with imported concepts
+        if pf.concept_identifiers:
+            id_service = IdentifierService(self.db)
+            await id_service.reconcile_counter(
+                project_id, pf.concept_identifiers
+            )
+
         class_uris = existing.class_uris | {c.uri for c in classes_created}
 
         properties_created, prop_warnings = await self._import_properties(
@@ -386,7 +435,7 @@ class SKOSImportService:
             classes_created=classes_created,
             properties_created=properties_created,
             warnings=superclass_warnings + prop_warnings,
-            validation_issues=validation_issues,
+            validation_issues=pf.validation_issues,
         )
 
     async def _import_classes(
