@@ -57,15 +57,19 @@ evrepo:Condition a owl:Class ;
 
 evrepo:name a owl:DatatypeProperty ;
     rdfs:label "name"@en ;
-    rdfs:domain evrepo:Condition ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( evrepo:Condition evrepo:Outcome )
+    ];
     rdfs:range xsd:string ;
-    rdfs:comment "Short name or title for this condition (e.g. intervention programme name, control label)."@en .
+    rdfs:comment "Short name or title for this condition or outcome (e.g. intervention programme name, control label)."@en .
 
 evrepo:description a owl:DatatypeProperty ;
     rdfs:label "description"@en ;
-    rdfs:domain evrepo:Condition ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( evrepo:Condition evrepo:Outcome )
+    ];
     rdfs:range xsd:string ;
-    rdfs:comment "Free-text description of this condition."@en .
+    rdfs:comment "Free-text description of this condition or outcome."@en .
 
 evrepo:Intervention a owl:Class ;
     rdfs:subClassOf evrepo:Condition ;
@@ -117,6 +121,7 @@ evrepo:hasOutcome a owl:ObjectProperty ;
     rdfs:label "has outcome"@en ;
     rdfs:domain evrepo:Finding ;
     rdfs:range evrepo:Outcome .
+
 
 # --- Comparison structure ---
 
