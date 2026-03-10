@@ -128,7 +128,7 @@ async def test_prefix_change_blocked_when_identifiers_exist(
 async def test_prefix_set_blocked_after_import_without_prefix(
     db_session: AsyncSession,
 ) -> None:
-    """Project started with no prefix, imported concepts have identifiers, then user tries to set prefix."""
+    """Setting prefix is blocked when imported concepts already have identifiers."""
     project = Project(name="No Prefix Import Project")
     db_session.add(project)
     await db_session.flush()
