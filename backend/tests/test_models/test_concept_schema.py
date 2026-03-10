@@ -21,12 +21,10 @@ class TestConceptCreate:
         """Test creating a valid concept."""
         concept = ConceptCreate(
             pref_label="Test Concept",
-            identifier="test",
             definition="A test definition",
             scope_note="Use for testing",
         )
         assert concept.pref_label == "Test Concept"
-        assert concept.identifier == "test"
         assert concept.definition == "A test definition"
         assert concept.scope_note == "Use for testing"
 
@@ -34,7 +32,6 @@ class TestConceptCreate:
         """Test creating a concept with only pref_label."""
         concept = ConceptCreate(pref_label="Minimal Concept")
         assert concept.pref_label == "Minimal Concept"
-        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
 
@@ -63,7 +60,6 @@ class TestConceptUpdate:
         """Test that all fields are optional for update."""
         concept = ConceptUpdate()
         assert concept.pref_label is None
-        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
 
@@ -76,12 +72,10 @@ class TestConceptUpdate:
         """Test updating all fields."""
         concept = ConceptUpdate(
             pref_label="Updated Label",
-            identifier="updated",
             definition="Updated definition",
             scope_note="Updated scope note",
         )
         assert concept.pref_label == "Updated Label"
-        assert concept.identifier == "updated"
         assert concept.definition == "Updated definition"
         assert concept.scope_note == "Updated scope note"
 

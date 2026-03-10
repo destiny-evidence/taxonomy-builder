@@ -13,6 +13,7 @@ from taxonomy_builder.models.concept_related import ConceptRelated
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
+from taxonomy_builder.services.identifier_service import IdentifierService
 
 
 class ConceptNotFoundError(Exception):
@@ -140,10 +141,14 @@ class ConceptService:
         """Create a new concept in a scheme."""
         scheme = await self._get_scheme(scheme_id)
 
+        # Auto-allocate identifier
+        id_service = IdentifierService(self.db)
+        identifier = await id_service.allocate(scheme.project_id)
+
         concept = Concept(
             scheme_id=scheme_id,
             pref_label=concept_in.pref_label,
-            identifier=concept_in.identifier,
+            identifier=identifier,
             definition=concept_in.definition,
             scope_note=concept_in.scope_note,
             alt_labels=concept_in.alt_labels,
@@ -194,8 +199,6 @@ class ConceptService:
 
         if concept_in.pref_label is not None:
             concept.pref_label = concept_in.pref_label
-        if concept_in.identifier is not None:
-            concept.identifier = concept_in.identifier
         if concept_in.definition is not None:
             concept.definition = concept_in.definition
         if concept_in.scope_note is not None:

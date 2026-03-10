@@ -27,6 +27,7 @@ from taxonomy_builder.services.concept_service import (
     SchemeNotFoundError,
     SelfReferenceError,
 )
+from taxonomy_builder.services.identifier_service import PrefixRequiredError
 
 # Router for scheme-scoped concept operations
 scheme_concepts_router = APIRouter(prefix="/api/schemes", tags=["concepts"])
@@ -74,6 +75,10 @@ async def create_concept(
         return await service.create_concept(scheme_id, concept_in)
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PrefixRequiredError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        )
 
 
 @scheme_concepts_router.get("/{scheme_id}/tree")

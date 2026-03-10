@@ -9,6 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
+
+
+@pytest.fixture
+async def project(db_session: AsyncSession) -> Project:
+    """Create a test project with identifier_prefix for auto-allocation."""
+    project = Project(name="Test Project", identifier_prefix="TST")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
 
 
 @pytest.fixture
@@ -91,7 +102,6 @@ async def test_create_concept(authenticated_client: AsyncClient, scheme: Concept
         f"/api/schemes/{scheme.id}/concepts",
         json={
             "pref_label": "New Concept",
-            "identifier": "new",
             "definition": "A new concept",
             "scope_note": "Use for new things",
         },
@@ -99,10 +109,9 @@ async def test_create_concept(authenticated_client: AsyncClient, scheme: Concept
     assert response.status_code == 201
     data = response.json()
     assert data["pref_label"] == "New Concept"
-    assert data["identifier"] == "new"
+    assert data["identifier"].startswith("TST")
     assert data["definition"] == "A new concept"
     assert data["scheme_id"] == str(scheme.id)
-    assert data["uri"] == "http://example.org/concepts/new"  # Computed URI
     assert "id" in data
     assert "created_at" in data
 
@@ -144,6 +153,18 @@ async def test_create_concept_scheme_not_found(authenticated_client: AsyncClient
         json={"pref_label": "New Concept"},
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_concept_with_identifier_rejected(
+    authenticated_client: AsyncClient, scheme: ConceptScheme
+) -> None:
+    """Stale clients sending identifier should get 422, not silent acceptance."""
+    response = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Stale Client", "identifier": "legacy-id"},
+    )
+    assert response.status_code == 422
 
 
 # Get concept tests
