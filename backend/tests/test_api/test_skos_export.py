@@ -191,7 +191,10 @@ async def test_export_invalid_format(
 
 
 @pytest.mark.asyncio
-async def test_export_empty_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
+async def test_export_empty_scheme(
+    authenticated_client: AsyncClient,
+    scheme: ConceptScheme,
+) -> None:
     """Test export works for scheme with no concepts."""
     response = await authenticated_client.get(f"/api/schemes/{scheme.id}/export")
 

@@ -84,8 +84,6 @@ async def test_update_project(db_session: AsyncSession) -> None:
     project = Project(name="Original Name", description="Original description")
     db_session.add(project)
     await db_session.flush()
-    original_updated_at = project.updated_at
-
     project.name = "Updated Name"
     project.description = "Updated description"
     await db_session.flush()

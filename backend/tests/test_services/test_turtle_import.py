@@ -517,7 +517,8 @@ ex:QuantitativeFinding a owl:Class ;
     async def test_reimport_wires_superclass_edge_for_existing_class(
         self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
     ) -> None:
-        """Re-importing a class with rdfs:subClassOf wires the edge even if the class already exists."""
+        """Re-importing a class with rdfs:subClassOf wires the edge even if
+        the class already exists."""
         base_ttl = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -563,7 +564,8 @@ ex:QuantitativeFinding a owl:Class ;
     async def test_reimport_existing_superclass_edge_is_idempotent(
         self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
     ) -> None:
-        """Re-importing the same TTL with an existing superclass edge does not duplicate or error."""
+        """Re-importing the same TTL with an existing superclass edge
+        does not duplicate or error."""
         ttl = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .

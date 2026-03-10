@@ -153,7 +153,10 @@ async def test_create_project(authenticated_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_create_project_without_description(authenticated_client: AsyncClient) -> None:
     """Test creating a project without a description."""
-    response = await authenticated_client.post("/api/projects", json={"name": "No Description Project"})
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={"name": "No Description Project"},
+    )
     assert response.status_code == 201
 
     data = response.json()
@@ -231,14 +234,20 @@ async def test_update_project(authenticated_client: AsyncClient, db_session: Asy
 
 
 @pytest.mark.asyncio
-async def test_update_project_partial(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_update_project_partial(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
     """Test partially updating a project (only name)."""
     project = Project(name="Original", description="Keep this")
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
 
-    response = await authenticated_client.put(f"/api/projects/{project.id}", json={"name": "New Name"})
+    response = await authenticated_client.put(
+        f"/api/projects/{project.id}",
+        json={"name": "New Name"},
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -274,7 +283,9 @@ async def test_delete_project(authenticated_client: AsyncClient, db_session: Asy
 @pytest.mark.asyncio
 async def test_delete_project_not_found(authenticated_client: AsyncClient) -> None:
     """Test deleting a non-existent project returns 404."""
-    response = await authenticated_client.delete("/api/projects/01234567-89ab-7def-8123-456789abcdef")
+    response = await authenticated_client.delete(
+        "/api/projects/01234567-89ab-7def-8123-456789abcdef"
+    )
     assert response.status_code == 404
 
 
@@ -358,7 +369,10 @@ async def test_create_project_with_http_namespace(authenticated_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_update_project_add_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_update_project_add_namespace(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
     """Test adding a namespace to an existing project."""
     # Create project without namespace
     project = Project(name="No Namespace", description="Project without namespace")
@@ -377,7 +391,10 @@ async def test_update_project_add_namespace(authenticated_client: AsyncClient, d
 
 
 @pytest.mark.asyncio
-async def test_update_project_change_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_update_project_change_namespace(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
     """Test changing a project's namespace."""
     # Create project with namespace
     project = Project(name="With Namespace", namespace="https://old.example.org/vocab")
@@ -395,7 +412,10 @@ async def test_update_project_change_namespace(authenticated_client: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_update_project_invalid_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_update_project_invalid_namespace(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
     """Test that updating to an invalid namespace fails."""
     # Create project
     project = Project(name="Test Project", namespace="https://example.org/vocab")
@@ -412,7 +432,10 @@ async def test_update_project_invalid_namespace(authenticated_client: AsyncClien
 
 
 @pytest.mark.asyncio
-async def test_update_project_clear_namespace(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_update_project_clear_namespace(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
     """Test removing a namespace from a project."""
     # Create project with namespace
     project = Project(name="Has Namespace", namespace="https://example.org/vocab")
