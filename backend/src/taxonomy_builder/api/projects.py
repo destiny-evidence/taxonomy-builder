@@ -5,12 +5,19 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.api.dependencies import (
     CurrentUser,
     get_export_service,
     get_import_service,
     get_project_service,
+)
+from taxonomy_builder.database import get_db
+from taxonomy_builder.services.identifier_service import (
+    CounterOverflowError,
+    IdentifierService,
+    PrefixRequiredError,
 )
 from taxonomy_builder.api.utils import slugify
 from taxonomy_builder.models.project import Project
@@ -103,6 +110,30 @@ async def delete_project(
         await service.delete_project(project_id)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/{project_id}/reconcile-identifiers")
+async def reconcile_identifiers(
+    project_id: UUID,
+    current_user: CurrentUser,
+    project_service: ProjectService = Depends(get_project_service),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Reconcile identifier counter and backfill null-identifier concepts."""
+    try:
+        await project_service.get_project(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    id_service = IdentifierService(db)
+    try:
+        count = await id_service.backfill(project_id)
+    except PrefixRequiredError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except CounterOverflowError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    return {"concepts_updated": count}
 
 
 @router.post(

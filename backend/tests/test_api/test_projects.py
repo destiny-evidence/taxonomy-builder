@@ -569,6 +569,53 @@ async def test_export_version_project_not_found(
 
 
 @pytest.mark.asyncio
+async def test_reconcile_identifiers_fills_null_concepts(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    from taxonomy_builder.models.concept import Concept
+    from taxonomy_builder.models.concept_scheme import ConceptScheme
+
+    project = Project(name="Reconcile API", identifier_prefix="REC")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    scheme = ConceptScheme(
+        project_id=project.id, title="S", uri="http://example.org/s"
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+
+    c = Concept(scheme_id=scheme.id, pref_label="Needs ID", identifier=None)
+    db_session.add(c)
+    await db_session.flush()
+
+    resp = await authenticated_client.post(
+        f"/api/projects/{project.id}/reconcile-identifiers"
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["concepts_updated"] == 1
+
+
+@pytest.mark.asyncio
+async def test_reconcile_without_prefix_returns_400(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    project = Project(name="No Prefix Reconcile API")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    resp = await authenticated_client.post(
+        f"/api/projects/{project.id}/reconcile-identifiers"
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_update_project_prefix_locked_returns_409(
     authenticated_client: AsyncClient,
     db_session: AsyncSession,

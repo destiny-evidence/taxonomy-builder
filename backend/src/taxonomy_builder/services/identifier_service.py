@@ -160,3 +160,80 @@ class IdentifierService:
                 .where(Project.id == project_id, Project.identifier_counter < max_found)
                 .values(identifier_counter=max_found)
             )
+
+    async def backfill(self, project_id: UUID) -> int:
+        """Assign identifiers to all concepts with NULL identifier in a project.
+
+        1. Validate prefix is set
+        2. Reconcile counter against existing identifiers
+        3. Bulk-assign new identifiers to NULL-identifier concepts (ordered by created_at)
+
+        Returns:
+            Number of concepts that were assigned identifiers.
+
+        Raises:
+            PrefixRequiredError: If project has no identifier_prefix.
+        """
+        # Load project
+        result = await self.db.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        project = result.scalar_one()
+
+        if project.identifier_prefix is None:
+            raise PrefixRequiredError(project_id)
+
+        prefix = project.identifier_prefix
+
+        # Reconcile counter against existing non-null identifiers
+        existing_result = await self.db.execute(
+            select(Concept.identifier)
+            .join(ConceptScheme, Concept.scheme_id == ConceptScheme.id)
+            .where(
+                ConceptScheme.project_id == project_id,
+                Concept.identifier.isnot(None),
+            )
+        )
+        existing_identifiers = [row[0] for row in existing_result.fetchall()]
+        await self.reconcile_counter(project_id, existing_identifiers)
+
+        # Find concepts with NULL identifiers, ordered by created_at
+        null_result = await self.db.execute(
+            select(Concept)
+            .join(ConceptScheme, Concept.scheme_id == ConceptScheme.id)
+            .where(
+                ConceptScheme.project_id == project_id,
+                Concept.identifier.is_(None),
+            )
+            .order_by(Concept.created_at)
+        )
+        null_concepts = list(null_result.scalars().all())
+
+        if not null_concepts:
+            return 0
+
+        n = len(null_concepts)
+
+        # Bulk increment counter
+        result = await self.db.execute(
+            text(
+                "UPDATE projects "
+                "SET identifier_counter = identifier_counter + :n "
+                "WHERE id = :project_id "
+                "RETURNING identifier_counter"
+            ),
+            {"n": n, "project_id": project_id},
+        )
+        end_counter = result.scalar_one()
+
+        if end_counter > MAX_COUNTER:
+            raise CounterOverflowError(project_id)
+
+        start_counter = end_counter - n + 1
+
+        # Assign identifiers
+        for i, concept in enumerate(null_concepts):
+            concept.identifier = f"{prefix}{start_counter + i:06d}"
+
+        await self.db.flush()
+        return n
