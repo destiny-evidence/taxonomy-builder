@@ -27,7 +27,10 @@ from taxonomy_builder.services.concept_service import (
     SchemeNotFoundError,
     SelfReferenceError,
 )
-from taxonomy_builder.services.identifier_service import PrefixRequiredError
+from taxonomy_builder.services.identifier_service import (
+    CounterOverflowError,
+    PrefixRequiredError,
+)
 
 # Router for scheme-scoped concept operations
 scheme_concepts_router = APIRouter(prefix="/api/schemes", tags=["concepts"])
@@ -78,6 +81,10 @@ async def create_concept(
     except PrefixRequiredError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        )
+    except CounterOverflowError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(e)
         )
 
 
