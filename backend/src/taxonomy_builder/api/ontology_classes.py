@@ -16,7 +16,6 @@ from taxonomy_builder.services.ontology_class_service import (
     OntologyClassReferencedByPropertyError,
     OntologyClassService,
     OntologyClassURIExistsError,
-    ProjectNamespaceRequiredError,
 )
 from taxonomy_builder.services.project_service import ProjectNotFoundError
 
@@ -56,8 +55,6 @@ async def create_ontology_class(
         return await service.create_ontology_class(project_id, ontology_class_in)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ProjectNamespaceRequiredError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except OntologyClassIdentifierExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except OntologyClassURIExistsError as e:
