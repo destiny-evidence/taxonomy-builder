@@ -39,7 +39,7 @@ async def test_update_project_records_before_and_after(db_session: AsyncSession)
     service = ProjectService(db_session)
 
     project = await service.create_project(
-        ProjectCreate(name="Original Name", description="Original desc")
+        ProjectCreate(name="Original Name", description="Original desc", namespace="http://example.org/ns/")
     )
 
     await service.update_project(

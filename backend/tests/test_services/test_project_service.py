@@ -27,8 +27,8 @@ async def test_list_projects(db_session: AsyncSession) -> None:
     service = ProjectService(db_session)
 
     # Create some projects
-    await service.create_project(ProjectCreate(name="Project A"))
-    await service.create_project(ProjectCreate(name="Project B"))
+    await service.create_project(ProjectCreate(name="Project A", namespace="https://example.org/a/"))
+    await service.create_project(ProjectCreate(name="Project B", namespace="https://example.org/b/"))
 
     projects = await service.list_projects()
     assert len(projects) == 2
@@ -41,7 +41,7 @@ async def test_list_projects(db_session: AsyncSession) -> None:
 async def test_create_project(db_session: AsyncSession) -> None:
     """Test creating a project."""
     service = ProjectService(db_session)
-    project_in = ProjectCreate(name="New Project", description="A new project")
+    project_in = ProjectCreate(name="New Project", description="A new project", namespace="https://example.org/vocab")
 
     project = await service.create_project(project_in)
 
@@ -57,7 +57,7 @@ async def test_create_project(db_session: AsyncSession) -> None:
 async def test_create_project_without_description(db_session: AsyncSession) -> None:
     """Test creating a project without description."""
     service = ProjectService(db_session)
-    project_in = ProjectCreate(name="No Description")
+    project_in = ProjectCreate(name="No Description", namespace="https://example.org/vocab")
 
     project = await service.create_project(project_in)
 
@@ -69,10 +69,10 @@ async def test_create_project_without_description(db_session: AsyncSession) -> N
 async def test_create_project_duplicate_name_raises(db_session: AsyncSession) -> None:
     """Test that creating a project with duplicate name raises error."""
     service = ProjectService(db_session)
-    await service.create_project(ProjectCreate(name="Duplicate"))
+    await service.create_project(ProjectCreate(name="Duplicate", namespace="https://example.org/vocab"))
 
     with pytest.raises(ProjectNameExistsError) as exc_info:
-        await service.create_project(ProjectCreate(name="Duplicate"))
+        await service.create_project(ProjectCreate(name="Duplicate", namespace="https://example.org/vocab"))
 
     assert "Duplicate" in str(exc_info.value)
 
@@ -82,7 +82,7 @@ async def test_get_project(db_session: AsyncSession) -> None:
     """Test getting a project by ID."""
     service = ProjectService(db_session)
     created = await service.create_project(
-        ProjectCreate(name="Get Test", description="For getting")
+        ProjectCreate(name="Get Test", description="For getting", namespace="https://example.org/vocab")
     )
 
     project = await service.get_project(created.id)
@@ -109,7 +109,7 @@ async def test_update_project(db_session: AsyncSession) -> None:
     """Test updating a project."""
     service = ProjectService(db_session)
     created = await service.create_project(
-        ProjectCreate(name="Original", description="Original description")
+        ProjectCreate(name="Original", description="Original description", namespace="https://example.org/vocab")
     )
 
     project = await service.update_project(
@@ -127,7 +127,7 @@ async def test_update_project_partial(db_session: AsyncSession) -> None:
     """Test partially updating a project (only name)."""
     service = ProjectService(db_session)
     created = await service.create_project(
-        ProjectCreate(name="Original", description="Keep this")
+        ProjectCreate(name="Original", description="Keep this", namespace="https://example.org/vocab")
     )
 
     project = await service.update_project(created.id, ProjectUpdate(name="New Name"))
@@ -150,8 +150,8 @@ async def test_update_project_not_found_raises(db_session: AsyncSession) -> None
 async def test_update_project_duplicate_name_raises(db_session: AsyncSession) -> None:
     """Test that updating to a duplicate name raises error."""
     service = ProjectService(db_session)
-    await service.create_project(ProjectCreate(name="Existing"))
-    created = await service.create_project(ProjectCreate(name="To Update"))
+    await service.create_project(ProjectCreate(name="Existing", namespace="https://example.org/vocab"))
+    created = await service.create_project(ProjectCreate(name="To Update", namespace="https://example.org/vocab2"))
 
     with pytest.raises(ProjectNameExistsError):
         await service.update_project(created.id, ProjectUpdate(name="Existing"))
@@ -161,7 +161,7 @@ async def test_update_project_duplicate_name_raises(db_session: AsyncSession) ->
 async def test_delete_project(db_session: AsyncSession) -> None:
     """Test deleting a project."""
     service = ProjectService(db_session)
-    created = await service.create_project(ProjectCreate(name="To Delete"))
+    created = await service.create_project(ProjectCreate(name="To Delete", namespace="https://example.org/vocab"))
 
     await service.delete_project(created.id)
 

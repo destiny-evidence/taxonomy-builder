@@ -14,13 +14,13 @@ class TestProjectCreate:
 
     def test_valid_project_create(self) -> None:
         """Test creating a valid ProjectCreate schema."""
-        project = ProjectCreate(name="Test Project", description="A test project")
+        project = ProjectCreate(name="Test Project", description="A test project", namespace="https://example.org/vocab")
         assert project.name == "Test Project"
         assert project.description == "A test project"
 
     def test_project_create_without_description(self) -> None:
         """Test creating a ProjectCreate without description."""
-        project = ProjectCreate(name="No Description")
+        project = ProjectCreate(name="No Description", namespace="https://example.org/vocab")
         assert project.name == "No Description"
         assert project.description is None
 
@@ -30,14 +30,20 @@ class TestProjectCreate:
             ProjectCreate()  # type: ignore[call-arg]
         assert "name" in str(exc_info.value)
 
+    def test_project_create_requires_namespace(self) -> None:
+        """Test that ProjectCreate requires a namespace."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectCreate(name="Test")  # type: ignore[call-arg]
+        assert "namespace" in str(exc_info.value)
+
     def test_project_create_name_cannot_be_empty(self) -> None:
         """Test that ProjectCreate name cannot be empty."""
         with pytest.raises(ValidationError):
-            ProjectCreate(name="")
+            ProjectCreate(name="", namespace="https://example.org/vocab")
 
     def test_project_create_name_is_stripped(self) -> None:
         """Test that ProjectCreate name is stripped of whitespace."""
-        project = ProjectCreate(name="  Spaced Name  ")
+        project = ProjectCreate(name="  Spaced Name  ", namespace="https://example.org/vocab")
         assert project.name == "Spaced Name"
 
 
@@ -62,6 +68,11 @@ class TestProjectUpdate:
         assert project.name is None
         assert project.description == "New Description"
 
+    def test_project_update_rejects_null_namespace(self) -> None:
+        """Test that ProjectUpdate rejects explicitly setting namespace to null."""
+        with pytest.raises(ValidationError):
+            ProjectUpdate(namespace=None)
+
 
 class TestProjectRead:
     """Tests for ProjectRead schema."""
@@ -75,7 +86,7 @@ class TestProjectRead:
             description="A test project",
             created_at=now,
             updated_at=now,
-            namespace=None,
+            namespace="https://example.org/vocab",
             identifier_prefix=None,
             identifier_counter=0,
         )

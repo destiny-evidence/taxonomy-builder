@@ -15,7 +15,7 @@ from taxonomy_builder.models.published_version import PublishedVersion
 @pytest.fixture
 async def other_project(db_session: AsyncSession) -> Project:
     """Create a second project for testing."""
-    project = Project(name="Other Project")
+    project = Project(name="Other Project", namespace="https://example.org/other/")
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)

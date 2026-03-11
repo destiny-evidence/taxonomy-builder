@@ -57,9 +57,7 @@ export function ProjectList({ onEdit, onDeleted }: ProjectListProps) {
           >
             <div class="project-card__content">
               <h3 class="project-card__name">{project.name}</h3>
-              {project.namespace && (
-                <p class="project-card__namespace">{project.namespace}</p>
-              )}
+              <p class="project-card__namespace">{project.namespace}</p>
               {project.description && (
                 <p class="project-card__description">{project.description}</p>
               )}

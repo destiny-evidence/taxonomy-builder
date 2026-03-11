@@ -37,13 +37,13 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         await projectsApi.update(project.id, {
           name,
           description: description || null,
-          namespace: namespace || null,
+          namespace,
         });
       } else {
         await projectsApi.create({
           name,
           description: description || null,
-          namespace: namespace || null,
+          namespace,
         });
       }
       onSuccess();
@@ -81,11 +81,12 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
       />
 
       <Input
-        label="Namespace (optional)"
+        label="Namespace"
         name="namespace"
         type="url"
         value={namespace}
         placeholder="https://example.org/vocab"
+        required
         onChange={setNamespace}
       />
 
@@ -93,7 +94,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading || !name.trim()}>
+        <Button type="submit" disabled={loading || !name.trim() || !namespace.trim()}>
           {loading ? "Saving..." : project ? "Save Changes" : "Create Project"}
         </Button>
       </div>
