@@ -12,6 +12,7 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     namespace: HttpUrl | None = None
+    identifier_prefix: str | None = Field(default=None, max_length=4, pattern=r"^[A-Z]{1,4}$")
 
     @field_validator("name")
     @classmethod
@@ -26,6 +27,7 @@ class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     namespace: HttpUrl | None = None
+    identifier_prefix: str | None = Field(default=None, max_length=4, pattern=r"^[A-Z]{1,4}$")
 
     @field_validator("name")
     @classmethod
@@ -45,5 +47,7 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None
     namespace: str | None
+    identifier_prefix: str | None
+    identifier_counter: int
     created_at: datetime
     updated_at: datetime

@@ -6,6 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.concept import Concept
+from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectUpdate
@@ -36,6 +38,15 @@ class ProjectNameExistsError(Exception):
         super().__init__(f"Project with name '{name}' already exists")
 
 
+class PrefixLockedError(Exception):
+    """Raised when identifier_prefix cannot be changed because concepts already have identifiers."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Cannot change identifier_prefix: concepts with assigned identifiers exist"
+        )
+
+
 class ProjectService:
     """Service for managing projects."""
 
@@ -54,7 +65,23 @@ class ProjectService:
             "name": project.name,
             "description": project.description,
             "namespace": project.namespace,
+            "identifier_prefix": project.identifier_prefix,
+            "identifier_counter": project.identifier_counter,
         }
+
+    async def _check_prefix_mutable(self, project_id: UUID) -> None:
+        """Raise PrefixLockedError if any concept in the project has a non-null identifier."""
+        result = await self.db.execute(
+            select(Concept.id)
+            .join(ConceptScheme, Concept.scheme_id == ConceptScheme.id)
+            .where(
+                ConceptScheme.project_id == project_id,
+                Concept.identifier.isnot(None),
+            )
+            .limit(1)
+        )
+        if result.scalar_one_or_none() is not None:
+            raise PrefixLockedError()
 
     async def list_projects(self) -> list[Project]:
         """List all projects ordered by name."""
@@ -67,6 +94,7 @@ class ProjectService:
             name=project_in.name,
             description=project_in.description,
             namespace=project_in.namespace,
+            identifier_prefix=project_in.identifier_prefix,
         )
         self.db.add(project)
         try:
@@ -105,6 +133,10 @@ class ProjectService:
             project.description = project_in.description
         if "namespace" in project_in.model_fields_set:
             project.namespace = project_in.namespace
+        if "identifier_prefix" in project_in.model_fields_set:
+            if project_in.identifier_prefix != project.identifier_prefix:
+                await self._check_prefix_mutable(project_id)
+            project.identifier_prefix = project_in.identifier_prefix
 
         try:
             await self.db.flush()

@@ -21,6 +21,8 @@ describe("ProjectForm", () => {
         name: "Existing Project",
         description: "Some description",
         namespace: null,
+        identifier_prefix: null,
+        identifier_counter: 0,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -36,6 +38,8 @@ describe("ProjectForm", () => {
         name: "My Project",
         description: "Project description",
         namespace: null,
+        identifier_prefix: null,
+        identifier_counter: 0,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
