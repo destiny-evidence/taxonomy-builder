@@ -40,6 +40,19 @@ class TestProjectCreate:
         project = ProjectCreate(name="  Spaced Name  ")
         assert project.name == "Spaced Name"
 
+    @pytest.mark.parametrize("prefix", ["C", "EVD", "ABCD"])
+    def test_create_accepts_valid_prefix(self, prefix: str) -> None:
+        p = ProjectCreate(name="Test", identifier_prefix=prefix)
+        assert p.identifier_prefix == prefix
+
+    @pytest.mark.parametrize("prefix", ["evd", "ABCDE", "", "AB1"])
+    def test_create_rejects_invalid_prefix(self, prefix: str) -> None:
+        with pytest.raises(ValidationError, match="identifier_prefix"):
+            ProjectCreate(name="Test", identifier_prefix=prefix)
+
+    def test_create_prefix_defaults_to_none(self) -> None:
+        assert ProjectCreate(name="Test").identifier_prefix is None
+
 
 class TestProjectUpdate:
     """Tests for ProjectUpdate schema."""
@@ -61,6 +74,9 @@ class TestProjectUpdate:
         project = ProjectUpdate(description="New Description")
         assert project.name is None
         assert project.description == "New Description"
+
+    def test_update_accepts_valid_prefix(self) -> None:
+        assert ProjectUpdate(identifier_prefix="ABC").identifier_prefix == "ABC"
 
 
 class TestProjectRead:
@@ -84,6 +100,20 @@ class TestProjectRead:
         assert project.description == "A test project"
         assert project.created_at == now
         assert project.updated_at == now
+
+    def test_read_includes_prefix_and_counter(self) -> None:
+        p = ProjectRead(
+            id="01234567-0123-0123-0123-012345678901",
+            name="Test",
+            description=None,
+            namespace=None,
+            identifier_prefix="EVD",
+            identifier_counter=42,
+            created_at="2026-01-01T00:00:00",
+            updated_at="2026-01-01T00:00:00",
+        )
+        assert p.identifier_prefix == "EVD"
+        assert p.identifier_counter == 42
 
     def test_project_read_requires_all_fields(self) -> None:
         """Test that ProjectRead requires all fields."""

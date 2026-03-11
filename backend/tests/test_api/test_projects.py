@@ -618,31 +618,11 @@ async def test_reconcile_without_prefix_returns_400(
 @pytest.mark.asyncio
 async def test_update_project_prefix_locked_returns_409(
     authenticated_client: AsyncClient,
-    db_session: AsyncSession,
+    locked_prefix_project: Project,
 ) -> None:
     """Test that changing identifier_prefix when concepts exist returns 409."""
-    from taxonomy_builder.models.concept import Concept
-    from taxonomy_builder.models.concept_scheme import ConceptScheme
-
-    project = Project(name="API Lock Test", identifier_prefix="TST")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-
-    scheme = ConceptScheme(
-        project_id=project.id, title="S", uri="http://example.org/s"
-    )
-    db_session.add(scheme)
-    await db_session.flush()
-
-    concept = Concept(
-        scheme_id=scheme.id, pref_label="C1", identifier="TST000001"
-    )
-    db_session.add(concept)
-    await db_session.flush()
-
     resp = await authenticated_client.put(
-        f"/api/projects/{project.id}",
+        f"/api/projects/{locked_prefix_project.id}",
         json={"identifier_prefix": "NEW"},
     )
     assert resp.status_code == 409

@@ -12,6 +12,7 @@ from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import Base, db_manager, get_db
 from taxonomy_builder.main import app
+from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.user import User
@@ -144,6 +145,39 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     await db_session.flush()
     await db_session.refresh(scheme)
     return scheme
+
+
+@pytest.fixture
+async def project_with_prefix(db_session: AsyncSession) -> Project:
+    """Create a project with identifier prefix configured."""
+    project = Project(name="Prefixed Project", identifier_prefix="EVD")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.fixture
+async def locked_prefix_project(db_session: AsyncSession) -> Project:
+    """A project whose identifier_prefix is locked (has concepts with identifiers)."""
+    project = Project(name="Locked Prefix Project", identifier_prefix="EVD")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    scheme = ConceptScheme(
+        project_id=project.id, title="Scheme", uri="http://example.org/s"
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+
+    concept = Concept(
+        scheme_id=scheme.id, pref_label="Has Identifier", identifier="EVD000001"
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    return project
 
 
 @pytest.fixture

@@ -14,15 +14,6 @@ from taxonomy_builder.services.identifier_service import (
 
 
 @pytest.fixture
-async def project_with_prefix(db_session: AsyncSession) -> Project:
-    project = Project(name="ID Service Project", identifier_prefix="EVD")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
 async def scheme(
     db_session: AsyncSession, project_with_prefix: Project
 ) -> ConceptScheme:
