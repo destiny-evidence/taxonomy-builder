@@ -78,15 +78,15 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = "https://${local.builder_custom_domain}"
+      value = var.keycloak_url
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"
-      value = "taxonomy-builder"
+      value = var.keycloak_realm_name
     },
     {
       name  = "TAXONOMY_KEYCLOAK_CLIENT_ID"
-      value = "taxonomy-builder-api"
+      value = "taxonomy-builder-api-${var.environment}"
     },
     {
       name  = "AZURE_CLIENT_ID"
