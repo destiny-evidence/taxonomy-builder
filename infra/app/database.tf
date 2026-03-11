@@ -3,7 +3,7 @@ locals {
   dev_db_storage_mb    = 32768
   prod_db_storage_tier = "P4"
   dev_db_storage_tier  = "P4"
-  prod_sku_name        = "B_Standard_B1ms"
+  prod_sku_name        = "GP_Standard_D2ds_v4"
   dev_sku_name         = "B_Standard_B1ms"
   taxonomy_db_name     = "taxonomy_builder"
 }
