@@ -72,21 +72,3 @@ resource "azurerm_subnet" "api" {
     }
   }
 }
-
-# Keycloak Container App subnet
-resource "azurerm_subnet" "keycloak" {
-  name                 = "sn-${local.name}-keycloak"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = ["10.0.6.0/23"]
-
-  delegation {
-    name = "keycloak"
-    service_delegation {
-      name = "Microsoft.App/environments"
-      actions = [
-        "Microsoft.Network/virtualNetworks/subnets/join/action",
-      ]
-    }
-  }
-}

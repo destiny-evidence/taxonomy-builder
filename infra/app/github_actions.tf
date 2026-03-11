@@ -63,13 +63,6 @@ resource "azurerm_role_assignment" "gha_api_contributor" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
-# GitHub Actions - Keycloak Container App Contributor
-resource "azurerm_role_assignment" "gha_keycloak_contributor" {
-  role_definition_name = "Contributor"
-  scope                = azurerm_container_app.keycloak.id
-  principal_id         = azuread_service_principal.github_actions.object_id
-}
-
 # GitHub Actions - DB Migrator Job Contributor
 resource "azurerm_role_assignment" "gha_db_migrator_contributor" {
   role_definition_name = "Contributor"
