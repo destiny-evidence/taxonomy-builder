@@ -38,9 +38,7 @@ class AuthService:
         """Fetch OIDC configuration from Keycloak."""
         if self._oidc_config is None:
             async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{self._issuer_url}/.well-known/openid-configuration"
-                )
+                resp = await client.get(f"{self._issuer_url}/.well-known/openid-configuration")
                 resp.raise_for_status()
                 self._oidc_config = resp.json()
         return self._oidc_config
@@ -110,6 +108,21 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         if user is None:
+            # Temporary branch to update user details from old keycloak to shared keycloak instance
+            # TODO: remove once all users have been migrated
+            if user := (
+                await self.db.execute(
+                    select(User).where(User.email == token_claims.get("email", ""))
+                )
+            ).scalar_one_or_none():
+                user.keycloak_user_id = keycloak_user_id
+                user.display_name = token_claims.get(
+                    "name", token_claims.get("preferred_username", "Unknown")
+                )
+                user.last_login_at = datetime.now()
+                await self.db.flush()
+                return user
+
             # Create new user
             display_name = token_claims.get(
                 "name", token_claims.get("preferred_username", "Unknown")
