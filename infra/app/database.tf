@@ -3,8 +3,7 @@ locals {
   dev_db_storage_mb    = 32768
   prod_db_storage_tier = "P10"
   dev_db_storage_tier  = "P4"
-  keycloak_db_name     = "keycloak"
-  taxonomy_db_name     = "taxonomy_builder"
+  taxonomy_db_name = "taxonomy_builder"
 }
 
 data "azuread_group" "db_crud_group" {
@@ -15,7 +14,7 @@ data "azuread_group" "db_admin_group" {
   object_id = var.db_admin_group_id
 }
 
-# PostgreSQL Flexible Server (shared by taxonomy-builder and Keycloak)
+# PostgreSQL Flexible Server
 resource "azurerm_postgresql_flexible_server" "this" {
   name                          = "${local.name}-psqlflexibleserver"
   resource_group_name           = azurerm_resource_group.this.name
@@ -61,18 +60,6 @@ resource "azurerm_postgresql_flexible_server" "this" {
 # Taxonomy Builder database
 resource "azurerm_postgresql_flexible_server_database" "taxonomy" {
   name      = local.taxonomy_db_name
-  server_id = azurerm_postgresql_flexible_server.this.id
-  collation = "en_US.utf8"
-  charset   = "UTF8"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Keycloak database
-resource "azurerm_postgresql_flexible_server_database" "keycloak" {
-  name      = local.keycloak_db_name
   server_id = azurerm_postgresql_flexible_server.this.id
   collation = "en_US.utf8"
   charset   = "UTF8"
