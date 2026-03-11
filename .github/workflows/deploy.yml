@@ -5,6 +5,10 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  push:
+    # Auto-deploys to staging (default environment) on pushes to main
+    branches:
+      - main
   workflow_call:
     inputs:
       environment:
