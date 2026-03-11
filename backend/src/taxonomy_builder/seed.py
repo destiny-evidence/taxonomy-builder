@@ -47,7 +47,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
         "concepts": 0,
         "classes": 0,
         "properties": 0,
-        "published_versions": 0
+        "published_versions": 0,
     }
 
     # Create a dev user
@@ -152,8 +152,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
         identifier="systematic-review",
         pref_label="Systematic Review",
         definition=(
-            "A review using systematic methods to identify,"
-            " select, and synthesize research."
+            "A review using systematic methods to identify, select, and synthesize research."
         ),
         scope_note="May or may not include meta-analysis.",
         alt_labels=["SR"],
@@ -351,44 +350,6 @@ async def create_seed_data(session: AsyncSession) -> dict:
     for concept_id, broader_id in color_relationships:
         session.add(ConceptBroader(concept_id=concept_id, broader_concept_id=broader_id))
     await session.flush()
-
-    # Create published versions for both projects
-    # Re-query with eager loading so nested concept relationships are available
-    eager_options = [
-        selectinload(Project.schemes)
-        .selectinload(ConceptScheme.concepts)
-        .selectinload(Concept.broader),
-        selectinload(Project.schemes)
-        .selectinload(ConceptScheme.concepts)
-        .selectinload(Concept._related_as_subject),
-        selectinload(Project.schemes)
-        .selectinload(ConceptScheme.concepts)
-        .selectinload(Concept._related_as_object),
-        selectinload(Project.properties),
-        selectinload(Project.ontology_classes).selectinload(OntologyClass.superclasses),
-    ]
-    result = await session.execute(
-        select(Project)
-        .where(Project.id.in_([project.id, demo_project.id]))
-        .options(*eager_options)
-    )
-    projects_loaded = {p.id: p for p in result.scalars().all()}
-
-    for proj_id, title in [(project.id, "v1.0.0"), (demo_project.id, "v1.0.0")]:
-        loaded = projects_loaded[proj_id]
-        snapshot = SnapshotVocabulary.from_project(loaded)
-        session.add(
-            PublishedVersion(
-                project_id=proj_id,
-                version="1.0.0",
-                title=title,
-                snapshot=snapshot.model_dump(mode="json"),
-                finalized=True,
-                published_at=datetime.now()
-            )
-        )
-    await session.flush()
-    created["published_versions"] = 2
 
     return created
 

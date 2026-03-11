@@ -8,7 +8,7 @@ import { resolve } from "path";
  * the main app bundle) because it runs in a separate context.
  * This config builds src/sw.ts → dist/sw.js.
  */
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   build: {
     lib: {
       entry: resolve(__dirname, "src/sw.ts"),
@@ -18,9 +18,12 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: false,
   },
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(mode),
+  },
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
     },
   },
-});
+}));

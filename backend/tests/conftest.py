@@ -166,8 +166,7 @@ async def authenticated_client(
             user=test_user,
             org_id="test-org",
             org_name="Test Organization",
-            org_roles=["user"],
-            client_roles=["api-user", "feedback-user"],
+            realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_db] = override_get_db

@@ -8,11 +8,6 @@ output "api_container_app_fqdn" {
   value       = data.azurerm_container_app.api.ingress[0].fqdn
 }
 
-output "keycloak_container_app_fqdn" {
-  description = "FQDN of the Keycloak container app"
-  value       = azurerm_container_app.keycloak.ingress[0].fqdn
-}
-
 output "frontdoor_endpoint_hostname" {
   description = "Hostname of the Front Door endpoint"
   value       = azurerm_cdn_frontdoor_endpoint.this.host_name
@@ -38,28 +33,8 @@ output "container_registry_login_server" {
   value       = data.azurerm_container_registry.this.login_server
 }
 
-# Keycloak outputs
-output "keycloak_realm_id" {
-  description = "ID of the Keycloak realm"
-  value       = local.keycloak_realm_id
-}
-
-output "keycloak_api_client_id" {
-  description = "Client ID for the Taxonomy Builder API"
-  value       = keycloak_openid_client.api.client_id
-}
-
-output "keycloak_ui_client_id" {
-  description = "Client ID for the Taxonomy Builder UI"
-  value       = keycloak_openid_client.ui.client_id
-}
-
 output "feedback_frontdoor_custom_domain_validation_token" {
   description = "DNS TXT record value for feedback custom domain validation (add as _dnsauth.{feedback_domain})"
   value       = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
 }
 
-output "keycloak_issuer_url" {
-  description = "Keycloak issuer URL for OIDC configuration"
-  value       = "https://${local.builder_custom_domain}/realms/${var.keycloak_realm_name}"
-}

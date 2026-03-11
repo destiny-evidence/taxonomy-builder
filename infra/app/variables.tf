@@ -72,40 +72,15 @@ variable "api_max_replicas" {
   default     = 10
 }
 
-variable "keycloak_cpu" {
-  description = "CPU allocation for the Keycloak container app"
-  type        = number
-  default     = 0.5
-}
-
-variable "keycloak_memory" {
-  description = "Memory allocation for the Keycloak container app"
+variable "keycloak_url" {
+  description = "Base URL of the shared Keycloak instance"
   type        = string
-  default     = "1Gi"
-}
-
-variable "keycloak_admin_password" {
-  type        = string
-  description = "Admin password for Keycloak"
-  sensitive   = true
-}
-
-variable "keycloak_image_tag" {
-  description = "Keycloak container image tag"
-  type        = string
-  default     = "26"
 }
 
 variable "keycloak_realm_name" {
-  description = "Name of the Keycloak realm to create"
+  description = "Name of the Keycloak realm"
   type        = string
-  default     = "taxonomy-builder"
-}
-
-variable "existing_keycloak_realm_id" {
-  description = "ID of an existing Keycloak realm to use instead of creating one"
-  type        = string
-  default     = null
+  default     = "destiny"
 }
 
 # Azure AD

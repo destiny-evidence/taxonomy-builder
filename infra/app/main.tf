@@ -18,14 +18,6 @@ resource "azurerm_user_assigned_identity" "api" {
   tags                = local.minimum_resource_tags
 }
 
-# Keycloak Container App identity
-resource "azurerm_user_assigned_identity" "keycloak" {
-  name                = "${local.name}-keycloak"
-  location            = azurerm_resource_group.this.location
-  resource_group_name = azurerm_resource_group.this.name
-  tags                = local.minimum_resource_tags
-}
-
 # Add API identity to DB CRUD group for managed identity auth
 resource "azuread_group_member" "api_to_db_crud" {
   group_object_id  = var.db_crud_group_id
@@ -78,15 +70,15 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = "https://${local.builder_custom_domain}"
+      value = var.keycloak_url
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"
-      value = "taxonomy-builder"
+      value = var.keycloak_realm_name
     },
     {
       name  = "TAXONOMY_KEYCLOAK_CLIENT_ID"
-      value = "taxonomy-builder-api"
+      value = "taxonomy-builder-api-${var.environment}"
     },
     {
       name  = "AZURE_CLIENT_ID"
@@ -147,93 +139,6 @@ module "container_app_api" {
       }
     }
   ]
-}
-
-# Keycloak Container App
-resource "azurerm_container_app" "keycloak" {
-  name                         = "${local.name}-keycloak"
-  container_app_environment_id = module.container_app_api.container_app_env_id
-  resource_group_name          = azurerm_resource_group.this.name
-  revision_mode                = "Single"
-
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.keycloak.id]
-  }
-
-  template {
-    min_replicas = 1
-    max_replicas = 1
-
-    container {
-      name   = "keycloak"
-      image  = "quay.io/keycloak/keycloak:${var.keycloak_image_tag}"
-      args   = ["start"]
-      cpu    = var.keycloak_cpu
-      memory = var.keycloak_memory
-
-      env {
-        name  = "KC_DB"
-        value = "postgres"
-      }
-      env {
-        name  = "KC_DB_URL"
-        value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.this.fqdn}:5432/${local.keycloak_db_name}"
-      }
-      env {
-        name  = "KC_DB_USERNAME"
-        value = var.db_admin_login
-      }
-      env {
-        name        = "KC_DB_PASSWORD"
-        secret_name = "kc-db-password"
-      }
-      env {
-        name  = "KC_HOSTNAME_STRICT"
-        value = "false"
-      }
-      env {
-        name  = "KC_PROXY_HEADERS"
-        value = "xforwarded"
-      }
-      env {
-        name  = "KC_HTTP_ENABLED"
-        value = "true"
-      }
-      env {
-        name  = "KEYCLOAK_ADMIN"
-        value = "admin"
-      }
-      env {
-        name        = "KEYCLOAK_ADMIN_PASSWORD"
-        secret_name = "kc-admin-password"
-      }
-    }
-  }
-
-  ingress {
-    external_enabled = true
-    target_port      = 8080
-    transport        = "auto"
-
-    traffic_weight {
-      latest_revision = true
-      percentage      = 100
-    }
-  }
-
-  secret {
-    name  = "kc-db-password"
-    value = var.db_admin_password
-  }
-
-  secret {
-    name  = "kc-admin-password"
-    value = var.keycloak_admin_password
-  }
-
-  tags = local.minimum_resource_tags
 }
 
 # Data source for API Container App (for gateway backend)

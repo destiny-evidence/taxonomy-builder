@@ -63,13 +63,6 @@ resource "azurerm_role_assignment" "gha_api_contributor" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
-# GitHub Actions - Keycloak Container App Contributor
-resource "azurerm_role_assignment" "gha_keycloak_contributor" {
-  role_definition_name = "Contributor"
-  scope                = azurerm_container_app.keycloak.id
-  principal_id         = azuread_service_principal.github_actions.object_id
-}
-
 # GitHub Actions - DB Migrator Job Contributor
 resource "azurerm_role_assignment" "gha_db_migrator_contributor" {
   role_definition_name = "Contributor"
@@ -192,21 +185,21 @@ resource "github_actions_environment_variable" "keycloak_url" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_URL"
-  value         = "https://${local.builder_custom_domain}"
+  value         = var.keycloak_url
 }
 
 resource "github_actions_environment_variable" "keycloak_realm" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_REALM"
-  value         = "taxonomy-builder"
+  value         = var.keycloak_realm_name
 }
 
 resource "github_actions_environment_variable" "keycloak_client_id" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_CLIENT_ID"
-  value         = "taxonomy-builder-ui"
+  value         = "taxonomy-builder-ui-${var.environment}"
 }
 
 resource "github_actions_environment_variable" "feedback_custom_domain" {
@@ -227,7 +220,7 @@ resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_FEEDBACK_CLIENT_ID"
-  value         = "taxonomy-feedback-ui"
+  value         = "taxonomy-reader-ui-${var.environment}"
 }
 
 # Feedback UI deployment variables
