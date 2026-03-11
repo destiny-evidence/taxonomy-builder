@@ -187,3 +187,15 @@ class TestReconcileCounter:
         )
         await db_session.refresh(project_with_prefix)
         assert project_with_prefix.identifier_counter == 0
+
+    async def test_skips_identifiers_above_max_counter(
+        self, db_session: AsyncSession, project_with_prefix: Project
+    ) -> None:
+        """Importing EVD1000000 should not brick future allocations."""
+        service = IdentifierService(db_session)
+        await service.reconcile_counter(
+            project_with_prefix.id, ["EVD1000000", "EVD000005"]
+        )
+        await db_session.refresh(project_with_prefix)
+        # Should use 5, not 1000000
+        assert project_with_prefix.identifier_counter == 5

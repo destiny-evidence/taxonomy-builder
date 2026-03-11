@@ -143,12 +143,15 @@ class IdentifierService:
         prefix = row[0]
 
         # Match imported identifiers against ^{PREFIX}(\d+)$
+        # Skip values above MAX_COUNTER to avoid bricking future allocations
         pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
         max_found = 0
         for ident in imported_identifiers:
             m = pattern.match(ident)
             if m:
-                max_found = max(max_found, int(m.group(1)))
+                value = int(m.group(1))
+                if value <= MAX_COUNTER:
+                    max_found = max(max_found, value)
 
         if max_found > 0:
             # WHERE clause enforces monotonicity — never moves counter backward

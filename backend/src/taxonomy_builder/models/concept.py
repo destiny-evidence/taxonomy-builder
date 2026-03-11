@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid7
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,15 @@ class Concept(Base):
     """A SKOS concept within a concept scheme."""
 
     __tablename__ = "concepts"
+    __table_args__ = (
+        Index(
+            "uq_concept_scheme_identifier",
+            "scheme_id",
+            "identifier",
+            unique=True,
+            postgresql_where=text("identifier IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     scheme_id: Mapped[UUID] = mapped_column(ForeignKey("concept_schemes.id", ondelete="CASCADE"))
