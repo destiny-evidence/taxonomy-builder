@@ -68,8 +68,7 @@ async def auth_client(
             user=user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            client_roles=["api-user", "feedback-user"],
+            realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -88,8 +87,7 @@ async def other_auth_client(
             user=other_user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            client_roles=["api-user", "feedback-user"],
+            realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user

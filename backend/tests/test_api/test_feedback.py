@@ -148,8 +148,7 @@ async def auth_client(
             user=user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            client_roles=["feedback-user"],
+            realm_roles=["vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -168,8 +167,7 @@ async def other_auth_client(
             user=other_user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            client_roles=["feedback-user"],
+            realm_roles=["vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -181,15 +179,14 @@ async def other_auth_client(
 async def manager_client(
     client: AsyncClient, user: User
 ) -> AsyncGenerator[AsyncClient]:
-    """Client authenticated as a manager (api-user role)."""
+    """Client authenticated as a manager (vocabulary.manager.all scope)."""
 
     async def override_current_user() -> AuthenticatedUser:
         return AuthenticatedUser(
             user=user,
             org_id=None,
             org_name=None,
-            org_roles=[],
-            client_roles=["api-user", "feedback-user"],
+            realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = override_current_user
@@ -1059,7 +1056,7 @@ async def test_feedback_user_cannot_access_manager_endpoints(
     url_tpl: str,
     body: dict | None,
 ) -> None:
-    """feedback-user role alone gets 403 on manager endpoints."""
+    """vocabulary.reviewer.all scope alone gets 403 on manager endpoints."""
     fb = _make_feedback(user, project_id=project.id, content="Auth test")
     db_session.add(fb)
     await db_session.flush()
@@ -1091,8 +1088,7 @@ async def test_reader_response_hides_manager_name(
     # Switch to other_user (manager) to respond
     async def manager_override() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=other_user, org_id=None, org_name=None, org_roles=[],
-            client_roles=["api-user", "feedback-user"],
+            user=other_user, org_id=None, org_name=None, realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = manager_override
@@ -1105,8 +1101,7 @@ async def test_reader_response_hides_manager_name(
     # Switch back to user (reader) to check /mine
     async def reader_override() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=user, org_id=None, org_name=None, org_roles=[],
-            client_roles=["feedback-user"],
+            user=user, org_id=None, org_name=None, realm_roles=["vocabulary.reviewer"],
         )
 
     app.dependency_overrides[get_current_user] = reader_override

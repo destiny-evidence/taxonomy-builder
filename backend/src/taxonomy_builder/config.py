@@ -31,8 +31,8 @@ class Settings(BaseSettings):
 
     # Keycloak OIDC settings (for JWT validation)
     keycloak_url: str = "http://localhost:8080"
-    keycloak_realm: str = "taxonomy-builder"
-    keycloak_client_id: str = "taxonomy-builder-api"
+    keycloak_realm: str = "destiny"
+    keycloak_client_id: str = "taxonomy-builder-api-local"
 
     # Blob storage
     blob_backend: str = "filesystem"
