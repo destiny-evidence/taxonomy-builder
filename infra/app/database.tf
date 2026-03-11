@@ -1,9 +1,11 @@
 locals {
-  prod_db_storage_mb   = 131072
+  prod_db_storage_mb   = 32768
   dev_db_storage_mb    = 32768
-  prod_db_storage_tier = "P10"
+  prod_db_storage_tier = "P4"
   dev_db_storage_tier  = "P4"
-  taxonomy_db_name = "taxonomy_builder"
+  prod_sku_name        = "B_Standard_B1ms"
+  dev_sku_name         = "B_Standard_B1ms"
+  taxonomy_db_name     = "taxonomy_builder"
 }
 
 data "azuread_group" "db_crud_group" {
@@ -38,7 +40,7 @@ resource "azurerm_postgresql_flexible_server" "this" {
   storage_mb   = local.is_development ? local.dev_db_storage_mb : local.prod_db_storage_mb
   storage_tier = local.is_development ? local.dev_db_storage_tier : local.prod_db_storage_tier
 
-  sku_name = local.is_development ? "B_Standard_B1ms" : "GP_Standard_D2ds_v4"
+  sku_name = local.is_development ? local.dev_sku_name : local.prod_sku_name
 
   authentication {
     password_auth_enabled         = true
