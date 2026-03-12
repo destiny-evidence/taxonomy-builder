@@ -18,6 +18,7 @@ from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, Project
 from taxonomy_builder.schemas.publishing import VERSION_PATTERN
 from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse
 from taxonomy_builder.services.project_service import (
+    PrefixLockedError,
     ProjectNameExistsError,
     ProjectNotFoundError,
     ProjectService,
@@ -86,6 +87,8 @@ async def update_project(
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ProjectNameExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except PrefixLockedError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 

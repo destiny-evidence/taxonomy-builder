@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid7
 
-from sqlalchemy import String, Text
+from sqlalchemy import CheckConstraint, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from taxonomy_builder.database import Base, UrlString
@@ -26,6 +26,20 @@ class Project(Base):
     namespace: Mapped[str | None] = mapped_column(UrlString(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
+
+    identifier_prefix: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    identifier_counter: Mapped[int] = mapped_column(default=0, server_default="0")
+
+    __table_args__ = (
+        CheckConstraint(
+            r"identifier_prefix ~ '^[A-Z]{1,4}$' OR identifier_prefix IS NULL",
+            name="ck_projects_identifier_prefix_format",
+        ),
+        CheckConstraint(
+            "identifier_counter >= 0",
+            name="ck_projects_identifier_counter_non_negative",
+        ),
+    )
 
     schemes: Mapped[list[ConceptScheme]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
