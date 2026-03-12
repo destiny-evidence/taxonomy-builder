@@ -29,8 +29,11 @@ on:
         options:
           - development
           - staging
-          # Allow build & deploy to production
           - production
+      image_tag:
+        type: string
+        description: Existing API image tag to deploy (skips build when provided)
+        required: false
       force_feedback_ui:
         type: boolean
         description: Deploy feedback UI even if unchanged
@@ -68,13 +71,13 @@ jobs:
     # When image_tag is provided (e.g. promote-to-production), skip the build
     # and pass through the existing tag. The image was already pushed to ACR
     # during the staging deploy.
+    if: ${{ !inputs.image_tag }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'staging' }}
     outputs:
-      image_tag: ${{ inputs.image_tag || steps.vars.outputs.sha_short }}
+      image_tag: ${{ steps.vars.outputs.sha_short }}
     steps:
       - name: "Az CLI login"
-        if: ${{ !inputs.image_tag }}
         uses: azure/login@v2.1.0
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -82,17 +85,14 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - uses: actions/checkout@v4
-        if: ${{ !inputs.image_tag }}
         with:
           sparse-checkout: |
             backend
 
       - name: Set up Docker Buildx
-        if: ${{ !inputs.image_tag }}
         uses: docker/setup-buildx-action@v3
 
       - name: Azure Docker Login
-        if: ${{ !inputs.image_tag }}
         id: acr_login
         uses: Azure/cli@v2.0.0
         with:
@@ -104,7 +104,6 @@ jobs:
             } >> $GITHUB_OUTPUT
 
       - name: Login to Azure Container Registry
-        if: ${{ !inputs.image_tag }}
         uses: docker/login-action@v3
         with:
           registry: ${{vars.REGISTRY_NAME}}.azurecr.io
@@ -112,12 +111,10 @@ jobs:
           password: ${{ steps.acr_login.outputs.docker_token }}
 
       - name: Set job env
-        if: ${{ !inputs.image_tag }}
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Build and push API Docker image
-        if: ${{ !inputs.image_tag }}
         uses: docker/build-push-action@v5.1.0
         with:
           context: ./backend
@@ -206,6 +203,7 @@ jobs:
   deploy-api:
     runs-on: ubuntu-latest
     needs: build-api
+    if: ${{ always() && !failure() && !cancelled() }}
     environment: ${{ inputs.environment || 'staging' }}
     steps:
       - name: "Az CLI login"
@@ -222,7 +220,7 @@ jobs:
           containerAppName: ${{vars.CONTAINER_APP_NAME}}
           resourceGroup: ${{vars.RESOURCE_GROUP}}
           containerAppEnvironment: ${{vars.CONTAINER_APP_ENV}}
-          imageToDeploy: ${{vars.REGISTRY_NAME}}.azurecr.io/${{vars.APP_NAME}}:${{ needs.build-api.outputs.image_tag }}
+          imageToDeploy: ${{vars.REGISTRY_NAME}}.azurecr.io/${{vars.APP_NAME}}:${{ needs.build-api.outputs.image_tag || inputs.image_tag }}
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -307,6 +305,7 @@ jobs:
   migrate-database:
     runs-on: ubuntu-latest
     needs: [deploy-api, build-api]
+    if: ${{ always() && !failure() && !cancelled() }}
     environment: ${{ inputs.environment || 'staging' }}
     steps:
       - name: "Az CLI login"
@@ -323,7 +322,7 @@ jobs:
             az containerapp job update \
               --name "db-migrator-${{ vars.ENVIRONMENT_NAME }}" \
               --resource-group ${{vars.RESOURCE_GROUP}} \
-              --image ${{vars.REGISTRY_NAME}}.azurecr.io/${{vars.APP_NAME}}:${{ needs.build-api.outputs.image_tag }}
+              --image ${{vars.REGISTRY_NAME}}.azurecr.io/${{vars.APP_NAME}}:${{ needs.build-api.outputs.image_tag || inputs.image_tag }}
 
       - name: Trigger database migrations
         uses: Azure/cli@v2.0.0
