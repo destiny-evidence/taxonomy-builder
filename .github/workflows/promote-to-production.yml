@@ -1,0 +1,32 @@
+name: Promote to Production
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+on: workflow_dispatch
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  get-image-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_short }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .
+
+      - name: Get image tag
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+  deploy:
+    uses: ./.github/workflows/deploy.yml
+    needs: get-image-tag
+    with:
+      environment: production
+      image_tag: ${{ needs.get-image-tag.outputs.image_tag }}
