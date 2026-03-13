@@ -100,8 +100,8 @@ module "container_app_api" {
       name = "TAXONOMY_CDN"
       value = jsonencode({
         subscription_id = data.azurerm_subscription.current.subscription_id
-        resource_group  = azurerm_resource_group.this.name
-        profile_name    = azurerm_cdn_frontdoor_profile.this.name
+        resource_group  = var.frontdoor_resource_group_name
+        profile_name    = data.azurerm_cdn_frontdoor_profile.shared.name
         endpoint_name   = azurerm_cdn_frontdoor_endpoint.this.name
       })
     },

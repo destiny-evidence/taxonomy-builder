@@ -1,24 +1,21 @@
-# Azure Front Door for routing and custom domain
+# Application-specific config on the shared Azure Front Door
 
-resource "azurerm_cdn_frontdoor_profile" "this" {
-  name                = "fd-${local.name}"
-  resource_group_name = azurerm_resource_group.this.name
-  sku_name            = "Standard_AzureFrontDoor"
-
-  tags = local.minimum_resource_tags
+data "azurerm_cdn_frontdoor_profile" "shared" {
+  name                = var.frontdoor_profile_name
+  resource_group_name = var.frontdoor_resource_group_name
 }
 
 resource "azurerm_cdn_frontdoor_endpoint" "this" {
   name                     = "fde-${local.name}"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   tags = local.minimum_resource_tags
 }
 
 # Origin groups
 resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
-  name                     = "frontend-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  name                     = "og-frontend-${local.name}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -27,8 +24,8 @@ resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "api" {
-  name                     = "api-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  name                     = "og-api-${local.name}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -43,8 +40,8 @@ resource "azurerm_cdn_frontdoor_origin_group" "api" {
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "published" {
-  name                     = "published-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  name                     = "og-published-${local.name}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -53,8 +50,8 @@ resource "azurerm_cdn_frontdoor_origin_group" "published" {
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "feedback" {
-  name                     = "feedback-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  name                     = "og-feedback-${local.name}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -64,7 +61,7 @@ resource "azurerm_cdn_frontdoor_origin_group" "feedback" {
 
 # Origins
 resource "azurerm_cdn_frontdoor_origin" "frontend" {
-  name                          = "frontend-origin"
+  name                          = "o-frontend-${local.name}"
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
 
   enabled                        = true
@@ -76,7 +73,7 @@ resource "azurerm_cdn_frontdoor_origin" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "api" {
-  name                          = "api-origin"
+  name                          = "o-api-${local.name}"
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
 
   enabled                        = true
@@ -88,7 +85,7 @@ resource "azurerm_cdn_frontdoor_origin" "api" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "published" {
-  name                          = "published-origin"
+  name                          = "o-published-${local.name}"
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
 
   enabled                        = true
@@ -100,7 +97,7 @@ resource "azurerm_cdn_frontdoor_origin" "published" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "feedback" {
-  name                          = "feedback-origin"
+  name                          = "o-feedback-${local.name}"
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.feedback.id
 
   enabled                        = true
@@ -113,7 +110,7 @@ resource "azurerm_cdn_frontdoor_origin" "feedback" {
 
 # Routes
 resource "azurerm_cdn_frontdoor_route" "frontend" {
-  name                          = "frontend-route"
+  name                          = "rt-frontend-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.frontend.id]
@@ -128,7 +125,7 @@ resource "azurerm_cdn_frontdoor_route" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_route" "api" {
-  name                          = "api-route"
+  name                          = "rt-api-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
@@ -143,7 +140,7 @@ resource "azurerm_cdn_frontdoor_route" "api" {
 }
 
 resource "azurerm_cdn_frontdoor_route" "published" {
-  name                          = "published-route"
+  name                          = "rt-published-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.published.id]
@@ -166,8 +163,8 @@ resource "azurerm_cdn_frontdoor_route" "published" {
 
 # Cache rule set for published content — CDN caches aggressively, purged on publish
 resource "azurerm_cdn_frontdoor_rule_set" "published_cache" {
-  name                     = "publishedcache"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  name                     = "publishedcache${replace(local.name, "-", "")}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 }
 
 resource "azurerm_cdn_frontdoor_rule" "cache_published" {
@@ -197,7 +194,7 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
 # Custom domain for feedback UI
 resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
   name                     = replace(local.feedback_custom_domain, ".", "-")
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
   host_name                = local.feedback_custom_domain
 
   tls {
@@ -208,7 +205,7 @@ resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
 
 # Feedback UI SPA — catch-all route on the feedback subdomain
 resource "azurerm_cdn_frontdoor_route" "feedback" {
-  name                          = "feedback-route"
+  name                          = "rt-feedback-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.feedback.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.feedback.id]
@@ -234,7 +231,7 @@ resource "azurerm_cdn_frontdoor_route" "feedback" {
 
 # API proxy on the feedback subdomain — avoids CORS by keeping requests same-origin
 resource "azurerm_cdn_frontdoor_route" "feedback_api" {
-  name                          = "feedback-api-route"
+  name                          = "rt-feedback-api-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
@@ -250,7 +247,7 @@ resource "azurerm_cdn_frontdoor_route" "feedback_api" {
 
 # Published data on the feedback subdomain
 resource "azurerm_cdn_frontdoor_route" "feedback_published" {
-  name                          = "feedback-published-route"
+  name                          = "rt-feedback-published-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.published.id]
@@ -282,8 +279,8 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
 
 # Cache rule set for feedback UI static assets — purged on deploy
 resource "azurerm_cdn_frontdoor_rule_set" "feedback_cache" {
-  name                     = "feedbackcache"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  name                     = "feedbackcache${replace(local.name, "-", "")}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 }
 
 # Service worker must always revalidate (browsers cap at 24h, but CDN must not cache it)
@@ -385,21 +382,21 @@ data "azurerm_role_definition" "cdn_purge" {
 
 resource "azurerm_role_assignment" "api_cdn_purger" {
   role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
-  scope              = azurerm_cdn_frontdoor_profile.this.id
+  scope              = data.azurerm_cdn_frontdoor_profile.shared.id
   principal_id       = azurerm_user_assigned_identity.api.principal_id
 }
 
 # GitHub Actions needs permission to purge feedback UI cache on deploy
 resource "azurerm_role_assignment" "gha_cdn_purger" {
   role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
-  scope              = azurerm_cdn_frontdoor_profile.this.id
+  scope              = data.azurerm_cdn_frontdoor_profile.shared.id
   principal_id       = azuread_service_principal.github_actions.object_id
 }
 
 # Custom domain
 resource "azurerm_cdn_frontdoor_custom_domain" "this" {
   name                     = replace(local.builder_custom_domain, ".", "-")
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
   host_name                = local.builder_custom_domain
 
   tls {
@@ -415,4 +412,40 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
   ]
+}
+
+# --- DNS (DNSimple) ---
+
+# Builder UI
+resource "dnsimple_zone_record" "builder_cname" {
+  zone_name = var.custom_domain
+  name      = var.builder_subdomain
+  type      = "CNAME"
+  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  ttl       = 3600
+}
+
+resource "dnsimple_zone_record" "builder_validation" {
+  zone_name = var.custom_domain
+  name      = "_dnsauth.${var.builder_subdomain}"
+  type      = "TXT"
+  value     = azurerm_cdn_frontdoor_custom_domain.this.validation_token
+  ttl       = 3600
+}
+
+# Feedback UI
+resource "dnsimple_zone_record" "feedback_cname" {
+  zone_name = var.custom_domain
+  name      = var.feedback_subdomain
+  type      = "CNAME"
+  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  ttl       = 3600
+}
+
+resource "dnsimple_zone_record" "feedback_validation" {
+  zone_name = var.custom_domain
+  name      = "_dnsauth.${var.feedback_subdomain}"
+  type      = "TXT"
+  value     = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
+  ttl       = 3600
 }
