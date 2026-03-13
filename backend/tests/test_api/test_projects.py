@@ -581,7 +581,7 @@ async def test_update_project_prefix_locked_returns_409(
     from taxonomy_builder.models.concept import Concept
     from taxonomy_builder.models.concept_scheme import ConceptScheme
 
-    project = Project(name="API Lock Test", identifier_prefix="TST")
+    project = Project(name="API Lock Test", namespace="https://example.org/vocab", identifier_prefix="TST")
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
