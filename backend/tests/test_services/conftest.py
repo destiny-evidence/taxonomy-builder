@@ -4,13 +4,14 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.skos_import_service import SKOSImportService
 
 
 @pytest.fixture
 def import_service(db_session: AsyncSession) -> SKOSImportService:
     """Create import service instance."""
-    return SKOSImportService(db_session)
+    return SKOSImportService(db_session, project_service=ProjectService(db_session))
 
 
 @pytest.fixture

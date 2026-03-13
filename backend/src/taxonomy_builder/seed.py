@@ -254,7 +254,8 @@ async def create_seed_data(session: AsyncSession) -> dict:
     created["concepts"] += 5
 
     # Import ontology classes and properties from evrepo-core TTL
-    import_service = SKOSImportService(session)
+    project_service = ProjectService(session)
+    import_service = SKOSImportService(session, project_service=project_service)
     ttl_content = _EVREPO_CORE_TTL.read_bytes()
     import_result = await import_service.execute(project.id, ttl_content, "evrepo-core.ttl")
     created["classes"] += len(import_result.classes_created)
