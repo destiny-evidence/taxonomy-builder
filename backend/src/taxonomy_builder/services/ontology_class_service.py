@@ -46,16 +46,6 @@ class OntologyClassURIExistsError(Exception):
         )
 
 
-class ProjectNamespaceRequiredError(Exception):
-    """Raised when a project namespace is needed but not set."""
-
-    def __init__(self, project_id: UUID) -> None:
-        self.project_id = project_id
-        super().__init__(
-            "Project namespace required to create ontology classes without explicit URI"
-        )
-
-
 class OntologyClassReferencedByPropertyError(Exception):
     """Raised when attempting to delete a class that is referenced by properties."""
 
@@ -109,13 +99,11 @@ class OntologyClassService:
         """
         project = await self._project_service.get_project(project_id)
 
-        # Determine URI: explicit > computed from namespace > error
+        # Determine URI: explicit or computed from namespace
         if ontology_class_in.uri:
             uri = ontology_class_in.uri
-        elif project.namespace:
-            uri = project.namespace.strip().rstrip("/") + "/" + ontology_class_in.identifier
         else:
-            raise ProjectNamespaceRequiredError(project_id)
+            uri = project.namespace.strip().rstrip("/") + "/" + ontology_class_in.identifier
 
         ontology_class = OntologyClass(
             project_id=project_id,

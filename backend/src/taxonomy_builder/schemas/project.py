@@ -3,7 +3,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
 
 class ProjectCreate(BaseModel):
@@ -11,7 +13,7 @@ class ProjectCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
-    namespace: HttpUrl | None = None
+    namespace: HttpUrl
     identifier_prefix: str | None = Field(default=None, max_length=4, pattern=r"^[A-Z]{1,4}$")
 
     @field_validator("name")
@@ -37,6 +39,13 @@ class ProjectUpdate(BaseModel):
             return v.strip()
         return v
 
+    @model_validator(mode="after")
+    def prevent_null_namespace(self) -> Self:
+        """Reject explicitly setting namespace to null."""
+        if "namespace" in self.model_fields_set and self.namespace is None:
+            raise ValueError("namespace cannot be set to null")
+        return self
+
 
 class ProjectRead(BaseModel):
     """Schema for reading a project."""
@@ -46,7 +55,7 @@ class ProjectRead(BaseModel):
     id: UUID
     name: str
     description: str | None
-    namespace: str | None
+    namespace: str
     identifier_prefix: str | None
     identifier_counter: int
     created_at: datetime

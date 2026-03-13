@@ -10,16 +10,6 @@ from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 
 
-@pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project", description="For testing schemes")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
 @pytest.mark.asyncio
 async def test_create_concept_scheme(db_session: AsyncSession, project: Project) -> None:
     """Test creating a concept scheme."""
@@ -125,8 +115,8 @@ async def test_unique_title_per_project(db_session: AsyncSession, project: Proje
 @pytest.mark.asyncio
 async def test_same_title_different_projects(db_session: AsyncSession) -> None:
     """Test that same title can exist in different projects."""
-    project1 = Project(name="Project 1")
-    project2 = Project(name="Project 2")
+    project1 = Project(name="Project 1", namespace="https://example.org/p1/")
+    project2 = Project(name="Project 2", namespace="https://example.org/p2/")
     db_session.add_all([project1, project2])
     await db_session.flush()
 

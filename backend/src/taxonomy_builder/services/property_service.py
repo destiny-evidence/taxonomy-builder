@@ -76,16 +76,6 @@ class PropertyURIExistsError(Exception):
         )
 
 
-class ProjectNamespaceRequiredError(Exception):
-    """Raised when a project namespace is needed but not set."""
-
-    def __init__(self, project_id: UUID) -> None:
-        self.project_id = project_id
-        super().__init__(
-            "Project namespace required to create properties without explicit URI"
-        )
-
-
 class PropertyService:
     """Service for managing properties."""
 
@@ -191,13 +181,11 @@ class PropertyService:
             property_in.range_class,
         )
 
-        # Determine URI: explicit > computed from namespace > error
+        # Determine URI: explicit or computed from namespace
         if property_in.uri:
             uri = property_in.uri
-        elif project.namespace:
-            uri = project.namespace.strip().rstrip("/") + "/" + property_in.identifier
         else:
-            raise ProjectNamespaceRequiredError(project_id)
+            uri = project.namespace.strip().rstrip("/") + "/" + property_in.identifier
 
         # Create property
         prop = Property(
