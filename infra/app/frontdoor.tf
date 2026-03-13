@@ -1,16 +1,13 @@
-# Azure Front Door for routing and custom domain
+# Application-specific config on the shared Azure Front Door
 
-resource "azurerm_cdn_frontdoor_profile" "this" {
-  name                = "fd-${local.name}"
-  resource_group_name = azurerm_resource_group.this.name
-  sku_name            = "Standard_AzureFrontDoor"
-
-  tags = local.minimum_resource_tags
+data "azurerm_cdn_frontdoor_profile" "shared" {
+  name                = var.frontdoor_profile_name
+  resource_group_name = var.frontdoor_resource_group_name
 }
 
 resource "azurerm_cdn_frontdoor_endpoint" "this" {
   name                     = "fde-${local.name}"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   tags = local.minimum_resource_tags
 }
@@ -18,7 +15,7 @@ resource "azurerm_cdn_frontdoor_endpoint" "this" {
 # Origin groups
 resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
   name                     = "frontend-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -28,7 +25,7 @@ resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
 
 resource "azurerm_cdn_frontdoor_origin_group" "api" {
   name                     = "api-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -44,7 +41,7 @@ resource "azurerm_cdn_frontdoor_origin_group" "api" {
 
 resource "azurerm_cdn_frontdoor_origin_group" "published" {
   name                     = "published-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -54,7 +51,7 @@ resource "azurerm_cdn_frontdoor_origin_group" "published" {
 
 resource "azurerm_cdn_frontdoor_origin_group" "feedback" {
   name                     = "feedback-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
   load_balancing {
     sample_size                 = 4
@@ -167,7 +164,7 @@ resource "azurerm_cdn_frontdoor_route" "published" {
 # Cache rule set for published content — CDN caches aggressively, purged on publish
 resource "azurerm_cdn_frontdoor_rule_set" "published_cache" {
   name                     = "publishedcache"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 }
 
 resource "azurerm_cdn_frontdoor_rule" "cache_published" {
@@ -197,7 +194,7 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
 # Custom domain for feedback UI
 resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
   name                     = replace(local.feedback_custom_domain, ".", "-")
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
   host_name                = local.feedback_custom_domain
 
   tls {
@@ -283,7 +280,7 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
 # Cache rule set for feedback UI static assets — purged on deploy
 resource "azurerm_cdn_frontdoor_rule_set" "feedback_cache" {
   name                     = "feedbackcache"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 }
 
 # Service worker must always revalidate (browsers cap at 24h, but CDN must not cache it)
@@ -385,21 +382,21 @@ data "azurerm_role_definition" "cdn_purge" {
 
 resource "azurerm_role_assignment" "api_cdn_purger" {
   role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
-  scope              = azurerm_cdn_frontdoor_profile.this.id
+  scope              = data.azurerm_cdn_frontdoor_profile.shared.id
   principal_id       = azurerm_user_assigned_identity.api.principal_id
 }
 
 # GitHub Actions needs permission to purge feedback UI cache on deploy
 resource "azurerm_role_assignment" "gha_cdn_purger" {
   role_definition_id = data.azurerm_role_definition.cdn_purge.role_definition_id
-  scope              = azurerm_cdn_frontdoor_profile.this.id
+  scope              = data.azurerm_cdn_frontdoor_profile.shared.id
   principal_id       = azuread_service_principal.github_actions.object_id
 }
 
 # Custom domain
 resource "azurerm_cdn_frontdoor_custom_domain" "this" {
   name                     = replace(local.builder_custom_domain, ".", "-")
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
   host_name                = local.builder_custom_domain
 
   tls {
@@ -415,4 +412,40 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
   ]
+}
+
+# --- DNS (DNSimple) ---
+
+# Builder UI
+resource "dnsimple_zone_record" "builder_cname" {
+  zone_name = var.custom_domain
+  name      = var.builder_subdomain
+  type      = "CNAME"
+  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  ttl       = 3600
+}
+
+resource "dnsimple_zone_record" "builder_validation" {
+  zone_name = var.custom_domain
+  name      = "_dnsauth.${var.builder_subdomain}"
+  type      = "TXT"
+  value     = azurerm_cdn_frontdoor_custom_domain.this.validation_token
+  ttl       = 3600
+}
+
+# Feedback UI
+resource "dnsimple_zone_record" "feedback_cname" {
+  zone_name = var.custom_domain
+  name      = var.feedback_subdomain
+  type      = "CNAME"
+  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  ttl       = 3600
+}
+
+resource "dnsimple_zone_record" "feedback_validation" {
+  zone_name = var.custom_domain
+  name      = "_dnsauth.${var.feedback_subdomain}"
+  type      = "TXT"
+  value     = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
+  ttl       = 3600
 }

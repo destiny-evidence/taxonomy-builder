@@ -134,7 +134,17 @@ variable "project" {
   default     = "DESTINY"
 }
 
-# Front Door
+# Front Door (shared instance)
+variable "frontdoor_profile_name" {
+  description = "Name of the shared Azure Front Door profile"
+  type        = string
+}
+
+variable "frontdoor_resource_group_name" {
+  description = "Resource group containing the shared Front Door profile"
+  type        = string
+}
+
 variable "custom_domain" {
   description = "Base domain (e.g., evidence-repository.org)"
   type        = string
@@ -156,4 +166,16 @@ variable "cache_feedback_ui_at_edge" {
   description = "Enable Front Door edge caching for the feedback UI (disable for testing)"
   type        = bool
   default     = false
+}
+
+# DNS (DNSimple)
+variable "dnsimple_token" {
+  description = "API token for DNSimple"
+  type        = string
+  sensitive   = true
+}
+
+variable "dnsimple_account_id" {
+  description = "DNSimple account ID"
+  type        = string
 }

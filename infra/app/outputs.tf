@@ -13,11 +13,6 @@ output "frontdoor_endpoint_hostname" {
   value       = azurerm_cdn_frontdoor_endpoint.this.host_name
 }
 
-output "frontdoor_custom_domain_validation_token" {
-  description = "DNS TXT record value for custom domain validation (add as _dnsauth.yourdomain)"
-  value       = azurerm_cdn_frontdoor_custom_domain.this.validation_token
-}
-
 output "postgresql_server_fqdn" {
   description = "FQDN of the PostgreSQL Flexible Server"
   value       = azurerm_postgresql_flexible_server.this.fqdn
@@ -32,9 +27,3 @@ output "container_registry_login_server" {
   description = "Login server for the container registry"
   value       = data.azurerm_container_registry.this.login_server
 }
-
-output "feedback_frontdoor_custom_domain_validation_token" {
-  description = "DNS TXT record value for feedback custom domain validation (add as _dnsauth.{feedback_domain})"
-  value       = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
-}
-

@@ -31,6 +31,10 @@ terraform {
       version = "~> 6.6"
     }
 
+    dnsimple = {
+      source  = "dnsimple/dnsimple"
+      version = "2.0.1"
+    }
 }
 }
 
@@ -48,4 +52,9 @@ provider "github" {
     installation_id = var.github_app_installation_id
     pem_file        = var.github_app_pem
   }
+}
+
+provider "dnsimple" {
+  token   = var.dnsimple_token
+  account = var.dnsimple_account_id
 }
