@@ -54,6 +54,22 @@ async def test_project_name_is_unique(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_project_namespace_is_unique(db_session: AsyncSession) -> None:
+    """Test that project namespaces must be unique."""
+    from sqlalchemy.exc import IntegrityError
+
+    project1 = Project(name="Project A", namespace="https://example.org/vocab/")
+    db_session.add(project1)
+    await db_session.flush()
+
+    project2 = Project(name="Project B", namespace="https://example.org/vocab/")
+    db_session.add(project2)
+
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+
+
+@pytest.mark.asyncio
 async def test_project_description_is_optional(db_session: AsyncSession) -> None:
     """Test that project description is optional."""
     project = Project(name="No Description", namespace="https://example.org/test/")
