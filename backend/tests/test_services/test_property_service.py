@@ -15,7 +15,6 @@ from taxonomy_builder.services.project_service import ProjectNotFoundError, Proj
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
-    ProjectNamespaceRequiredError,
     PropertyIdentifierExistsError,
     PropertyService,
     PropertyURIExistsError,
@@ -773,65 +772,6 @@ class TestPropertyURI:
         prop = await property_service.create_property(project.id, prop_in)
 
         assert prop.uri == "https://external.org/props/educationLevel"
-
-    @pytest.mark.asyncio
-    async def test_create_without_namespace_raises(
-        self,
-        db_session: AsyncSession,
-        property_service: PropertyService,
-    ) -> None:
-        """Create without namespace and no explicit URI raises ProjectNamespaceRequiredError."""
-        project_nn = Project(name="No Namespace")
-        db_session.add(project_nn)
-        await db_session.flush()
-        await db_session.refresh(project_nn)
-
-        cls = OntologyClass(
-            project_id=project_nn.id, identifier="Finding",
-            label="Finding", uri="https://example.org/vocab/Finding",
-        )
-        db_session.add(cls)
-        await db_session.flush()
-
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://example.org/vocab/Finding",
-            range_datatype="xsd:string",
-            cardinality="single",
-        )
-        with pytest.raises(ProjectNamespaceRequiredError):
-            await property_service.create_property(project_nn.id, prop_in)
-
-    @pytest.mark.asyncio
-    async def test_create_with_explicit_uri_no_namespace_ok(
-        self,
-        db_session: AsyncSession,
-        property_service: PropertyService,
-    ) -> None:
-        """Create with explicit URI works even without project namespace."""
-        project_nn = Project(name="No Namespace")
-        db_session.add(project_nn)
-        await db_session.flush()
-        await db_session.refresh(project_nn)
-
-        cls = OntologyClass(
-            project_id=project_nn.id, identifier="Finding",
-            label="Finding", uri="https://example.org/vocab/Finding",
-        )
-        db_session.add(cls)
-        await db_session.flush()
-
-        prop_in = PropertyCreate(
-            identifier="testProp",
-            label="Test",
-            domain_class="https://example.org/vocab/Finding",
-            range_datatype="xsd:string",
-            cardinality="single",
-            uri="https://external.org/props/testProp",
-        )
-        prop = await property_service.create_property(project_nn.id, prop_in)
-        assert prop.uri == "https://external.org/props/testProp"
 
     @pytest.mark.asyncio
     async def test_update_identifier_does_not_change_uri(

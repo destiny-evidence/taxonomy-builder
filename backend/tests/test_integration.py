@@ -85,7 +85,7 @@ class TestDataPersistence:
         # Create a project
         create_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Persistence Test", "description": "Testing data persistence"},
+            json={"name": "Persistence Test", "description": "Testing data persistence", "namespace": "https://example.org/vocab"},
         )
         assert create_response.status_code == 201
         created = create_response.json()
@@ -103,7 +103,7 @@ class TestDataPersistence:
         # Create a project
         create_response = await integration_client.post(
             "/api/projects",
-            json={"name": "List Test Project"},
+            json={"name": "List Test Project", "namespace": "https://example.org/vocab"},
         )
         assert create_response.status_code == 201
 
@@ -119,7 +119,7 @@ class TestDataPersistence:
         # Create
         create_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Update Test"},
+            json={"name": "Update Test", "namespace": "https://example.org/vocab"},
         )
         assert create_response.status_code == 201
         project_id = create_response.json()["id"]
@@ -141,7 +141,7 @@ class TestDataPersistence:
         # Create
         create_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Delete Test"},
+            json={"name": "Delete Test", "namespace": "https://example.org/vocab"},
         )
         assert create_response.status_code == 201
         project_id = create_response.json()["id"]
@@ -159,7 +159,7 @@ class TestDataPersistence:
         # Create project
         project_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Scheme Test Project"},
+            json={"name": "Scheme Test Project", "namespace": "https://example.org/vocab"},
         )
         project_id = project_response.json()["id"]
 
@@ -181,7 +181,7 @@ class TestDataPersistence:
         # Create project
         project_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Concept Test Project"},
+            json={"name": "Concept Test Project", "namespace": "https://example.org/vocab"},
         )
         project_id = project_response.json()["id"]
 
@@ -210,7 +210,7 @@ class TestDataPersistence:
         # Create project and scheme
         project_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Broader Test Project"},
+            json={"name": "Broader Test Project", "namespace": "https://example.org/vocab"},
         )
         project_id = project_response.json()["id"]
 
