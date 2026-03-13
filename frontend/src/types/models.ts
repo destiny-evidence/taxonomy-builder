@@ -3,7 +3,7 @@ export interface Project {
   id: string;
   name: string;
   description: string | null;
-  namespace: string | null;
+  namespace: string;
   identifier_prefix: string | null;
   identifier_counter: number;
   created_at: string;
@@ -13,14 +13,14 @@ export interface Project {
 export interface ProjectCreate {
   name: string;
   description?: string | null;
-  namespace?: string | null;
+  namespace: string;
   identifier_prefix?: string | null;
 }
 
 export interface ProjectUpdate {
   name?: string;
   description?: string | null;
-  namespace?: string | null;
+  namespace?: string;
   identifier_prefix?: string | null;
 }
 
