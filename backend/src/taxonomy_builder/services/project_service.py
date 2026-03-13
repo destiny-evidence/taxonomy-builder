@@ -1,8 +1,9 @@
 """Project service for business logic."""
 
+import re
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +48,20 @@ class PrefixLockedError(Exception):
         )
 
 
+IDENTIFIER_WIDTH = 6
+MAX_COUNTER = 10**IDENTIFIER_WIDTH - 1
+
+
+class IdentifierAllocationError(Exception):
+    """Raised when an identifier cannot be allocated for a project."""
+
+    def __init__(self, project_id: UUID, reason: str) -> None:
+        self.project_id = project_id
+        super().__init__(
+            f"Cannot allocate identifier for project {project_id}: {reason}"
+        )
+
+
 class ProjectService:
     """Service for managing projects."""
 
@@ -82,6 +97,68 @@ class ProjectService:
         )
         if result.scalar_one_or_none() is not None:
             raise PrefixLockedError()
+
+    async def allocate_identifier(self, project_id: UUID) -> str:
+        """Allocate the next sequential identifier for a project.
+
+        Atomically increments counter and returns identifier string like "EVD000001".
+
+        Raises:
+            ProjectNotFoundError: If project does not exist.
+            IdentifierAllocationError: If no prefix configured or counter at max.
+        """
+        project = await self.get_project(project_id)
+
+        if project.identifier_prefix is None:
+            raise IdentifierAllocationError(project_id, "no identifier_prefix configured")
+
+        result = await self.db.execute(
+            update(Project)
+            .where(
+                Project.id == project_id,
+                Project.identifier_counter < MAX_COUNTER,
+            )
+            .values(identifier_counter=Project.identifier_counter + 1)
+            .returning(Project.identifier_prefix, Project.identifier_counter)
+        )
+        row = result.one_or_none()
+
+        if row is not None:
+            prefix, counter = row[0], row[1]
+            return f"{prefix}{counter:0{IDENTIFIER_WIDTH}d}"
+
+        raise IdentifierAllocationError(
+            project_id, f"counter at maximum ({MAX_COUNTER})"
+        )
+
+    async def reconcile_identifier_counter(
+        self, project_id: UUID, identifiers: list[str]
+    ) -> None:
+        """Advance project counter past the highest imported identifier matching the prefix.
+
+        Monotonic: never moves counter backward.
+        Skips identifiers above MAX_COUNTER to prevent bricking future allocations.
+        """
+        project = await self.get_project(project_id)
+        if project.identifier_prefix is None:
+            return
+
+        prefix = project.identifier_prefix
+        pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
+        max_found = 0
+        for ident in identifiers:
+            m = pattern.match(ident)
+            if m:
+                value = int(m.group(1))
+                if value <= MAX_COUNTER:
+                    max_found = max(max_found, value)
+
+        if max_found > 0:
+            await self.db.execute(
+                update(Project)
+                .where(Project.id == project_id, Project.identifier_counter < max_found)
+                .values(identifier_counter=max_found)
+            )
 
     async def list_projects(self) -> list[Project]:
         """List all projects ordered by name."""

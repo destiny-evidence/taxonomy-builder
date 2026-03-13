@@ -5,8 +5,11 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectUpdate
 from taxonomy_builder.services.project_service import (
+    MAX_COUNTER,
+    IdentifierAllocationError,
     ProjectNameExistsError,
     ProjectNotFoundError,
     ProjectService,
@@ -177,3 +180,125 @@ async def test_delete_project_not_found_raises(db_session: AsyncSession) -> None
 
     with pytest.raises(ProjectNotFoundError):
         await service.delete_project(fake_id)
+
+
+# --- Identifier allocation ---
+
+
+@pytest.mark.asyncio
+async def test_allocate_identifier_sequential(
+    db_session: AsyncSession, project_with_prefix: Project
+) -> None:
+    """Successive allocations increment sequentially."""
+    service = ProjectService(db_session)
+    id1 = await service.allocate_identifier(project_with_prefix.id)
+    id2 = await service.allocate_identifier(project_with_prefix.id)
+    id3 = await service.allocate_identifier(project_with_prefix.id)
+    assert id1 == "EVD000001"
+    assert id2 == "EVD000002"
+    assert id3 == "EVD000003"
+
+
+@pytest.mark.asyncio
+async def test_allocate_identifier_overflow(
+    db_session: AsyncSession, project_with_prefix: Project
+) -> None:
+    """Raises IdentifierAllocationError when counter reaches max."""
+    project_with_prefix.identifier_counter = MAX_COUNTER
+    await db_session.flush()
+
+    service = ProjectService(db_session)
+    with pytest.raises(IdentifierAllocationError, match="counter at maximum"):
+        await service.allocate_identifier(project_with_prefix.id)
+
+
+@pytest.mark.asyncio
+async def test_allocate_identifier_no_prefix_raises(db_session: AsyncSession) -> None:
+    """Raises IdentifierAllocationError when project has no prefix."""
+    project = Project(name="No Prefix", namespace="https://example.org/np/")
+    db_session.add(project)
+    await db_session.flush()
+
+    service = ProjectService(db_session)
+    with pytest.raises(IdentifierAllocationError, match="no identifier_prefix"):
+        await service.allocate_identifier(project.id)
+
+
+@pytest.mark.asyncio
+async def test_allocate_identifier_missing_project_raises(db_session: AsyncSession) -> None:
+    """Raises ProjectNotFoundError for nonexistent project."""
+    service = ProjectService(db_session)
+    fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
+    with pytest.raises(ProjectNotFoundError):
+        await service.allocate_identifier(fake_id)
+
+
+# --- Counter reconciliation ---
+
+
+@pytest.mark.asyncio
+async def test_reconcile_advances_counter_and_is_monotonic(
+    db_session: AsyncSession, project_with_prefix: Project
+) -> None:
+    """Reconcile advances to highest match, then refuses to go backward."""
+    service = ProjectService(db_session)
+    await service.reconcile_identifier_counter(
+        project_with_prefix.id, ["EVD000005", "EVD000003", "EVD000010"]
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 10
+
+    # Second reconcile with lower values must not regress
+    await service.reconcile_identifier_counter(
+        project_with_prefix.id, ["EVD000005"]
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 10
+
+
+@pytest.mark.asyncio
+async def test_reconcile_skips_above_max(
+    db_session: AsyncSession, project_with_prefix: Project
+) -> None:
+    """Identifiers above MAX_COUNTER are ignored to prevent bricking."""
+    service = ProjectService(db_session)
+    await service.reconcile_identifier_counter(
+        project_with_prefix.id, ["EVD1000000", "EVD000003"]
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 3
+
+
+@pytest.mark.asyncio
+async def test_reconcile_ignores_non_matching_prefix(
+    db_session: AsyncSession, project_with_prefix: Project
+) -> None:
+    """Identifiers with a different prefix are ignored."""
+    service = ProjectService(db_session)
+    await service.reconcile_identifier_counter(
+        project_with_prefix.id, ["XYZ000010", "ABC000005"]
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 0
+
+
+@pytest.mark.asyncio
+async def test_reconcile_no_prefix_is_noop(db_session: AsyncSession) -> None:
+    """Reconcile on a project without prefix does nothing."""
+    project = Project(name="No Prefix", namespace="https://example.org/np/")
+    db_session.add(project)
+    await db_session.flush()
+
+    service = ProjectService(db_session)
+    await service.reconcile_identifier_counter(project.id, ["EVD000010"])
+    await db_session.refresh(project)
+    assert project.identifier_counter == 0
+
+
+@pytest.mark.asyncio
+async def test_reconcile_missing_project_raises(db_session: AsyncSession) -> None:
+    """Raises ProjectNotFoundError for nonexistent project."""
+    service = ProjectService(db_session)
+    fake_id = UUID("01234567-89ab-7def-8123-456789abcdef")
+    with pytest.raises(ProjectNotFoundError):
+        await service.reconcile_identifier_counter(fake_id, ["EVD000010"])

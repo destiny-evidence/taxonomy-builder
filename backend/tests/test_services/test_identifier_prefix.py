@@ -14,16 +14,6 @@ from taxonomy_builder.services.project_service import (
 )
 
 
-@pytest.fixture
-async def project_with_prefix(db_session: AsyncSession) -> Project:
-    """Create a project with identifier prefix configured."""
-    project = Project(name="Prefixed Project", namespace="https://example.org/vocab", identifier_prefix="EVD")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
 async def test_project_prefix_and_counter_persisted(
     project_with_prefix: Project,
 ) -> None:
