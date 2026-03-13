@@ -22,7 +22,6 @@ async def test_create_concept_creates_change_event(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(
             pref_label="Dogs",
-            identifier="dogs",
             definition="A domestic animal",
         ),
     )
@@ -34,7 +33,6 @@ async def test_create_concept_creates_change_event(
     assert event.before_state is None
     assert event.after_state is not None
     assert event.after_state["pref_label"] == "Dogs"
-    assert event.after_state["identifier"] == "dogs"
     assert event.after_state["definition"] == "A domestic animal"
 
 

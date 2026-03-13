@@ -143,7 +143,7 @@ class ConceptService:
         concept = Concept(
             scheme_id=scheme_id,
             pref_label=concept_in.pref_label,
-            identifier=concept_in.identifier,
+            identifier=None,
             definition=concept_in.definition,
             scope_note=concept_in.scope_note,
             alt_labels=concept_in.alt_labels,
@@ -194,8 +194,6 @@ class ConceptService:
 
         if concept_in.pref_label is not None:
             concept.pref_label = concept_in.pref_label
-        if concept_in.identifier is not None:
-            concept.identifier = concept_in.identifier
         if concept_in.definition is not None:
             concept.definition = concept_in.definition
         if concept_in.scope_note is not None:

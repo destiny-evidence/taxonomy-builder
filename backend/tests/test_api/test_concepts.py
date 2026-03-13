@@ -91,7 +91,6 @@ async def test_create_concept(authenticated_client: AsyncClient, scheme: Concept
         f"/api/schemes/{scheme.id}/concepts",
         json={
             "pref_label": "New Concept",
-            "identifier": "new",
             "definition": "A new concept",
             "scope_note": "Use for new things",
         },
@@ -99,10 +98,8 @@ async def test_create_concept(authenticated_client: AsyncClient, scheme: Concept
     assert response.status_code == 201
     data = response.json()
     assert data["pref_label"] == "New Concept"
-    assert data["identifier"] == "new"
     assert data["definition"] == "A new concept"
     assert data["scheme_id"] == str(scheme.id)
-    assert data["uri"] == "http://example.org/concepts/new"  # Computed URI
     assert "id" in data
     assert "created_at" in data
 
