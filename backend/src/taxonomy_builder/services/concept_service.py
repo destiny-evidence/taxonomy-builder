@@ -108,7 +108,7 @@ class ConceptService:
         self.db = db
         self._tracker = ChangeTracker(db, user_id)
 
-    async def _get_scheme(self, scheme_id: UUID) -> ConceptScheme:
+    async def get_scheme(self, scheme_id: UUID) -> ConceptScheme:
         """Get a scheme by ID or raise SchemeNotFoundError."""
         result = await self.db.execute(
             select(ConceptScheme).where(ConceptScheme.id == scheme_id)
@@ -120,7 +120,7 @@ class ConceptService:
 
     async def list_concepts_for_scheme(self, scheme_id: UUID) -> list[Concept]:
         """List all concepts for a scheme, ordered alphabetically by pref_label."""
-        await self._get_scheme(scheme_id)
+        await self.get_scheme(scheme_id)
 
         result = await self.db.execute(
             select(Concept)
@@ -135,15 +135,21 @@ class ConceptService:
         return list(result.scalars().all())
 
     async def create_concept(
-        self, scheme_id: UUID, concept_in: ConceptCreate
+        self,
+        scheme_id: UUID,
+        concept_in: ConceptCreate,
+        *,
+        identifier: str | None = None,
+        scheme: ConceptScheme | None = None,
     ) -> Concept:
         """Create a new concept in a scheme."""
-        scheme = await self._get_scheme(scheme_id)
+        if scheme is None:
+            scheme = await self.get_scheme(scheme_id)
 
         concept = Concept(
             scheme_id=scheme_id,
             pref_label=concept_in.pref_label,
-            identifier=None,
+            identifier=identifier,
             definition=concept_in.definition,
             scope_note=concept_in.scope_note,
             alt_labels=concept_in.alt_labels,
@@ -187,7 +193,7 @@ class ConceptService:
     ) -> Concept:
         """Update an existing concept."""
         concept = await self.get_concept(concept_id)
-        scheme = await self._get_scheme(concept.scheme_id)
+        scheme = await self.get_scheme(concept.scheme_id)
 
         # Capture before state
         before_state = self._tracker.serialize_concept(concept)
@@ -224,7 +230,7 @@ class ConceptService:
         # Capture before state and context before deletion
         before_state = self._tracker.serialize_concept(concept)
         scheme_id = concept.scheme_id
-        scheme = await self._get_scheme(scheme_id)
+        scheme = await self.get_scheme(scheme_id)
         project_id = scheme.project_id
         concept_label = concept.pref_label
 
@@ -334,7 +340,7 @@ class ConceptService:
         # Verify both concepts exist
         concept = await self.get_concept(concept_id)
         broader_concept = await self.get_concept(broader_concept_id)
-        scheme = await self._get_scheme(concept.scheme_id)
+        scheme = await self.get_scheme(concept.scheme_id)
 
         rel = ConceptBroader(concept_id=concept_id, broader_concept_id=broader_concept_id)
         self.db.add(rel)
@@ -366,7 +372,7 @@ class ConceptService:
         """Remove a broader relationship."""
         concept = await self.get_concept(concept_id)
         broader_concept = await self.get_concept(broader_concept_id)
-        scheme = await self._get_scheme(concept.scheme_id)
+        scheme = await self.get_scheme(concept.scheme_id)
 
         result = await self.db.execute(
             select(ConceptBroader).where(
@@ -403,7 +409,7 @@ class ConceptService:
         each with a 'narrower' field containing their children recursively.
         Concepts with multiple parents appear under each parent.
         """
-        await self._get_scheme(scheme_id)
+        await self.get_scheme(scheme_id)
 
         # Get all concepts for the scheme
         result = await self.db.execute(
@@ -479,7 +485,7 @@ class ConceptService:
         if concept.scheme_id != related_concept.scheme_id:
             raise RelatedSameSchemeError(concept_id, related_concept_id)
 
-        scheme = await self._get_scheme(concept.scheme_id)
+        scheme = await self.get_scheme(concept.scheme_id)
 
         # Order IDs - smaller first
         if concept_id < related_concept_id:
@@ -517,7 +523,7 @@ class ConceptService:
         """
         concept = await self.get_concept(concept_id)
         related_concept = await self.get_concept(related_concept_id)
-        scheme = await self._get_scheme(concept.scheme_id)
+        scheme = await self.get_scheme(concept.scheme_id)
 
         # Order IDs - smaller first (to match storage)
         if concept_id < related_concept_id:

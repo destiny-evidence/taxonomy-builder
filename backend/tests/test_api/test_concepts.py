@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
 
 
 @pytest.fixture
@@ -766,3 +767,47 @@ async def test_move_nonexistent_concept_fails(authenticated_client: AsyncClient)
         json={"new_parent_id": None},
     )
     assert response.status_code == 404
+
+
+# Identifier allocation wiring
+
+
+@pytest.mark.asyncio
+async def test_create_concept_allocates_identifier(
+    authenticated_client: AsyncClient, scheme: ConceptScheme
+) -> None:
+    """Creating a concept via the API allocates a sequential identifier."""
+    r1 = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "First"},
+    )
+    r2 = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Second"},
+    )
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+    assert r1.json()["identifier"] == "TST000001"
+    assert r2.json()["identifier"] == "TST000002"
+
+
+@pytest.mark.asyncio
+async def test_create_concept_no_prefix_returns_409(
+    authenticated_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Creating a concept fails with 409 when project has no identifier prefix."""
+    project = Project(name="No Prefix Project", namespace="https://example.org/np/")
+    db_session.add(project)
+    await db_session.flush()
+
+    scheme = ConceptScheme(
+        project_id=project.id, title="Scheme", uri="http://example.org/np/scheme"
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+
+    response = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Should Fail"},
+    )
+    assert response.status_code == 409

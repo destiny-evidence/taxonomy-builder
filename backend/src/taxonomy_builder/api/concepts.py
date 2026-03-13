@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from taxonomy_builder.api.dependencies import get_concept_service
+from taxonomy_builder.api.dependencies import get_concept_service, get_project_service
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.schemas.concept import (
     ConceptCreate,
@@ -26,6 +26,10 @@ from taxonomy_builder.services.concept_service import (
     RelatedSelfReferenceError,
     SchemeNotFoundError,
     SelfReferenceError,
+)
+from taxonomy_builder.services.project_service import (
+    IdentifierAllocationError,
+    ProjectService,
 )
 
 # Router for scheme-scoped concept operations
@@ -68,12 +72,19 @@ async def create_concept(
     scheme_id: UUID,
     concept_in: ConceptCreate,
     service: ConceptService = Depends(get_concept_service),
+    project_service: ProjectService = Depends(get_project_service),
 ) -> Concept:
     """Create a new concept in a scheme."""
     try:
-        return await service.create_concept(scheme_id, concept_in)
+        scheme = await service.get_scheme(scheme_id)
+        identifier = await project_service.allocate_identifier(scheme.project_id)
+        return await service.create_concept(
+            scheme_id, concept_in, identifier=identifier, scheme=scheme
+        )
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except IdentifierAllocationError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @scheme_concepts_router.get("/{scheme_id}/tree")
