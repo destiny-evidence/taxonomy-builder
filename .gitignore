@@ -75,3 +75,6 @@ dev/caddy/sites/*.caddy
 # Local dev configuration (see dev/config.local.example)
 dev/config.local
 .envrc
+
+# Terraform
+.terraform
