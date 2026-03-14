@@ -202,7 +202,6 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
                 </a>
               </p>
             </div>
-            )}
 
             <div class="concept-detail__field">
               <label class="concept-detail__label">Alternative Labels</label>
