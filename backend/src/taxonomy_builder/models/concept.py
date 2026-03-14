@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid7
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,10 +18,13 @@ class Concept(Base):
     """A SKOS concept within a concept scheme."""
 
     __tablename__ = "concepts"
+    __table_args__ = (
+        UniqueConstraint("scheme_id", "identifier", name="uq_concept_scheme_identifier"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     scheme_id: Mapped[UUID] = mapped_column(ForeignKey("concept_schemes.id", ondelete="CASCADE"))
-    identifier: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    identifier: Mapped[str] = mapped_column(String(255), nullable=False)
     pref_label: Mapped[str] = mapped_column(String(255), nullable=False)
     definition: Mapped[str | None] = mapped_column(Text, nullable=True)
     scope_note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -33,10 +36,8 @@ class Concept(Base):
     scheme: Mapped[ConceptScheme] = relationship(back_populates="concepts", lazy="selectin")
 
     @property
-    def uri(self) -> str | None:
+    def uri(self) -> str:
         """Compute URI from scheme URI and identifier."""
-        if not self.identifier:
-            return None
         base_uri = self.scheme.uri if self.scheme and self.scheme.uri else "http://example.org/concepts"
         return f"{base_uri.rstrip('/')}/{self.identifier}"
 

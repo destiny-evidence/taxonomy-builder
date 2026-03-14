@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.comment import Comment
 from taxonomy_builder.models.concept import Concept
-from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.user import User
 from taxonomy_builder.schemas.comment import CommentCreate
 from taxonomy_builder.services.comment_service import (
@@ -19,19 +18,6 @@ from taxonomy_builder.services.comment_service import (
     NotCommentOwnerError,
     NotTopLevelCommentError,
 )
-
-
-@pytest.fixture
-async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
-    """Create a concept for testing."""
-    concept = Concept(
-        scheme_id=scheme.id,
-        pref_label="Test Concept",
-    )
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
-    return concept
 
 
 @pytest.fixture

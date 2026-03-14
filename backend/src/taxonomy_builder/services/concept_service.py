@@ -139,7 +139,7 @@ class ConceptService:
         scheme_id: UUID,
         concept_in: ConceptCreate,
         *,
-        identifier: str | None = None,
+        identifier: str,
         scheme: ConceptScheme | None = None,
     ) -> Concept:
         """Create a new concept in a scheme."""

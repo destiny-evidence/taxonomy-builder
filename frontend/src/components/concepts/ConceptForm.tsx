@@ -9,18 +9,14 @@ import "./ConceptForm.css";
 
 interface ConceptFormProps {
   schemeId: string;
-  schemeUri?: string | null;
   concept?: Concept | null;
   initialBroaderId?: string | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const DEFAULT_BASE_URI = "http://example.org/concepts";
-
-export function ConceptForm({ schemeId, schemeUri, concept, initialBroaderId, onSuccess, onCancel }: ConceptFormProps) {
+export function ConceptForm({ schemeId, concept, initialBroaderId, onSuccess, onCancel }: ConceptFormProps) {
   const [prefLabel, setPrefLabel] = useState(concept?.pref_label ?? "");
-  const [identifier, setIdentifier] = useState(concept?.identifier ?? "");
   const [definition, setDefinition] = useState(concept?.definition ?? "");
   const [scopeNote, setScopeNote] = useState(concept?.scope_note ?? "");
   const [altLabels, setAltLabels] = useState<string[]>(concept?.alt_labels ?? []);
@@ -30,16 +26,11 @@ export function ConceptForm({ schemeId, schemeUri, concept, initialBroaderId, on
   // Sync form state when concept prop changes (for edit vs create)
   useEffect(() => {
     setPrefLabel(concept?.pref_label ?? "");
-    setIdentifier(concept?.identifier ?? "");
     setDefinition(concept?.definition ?? "");
     setScopeNote(concept?.scope_note ?? "");
     setAltLabels(concept?.alt_labels ?? []);
     setError(null);
   }, [concept]);
-
-  // Compute the URI preview
-  const baseUri = schemeUri || DEFAULT_BASE_URI;
-  const computedUri = identifier ? `${baseUri.replace(/\/$/, "")}/${identifier}` : null;
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -48,7 +39,6 @@ export function ConceptForm({ schemeId, schemeUri, concept, initialBroaderId, on
 
     const data = {
       pref_label: prefLabel,
-      identifier: identifier || null,
       definition: definition || null,
       scope_note: scopeNote || null,
       alt_labels: altLabels,
@@ -88,21 +78,6 @@ export function ConceptForm({ schemeId, schemeUri, concept, initialBroaderId, on
         required
         onChange={setPrefLabel}
       />
-
-      <Input
-        label="Identifier"
-        name="identifier"
-        value={identifier}
-        placeholder="e.g., 001 or my-concept"
-        onChange={setIdentifier}
-      />
-
-      {computedUri && (
-        <div class="concept-form__uri-preview">
-          <label class="concept-form__uri-label">URI (computed)</label>
-          <code class="concept-form__uri-value">{computedUri}</code>
-        </div>
-      )}
 
       <Input
         label="Definition"

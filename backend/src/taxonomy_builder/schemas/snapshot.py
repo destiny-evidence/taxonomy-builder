@@ -29,7 +29,7 @@ class SnapshotConcept(BaseModel):
 
     id: UUID
     pref_label: str
-    identifier: str | None = None
+    identifier: str
     uri: str
     definition: str | None = None
     scope_note: str | None = None

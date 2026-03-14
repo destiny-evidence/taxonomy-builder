@@ -85,14 +85,11 @@ class ProjectService:
         }
 
     async def _check_prefix_mutable(self, project_id: UUID) -> None:
-        """Raise PrefixLockedError if any concept in the project has a non-null identifier."""
+        """Raise PrefixLockedError if any concept exists in the project."""
         result = await self.db.execute(
             select(Concept.id)
             .join(ConceptScheme, Concept.scheme_id == ConceptScheme.id)
-            .where(
-                ConceptScheme.project_id == project_id,
-                Concept.identifier.isnot(None),
-            )
+            .where(ConceptScheme.project_id == project_id)
             .limit(1)
         )
         if result.scalar_one_or_none() is not None:

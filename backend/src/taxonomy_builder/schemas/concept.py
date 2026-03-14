@@ -77,11 +77,11 @@ class ConceptBrief(BaseModel):
 
     id: UUID
     scheme_id: UUID
-    identifier: str | None
+    identifier: str
     pref_label: str
     definition: str | None
     scope_note: str | None
-    uri: str | None  # Computed from scheme.uri + identifier
+    uri: str  # Computed from scheme.uri + identifier
     alt_labels: list[str] = []
     created_at: datetime
     updated_at: datetime
@@ -94,11 +94,11 @@ class ConceptRead(BaseModel):
 
     id: UUID
     scheme_id: UUID
-    identifier: str | None
+    identifier: str
     pref_label: str
     definition: str | None
     scope_note: str | None
-    uri: str | None  # Computed from scheme.uri + identifier
+    uri: str  # Computed from scheme.uri + identifier
     alt_labels: list[str] = []
     created_at: datetime
     updated_at: datetime

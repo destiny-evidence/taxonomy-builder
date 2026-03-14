@@ -132,7 +132,7 @@ class TestConceptRead:
             pref_label="Broader Concept",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/broader",
             created_at=now,
             updated_at=now,
         )
@@ -144,7 +144,7 @@ class TestConceptRead:
             pref_label="Narrower Concept",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/narrower",
             created_at=now,
             updated_at=now,
             broader=[broader_concept],
@@ -164,19 +164,17 @@ class TestConceptRead:
         concept = ConceptRead(
             id=uuid4(),
             scheme_id=uuid4(),
-            identifier=None,
+            identifier="minimal",
             pref_label="Minimal",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/minimal",
             created_at=now,
             updated_at=now,
             broader=[],
         )
-        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
-        assert concept.uri is None
 
 
 class TestConceptCreateAltLabels:
@@ -268,7 +266,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             alt_labels=["Synonym"],
             created_at=now,
             updated_at=now,
@@ -286,7 +284,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             created_at=now,
             updated_at=now,
             broader=[],
@@ -303,7 +301,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             alt_labels=["Alt1", "Alt2"],
             created_at=now,
             updated_at=now,
@@ -320,7 +318,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             created_at=now,
             updated_at=now,
         )

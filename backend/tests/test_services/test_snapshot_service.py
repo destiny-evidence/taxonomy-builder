@@ -156,15 +156,15 @@ async def test_concept_uris(
 ) -> None:
     """Test that concept URIs are computed from scheme URI + identifier."""
     with_id = Concept(scheme_id=scheme.id, identifier="concept-1", pref_label="With Identifier")
-    without_id = Concept(scheme_id=scheme.id, pref_label="Without Identifier")
-    db_session.add_all([with_id, without_id])
+    with_id2 = Concept(scheme_id=scheme.id, identifier="concept-2", pref_label="Another Concept")
+    db_session.add_all([with_id, with_id2])
     await db_session.flush()
 
     snapshot = await service(db_session).build_snapshot(project.id)
 
     concepts = {c.pref_label: c for c in snapshot.concept_schemes[0].concepts}
     assert concepts["With Identifier"].uri == "http://example.org/taxonomy/concept-1"
-    assert concepts["Without Identifier"].uri is None
+    assert concepts["Another Concept"].uri == "http://example.org/taxonomy/concept-2"
 
 
 @pytest.mark.asyncio
@@ -172,8 +172,8 @@ async def test_broader_relationships(
     db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test that broader_ids are populated correctly."""
-    parent = Concept(scheme_id=scheme.id, pref_label="Parent")
-    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    parent = Concept(scheme_id=scheme.id, pref_label="Parent", identifier="parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child", identifier="child")
     db_session.add_all([parent, child])
     await db_session.flush()
     await db_session.refresh(parent)
@@ -195,8 +195,8 @@ async def test_related_relationships(
     db_session: AsyncSession, project: Project, scheme: ConceptScheme
 ) -> None:
     """Test that related_ids are populated correctly in both directions."""
-    concept_a = Concept(scheme_id=scheme.id, pref_label="Concept A")
-    concept_b = Concept(scheme_id=scheme.id, pref_label="Concept B")
+    concept_a = Concept(scheme_id=scheme.id, pref_label="Concept A", identifier="concept-a")
+    concept_b = Concept(scheme_id=scheme.id, pref_label="Concept B", identifier="concept-b")
     db_session.add_all([concept_a, concept_b])
     await db_session.flush()
     await db_session.refresh(concept_a)
