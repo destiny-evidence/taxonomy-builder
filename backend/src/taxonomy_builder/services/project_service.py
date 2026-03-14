@@ -55,10 +55,10 @@ MAX_COUNTER = 10**IDENTIFIER_WIDTH - 1
 class IdentifierAllocationError(Exception):
     """Raised when an identifier cannot be allocated for a project."""
 
-    def __init__(self, project_id: UUID, reason: str) -> None:
-        self.project_id = project_id
+    def __init__(self, project_name: str, reason: str) -> None:
+        self.project_name = project_name
         super().__init__(
-            f"Cannot allocate identifier for project {project_id}: {reason}"
+            f"Cannot allocate identifier for project '{project_name}': {reason}"
         )
 
 
@@ -107,7 +107,7 @@ class ProjectService:
         project = await self.get_project(project_id)
 
         if project.identifier_prefix is None:
-            raise IdentifierAllocationError(project_id, "no identifier_prefix configured")
+            raise IdentifierAllocationError(project.name, "no identifier prefix configured")
 
         result = await self.db.execute(
             update(Project)
@@ -125,7 +125,7 @@ class ProjectService:
             return f"{prefix}{counter:0{IDENTIFIER_WIDTH}d}"
 
         raise IdentifierAllocationError(
-            project_id, f"counter at maximum ({MAX_COUNTER})"
+            project.name, f"counter at maximum ({MAX_COUNTER})"
         )
 
     async def reconcile_identifier_counter(

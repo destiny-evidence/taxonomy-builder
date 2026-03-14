@@ -220,7 +220,7 @@ async def test_allocate_identifier_no_prefix_raises(db_session: AsyncSession) ->
     await db_session.flush()
 
     service = ProjectService(db_session)
-    with pytest.raises(IdentifierAllocationError, match="no identifier_prefix"):
+    with pytest.raises(IdentifierAllocationError, match="no identifier prefix"):
         await service.allocate_identifier(project.id)
 
 
