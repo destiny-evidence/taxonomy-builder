@@ -189,22 +189,19 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
               </div>
             )}
 
-            {concept.identifier && (
-              <div class="concept-detail__field">
-                <label class="concept-detail__label">Identifier</label>
-                <p class="concept-detail__value">{concept.identifier}</p>
-              </div>
-            )}
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">Identifier</label>
+              <p class="concept-detail__value">{concept.identifier}</p>
+            </div>
 
-            {concept.uri && (
-              <div class="concept-detail__field">
-                <label class="concept-detail__label">URI</label>
-                <p class="concept-detail__value">
-                  <a href={concept.uri} target="_blank" rel="noopener noreferrer">
-                    {concept.uri}
-                  </a>
-                </p>
-              </div>
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">URI</label>
+              <p class="concept-detail__value">
+                <a href={concept.uri} target="_blank" rel="noopener noreferrer">
+                  {concept.uri}
+                </a>
+              </p>
+            </div>
             )}
 
             <div class="concept-detail__field">
