@@ -9,57 +9,6 @@ describe("ConceptForm", () => {
     onCancel: vi.fn(),
   };
 
-  describe("URI computation", () => {
-    it("shows computed URI with scheme URI and identifier", () => {
-      render(
-        <ConceptForm
-          {...defaultProps}
-          schemeUri="http://example.org/vocab"
-        />
-      );
-
-      const identifierInput = screen.getByLabelText(/Identifier/);
-      fireEvent.input(identifierInput, { target: { value: "animals" } });
-
-      expect(screen.getByText("http://example.org/vocab/animals")).toBeInTheDocument();
-    });
-
-    it("uses default base URI when scheme URI not provided", () => {
-      render(<ConceptForm {...defaultProps} schemeUri={null} />);
-
-      const identifierInput = screen.getByLabelText(/Identifier/);
-      fireEvent.input(identifierInput, { target: { value: "concept-1" } });
-
-      expect(screen.getByText("http://example.org/concepts/concept-1")).toBeInTheDocument();
-    });
-
-    it("strips trailing slash from scheme URI", () => {
-      render(
-        <ConceptForm
-          {...defaultProps}
-          schemeUri="http://example.org/vocab/"
-        />
-      );
-
-      const identifierInput = screen.getByLabelText(/Identifier/);
-      fireEvent.input(identifierInput, { target: { value: "term" } });
-
-      // Should not double the slash
-      expect(screen.getByText("http://example.org/vocab/term")).toBeInTheDocument();
-    });
-
-    it("does not show URI preview when identifier is empty", () => {
-      render(
-        <ConceptForm
-          {...defaultProps}
-          schemeUri="http://example.org/vocab"
-        />
-      );
-
-      expect(screen.queryByText(/URI \(computed\)/)).not.toBeInTheDocument();
-    });
-  });
-
   describe("form modes", () => {
     it("shows 'Create Concept' button in create mode", () => {
       render(<ConceptForm {...defaultProps} />);
@@ -75,7 +24,7 @@ describe("ConceptForm", () => {
         pref_label: "Existing Concept",
         definition: null,
         scope_note: null,
-        uri: null,
+        uri: "http://example.org/concepts/existing",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
@@ -96,7 +45,7 @@ describe("ConceptForm", () => {
         pref_label: "My Label",
         definition: "My definition",
         scope_note: "My scope note",
-        uri: null,
+        uri: "http://example.org/concepts/my-id",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
@@ -107,7 +56,6 @@ describe("ConceptForm", () => {
       render(<ConceptForm {...defaultProps} concept={existingConcept} />);
 
       expect(screen.getByDisplayValue("My Label")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("my-id")).toBeInTheDocument();
       expect(screen.getByDisplayValue("My definition")).toBeInTheDocument();
       expect(screen.getByDisplayValue("My scope note")).toBeInTheDocument();
     });

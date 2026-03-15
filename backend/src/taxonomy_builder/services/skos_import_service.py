@@ -28,6 +28,7 @@ from taxonomy_builder.schemas.skos_import import (
     ValidationIssueResponse,
 )
 from taxonomy_builder.services.change_tracker import ChangeTracker
+from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.rdf_parser import (
     InvalidRDFError,
     ValidationResult,
@@ -89,9 +90,16 @@ class SKOSImportService:
     Also handles OWL class and property declarations found in the same file.
     """
 
-    def __init__(self, db: AsyncSession, user_id: UUID | None = None) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        user_id: UUID | None = None,
+        *,
+        project_service: ProjectService,
+    ) -> None:
         self.db = db
         self._tracker = ChangeTracker(db, user_id)
+        self._project_service = project_service
 
     # --- Preview ---
 
@@ -377,6 +385,19 @@ class SKOSImportService:
             existing.property_identifiers, existing.property_uris,
             scheme_uri_to_id, class_uris, class_uri_to_id,
             existing.property_uri_to_id,
+        )
+
+        # Reconcile identifier counter against newly imported concepts only.
+        # Skipped schemes (already existed) are excluded — their identifiers
+        # were reconciled during the original import.
+        imported_identifiers = [
+            get_identifier_from_uri(concept_uri)
+            for scheme_uri, concepts in analysis["concepts_by_scheme"].items()
+            if str(scheme_uri) not in existing.scheme_uri_to_id
+            for concept_uri in concepts
+        ]
+        await self._project_service.reconcile_identifier_counter(
+            project_id, imported_identifiers
         )
 
         return ImportResultResponse(

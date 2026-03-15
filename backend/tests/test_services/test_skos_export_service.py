@@ -300,14 +300,14 @@ async def test_export_scheme_not_found(export_service: SKOSExportService) -> Non
 
 
 @pytest.mark.asyncio
-async def test_export_concept_without_identifier(
+async def test_export_concept_uri_uses_identifier(
     db_session: AsyncSession, export_service: SKOSExportService, scheme: ConceptScheme
 ) -> None:
-    """Test exporting a concept without an identifier uses UUID in URI."""
+    """Test exporting a concept uses its identifier in the URI."""
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Unnamed Concept",
-        # No identifier set
+        identifier="unnamed-concept",
     )
     db_session.add(concept)
     await db_session.flush()
@@ -321,9 +321,9 @@ async def test_export_concept_without_identifier(
     concepts = list(g.subjects(RDF.type, SKOS.Concept))
     assert len(concepts) == 1
 
-    # URI should contain the concept ID
+    # URI should use the identifier
     concept_uri = str(concepts[0])
-    assert str(concept.id) in concept_uri
+    assert concept_uri == "http://example.org/taxonomy/unnamed-concept"
 
 
 @pytest.mark.asyncio
@@ -731,6 +731,7 @@ async def test_export_published_version_multiple_schemes(
             SnapshotConcept(
                 id=uuid4(),
                 pref_label="Beta",
+                identifier="beta",
                 uri="http://example.org/second/beta",
             ),
         ],
@@ -861,6 +862,7 @@ async def test_export_class_superclass_uris(
                     SnapshotConcept.model_construct(
                         id=uuid4(),
                         pref_label="C",
+                        identifier="c",
                         uri="http://example.org/s/c",
                         alt_labels=[],
                         broader_ids=[],
@@ -1024,6 +1026,7 @@ def _make_published_snapshot(
                     SnapshotConcept.model_construct(
                         id=uuid4(),
                         pref_label="C",
+                        identifier="c",
                         uri="http://example.org/s/c",
                         alt_labels=[],
                         broader_ids=[],

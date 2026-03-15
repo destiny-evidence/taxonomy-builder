@@ -111,12 +111,14 @@ def _concept(
     pref_label: str = "Term",
     *,
     id: UUID | None = None,
+    identifier: str = "term",
     uri: str | None = "http://example.org/concept/term",
     broader_ids: list[UUID] | None = None,
     related_ids: list[UUID] | None = None,
 ) -> SnapshotConcept:
     return SnapshotConcept.model_construct(
         id=id or uuid4(),
+        identifier=identifier,
         pref_label=pref_label,
         uri=uri,
         broader_ids=broader_ids or [],
@@ -126,7 +128,7 @@ def _concept(
 
 class TestValidProject:
     def test_valid_project(self) -> None:
-        concept = _concept("Term A")
+        concept = _concept("Term A", identifier="term-a")
         scheme = _scheme("Test Scheme", concepts=[concept])
         result = validate_snapshot(_vocab(scheme))
         assert result.valid is True
@@ -163,7 +165,7 @@ class TestSchemeMissingUri:
 class TestConceptMissingUri:
     def test_concept_with_no_uri(self) -> None:
         concept_id = uuid4()
-        concept = _concept("No URI", id=concept_id, uri=None)
+        concept = _concept("No URI", id=concept_id, identifier="no-uri", uri=None)
         scheme = _scheme(concepts=[concept])
         result = validate_snapshot(_vocab(scheme))
         assert result.valid is False
@@ -193,9 +195,12 @@ class TestCollectsAllErrors:
 
 class TestMixedValidity:
     def test_one_valid_one_invalid_scheme(self) -> None:
-        good = _scheme("Good", concepts=[_concept("Valid")])
+        good = _scheme("Good", concepts=[_concept("Valid", identifier="valid")])
         bad_id = uuid4()
-        bad = _scheme("Bad", id=bad_id, uri=None, concepts=[_concept("Also Valid")])
+        bad = _scheme(
+            "Bad", id=bad_id, uri=None,
+            concepts=[_concept("Also Valid", identifier="also-valid")],
+        )
         result = validate_snapshot(_vocab(good, bad))
         assert result.valid is False
         uri_errors = [e for e in result.errors if e.code == "scheme_missing_uri"]
@@ -206,7 +211,7 @@ class TestMixedValidity:
 class TestBrokenBroaderRef:
     def test_broader_referencing_nonexistent_concept(self) -> None:
         orphan_id = uuid4()
-        concept_a = _concept("A", broader_ids=[orphan_id])
+        concept_a = _concept("A", identifier="a", broader_ids=[orphan_id])
         scheme = _scheme(concepts=[concept_a])
         result = validate_snapshot(_vocab(scheme))
         assert result.valid is False
@@ -215,8 +220,8 @@ class TestBrokenBroaderRef:
         assert errors[0].entity_id == concept_a.id
 
     def test_valid_broader_ref_passes(self) -> None:
-        parent = _concept("Parent")
-        child = _concept("Child", broader_ids=[parent.id])
+        parent = _concept("Parent", identifier="parent")
+        child = _concept("Child", identifier="child", broader_ids=[parent.id])
         scheme = _scheme(concepts=[parent, child])
         result = validate_snapshot(_vocab(scheme))
         assert result.valid is True
@@ -225,7 +230,7 @@ class TestBrokenBroaderRef:
 class TestBrokenRelatedRef:
     def test_related_referencing_nonexistent_concept(self) -> None:
         orphan_id = uuid4()
-        concept_a = _concept("A", related_ids=[orphan_id])
+        concept_a = _concept("A", identifier="a", related_ids=[orphan_id])
         scheme = _scheme(concepts=[concept_a])
         result = validate_snapshot(_vocab(scheme))
         assert result.valid is False

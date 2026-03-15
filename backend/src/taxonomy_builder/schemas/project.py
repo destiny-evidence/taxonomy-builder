@@ -1,9 +1,8 @@
 """Pydantic schemas for Project."""
 
 from datetime import datetime
-from uuid import UUID
-
 from typing import Self
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 

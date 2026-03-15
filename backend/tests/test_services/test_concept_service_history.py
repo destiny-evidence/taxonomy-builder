@@ -22,9 +22,9 @@ async def test_create_concept_creates_change_event(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(
             pref_label="Dogs",
-            identifier="dogs",
             definition="A domestic animal",
         ),
+        identifier="dogs",
     )
 
     events = await HistoryService(db_session).get_concept_history(concept.id)
@@ -34,7 +34,6 @@ async def test_create_concept_creates_change_event(
     assert event.before_state is None
     assert event.after_state is not None
     assert event.after_state["pref_label"] == "Dogs"
-    assert event.after_state["identifier"] == "dogs"
     assert event.after_state["definition"] == "A domestic animal"
 
 
@@ -52,6 +51,7 @@ async def test_update_concept_creates_change_event_with_before_after(
             pref_label="Dog",
             definition=None,
         ),
+        identifier="dog",
     )
     concept_id = concept.id
 
@@ -90,6 +90,7 @@ async def test_delete_concept_creates_change_event(
             pref_label="Dogs",
             definition="A domestic animal",
         ),
+        identifier="dogs",
     )
     concept_id = concept.id
     scheme_id = scheme.id
@@ -118,10 +119,12 @@ async def test_delete_concept_records_broader_relationship_deletion(
     parent = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Animals"),
+        identifier="animals",
     )
     child = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
 
     # Add broader relationship (child -> parent)
@@ -161,14 +164,17 @@ async def test_delete_concept_records_narrower_relationship_deletions(
     parent = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Animals"),
+        identifier="animals",
     )
     child1 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
     child2 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Cats"),
+        identifier="cats",
     )
 
     # Add broader relationships (children -> parent)
@@ -208,10 +214,12 @@ async def test_delete_concept_records_related_relationship_deletions(
     concept1 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
     concept2 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Wolves"),
+        identifier="wolves",
     )
 
     # Add related relationship
@@ -255,10 +263,12 @@ async def test_add_broader_creates_change_event(
     parent = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Animals"),
+        identifier="animals",
     )
     child = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
 
     # Add broader relationship
@@ -295,10 +305,12 @@ async def test_remove_broader_creates_change_event(
     parent = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Animals"),
+        identifier="animals",
     )
     child = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
 
     # Add broader relationship
@@ -338,10 +350,12 @@ async def test_add_related_creates_change_event(
     concept1 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
     concept2 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Wolves"),
+        identifier="wolves",
     )
 
     # Add related relationship
@@ -383,10 +397,12 @@ async def test_remove_related_creates_change_event(
     concept1 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
     concept2 = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Wolves"),
+        identifier="wolves",
     )
 
     # Add related relationship
@@ -431,14 +447,17 @@ async def test_move_concept_creates_change_events(
     old_parent = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Old Parent"),
+        identifier="old-parent",
     )
     new_parent = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="New Parent"),
+        identifier="new-parent",
     )
     child = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Child"),
+        identifier="child",
     )
 
     # Add initial broader relationship

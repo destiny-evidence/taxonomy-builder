@@ -1,0 +1,65 @@
+"""Make concept identifier non-nullable with full unique index
+
+Revision ID: b367fee3d2ab
+Revises: 9817166d9a32
+Create Date: 2026-03-14 10:13:08.766693
+
+"""
+from collections.abc import Sequence
+
+import sqlalchemy as sa
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = 'b367fee3d2ab'
+down_revision: str | Sequence[str] | None = '9817166d9a32'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+
+def upgrade() -> None:
+    """Upgrade schema.
+
+    Greenfields: no production data exists. If your dev database has NULL
+    concept identifiers, reset it (DROP SCHEMA public CASCADE; CREATE SCHEMA
+    public;) and re-run migrations + seed.
+    """
+    # Fail fast if any NULL identifiers exist
+    op.execute(sa.text(
+        "DO $$ BEGIN "
+        "IF EXISTS (SELECT 1 FROM concepts WHERE identifier IS NULL) THEN "
+        "RAISE EXCEPTION "
+        "'Found NULL concept identifiers — reset DB and reseed'; "
+        "END IF; END $$"
+    ))
+
+    op.alter_column(
+        'concepts', 'identifier',
+        existing_type=sa.VARCHAR(length=255),
+        nullable=False,
+    )
+    op.drop_index(
+        op.f('uq_concept_scheme_identifier'),
+        table_name='concepts',
+        postgresql_where='(identifier IS NOT NULL)',
+    )
+    op.create_unique_constraint(
+        'uq_concept_scheme_identifier', 'concepts', ['scheme_id', 'identifier'],
+    )
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    op.drop_constraint('uq_concept_scheme_identifier', 'concepts', type_='unique')
+    op.create_index(
+        op.f('uq_concept_scheme_identifier'),
+        'concepts', ['scheme_id', 'identifier'],
+        unique=True,
+        postgresql_where='(identifier IS NOT NULL)',
+    )
+    op.alter_column(
+        'concepts', 'identifier',
+        existing_type=sa.VARCHAR(length=255),
+        nullable=True,
+    )
