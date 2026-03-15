@@ -64,5 +64,6 @@ class ProjectRead(BaseModel):
     namespace: str
     identifier_prefix: str
     identifier_counter: int
+    prefix_locked: bool
     created_at: datetime
     updated_at: datetime

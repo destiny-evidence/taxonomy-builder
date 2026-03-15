@@ -54,7 +54,7 @@ def test_update_accepts_valid_prefix() -> None:
     assert ProjectUpdate(identifier_prefix="ABC").identifier_prefix == "ABC"
 
 
-def test_read_includes_prefix_and_counter() -> None:
+def test_read_includes_prefix_counter_and_locked() -> None:
     p = ProjectRead(
         id="01234567-0123-0123-0123-012345678901",
         name="Test",
@@ -62,11 +62,13 @@ def test_read_includes_prefix_and_counter() -> None:
         namespace="https://example.org/vocab",
         identifier_prefix="EVD",
         identifier_counter=42,
+        prefix_locked=True,
         created_at="2026-01-01T00:00:00",
         updated_at="2026-01-01T00:00:00",
     )
     assert p.identifier_prefix == "EVD"
     assert p.identifier_counter == 42
+    assert p.prefix_locked is True
 
 
 # --- Service: prefix mutability policy ---
@@ -124,12 +126,12 @@ async def test_prefix_change_blocked_when_identifiers_exist(
         )
 
 
-async def test_prefix_set_blocked_after_import_without_prefix(
+async def test_prefix_change_allowed_when_concepts_dont_match_prefix(
     db_session: AsyncSession,
 ) -> None:
-    """Setting prefix is blocked when imported concepts already have identifiers."""
+    """Changing prefix is allowed when existing concepts don't match the current prefix."""
     project = Project(
-        name="No Prefix Import Project",
+        name="Non-Matching Import Project",
         namespace="https://example.org/vocab",
         identifier_prefix="TST",
     )
@@ -143,7 +145,7 @@ async def test_prefix_set_blocked_after_import_without_prefix(
     db_session.add(scheme)
     await db_session.flush()
 
-    # Simulate imported concept with preserved identifier (no prefix on project)
+    # Imported concept with identifier that doesn't match project prefix "TST"
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Imported Concept",
@@ -153,10 +155,10 @@ async def test_prefix_set_blocked_after_import_without_prefix(
     await db_session.flush()
 
     service = ProjectService(db_session)
-    with pytest.raises(PrefixLockedError):
-        await service.update_project(
-            project.id, ProjectUpdate(identifier_prefix="C")
-        )
+    updated = await service.update_project(
+        project.id, ProjectUpdate(identifier_prefix="NEW")
+    )
+    assert updated.identifier_prefix == "NEW"
 
 
 async def test_create_project_with_prefix(db_session: AsyncSession) -> None:
@@ -170,3 +172,74 @@ async def test_create_project_with_prefix(db_session: AsyncSession) -> None:
     )
     assert project.identifier_prefix == "TST"
     assert project.identifier_counter == 0
+
+
+# --- prefix_locked ---
+
+
+async def test_prefix_locked_false_for_new_project(
+    db_session: AsyncSession, project_with_prefix: Project,
+) -> None:
+    """New project with no concepts has prefix_locked=False."""
+    service = ProjectService(db_session)
+    project = await service.get_project(project_with_prefix.id)
+    assert project.prefix_locked is False
+
+
+async def test_prefix_locked_true_when_matching_concepts_exist(
+    db_session: AsyncSession,
+) -> None:
+    """Project with concepts matching prefix has prefix_locked=True."""
+    project = Project(
+        name="Locked Project",
+        namespace="https://example.org/locked/",
+        identifier_prefix="EVD",
+    )
+    db_session.add(project)
+    await db_session.flush()
+
+    scheme = ConceptScheme(
+        project_id=project.id, title="Scheme", uri="http://example.org/s"
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+
+    concept = Concept(
+        scheme_id=scheme.id, pref_label="Test", identifier="EVD000001"
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    service = ProjectService(db_session)
+    result = await service.get_project(project.id)
+    assert result.prefix_locked is True
+
+
+async def test_prefix_locked_false_when_non_matching_concepts_exist(
+    db_session: AsyncSession,
+) -> None:
+    """Project with concepts NOT matching prefix has prefix_locked=False."""
+    project = Project(
+        name="Unlocked Project",
+        namespace="https://example.org/unlocked/",
+        identifier_prefix="EVD",
+    )
+    db_session.add(project)
+    await db_session.flush()
+
+    scheme = ConceptScheme(
+        project_id=project.id, title="Scheme", uri="http://example.org/s"
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+
+    # Concept identifier doesn't match prefix "EVD"
+    concept = Concept(
+        scheme_id=scheme.id, pref_label="Imported", identifier="C00170"
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    service = ProjectService(db_session)
+    result = await service.get_project(project.id)
+    assert result.prefix_locked is False

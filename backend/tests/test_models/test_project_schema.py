@@ -117,6 +117,7 @@ class TestProjectRead:
             namespace="https://example.org/vocab",
             identifier_prefix="TST",
             identifier_counter=0,
+            prefix_locked=False,
         )
         assert project.id == UUID("01234567-89ab-7def-8123-456789abcdef")
         assert project.name == "Test Project"
