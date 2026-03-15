@@ -4,6 +4,7 @@ import { Button } from "../common/Button";
 import { AltLabelsEditor } from "./AltLabelsEditor";
 import { conceptsApi } from "../../api/concepts";
 import { ApiError } from "../../api/client";
+import { formatIdentifier } from "../../types/models";
 import type { Concept } from "../../types/models";
 import "./ConceptForm.css";
 
@@ -11,11 +12,14 @@ interface ConceptFormProps {
   schemeId: string;
   concept?: Concept | null;
   initialBroaderId?: string | null;
+  identifierPrefix?: string;
+  identifierCounter?: number;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function ConceptForm({ schemeId, concept, initialBroaderId, onSuccess, onCancel }: ConceptFormProps) {
+export function ConceptForm({ schemeId, concept, initialBroaderId, identifierPrefix = "", identifierCounter = 0, onSuccess, onCancel }: ConceptFormProps) {
+  const nextIdentifier = formatIdentifier(identifierPrefix, identifierCounter + 1);
   const [prefLabel, setPrefLabel] = useState(concept?.pref_label ?? "");
   const [definition, setDefinition] = useState(concept?.definition ?? "");
   const [scopeNote, setScopeNote] = useState(concept?.scope_note ?? "");
@@ -69,6 +73,12 @@ export function ConceptForm({ schemeId, concept, initialBroaderId, onSuccess, on
   return (
     <form class="concept-form" onSubmit={handleSubmit}>
       {error && <div class="concept-form__error">{error}</div>}
+
+      {!concept && identifierPrefix && (
+        <div class="concept-form__hint">
+          Identifier will be auto-generated (e.g. {nextIdentifier})
+        </div>
+      )}
 
       <Input
         label="Preferred Label"

@@ -5,6 +5,8 @@ import { ConceptForm } from "../../../src/components/concepts/ConceptForm";
 describe("ConceptForm", () => {
   const defaultProps = {
     schemeId: "scheme-123",
+    identifierPrefix: "TST",
+    identifierCounter: 5,
     onSuccess: vi.fn(),
     onCancel: vi.fn(),
   };
@@ -87,6 +89,41 @@ describe("ConceptForm", () => {
 
       const submitButton = screen.getByText("Create Concept");
       expect(submitButton).toBeDisabled();
+    });
+  });
+
+  describe("identifier auto-generation hint", () => {
+    it("shows auto-gen hint in create mode", () => {
+      render(<ConceptForm {...defaultProps} />);
+
+      expect(screen.getByText(/TST000006/)).toBeInTheDocument();
+    });
+
+    it("does not show auto-gen hint in edit mode", () => {
+      const existingConcept = {
+        id: "c-1",
+        scheme_id: "scheme-123",
+        identifier: "TST000001",
+        pref_label: "Existing",
+        definition: null,
+        scope_note: null,
+        uri: "http://example.org/concepts/TST000001",
+        alt_labels: [],
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        broader: [],
+        related: [],
+      };
+
+      render(<ConceptForm {...defaultProps} concept={existingConcept} />);
+
+      expect(screen.queryByText(/auto-generated/)).not.toBeInTheDocument();
+    });
+
+    it("does not render identifier input", () => {
+      render(<ConceptForm {...defaultProps} />);
+
+      expect(screen.queryByLabelText(/Identifier/i)).not.toBeInTheDocument();
     });
   });
 
