@@ -4,7 +4,7 @@ export interface Project {
   name: string;
   description: string | null;
   namespace: string;
-  identifier_prefix: string | null;
+  identifier_prefix: string;
   identifier_counter: number;
   created_at: string;
   updated_at: string;
@@ -14,14 +14,14 @@ export interface ProjectCreate {
   name: string;
   description?: string | null;
   namespace: string;
-  identifier_prefix?: string | null;
+  identifier_prefix: string;
 }
 
 export interface ProjectUpdate {
   name?: string;
   description?: string | null;
   namespace?: string;
-  identifier_prefix?: string | null;
+  identifier_prefix?: string;
 }
 
 // ============ Concept Schemes ============
