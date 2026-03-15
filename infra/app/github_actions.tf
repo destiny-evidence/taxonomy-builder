@@ -185,7 +185,7 @@ resource "github_actions_environment_variable" "keycloak_url" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_URL"
-  value         = var.keycloak_url
+  value         = var.shared_keycloak_url
 }
 
 resource "github_actions_environment_variable" "keycloak_realm" {
@@ -236,7 +236,7 @@ resource "github_actions_environment_variable" "frontdoor_resource_group" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "FRONTDOOR_RESOURCE_GROUP"
-  value         = var.frontdoor_resource_group_name
+  value         = var.shared_resource_group_name
 }
 
 resource "github_actions_environment_variable" "frontdoor_profile_name" {

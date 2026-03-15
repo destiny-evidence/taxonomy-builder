@@ -1,7 +1,7 @@
 # Shared container registry
 data "azurerm_container_registry" "this" {
-  name                = var.container_registry_name
-  resource_group_name = var.container_registry_resource_group
+  name                = var.shared_container_registry_name
+  resource_group_name = var.shared_resource_group_name
 }
 
 resource "azurerm_resource_group" "this" {
@@ -70,7 +70,7 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = var.keycloak_url
+      value = var.shared_keycloak_url
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"
@@ -100,7 +100,7 @@ module "container_app_api" {
       name = "TAXONOMY_CDN"
       value = jsonencode({
         subscription_id = data.azurerm_subscription.current.subscription_id
-        resource_group  = var.frontdoor_resource_group_name
+        resource_group  = var.shared_resource_group_name
         profile_name    = data.azurerm_cdn_frontdoor_profile.shared.name
         endpoint_name   = azurerm_cdn_frontdoor_endpoint.this.name
       })

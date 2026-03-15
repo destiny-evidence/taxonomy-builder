@@ -1,8 +1,8 @@
 # Application-specific config on the shared Azure Front Door
 
 data "azurerm_cdn_frontdoor_profile" "shared" {
-  name                = var.frontdoor_profile_name
-  resource_group_name = var.frontdoor_resource_group_name
+  name                = var.shared_frontdoor_profile_name
+  resource_group_name = var.shared_resource_group_name
 }
 
 resource "azurerm_cdn_frontdoor_endpoint" "this" {
