@@ -6,6 +6,7 @@ export interface Project {
   namespace: string;
   identifier_prefix: string;
   identifier_counter: number;
+  prefix_locked: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +23,14 @@ export interface ProjectUpdate {
   description?: string | null;
   namespace?: string;
   identifier_prefix?: string;
+}
+
+/** Width of the numeric portion of auto-generated identifiers (matches backend IDENTIFIER_WIDTH). */
+export const IDENTIFIER_WIDTH = 6;
+
+/** Format an identifier from prefix and counter (e.g. "EVD", 1 → "EVD000001"). */
+export function formatIdentifier(prefix: string, counter: number): string {
+  return `${prefix}${String(counter).padStart(IDENTIFIER_WIDTH, "0")}`;
 }
 
 // ============ Concept Schemes ============

@@ -111,13 +111,24 @@ describe("ConceptDetail", () => {
       expect(screen.getByText("Alternative Labels")).toBeInTheDocument();
     });
 
-    it("should not show identifier as editable in edit mode", () => {
+    it("should show identifier as read-only text in edit mode", () => {
       render(<ConceptDetail {...defaultProps} />);
 
       const editButton = screen.getByText("Edit");
       fireEvent.click(editButton);
 
+      // Identifier should be visible as text, not as an input
+      expect(screen.getByText("001")).toBeInTheDocument();
       expect(screen.queryByLabelText(/Identifier/i)).not.toBeInTheDocument();
+    });
+
+    it("should show URI as read-only in edit mode", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      expect(screen.getByText("http://example.org/concepts/001")).toBeInTheDocument();
     });
 
     it("should initialize fields with concept data", () => {
