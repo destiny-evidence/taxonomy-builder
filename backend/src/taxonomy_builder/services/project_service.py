@@ -102,12 +102,9 @@ class ProjectService:
 
         Raises:
             ProjectNotFoundError: If project does not exist.
-            IdentifierAllocationError: If no prefix configured or counter at max.
+            IdentifierAllocationError: If counter at max.
         """
         project = await self.get_project(project_id)
-
-        if project.identifier_prefix is None:
-            raise IdentifierAllocationError(project.name, "no identifier prefix configured")
 
         result = await self.db.execute(
             update(Project)
@@ -137,9 +134,6 @@ class ProjectService:
         Skips identifiers above MAX_COUNTER to prevent bricking future allocations.
         """
         project = await self.get_project(project_id)
-        if project.identifier_prefix is None:
-            return
-
         prefix = project.identifier_prefix
         pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
         max_found = 0
