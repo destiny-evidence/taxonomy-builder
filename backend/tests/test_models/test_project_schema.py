@@ -14,13 +14,23 @@ class TestProjectCreate:
 
     def test_valid_project_create(self) -> None:
         """Test creating a valid ProjectCreate schema."""
-        project = ProjectCreate(name="Test Project", description="A test project", namespace="https://example.org/vocab")
+        project = ProjectCreate(
+            name="Test Project",
+            description="A test project",
+            namespace="https://example.org/vocab",
+            identifier_prefix="TST",
+        )
         assert project.name == "Test Project"
         assert project.description == "A test project"
+        assert project.identifier_prefix == "TST"
 
     def test_project_create_without_description(self) -> None:
         """Test creating a ProjectCreate without description."""
-        project = ProjectCreate(name="No Description", namespace="https://example.org/vocab")
+        project = ProjectCreate(
+            name="No Description",
+            namespace="https://example.org/vocab",
+            identifier_prefix="TST",
+        )
         assert project.name == "No Description"
         assert project.description is None
 
@@ -39,11 +49,24 @@ class TestProjectCreate:
     def test_project_create_name_cannot_be_empty(self) -> None:
         """Test that ProjectCreate name cannot be empty."""
         with pytest.raises(ValidationError):
-            ProjectCreate(name="", namespace="https://example.org/vocab")
+            ProjectCreate(
+                name="",
+                namespace="https://example.org/vocab",
+                identifier_prefix="TST",
+            )
+
+    def test_project_create_requires_identifier_prefix(self) -> None:
+        """Test that ProjectCreate requires identifier_prefix."""
+        with pytest.raises(ValidationError, match="identifier_prefix"):
+            ProjectCreate(name="Test", namespace="https://example.org/vocab")
 
     def test_project_create_name_is_stripped(self) -> None:
         """Test that ProjectCreate name is stripped of whitespace."""
-        project = ProjectCreate(name="  Spaced Name  ", namespace="https://example.org/vocab")
+        project = ProjectCreate(
+            name="  Spaced Name  ",
+            namespace="https://example.org/vocab",
+            identifier_prefix="TST",
+        )
         assert project.name == "Spaced Name"
 
 
@@ -73,6 +96,11 @@ class TestProjectUpdate:
         with pytest.raises(ValidationError):
             ProjectUpdate(namespace=None)
 
+    def test_project_update_rejects_null_prefix(self) -> None:
+        """Test that ProjectUpdate rejects explicitly setting identifier_prefix to null."""
+        with pytest.raises(ValidationError):
+            ProjectUpdate(identifier_prefix=None)
+
 
 class TestProjectRead:
     """Tests for ProjectRead schema."""
@@ -87,7 +115,7 @@ class TestProjectRead:
             created_at=now,
             updated_at=now,
             namespace="https://example.org/vocab",
-            identifier_prefix=None,
+            identifier_prefix="TST",
             identifier_counter=0,
         )
         assert project.id == UUID("01234567-89ab-7def-8123-456789abcdef")

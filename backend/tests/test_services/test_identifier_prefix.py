@@ -22,11 +22,15 @@ async def test_project_prefix_and_counter_persisted(
 
 
 async def test_project_prefix_nullable(db_session: AsyncSession) -> None:
-    project = Project(name="No Prefix Project", namespace="https://example.org/vocab")
+    project = Project(
+        name="No Prefix Project",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
-    assert project.identifier_prefix is None
+    assert project.identifier_prefix == "TST"
     assert project.identifier_counter == 0
 
 
@@ -44,9 +48,6 @@ def test_create_rejects_invalid_prefix(prefix: str) -> None:
     with pytest.raises(ValidationError, match="identifier_prefix"):
         ProjectCreate(name="Test", namespace="https://example.org/vocab", identifier_prefix=prefix)
 
-
-def test_create_prefix_defaults_to_none() -> None:
-    assert ProjectCreate(name="Test", namespace="https://example.org/vocab").identifier_prefix is None
 
 
 def test_update_accepts_valid_prefix() -> None:
@@ -74,7 +75,11 @@ def test_read_includes_prefix_and_counter() -> None:
 async def test_prefix_change_allowed_when_no_identifiers(
     db_session: AsyncSession,
 ) -> None:
-    project = Project(name="Mutable Prefix Project", namespace="https://example.org/vocab", identifier_prefix="OLD")
+    project = Project(
+        name="Mutable Prefix Project",
+        namespace="https://example.org/vocab",
+        identifier_prefix="OLD",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -89,7 +94,11 @@ async def test_prefix_change_allowed_when_no_identifiers(
 async def test_prefix_change_blocked_when_identifiers_exist(
     db_session: AsyncSession,
 ) -> None:
-    project = Project(name="Locked Prefix Project", namespace="https://example.org/vocab", identifier_prefix="EVD")
+    project = Project(
+        name="Locked Prefix Project",
+        namespace="https://example.org/vocab",
+        identifier_prefix="EVD",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -119,7 +128,11 @@ async def test_prefix_set_blocked_after_import_without_prefix(
     db_session: AsyncSession,
 ) -> None:
     """Setting prefix is blocked when imported concepts already have identifiers."""
-    project = Project(name="No Prefix Import Project", namespace="https://example.org/vocab")
+    project = Project(
+        name="No Prefix Import Project",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -149,7 +162,11 @@ async def test_prefix_set_blocked_after_import_without_prefix(
 async def test_create_project_with_prefix(db_session: AsyncSession) -> None:
     service = ProjectService(db_session)
     project = await service.create_project(
-        ProjectCreate(name="Created With Prefix", namespace="https://example.org/vocab", identifier_prefix="TST")
+        ProjectCreate(
+            name="Created With Prefix",
+            namespace="https://example.org/vocab",
+            identifier_prefix="TST",
+        )
     )
     assert project.identifier_prefix == "TST"
     assert project.identifier_counter == 0

@@ -262,6 +262,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
         name="Demo Taxonomy",
         description="A simple demo taxonomy for testing.",
         namespace="http://example.org/taxonomies/demo",
+        identifier_prefix="DMO",
     )
     session.add(demo_project)
     await session.flush()

@@ -1088,7 +1088,13 @@ async def test_reader_response_hides_manager_name(
     # Switch to other_user (manager) to respond
     async def manager_override() -> AuthenticatedUser:
         return AuthenticatedUser(
-            user=other_user, org_id=None, org_name=None, realm_roles=["vocabulary.manager", "vocabulary.reviewer"],
+            user=other_user,
+            org_id=None,
+            org_name=None,
+            realm_roles=[
+                "vocabulary.manager",
+                "vocabulary.reviewer",
+            ],
         )
 
     app.dependency_overrides[get_current_user] = manager_override

@@ -67,7 +67,11 @@ ex:targetScheme a rdf:Property ;
 
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
-    project = Project(name="Round Trip Project", namespace="http://example.org/")
+    project = Project(
+        name="Round Trip Project",
+        namespace="http://example.org/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)

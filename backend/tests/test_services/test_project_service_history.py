@@ -20,6 +20,7 @@ async def test_create_project_records_change_event(db_session: AsyncSession) -> 
             name="Test Project",
             description="A test project",
             namespace="http://example.org/ns/",
+            identifier_prefix="TST",
         )
     )
 
@@ -39,7 +40,12 @@ async def test_update_project_records_before_and_after(db_session: AsyncSession)
     service = ProjectService(db_session)
 
     project = await service.create_project(
-        ProjectCreate(name="Original Name", description="Original desc", namespace="http://example.org/ns/")
+        ProjectCreate(
+            name="Original Name",
+            description="Original desc",
+            namespace="http://example.org/ns/",
+            identifier_prefix="TST",
+        )
     )
 
     await service.update_project(
@@ -62,7 +68,11 @@ async def test_update_namespace_records_change(db_session: AsyncSession) -> None
     service = ProjectService(db_session)
 
     project = await service.create_project(
-        ProjectCreate(name="NS Project", namespace="http://old.example.org/")
+        ProjectCreate(
+            name="NS Project",
+            namespace="http://old.example.org/",
+            identifier_prefix="TST",
+        )
     )
 
     await service.update_project(
@@ -83,7 +93,11 @@ async def test_delete_project_records_change_event(db_session: AsyncSession) -> 
     service = ProjectService(db_session)
 
     project = await service.create_project(
-        ProjectCreate(name="Doomed Project", namespace="http://example.org/doomed/")
+        ProjectCreate(
+            name="Doomed Project",
+            namespace="http://example.org/doomed/",
+            identifier_prefix="TST",
+        )
     )
     project_id = project.id
 
