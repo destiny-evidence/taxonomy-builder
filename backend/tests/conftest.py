@@ -123,7 +123,11 @@ async def project(db_session: AsyncSession) -> Project:
 
     Override in test files that need a namespace, description, or different name.
     """
-    project = Project(name="Test Project", namespace="https://example.org/test/", identifier_prefix="TST")
+    project = Project(
+        name="Test Project",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)

@@ -13,6 +13,41 @@
   font-size: var(--font-size-sm);
 }
 
+.project-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.project-form__label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.project-form__prefix-locked {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.project-form__prefix-badge {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-background-secondary);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.project-form__prefix-locked-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.project-form__help {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 .project-form__actions {
   display: flex;
   justify-content: flex-end;

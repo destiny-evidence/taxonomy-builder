@@ -20,6 +20,7 @@ from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportRe
 from taxonomy_builder.services.project_service import (
     PrefixLockedError,
     ProjectNameExistsError,
+    ProjectNamespaceExistsError,
     ProjectNotFoundError,
     ProjectService,
     VersionNotFoundError,
@@ -57,7 +58,7 @@ async def create_project(
     """Create a new project."""
     try:
         return await service.create_project(project_in)
-    except ProjectNameExistsError as e:
+    except (ProjectNameExistsError, ProjectNamespaceExistsError) as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
@@ -86,7 +87,7 @@ async def update_project(
         return await service.update_project(project_id, project_in)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ProjectNameExistsError as e:
+    except (ProjectNameExistsError, ProjectNamespaceExistsError) as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except PrefixLockedError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
