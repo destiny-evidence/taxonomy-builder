@@ -21,8 +21,9 @@ describe("ProjectForm", () => {
         name: "Existing Project",
         description: "Some description",
         namespace: "https://example.org/vocab",
-        identifier_prefix: null,
+        identifier_prefix: "EVD",
         identifier_counter: 0,
+        prefix_locked: false,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -38,8 +39,9 @@ describe("ProjectForm", () => {
         name: "My Project",
         description: "Project description",
         namespace: "https://example.org/vocab",
-        identifier_prefix: null,
+        identifier_prefix: "EVD",
         identifier_counter: 0,
+        prefix_locked: false,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -59,7 +61,7 @@ describe("ProjectForm", () => {
       expect(submitButton).toBeDisabled();
     });
 
-    it("enables submit when name and namespace have values", () => {
+    it("enables submit when name, namespace, and prefix have values", () => {
       render(<ProjectForm {...defaultProps} />);
 
       const nameInput = screen.getByPlaceholderText("Enter project name");
@@ -67,6 +69,9 @@ describe("ProjectForm", () => {
 
       const namespaceInput = screen.getByPlaceholderText("https://example.org/vocab");
       fireEvent.input(namespaceInput, { target: { value: "https://example.org/test" } });
+
+      const prefixInput = screen.getByLabelText(/Identifier Prefix/);
+      fireEvent.input(prefixInput, { target: { value: "EVD" } });
 
       const submitButton = screen.getByText("Create Project");
       expect(submitButton).not.toBeDisabled();
@@ -90,6 +95,92 @@ describe("ProjectForm", () => {
 
       const submitButton = screen.getByText("Create Project");
       expect(submitButton).toBeDisabled();
+    });
+  });
+
+  describe("identifier prefix", () => {
+    it("shows required prefix input in create mode", () => {
+      render(<ProjectForm {...defaultProps} />);
+
+      const prefixInput = screen.getByLabelText(/Identifier Prefix/);
+      expect(prefixInput).toBeInTheDocument();
+      expect(prefixInput).toBeRequired();
+    });
+
+    it("shows help text for prefix", () => {
+      render(<ProjectForm {...defaultProps} />);
+
+      expect(screen.getByText(/1-4 uppercase letters/)).toBeInTheDocument();
+    });
+
+    it("shows editable prefix input when prefix is unlocked", () => {
+      const project = {
+        id: "p-1",
+        name: "Test",
+        description: null,
+        namespace: "https://example.org/vocab",
+        identifier_prefix: "EVD",
+        identifier_counter: 0,
+        prefix_locked: false,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      };
+
+      render(<ProjectForm {...defaultProps} project={project} />);
+
+      const prefixInput = screen.getByLabelText(/Identifier Prefix/);
+      expect(prefixInput).toHaveValue("EVD");
+      expect(prefixInput).not.toBeDisabled();
+    });
+
+    it("shows locked prefix badge when prefix_locked is true", () => {
+      const project = {
+        id: "p-1",
+        name: "Test",
+        description: null,
+        namespace: "https://example.org/vocab",
+        identifier_prefix: "EVD",
+        identifier_counter: 5,
+        prefix_locked: true,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+      };
+
+      render(<ProjectForm {...defaultProps} project={project} />);
+
+      expect(screen.getByText("EVD")).toBeInTheDocument();
+      expect(screen.getByText(/Locked — identifiers in use/)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Identifier Prefix/)).not.toBeInTheDocument();
+    });
+
+    it("disables submit when prefix is empty in create mode", () => {
+      render(<ProjectForm {...defaultProps} />);
+
+      const nameInput = screen.getByPlaceholderText("Enter project name");
+      fireEvent.input(nameInput, { target: { value: "New Project" } });
+
+      const namespaceInput = screen.getByPlaceholderText("https://example.org/vocab");
+      fireEvent.input(namespaceInput, { target: { value: "https://example.org/test" } });
+
+      // Don't fill prefix
+      const submitButton = screen.getByText("Create Project");
+      expect(submitButton).toBeDisabled();
+    });
+
+    it("enables submit when name, namespace, and prefix all have values", () => {
+      render(<ProjectForm {...defaultProps} />);
+
+      const nameInput = screen.getByPlaceholderText("Enter project name");
+      fireEvent.input(nameInput, { target: { value: "New Project" } });
+
+      const namespaceInput = screen.getByPlaceholderText("https://example.org/vocab");
+      fireEvent.input(namespaceInput, { target: { value: "https://example.org/test" } });
+
+      const prefixInput = screen.getByLabelText(/Identifier Prefix/);
+      fireEvent.input(prefixInput, { target: { value: "EVD" } });
+
+      const submitButton = screen.getByText("Create Project");
+      expect(submitButton).not.toBeDisabled();
     });
   });
 

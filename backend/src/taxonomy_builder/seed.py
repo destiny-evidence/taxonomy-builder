@@ -2,12 +2,10 @@
 
 import asyncio
 import sys
-from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
@@ -19,10 +17,7 @@ from taxonomy_builder.models import (
     Project,
     User,
 )
-from taxonomy_builder.models.ontology_class import OntologyClass
-from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.publishing import PublishRequest
-from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.publishing_service import PublishingService
@@ -74,6 +69,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
         name="Evidence Synthesis Taxonomy",
         description="A taxonomy for categorizing systematic review methods and approaches.",
         namespace="https://evrepo.example.org/vocab",
+        identifier_prefix="EVD",
     )
     session.add(project)
     await session.flush()
@@ -254,7 +250,8 @@ async def create_seed_data(session: AsyncSession) -> dict:
     created["concepts"] += 5
 
     # Import ontology classes and properties from evrepo-core TTL
-    import_service = SKOSImportService(session)
+    project_service = ProjectService(session)
+    import_service = SKOSImportService(session, project_service=project_service)
     ttl_content = _EVREPO_CORE_TTL.read_bytes()
     import_result = await import_service.execute(project.id, ttl_content, "evrepo-core.ttl")
     created["classes"] += len(import_result.classes_created)
@@ -265,6 +262,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
         name="Demo Taxonomy",
         description="A simple demo taxonomy for testing.",
         namespace="http://example.org/taxonomies/demo",
+        identifier_prefix="DMO",
     )
     session.add(demo_project)
     await session.flush()

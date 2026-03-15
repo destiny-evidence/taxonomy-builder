@@ -23,7 +23,7 @@ describe("BroaderSelector", () => {
         pref_label: "Mammals",
         definition: null,
         scope_note: null,
-        uri: null,
+        uri: "http://example.org/concepts/c2",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
@@ -37,7 +37,7 @@ describe("BroaderSelector", () => {
         pref_label: "Vertebrates",
         definition: null,
         scope_note: null,
-        uri: null,
+        uri: "http://example.org/concepts/c3",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
@@ -60,7 +60,7 @@ describe("BroaderSelector", () => {
         <BroaderSelector
           {...defaultProps}
           currentBroader={[
-            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -81,7 +81,7 @@ describe("BroaderSelector", () => {
         <BroaderSelector
           {...defaultProps}
           currentBroader={[
-            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -100,8 +100,8 @@ describe("BroaderSelector", () => {
         <BroaderSelector
           {...defaultProps}
           currentBroader={[
-            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-            { id: "concept-3", pref_label: "Vertebrates", scheme_id: "scheme-1", identifier: "c3", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-3", pref_label: "Vertebrates", scheme_id: "scheme-1", identifier: "c3", definition: null, scope_note: null, uri: "http://example.org/concepts/c3", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -159,7 +159,7 @@ describe("BroaderSelector", () => {
       render(
         <BroaderSelector
           {...defaultProps}
-          currentBroader={[{ id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }]}
+          currentBroader={[{ id: "concept-2", pref_label: "Mammals", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }]}
           onChanged={onChanged}
         />
       );

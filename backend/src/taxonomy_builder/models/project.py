@@ -27,12 +27,12 @@ class Project(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
-    identifier_prefix: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    identifier_prefix: Mapped[str] = mapped_column(String(4), nullable=False)
     identifier_counter: Mapped[int] = mapped_column(default=0, server_default="0")
 
     __table_args__ = (
         CheckConstraint(
-            r"identifier_prefix ~ '^[A-Z]{1,4}$' OR identifier_prefix IS NULL",
+            r"identifier_prefix ~ '^[A-Z]{1,4}$'",
             name="ck_projects_identifier_prefix_format",
         ),
         CheckConstraint(

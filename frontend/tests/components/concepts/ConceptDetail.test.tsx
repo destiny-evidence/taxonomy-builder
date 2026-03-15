@@ -106,10 +106,29 @@ describe("ConceptDetail", () => {
       fireEvent.click(editButton);
 
       expect(screen.getByLabelText(/Preferred Label/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Identifier/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Definition/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Scope Note/i)).toBeInTheDocument();
       expect(screen.getByText("Alternative Labels")).toBeInTheDocument();
+    });
+
+    it("should show identifier as read-only text in edit mode", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      // Identifier should be visible as text, not as an input
+      expect(screen.getByText("001")).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Identifier/i)).not.toBeInTheDocument();
+    });
+
+    it("should show URI as read-only in edit mode", () => {
+      render(<ConceptDetail {...defaultProps} />);
+
+      const editButton = screen.getByText("Edit");
+      fireEvent.click(editButton);
+
+      expect(screen.getByText("http://example.org/concepts/001")).toBeInTheDocument();
     });
 
     it("should initialize fields with concept data", () => {
@@ -119,7 +138,6 @@ describe("ConceptDetail", () => {
       fireEvent.click(editButton);
 
       expect((screen.getByLabelText(/Preferred Label/i) as HTMLInputElement).value).toBe(mockConcept.pref_label);
-      expect((screen.getByLabelText(/Identifier/i) as HTMLInputElement).value).toBe(mockConcept.identifier);
       expect((screen.getByLabelText(/Definition/i) as HTMLTextAreaElement).value).toBe(mockConcept.definition);
       expect((screen.getByLabelText(/Scope Note/i) as HTMLTextAreaElement).value).toBe(mockConcept.scope_note);
     });
@@ -141,7 +159,6 @@ describe("ConceptDetail", () => {
       await waitFor(() => {
         expect(mockUpdate).toHaveBeenCalledWith(mockConcept.id, {
           pref_label: "Updated",
-          identifier: mockConcept.identifier,
           definition: mockConcept.definition,
           scope_note: mockConcept.scope_note,
           alt_labels: mockConcept.alt_labels,
@@ -234,17 +251,17 @@ describe("ConceptDetail", () => {
       fireEvent.click(screen.getByText("Edit"));
 
       const prefLabelInput = screen.getByLabelText(/Preferred Label/i) as HTMLInputElement;
-      const identifierInput = screen.getByLabelText(/Identifier/i) as HTMLInputElement;
+      const definitionInput = screen.getByLabelText(/Definition/i) as HTMLTextAreaElement;
 
       fireEvent.input(prefLabelInput, { target: { value: "Changed Label" } });
-      fireEvent.input(identifierInput, { target: { value: "changed-id" } });
+      fireEvent.input(definitionInput, { target: { value: "Changed definition" } });
 
       fireEvent.click(screen.getByText("Cancel"));
       fireEvent.click(screen.getByText("Edit"));
 
       // Fields should be back to original values
       expect((screen.getByLabelText(/Preferred Label/i) as HTMLInputElement).value).toBe(mockConcept.pref_label);
-      expect((screen.getByLabelText(/Identifier/i) as HTMLInputElement).value).toBe(mockConcept.identifier);
+      expect((screen.getByLabelText(/Definition/i) as HTMLTextAreaElement).value).toBe(mockConcept.definition);
     });
   });
 });

@@ -388,9 +388,10 @@ export function SchemeWorkspacePage({
         <ConceptForm
           key={editingConcept?.id ?? formKey}
           schemeId={schemeId!}
-          schemeUri={currentScheme.value?.uri}
           concept={editingConcept}
           initialBroaderId={initialBroaderId}
+          identifierPrefix={currentProject.value?.identifier_prefix ?? ""}
+          identifierCounter={currentProject.value?.identifier_counter ?? 0}
           onSuccess={handleFormSuccess}
           onCancel={handleFormClose}
         />

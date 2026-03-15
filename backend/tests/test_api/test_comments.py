@@ -12,21 +12,7 @@ from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_use
 from taxonomy_builder.main import app
 from taxonomy_builder.models.comment import Comment
 from taxonomy_builder.models.concept import Concept
-from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.user import User
-
-
-@pytest.fixture
-async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
-    """Create a concept for testing."""
-    concept = Concept(
-        scheme_id=scheme.id,
-        pref_label="Test Concept",
-    )
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
-    return concept
 
 
 @pytest.fixture

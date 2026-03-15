@@ -78,7 +78,7 @@ function createTreeNode(
     pref_label,
     definition: null,
     scope_note: null,
-    uri: null,
+    uri: `http://example.org/concepts/${id}`,
     alt_labels,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",

@@ -20,7 +20,6 @@ interface ConceptDetailProps {
 
 interface EditDraft {
   pref_label: string;
-  identifier: string;
   definition: string;
   scope_note: string;
   alt_labels: string[];
@@ -46,7 +45,6 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
   // Use draft values when editing, otherwise use concept values
   const displayValues = editDraft ?? {
     pref_label: concept.pref_label,
-    identifier: concept.identifier ?? "",
     definition: concept.definition ?? "",
     scope_note: concept.scope_note ?? "",
     alt_labels: concept.alt_labels,
@@ -55,7 +53,6 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
   function handleEditClick() {
     setEditDraft({
       pref_label: concept.pref_label,
-      identifier: concept.identifier ?? "",
       definition: concept.definition ?? "",
       scope_note: concept.scope_note ?? "",
       alt_labels: concept.alt_labels,
@@ -77,7 +74,6 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
 
     const data = {
       pref_label: editDraft.pref_label,
-      identifier: editDraft.identifier || null,
       definition: editDraft.definition || null,
       scope_note: editDraft.scope_note || null,
       alt_labels: editDraft.alt_labels,
@@ -151,13 +147,17 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
         {isEditing ? (
           <>
             <div class="concept-detail__field">
-              <Input
-                label="Identifier"
-                name="identifier"
-                value={displayValues.identifier}
-                placeholder="e.g., 001 or my-concept"
-                onChange={(value) => updateDraft('identifier', value)}
-              />
+              <label class="concept-detail__label">Identifier</label>
+              <p class="concept-detail__value">{concept.identifier}</p>
+            </div>
+
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">URI</label>
+              <p class="concept-detail__value">
+                <a href={concept.uri} target="_blank" rel="noopener noreferrer">
+                  {concept.uri}
+                </a>
+              </p>
             </div>
 
             <div class="concept-detail__field">
@@ -203,16 +203,19 @@ export function ConceptDetail({ concept, onDelete, onRefresh }: ConceptDetailPro
               </div>
             )}
 
-            {concept.uri && (
-              <div class="concept-detail__field">
-                <label class="concept-detail__label">URI</label>
-                <p class="concept-detail__value">
-                  <a href={concept.uri} target="_blank" rel="noopener noreferrer">
-                    {concept.uri}
-                  </a>
-                </p>
-              </div>
-            )}
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">Identifier</label>
+              <p class="concept-detail__value">{concept.identifier}</p>
+            </div>
+
+            <div class="concept-detail__field">
+              <label class="concept-detail__label">URI</label>
+              <p class="concept-detail__value">
+                <a href={concept.uri} target="_blank" rel="noopener noreferrer">
+                  {concept.uri}
+                </a>
+              </p>
+            </div>
 
             <div class="concept-detail__field">
               <label class="concept-detail__label">Alternative Labels</label>

@@ -1,8 +1,9 @@
 """Project service for business logic."""
 
+import re
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,12 +39,34 @@ class ProjectNameExistsError(Exception):
         super().__init__(f"Project with name '{name}' already exists")
 
 
+class ProjectNamespaceExistsError(Exception):
+    """Raised when a project namespace already exists."""
+
+    def __init__(self, namespace: str) -> None:
+        self.namespace = namespace
+        super().__init__(f"A project with this namespace already exists")
+
+
 class PrefixLockedError(Exception):
     """Raised when identifier_prefix cannot be changed because concepts already have identifiers."""
 
     def __init__(self) -> None:
         super().__init__(
             "Cannot change identifier_prefix: concepts with assigned identifiers exist"
+        )
+
+
+IDENTIFIER_WIDTH = 6
+MAX_COUNTER = 10**IDENTIFIER_WIDTH - 1
+
+
+class IdentifierAllocationError(Exception):
+    """Raised when an identifier cannot be allocated for a project."""
+
+    def __init__(self, project_name: str, reason: str) -> None:
+        self.project_name = project_name
+        super().__init__(
+            f"Cannot allocate identifier for project '{project_name}': {reason}"
         )
 
 
@@ -69,24 +92,94 @@ class ProjectService:
             "identifier_counter": project.identifier_counter,
         }
 
-    async def _check_prefix_mutable(self, project_id: UUID) -> None:
-        """Raise PrefixLockedError if any concept in the project has a non-null identifier."""
+    async def _has_prefix_concepts(self, project_id: UUID, prefix: str) -> bool:
+        """Check if any concept in the project has an identifier matching the prefix pattern."""
+        pattern = f"^{prefix}\\d+$"
         result = await self.db.execute(
             select(Concept.id)
             .join(ConceptScheme, Concept.scheme_id == ConceptScheme.id)
             .where(
                 ConceptScheme.project_id == project_id,
-                Concept.identifier.isnot(None),
+                Concept.identifier.regexp_match(pattern),
             )
             .limit(1)
         )
-        if result.scalar_one_or_none() is not None:
+        return result.scalar_one_or_none() is not None
+
+    async def _check_prefix_mutable(self, project_id: UUID, prefix: str) -> None:
+        """Raise PrefixLockedError if concepts with prefix-matching identifiers exist."""
+        if await self._has_prefix_concepts(project_id, prefix):
             raise PrefixLockedError()
+
+    async def allocate_identifier(self, project_id: UUID) -> str:
+        """Allocate the next sequential identifier for a project.
+
+        Atomically increments counter and returns identifier string like "EVD000001".
+
+        Raises:
+            ProjectNotFoundError: If project does not exist.
+            IdentifierAllocationError: If counter at max.
+        """
+        project = await self.get_project(project_id)
+
+        result = await self.db.execute(
+            update(Project)
+            .where(
+                Project.id == project_id,
+                Project.identifier_counter < MAX_COUNTER,
+            )
+            .values(identifier_counter=Project.identifier_counter + 1)
+            .returning(Project.identifier_prefix, Project.identifier_counter)
+        )
+        row = result.one_or_none()
+
+        if row is not None:
+            prefix, counter = row[0], row[1]
+            return f"{prefix}{counter:0{IDENTIFIER_WIDTH}d}"
+
+        raise IdentifierAllocationError(
+            project.name, f"counter at maximum ({MAX_COUNTER})"
+        )
+
+    async def reconcile_identifier_counter(
+        self, project_id: UUID, identifiers: list[str]
+    ) -> None:
+        """Advance project counter past the highest imported identifier matching the prefix.
+
+        Monotonic: never moves counter backward.
+        Skips identifiers above MAX_COUNTER to prevent bricking future allocations.
+        """
+        project = await self.get_project(project_id)
+        prefix = project.identifier_prefix
+        pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
+        max_found = 0
+        for ident in identifiers:
+            m = pattern.match(ident)
+            if m:
+                value = int(m.group(1))
+                if value <= MAX_COUNTER:
+                    max_found = max(max_found, value)
+
+        if max_found > 0:
+            await self.db.execute(
+                update(Project)
+                .where(Project.id == project_id, Project.identifier_counter < max_found)
+                .values(identifier_counter=max_found)
+            )
+
+    async def _enrich_prefix_locked(self, project: Project) -> None:
+        """Set prefix_locked attribute based on whether prefix-matching concepts exist."""
+        project.prefix_locked = await self._has_prefix_concepts(  # type: ignore[attr-defined]
+            project.id, project.identifier_prefix
+        )
 
     async def list_projects(self) -> list[Project]:
         """List all projects ordered by name."""
         result = await self.db.execute(select(Project).order_by(Project.name))
-        return list(result.scalars().all())
+        projects = list(result.scalars().all())
+        for p in projects:
+            await self._enrich_prefix_locked(p)
+        return projects
 
     async def create_project(self, project_in: ProjectCreate) -> Project:
         """Create a new project."""
@@ -100,8 +193,10 @@ class ProjectService:
         try:
             await self.db.flush()
             await self.db.refresh(project)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
+            if "namespace" in str(e.orig):
+                raise ProjectNamespaceExistsError(str(project_in.namespace))
             raise ProjectNameExistsError(project_in.name)
 
         await self._tracker.record(
@@ -112,6 +207,7 @@ class ProjectService:
             before=None,
             after=self._serialize_project(project),
         )
+        project.prefix_locked = False  # type: ignore[attr-defined]
         return project
 
     async def get_project(self, project_id: UUID) -> Project:
@@ -120,6 +216,7 @@ class ProjectService:
         project = result.scalar_one_or_none()
         if project is None:
             raise ProjectNotFoundError(project_id)
+        await self._enrich_prefix_locked(project)
         return project
 
     async def update_project(self, project_id: UUID, project_in: ProjectUpdate) -> Project:
@@ -135,14 +232,16 @@ class ProjectService:
             project.namespace = project_in.namespace
         if "identifier_prefix" in project_in.model_fields_set:
             if project_in.identifier_prefix != project.identifier_prefix:
-                await self._check_prefix_mutable(project_id)
+                await self._check_prefix_mutable(project_id, project.identifier_prefix)
             project.identifier_prefix = project_in.identifier_prefix
 
         try:
             await self.db.flush()
             await self.db.refresh(project)
-        except IntegrityError:
+        except IntegrityError as e:
             await self.db.rollback()
+            if "namespace" in str(e.orig):
+                raise ProjectNamespaceExistsError(str(project_in.namespace or ""))
             raise ProjectNameExistsError(project_in.name or "")
 
         await self._tracker.record(
@@ -153,6 +252,7 @@ class ProjectService:
             before=before,
             after=self._serialize_project(project),
         )
+        await self._enrich_prefix_locked(project)
         return project
 
     async def delete_project(self, project_id: UUID) -> None:

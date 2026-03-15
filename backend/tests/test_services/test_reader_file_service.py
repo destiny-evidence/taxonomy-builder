@@ -462,7 +462,11 @@ class TestPublishReaderFiles:
         from taxonomy_builder.models.concept_scheme import ConceptScheme
         from taxonomy_builder.models.project import Project
 
-        project = Project(name="Reader Test", namespace="http://example.org/reader")
+        project = Project(
+            name="Reader Test",
+            namespace="http://example.org/reader",
+            identifier_prefix="TST",
+        )
         db_session.add(project)
         await db_session.flush()
         await db_session.refresh(project)

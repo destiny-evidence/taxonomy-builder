@@ -1394,3 +1394,63 @@ async def test_reimport_restrictions_does_not_touch_other_classes(
     rows = (await db_session.execute(select(ClassRestriction))).scalars().all()
     assert len(rows) == 1
     assert rows[0].on_property_uri == "http://example.org/otherProp"
+
+
+# --- Identifier reconciliation after import ---
+
+PREFIXED_IDENTIFIERS_TTL = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:TestScheme a skos:ConceptScheme ;
+    rdfs:label "Test Scheme" .
+
+ex:EVD000003 a skos:Concept ;
+    skos:inScheme ex:TestScheme ;
+    skos:prefLabel "Third" .
+
+ex:EVD000007 a skos:Concept ;
+    skos:inScheme ex:TestScheme ;
+    skos:prefLabel "Seventh" .
+
+ex:EVD000005 a skos:Concept ;
+    skos:inScheme ex:TestScheme ;
+    skos:prefLabel "Fifth" .
+"""
+
+@pytest.mark.asyncio
+async def test_execute_reconciles_identifier_counter(
+    db_session: AsyncSession, import_service: SKOSImportService, project_with_prefix: Project
+) -> None:
+    """Import with prefix-matching identifiers advances the project counter."""
+    await import_service.execute(
+        project_with_prefix.id, PREFIXED_IDENTIFIERS_TTL, "test.ttl"
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 7
+
+
+@pytest.mark.asyncio
+async def test_reimport_skipped_scheme_does_not_advance_counter(
+    db_session: AsyncSession, import_service: SKOSImportService, project_with_prefix: Project
+) -> None:
+    """Re-importing a file whose scheme already exists does not advance the counter."""
+    # First import creates the scheme and reconciles to 7
+    await import_service.execute(
+        project_with_prefix.id, PREFIXED_IDENTIFIERS_TTL, "test.ttl"
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 7
+
+    # Reset counter below the file's high-water mark (7) to detect leakage
+    project_with_prefix.identifier_counter = 3
+    await db_session.flush()
+
+    # Re-import: scheme already exists, so concepts are skipped —
+    # counter must stay at 3, not jump back to 7
+    await import_service.execute(
+        project_with_prefix.id, PREFIXED_IDENTIFIERS_TTL, "test.ttl"
+    )
+    await db_session.refresh(project_with_prefix)
+    assert project_with_prefix.identifier_counter == 3

@@ -4,8 +4,9 @@ export interface Project {
   name: string;
   description: string | null;
   namespace: string;
-  identifier_prefix: string | null;
+  identifier_prefix: string;
   identifier_counter: number;
+  prefix_locked: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -14,14 +15,22 @@ export interface ProjectCreate {
   name: string;
   description?: string | null;
   namespace: string;
-  identifier_prefix?: string | null;
+  identifier_prefix: string;
 }
 
 export interface ProjectUpdate {
   name?: string;
   description?: string | null;
   namespace?: string;
-  identifier_prefix?: string | null;
+  identifier_prefix?: string;
+}
+
+/** Width of the numeric portion of auto-generated identifiers (matches backend IDENTIFIER_WIDTH). */
+export const IDENTIFIER_WIDTH = 6;
+
+/** Format an identifier from prefix and counter (e.g. "EVD", 1 → "EVD000001"). */
+export function formatIdentifier(prefix: string, counter: number): string {
+  return `${prefix}${String(counter).padStart(IDENTIFIER_WIDTH, "0")}`;
 }
 
 // ============ Concept Schemes ============
@@ -51,11 +60,11 @@ export interface ConceptSchemeUpdate {
 export interface ConceptBrief {
   id: string;
   scheme_id: string;
-  identifier: string | null;
+  identifier: string;
   pref_label: string;
   definition: string | null;
   scope_note: string | null;
-  uri: string | null; // Computed from scheme.uri + identifier
+  uri: string; // Computed from scheme.uri + identifier
   alt_labels: string[];
   created_at: string;
   updated_at: string;
@@ -68,7 +77,6 @@ export interface Concept extends ConceptBrief {
 
 export interface ConceptCreate {
   pref_label: string;
-  identifier?: string | null;
   definition?: string | null;
   scope_note?: string | null;
   alt_labels?: string[];
@@ -76,7 +84,6 @@ export interface ConceptCreate {
 
 export interface ConceptUpdate {
   pref_label?: string;
-  identifier?: string | null;
   definition?: string | null;
   scope_note?: string | null;
   alt_labels?: string[];
@@ -86,11 +93,11 @@ export interface ConceptUpdate {
 export interface TreeNode {
   id: string;
   scheme_id: string;
-  identifier: string | null;
+  identifier: string;
   pref_label: string;
   definition: string | null;
   scope_note: string | null;
-  uri: string | null;
+  uri: string;
   alt_labels: string[];
   created_at: string;
   updated_at: string;

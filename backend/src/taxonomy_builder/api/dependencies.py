@@ -169,9 +169,11 @@ def get_import_service(
     current_user: AuthenticatedUser = Depends(require_role("vocabulary.manager")),
 ) -> SKOSImportService:
     """Dependency that provides a SKOSImportService with user context."""
+    from taxonomy_builder.services.project_service import ProjectService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
 
-    return SKOSImportService(db, user_id=current_user.user.id)
+    project_service = ProjectService(db, user_id=current_user.user.id)
+    return SKOSImportService(db, user_id=current_user.user.id, project_service=project_service)
 
 
 def get_history_service(db: AsyncSession = Depends(get_db)) -> HistoryService:
