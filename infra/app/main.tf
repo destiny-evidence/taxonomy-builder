@@ -141,10 +141,3 @@ module "container_app_api" {
   ]
 }
 
-# Data source for API Container App (for gateway backend)
-data "azurerm_container_app" "api" {
-  name                = module.container_app_api.container_app_name
-  resource_group_name = azurerm_resource_group.this.name
-  depends_on          = [module.container_app_api]
-}
-

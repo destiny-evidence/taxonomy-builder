@@ -77,10 +77,10 @@ resource "azurerm_cdn_frontdoor_origin" "api" {
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
 
   enabled                        = true
-  host_name                      = data.azurerm_container_app.api.ingress[0].fqdn
+  host_name                      = module.container_app_api.container_app_fqdn
   http_port                      = 80
   https_port                     = 443
-  origin_host_header             = data.azurerm_container_app.api.ingress[0].fqdn
+  origin_host_header             = module.container_app_api.container_app_fqdn
   certificate_name_check_enabled = true
 }
 

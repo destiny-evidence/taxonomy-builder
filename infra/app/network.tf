@@ -43,6 +43,10 @@ resource "azurerm_private_dns_zone" "db" {
   resource_group_name = azurerm_resource_group.this.name
 
   tags = local.minimum_resource_tags
+
+  lifecycle {
+    ignore_changes = [tags["Created by"]]
+  }
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "db" {
@@ -53,6 +57,10 @@ resource "azurerm_private_dns_zone_virtual_network_link" "db" {
   depends_on            = [azurerm_subnet.db]
 
   tags = local.minimum_resource_tags
+
+  lifecycle {
+    ignore_changes = [tags["Created by"]]
+  }
 }
 
 # API Container App subnet

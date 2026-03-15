@@ -5,7 +5,7 @@ output "resource_group_name" {
 
 output "api_container_app_fqdn" {
   description = "FQDN of the API container app"
-  value       = data.azurerm_container_app.api.ingress[0].fqdn
+  value       = module.container_app_api.container_app_fqdn
 }
 
 output "frontdoor_endpoint_hostname" {
