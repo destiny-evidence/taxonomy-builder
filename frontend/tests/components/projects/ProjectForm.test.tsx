@@ -20,7 +20,7 @@ describe("ProjectForm", () => {
         id: "p-1",
         name: "Existing Project",
         description: "Some description",
-        namespace: null,
+        namespace: "https://example.org/vocab",
         identifier_prefix: null,
         identifier_counter: 0,
         created_at: "2024-01-01T00:00:00Z",
@@ -37,7 +37,7 @@ describe("ProjectForm", () => {
         id: "p-1",
         name: "My Project",
         description: "Project description",
-        namespace: null,
+        namespace: "https://example.org/vocab",
         identifier_prefix: null,
         identifier_counter: 0,
         created_at: "2024-01-01T00:00:00Z",
@@ -59,14 +59,27 @@ describe("ProjectForm", () => {
       expect(submitButton).toBeDisabled();
     });
 
-    it("enables submit when name has value", () => {
+    it("enables submit when name and namespace have values", () => {
+      render(<ProjectForm {...defaultProps} />);
+
+      const nameInput = screen.getByPlaceholderText("Enter project name");
+      fireEvent.input(nameInput, { target: { value: "New Project" } });
+
+      const namespaceInput = screen.getByPlaceholderText("https://example.org/vocab");
+      fireEvent.input(namespaceInput, { target: { value: "https://example.org/test" } });
+
+      const submitButton = screen.getByText("Create Project");
+      expect(submitButton).not.toBeDisabled();
+    });
+
+    it("disables submit when namespace is empty", () => {
       render(<ProjectForm {...defaultProps} />);
 
       const nameInput = screen.getByPlaceholderText("Enter project name");
       fireEvent.input(nameInput, { target: { value: "New Project" } });
 
       const submitButton = screen.getByText("Create Project");
-      expect(submitButton).not.toBeDisabled();
+      expect(submitButton).toBeDisabled();
     });
 
     it("disables submit when name is only whitespace", () => {

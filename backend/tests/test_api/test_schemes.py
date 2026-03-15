@@ -11,16 +11,6 @@ from taxonomy_builder.models.project import Project
 
 
 @pytest.fixture
-async def project(db_session: AsyncSession) -> Project:
-    """Create a project for testing."""
-    project = Project(name="Test Project", description="For testing schemes")
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-    return project
-
-
-@pytest.fixture
 async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     """Create a concept scheme for testing."""
     scheme = ConceptScheme(

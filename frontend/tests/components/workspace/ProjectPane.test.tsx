@@ -11,7 +11,7 @@ const mockProject: Project = {
   id: "proj-1",
   name: "Test Project",
   description: "A test project",
-  namespace: null,
+  namespace: "https://example.org/vocab",
   identifier_prefix: null,
   identifier_counter: 0,
   created_at: "2024-01-01T00:00:00Z",
