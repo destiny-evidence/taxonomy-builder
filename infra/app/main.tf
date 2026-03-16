@@ -27,7 +27,7 @@ resource "azuread_group_member" "api_to_db_crud" {
 # API Container App
 module "container_app_api" {
   source                          = "app.terraform.io/destiny-evidence/container-app/azure"
-  version                         = "1.9.0"
+  version                         = "1.9.1"
   app_name                        = var.app_name
   cpu                             = var.api_cpu
   environment                     = var.environment
