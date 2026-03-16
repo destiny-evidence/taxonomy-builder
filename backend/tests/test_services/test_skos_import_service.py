@@ -1454,3 +1454,38 @@ async def test_reimport_skipped_scheme_does_not_advance_counter(
     )
     await db_session.refresh(project_with_prefix)
     assert project_with_prefix.identifier_counter == 3
+
+
+# --- Legacy "None" identifier handling ---
+
+NONE_IDENTIFIER_TTL = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<http://example.org/scheme/LegacyScheme> a skos:ConceptScheme ;
+    rdfs:label "Legacy Scheme" .
+
+<http://example.org/scheme/LegacyScheme/None> a skos:Concept ;
+    skos:inScheme <http://example.org/scheme/LegacyScheme> ;
+    skos:prefLabel "Legacy Concept A" .
+
+<http://example.org/other/None> a skos:Concept ;
+    skos:inScheme <http://example.org/scheme/LegacyScheme> ;
+    skos:prefLabel "Legacy Concept B" .
+"""
+
+
+@pytest.mark.asyncio
+async def test_import_none_identifiers_auto_allocates(
+    db_session: AsyncSession, project: Project, import_service: SKOSImportService,
+):
+    """Concepts with 'None' URI fragments get auto-allocated identifiers."""
+    result = await import_service.execute(project.id, NONE_IDENTIFIER_TTL, "test.ttl")
+    assert result.total_concepts_created == 2
+
+    concepts = (await db_session.execute(select(Concept))).scalars().all()
+    identifiers = sorted(c.identifier for c in concepts)
+    assert identifiers == ["TST000001", "TST000002"]
+
+    await db_session.refresh(project)
+    assert project.identifier_counter == 2

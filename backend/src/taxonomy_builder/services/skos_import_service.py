@@ -391,10 +391,11 @@ class SKOSImportService:
         # Skipped schemes (already existed) are excluded — their identifiers
         # were reconciled during the original import.
         imported_identifiers = [
-            get_identifier_from_uri(concept_uri)
+            ident
             for scheme_uri, concepts in analysis["concepts_by_scheme"].items()
             if str(scheme_uri) not in existing.scheme_uri_to_id
             for concept_uri in concepts
+            if (ident := get_identifier_from_uri(concept_uri)) != "None"
         ]
         await self._project_service.reconcile_identifier_counter(
             project_id, imported_identifiers
@@ -624,6 +625,13 @@ class SKOSImportService:
         for concept_uri in concept_uris:
             pref_label, _ = get_concept_pref_label(g, concept_uri)
             identifier = get_identifier_from_uri(concept_uri)
+
+            # Treat "None" as a missing identifier (legacy data exported before
+            # identifiers were required) and auto-allocate a real one.
+            if identifier == "None":
+                identifier = await self._project_service.allocate_identifier(
+                    project_id
+                )
 
             definition = None
             def_value = g.value(concept_uri, SKOS.definition)
