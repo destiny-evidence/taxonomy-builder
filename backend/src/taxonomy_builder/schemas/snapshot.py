@@ -38,23 +38,6 @@ class SnapshotConcept(BaseModel):
     related_ids: list[UUID] = Field(default_factory=list)
     concept_type_uris: list[str] = Field(default_factory=list)
 
-    @field_validator("uri", mode="before")
-    @classmethod
-    def require_uri(cls, v: str | None, info: ValidationInfo) -> str:
-        if v is None:
-            label = info.data.get("pref_label", "?")
-            raise PydanticCustomError(
-                "concept_missing_uri",
-                "Concept '{label}' has no URI.",
-                {
-                    "label": label,
-                    "entity_type": "concept",
-                    "entity_id": str(info.data.get("id", "")),
-                    "entity_label": label,
-                },
-            )
-        return v
-
     @field_validator("pref_label", mode="after")
     @classmethod
     def non_empty_label(cls, v: str, info: ValidationInfo) -> str:
@@ -161,23 +144,6 @@ class SnapshotProperty(BaseModel):
     range_class: str | None = None
     cardinality: str
     required: bool
-
-    @field_validator("uri", mode="before")
-    @classmethod
-    def require_uri(cls, v: str | None, info: ValidationInfo) -> str:
-        if v is None:
-            label = info.data.get("label", "?")
-            raise PydanticCustomError(
-                "property_missing_uri",
-                "Property '{label}' has no URI.",
-                {
-                    "label": label,
-                    "entity_type": "property",
-                    "entity_id": str(info.data.get("id", "")),
-                    "entity_label": label,
-                },
-            )
-        return v
 
     @model_validator(mode="after")
     def require_valid_range(self) -> SnapshotProperty:
@@ -290,23 +256,6 @@ class SnapshotClass(BaseModel):
             )
         return v
 
-    @field_validator("uri", mode="before")
-    @classmethod
-    def require_uri(cls, v: str | None, info: ValidationInfo) -> str:
-        if v is None:
-            label = info.data.get("label", "?")
-            raise PydanticCustomError(
-                "class_missing_uri",
-                "Class '{label}' has no URI.",
-                {
-                    "label": label,
-                    "entity_type": "class",
-                    "entity_id": str(info.data.get("id", "")),
-                    "entity_label": label,
-                },
-            )
-        return v
-
     @classmethod
     def from_class(cls, ontology_class: OntologyClass) -> Self:
         return cls.model_construct(
@@ -340,21 +289,6 @@ class SnapshotProjectMetadata(BaseModel):
     name: str
     description: str | None = None
     namespace: str
-
-    @field_validator("namespace", mode="before")
-    @classmethod
-    def require_namespace(cls, v: str | None, info: ValidationInfo) -> str:
-        if v is None or not str(v).strip():
-            raise PydanticCustomError(
-                "project_missing_namespace",
-                "Project has no namespace.",
-                {
-                    "entity_type": "project",
-                    "entity_id": str(info.data.get("id", "")),
-                    "entity_label": info.data.get("name", "?"),
-                },
-            )
-        return v
 
     @classmethod
     def from_project(cls, project: Project) -> Self:

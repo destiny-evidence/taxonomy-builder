@@ -162,18 +162,6 @@ class TestSchemeMissingUri:
         assert uri_errors[0].entity_label == "No URI"
 
 
-class TestConceptMissingUri:
-    def test_concept_with_no_uri(self) -> None:
-        concept_id = uuid4()
-        concept = _concept("No URI", id=concept_id, identifier="no-uri", uri=None)
-        scheme = _scheme(concepts=[concept])
-        result = validate_snapshot(_vocab(scheme))
-        assert result.valid is False
-        uri_errors = [e for e in result.errors if e.code == "concept_missing_uri"]
-        assert len(uri_errors) == 1
-        assert uri_errors[0].entity_id == concept_id
-
-
 class TestConceptMissingPrefLabel:
     def test_whitespace_only_label(self) -> None:
         scheme = _scheme(concepts=[_concept("   ")])
@@ -332,19 +320,6 @@ class TestBrokenRangeSchemeRef:
         scheme = _scheme(concepts=[_concept("Term")])
         result = validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
         assert result.valid is True
-
-
-class TestClassMissingUri:
-    def test_class_missing_uri(self) -> None:
-        class_id = uuid4()
-        cls = _class("No URI", id=class_id, uri=None)
-        scheme = _scheme(concepts=[_concept()])
-        result = validate_snapshot(_vocab(scheme, classes=[cls]))
-        assert result.valid is False
-        uri_errors = [e for e in result.errors if e.code == "class_missing_uri"]
-        assert len(uri_errors) == 1
-        assert uri_errors[0].entity_id == class_id
-        assert uri_errors[0].entity_label == "No URI"
 
 
 class TestClassMissingLabel:
