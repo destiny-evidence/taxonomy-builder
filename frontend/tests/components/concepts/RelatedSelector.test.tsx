@@ -23,7 +23,7 @@ describe("RelatedSelector", () => {
         pref_label: "Cats",
         definition: null,
         scope_note: null,
-        uri: null,
+        uri: "http://example.org/concepts/c2",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
@@ -37,7 +37,7 @@ describe("RelatedSelector", () => {
         pref_label: "Veterinary Medicine",
         definition: null,
         scope_note: null,
-        uri: null,
+        uri: "http://example.org/concepts/c3",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
@@ -60,7 +60,7 @@ describe("RelatedSelector", () => {
         <RelatedSelector
           {...defaultProps}
           currentRelated={[
-            { id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -91,7 +91,7 @@ describe("RelatedSelector", () => {
         <RelatedSelector
           {...defaultProps}
           currentRelated={[
-            { id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -110,8 +110,8 @@ describe("RelatedSelector", () => {
         <RelatedSelector
           {...defaultProps}
           currentRelated={[
-            { id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-            { id: "concept-3", pref_label: "Veterinary Medicine", scheme_id: "scheme-1", identifier: "c3", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            { id: "concept-3", pref_label: "Veterinary Medicine", scheme_id: "scheme-1", identifier: "c3", definition: null, scope_note: null, uri: "http://example.org/concepts/c3", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
           ]}
         />
       );
@@ -169,7 +169,7 @@ describe("RelatedSelector", () => {
       render(
         <RelatedSelector
           {...defaultProps}
-          currentRelated={[{ id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: null, alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }]}
+          currentRelated={[{ id: "concept-2", pref_label: "Cats", scheme_id: "scheme-1", identifier: "c2", definition: null, scope_note: null, uri: "http://example.org/concepts/c2", alt_labels: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }]}
           onChanged={onChanged}
         />
       );

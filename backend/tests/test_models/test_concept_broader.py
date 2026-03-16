@@ -23,11 +23,11 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 @pytest.fixture
 async def concepts(db_session: AsyncSession, scheme: ConceptScheme) -> list[Concept]:
     """Create multiple concepts for testing hierarchy."""
-    animals = Concept(scheme_id=scheme.id, pref_label="Animals")
-    mammals = Concept(scheme_id=scheme.id, pref_label="Mammals")
-    pets = Concept(scheme_id=scheme.id, pref_label="Pets")
-    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs")
-    cats = Concept(scheme_id=scheme.id, pref_label="Cats")
+    animals = Concept(scheme_id=scheme.id, pref_label="Animals", identifier="animals")
+    mammals = Concept(scheme_id=scheme.id, pref_label="Mammals", identifier="mammals")
+    pets = Concept(scheme_id=scheme.id, pref_label="Pets", identifier="pets")
+    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="dogs")
+    cats = Concept(scheme_id=scheme.id, pref_label="Cats", identifier="cats")
     db_session.add_all([animals, mammals, pets, dogs, cats])
     await db_session.flush()
     for c in [animals, mammals, pets, dogs, cats]:

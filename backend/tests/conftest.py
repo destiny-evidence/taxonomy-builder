@@ -12,6 +12,7 @@ from taxonomy_builder.blob_store import FilesystemBlobStore, NoOpPurger
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import Base, db_manager, get_db
 from taxonomy_builder.main import app
+from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.user import User
@@ -122,7 +123,7 @@ async def project(db_session: AsyncSession) -> Project:
 
     Override in test files that need a namespace, description, or different name.
     """
-    project = Project(name="Test Project", namespace="https://example.org/test/")
+    project = Project(name="Test Project", namespace="https://example.org/test/", identifier_prefix="TST")
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -144,6 +145,58 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
     await db_session.flush()
     await db_session.refresh(scheme)
     return scheme
+
+
+@pytest.fixture
+async def scheme2(db_session: AsyncSession, project: Project) -> ConceptScheme:
+    """Create a second concept scheme for cross-scheme tests."""
+    scheme = ConceptScheme(project_id=project.id, title="Other Scheme")
+    db_session.add(scheme)
+    await db_session.flush()
+    await db_session.refresh(scheme)
+    return scheme
+
+
+@pytest.fixture
+async def concept(db_session: AsyncSession, scheme: ConceptScheme) -> Concept:
+    """Create a test concept.
+
+    Override in test files that need a different label, identifier, or scheme.
+    """
+    concept = Concept(
+        scheme_id=scheme.id,
+        pref_label="Test Concept",
+        identifier="test-concept",
+    )
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+    return concept
+
+
+@pytest.fixture
+async def concepts(db_session: AsyncSession, scheme: ConceptScheme) -> list[Concept]:
+    """Create multiple concepts for testing (Dogs, Cats, Veterinary Medicine)."""
+    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="dogs")
+    cats = Concept(scheme_id=scheme.id, pref_label="Cats", identifier="cats")
+    vet_medicine = Concept(
+        scheme_id=scheme.id, pref_label="Veterinary Medicine", identifier="vet-medicine",
+    )
+    db_session.add_all([dogs, cats, vet_medicine])
+    await db_session.flush()
+    for c in [dogs, cats, vet_medicine]:
+        await db_session.refresh(c)
+    return [dogs, cats, vet_medicine]
+
+
+@pytest.fixture
+async def concept_other_scheme(db_session: AsyncSession, scheme2: ConceptScheme) -> Concept:
+    """Create a concept in a different scheme."""
+    concept = Concept(scheme_id=scheme2.id, pref_label="Other Concept", identifier="other-concept")
+    db_session.add(concept)
+    await db_session.flush()
+    await db_session.refresh(concept)
+    return concept
 
 
 @pytest.fixture

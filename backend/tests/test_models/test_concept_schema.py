@@ -21,12 +21,10 @@ class TestConceptCreate:
         """Test creating a valid concept."""
         concept = ConceptCreate(
             pref_label="Test Concept",
-            identifier="test",
             definition="A test definition",
             scope_note="Use for testing",
         )
         assert concept.pref_label == "Test Concept"
-        assert concept.identifier == "test"
         assert concept.definition == "A test definition"
         assert concept.scope_note == "Use for testing"
 
@@ -34,9 +32,9 @@ class TestConceptCreate:
         """Test creating a concept with only pref_label."""
         concept = ConceptCreate(pref_label="Minimal Concept")
         assert concept.pref_label == "Minimal Concept"
-        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
+
 
     def test_concept_create_requires_pref_label(self) -> None:
         """Test that pref_label is required."""
@@ -63,7 +61,6 @@ class TestConceptUpdate:
         """Test that all fields are optional for update."""
         concept = ConceptUpdate()
         assert concept.pref_label is None
-        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
 
@@ -76,14 +73,13 @@ class TestConceptUpdate:
         """Test updating all fields."""
         concept = ConceptUpdate(
             pref_label="Updated Label",
-            identifier="updated",
             definition="Updated definition",
             scope_note="Updated scope note",
         )
         assert concept.pref_label == "Updated Label"
-        assert concept.identifier == "updated"
         assert concept.definition == "Updated definition"
         assert concept.scope_note == "Updated scope note"
+
 
     def test_concept_update_pref_label_cannot_be_empty(self) -> None:
         """Test that pref_label cannot be empty if provided."""
@@ -136,7 +132,7 @@ class TestConceptRead:
             pref_label="Broader Concept",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/broader",
             created_at=now,
             updated_at=now,
         )
@@ -148,7 +144,7 @@ class TestConceptRead:
             pref_label="Narrower Concept",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/narrower",
             created_at=now,
             updated_at=now,
             broader=[broader_concept],
@@ -168,19 +164,17 @@ class TestConceptRead:
         concept = ConceptRead(
             id=uuid4(),
             scheme_id=uuid4(),
-            identifier=None,
+            identifier="minimal",
             pref_label="Minimal",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/minimal",
             created_at=now,
             updated_at=now,
             broader=[],
         )
-        assert concept.identifier is None
         assert concept.definition is None
         assert concept.scope_note is None
-        assert concept.uri is None
 
 
 class TestConceptCreateAltLabels:
@@ -272,7 +266,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             alt_labels=["Synonym"],
             created_at=now,
             updated_at=now,
@@ -290,7 +284,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             created_at=now,
             updated_at=now,
             broader=[],
@@ -307,7 +301,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             alt_labels=["Alt1", "Alt2"],
             created_at=now,
             updated_at=now,
@@ -324,7 +318,7 @@ class TestConceptReadAltLabels:
             pref_label="Test",
             definition=None,
             scope_note=None,
-            uri=None,
+            uri="http://example.org/concepts/test",
             created_at=now,
             updated_at=now,
         )

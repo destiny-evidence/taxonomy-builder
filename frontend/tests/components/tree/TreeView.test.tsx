@@ -52,7 +52,7 @@ describe("TreeView", () => {
         pref_label: "Test Concept",
         definition: null,
         scope_note: null,
-        uri: null,
+        uri: "http://example.org/concepts/concept-1",
         alt_labels: [],
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",

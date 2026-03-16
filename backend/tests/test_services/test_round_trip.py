@@ -80,7 +80,7 @@ async def test_round_trip_restrictions_and_dual_typing(
 ):
     """Import → snapshot → export preserves restrictions and concept dual-typing."""
     # 1. Import
-    import_service = SKOSImportService(db_session)
+    import_service = SKOSImportService(db_session, project_service=ProjectService(db_session))
     result = await import_service.execute(project.id, ROUND_TRIP_TTL, "test.ttl")
     # CodingAnnotation, ConceptSchemeAnnotation, StringAnnotation, EducationLevelConcept
     assert len(result.classes_created) == 4

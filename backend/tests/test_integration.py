@@ -181,7 +181,7 @@ class TestDataPersistence:
         # Create project
         project_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Concept Test Project", "namespace": "https://example.org/vocab"},
+            json={"name": "Concept Test Project", "namespace": "https://example.org/vocab", "identifier_prefix": "TST"},
         )
         project_id = project_response.json()["id"]
 
@@ -210,7 +210,7 @@ class TestDataPersistence:
         # Create project and scheme
         project_response = await integration_client.post(
             "/api/projects",
-            json={"name": "Broader Test Project", "namespace": "https://example.org/vocab"},
+            json={"name": "Broader Test Project", "namespace": "https://example.org/vocab", "identifier_prefix": "TST"},
         )
         project_id = project_response.json()["id"]
 

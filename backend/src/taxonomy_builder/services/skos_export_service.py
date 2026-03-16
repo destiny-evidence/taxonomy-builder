@@ -79,12 +79,6 @@ class SKOSExportService:
             return URIRef(scheme.uri)
         return URIRef(f"{DEFAULT_BASE_URI}/{scheme.id}")
 
-    def _get_concept_uri(self, concept: Concept, scheme_uri: str) -> URIRef:
-        """Get the URI for a concept."""
-        if concept.identifier:
-            return URIRef(f"{scheme_uri.rstrip('/')}/{concept.identifier}")
-        return URIRef(f"{scheme_uri.rstrip('/')}/{concept.id}")
-
     async def export_scheme(self, scheme_id: UUID, format: str) -> str:
         """Export a concept scheme as SKOS RDF.
 
@@ -112,11 +106,6 @@ class SKOSExportService:
 
         # Ensure scheme uri
         snapshot_scheme.uri = self._get_scheme_uri(scheme)
-
-        # Ensure concept uris
-        for concept in snapshot_scheme.concepts:
-            if not concept.uri:
-                concept.uri = self._get_concept_uri(concept, snapshot_scheme.uri)
 
         self._add_scheme_to_graph(graph, snapshot_scheme)
 
