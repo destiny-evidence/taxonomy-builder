@@ -9,8 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class ConceptCreate(BaseModel):
     """Schema for creating a new concept."""
 
+    model_config = ConfigDict(extra="forbid")
+
     pref_label: str = Field(..., min_length=1, max_length=255)
-    identifier: str | None = Field(default=None, max_length=255)
     definition: str | None = None
     scope_note: str | None = None
     alt_labels: list[str] = Field(default_factory=list)
@@ -20,14 +21,6 @@ class ConceptCreate(BaseModel):
     def strip_pref_label(cls, v: str) -> str:
         """Strip whitespace from pref_label."""
         return v.strip()
-
-    @field_validator("identifier")
-    @classmethod
-    def strip_identifier(cls, v: str | None) -> str | None:
-        """Strip whitespace from identifier if provided."""
-        if v is not None:
-            return v.strip() or None
-        return v
 
     @field_validator("alt_labels")
     @classmethod
@@ -46,8 +39,9 @@ class ConceptCreate(BaseModel):
 class ConceptUpdate(BaseModel):
     """Schema for updating an existing concept."""
 
+    model_config = ConfigDict(extra="forbid")
+
     pref_label: str | None = Field(default=None, min_length=1, max_length=255)
-    identifier: str | None = Field(default=None, max_length=255)
     definition: str | None = None
     scope_note: str | None = None
     alt_labels: list[str] | None = None  # None = no change, [] = clear all
@@ -58,14 +52,6 @@ class ConceptUpdate(BaseModel):
         """Strip whitespace from pref_label if provided."""
         if v is not None:
             return v.strip()
-        return v
-
-    @field_validator("identifier")
-    @classmethod
-    def strip_identifier(cls, v: str | None) -> str | None:
-        """Strip whitespace from identifier if provided."""
-        if v is not None:
-            return v.strip() or None
         return v
 
     @field_validator("alt_labels")
@@ -91,11 +77,11 @@ class ConceptBrief(BaseModel):
 
     id: UUID
     scheme_id: UUID
-    identifier: str | None
+    identifier: str
     pref_label: str
     definition: str | None
     scope_note: str | None
-    uri: str | None  # Computed from scheme.uri + identifier
+    uri: str  # Computed from scheme.uri + identifier
     alt_labels: list[str] = []
     created_at: datetime
     updated_at: datetime
@@ -108,11 +94,11 @@ class ConceptRead(BaseModel):
 
     id: UUID
     scheme_id: UUID
-    identifier: str | None
+    identifier: str
     pref_label: str
     definition: str | None
     scope_note: str | None
-    uri: str | None  # Computed from scheme.uri + identifier
+    uri: str  # Computed from scheme.uri + identifier
     alt_labels: list[str] = []
     created_at: datetime
     updated_at: datetime

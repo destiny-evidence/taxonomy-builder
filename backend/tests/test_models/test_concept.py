@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
 
 
 @pytest.mark.asyncio
@@ -40,7 +41,7 @@ async def test_create_concept(db_session: AsyncSession, scheme: ConceptScheme) -
 @pytest.mark.asyncio
 async def test_concept_id_is_uuidv7(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test that concept IDs are UUIDv7."""
-    concept = Concept(scheme_id=scheme.id, pref_label="UUID Test")
+    concept = Concept(scheme_id=scheme.id, pref_label="UUID Test", identifier="uuid-test")
     db_session.add(concept)
     await db_session.flush()
     await db_session.refresh(concept)
@@ -53,7 +54,7 @@ async def test_concept_pref_label_required(db_session: AsyncSession, scheme: Con
     """Test that pref_label is required."""
     from sqlalchemy.exc import IntegrityError
 
-    concept = Concept(scheme_id=scheme.id, pref_label=None)  # type: ignore[arg-type]
+    concept = Concept(scheme_id=scheme.id, pref_label=None, identifier="null-label")  # type: ignore[arg-type]
     db_session.add(concept)
 
     with pytest.raises(IntegrityError):
@@ -62,23 +63,20 @@ async def test_concept_pref_label_required(db_session: AsyncSession, scheme: Con
 
 @pytest.mark.asyncio
 async def test_concept_optional_fields(db_session: AsyncSession, scheme: ConceptScheme) -> None:
-    """Test that identifier, definition, scope_note are optional."""
-    concept = Concept(scheme_id=scheme.id, pref_label="Minimal Concept")
+    """Test that definition and scope_note are optional."""
+    concept = Concept(scheme_id=scheme.id, pref_label="Minimal Concept", identifier="minimal")
     db_session.add(concept)
     await db_session.flush()
     await db_session.refresh(concept)
 
-    assert concept.identifier is None
     assert concept.definition is None
     assert concept.scope_note is None
-    # URI is None when identifier is not set
-    assert concept.uri is None
 
 
 @pytest.mark.asyncio
 async def test_concept_belongs_to_scheme(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test that concept has a relationship to scheme."""
-    concept = Concept(scheme_id=scheme.id, pref_label="Related Concept")
+    concept = Concept(scheme_id=scheme.id, pref_label="Related Concept", identifier="related")
     db_session.add(concept)
     await db_session.flush()
     await db_session.refresh(concept)
@@ -90,8 +88,8 @@ async def test_concept_belongs_to_scheme(db_session: AsyncSession, scheme: Conce
 @pytest.mark.asyncio
 async def test_scheme_has_many_concepts(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test that a scheme can have multiple concepts."""
-    concept1 = Concept(scheme_id=scheme.id, pref_label="Concept 1")
-    concept2 = Concept(scheme_id=scheme.id, pref_label="Concept 2")
+    concept1 = Concept(scheme_id=scheme.id, pref_label="Concept 1", identifier="c1")
+    concept2 = Concept(scheme_id=scheme.id, pref_label="Concept 2", identifier="c2")
     db_session.add_all([concept1, concept2])
     await db_session.flush()
 
@@ -102,7 +100,7 @@ async def test_scheme_has_many_concepts(db_session: AsyncSession, scheme: Concep
 @pytest.mark.asyncio
 async def test_cascade_delete_with_scheme(db_session: AsyncSession, scheme: ConceptScheme) -> None:
     """Test that concepts are deleted when scheme is deleted."""
-    concept = Concept(scheme_id=scheme.id, pref_label="To Delete")
+    concept = Concept(scheme_id=scheme.id, pref_label="To Delete", identifier="to-delete")
     db_session.add(concept)
     await db_session.flush()
     concept_id = concept.id
@@ -120,13 +118,56 @@ async def test_duplicate_pref_label_allowed_in_scheme(
 ) -> None:
     """Test that duplicate pref_labels are allowed within a scheme."""
     # SKOS allows duplicate labels (though not recommended)
-    concept1 = Concept(scheme_id=scheme.id, pref_label="Same Label")
-    concept2 = Concept(scheme_id=scheme.id, pref_label="Same Label")
+    concept1 = Concept(scheme_id=scheme.id, pref_label="Same Label", identifier="same-1")
+    concept2 = Concept(scheme_id=scheme.id, pref_label="Same Label", identifier="same-2")
     db_session.add_all([concept1, concept2])
     await db_session.flush()
 
     assert concept1.id != concept2.id
     assert concept1.pref_label == concept2.pref_label
+
+
+@pytest.mark.asyncio
+async def test_duplicate_identifier_in_scheme_rejected(
+    db_session: AsyncSession, scheme: ConceptScheme
+) -> None:
+    """Test that duplicate identifiers within the same scheme are rejected."""
+    from sqlalchemy.exc import IntegrityError
+
+    concept1 = Concept(scheme_id=scheme.id, pref_label="First", identifier="dupe")
+    concept2 = Concept(scheme_id=scheme.id, pref_label="Second", identifier="dupe")
+    db_session.add_all([concept1, concept2])
+
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_same_identifier_allowed_across_schemes(
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+) -> None:
+    """Test that the same identifier is allowed in different schemes.
+
+    Note: This may change — project-wide unique identifiers are likely once
+    namespaces are globally unique. The constraint would move from
+    (scheme_id, identifier) to (project_id, identifier).
+    """
+    other_scheme = ConceptScheme(
+        project_id=project.id,
+        title="Other Scheme",
+        uri="http://example.org/other",
+    )
+    db_session.add(other_scheme)
+    await db_session.flush()
+
+    concept1 = Concept(scheme_id=scheme.id, pref_label="First", identifier="shared")
+    concept2 = Concept(scheme_id=other_scheme.id, pref_label="Second", identifier="shared")
+    db_session.add_all([concept1, concept2])
+    await db_session.flush()
+
+    assert concept1.id != concept2.id
+    assert concept1.identifier == concept2.identifier
+    assert concept1.scheme_id != concept2.scheme_id
 
 
 # Alt labels tests
@@ -140,6 +181,7 @@ async def test_concept_with_alt_labels(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Dogs",
+        identifier="dogs",
         alt_labels=["Canines", "Domestic dogs", "Canis familiaris"],
     )
     db_session.add(concept)
@@ -154,7 +196,7 @@ async def test_concept_alt_labels_default_empty(
     db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that alt_labels defaults to empty list."""
-    concept = Concept(scheme_id=scheme.id, pref_label="Test")
+    concept = Concept(scheme_id=scheme.id, pref_label="Test", identifier="alt-default")
     db_session.add(concept)
     await db_session.flush()
     await db_session.refresh(concept)
@@ -170,6 +212,7 @@ async def test_concept_alt_labels_persists(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Animals",
+        identifier="animals",
         alt_labels=["Fauna", "Creatures"],
     )
     db_session.add(concept)
@@ -192,6 +235,7 @@ async def test_concept_alt_labels_update(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test",
+        identifier="alt-update",
         alt_labels=["Original"],
     )
     db_session.add(concept)
@@ -212,6 +256,7 @@ async def test_concept_alt_labels_clear(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test",
+        identifier="alt-clear",
         alt_labels=["Label 1", "Label 2"],
     )
     db_session.add(concept)
@@ -230,7 +275,7 @@ async def test_concept_alt_labels_clear(
 @pytest.mark.asyncio
 async def test_concept_type_uris_default(db_session: AsyncSession, scheme: ConceptScheme):
     """concept_type_uris defaults to empty list."""
-    concept = Concept(scheme_id=scheme.id, pref_label="Test")
+    concept = Concept(scheme_id=scheme.id, pref_label="Test", identifier="type-default")
     db_session.add(concept)
     await db_session.flush()
     await db_session.refresh(concept)
@@ -243,6 +288,7 @@ async def test_concept_type_uris_stored(db_session: AsyncSession, scheme: Concep
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test",
+        identifier="type-stored",
         concept_type_uris=["http://example.org/EducationLevelConcept"],
     )
     db_session.add(concept)

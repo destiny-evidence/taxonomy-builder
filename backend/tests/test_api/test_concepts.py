@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_broader import ConceptBroader
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.project import Project
 
 
 @pytest.fixture
@@ -61,9 +62,9 @@ async def test_list_concepts_alphabetical(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that concepts are returned in alphabetical order."""
-    concept_z = Concept(scheme_id=scheme.id, pref_label="Zebra")
-    concept_a = Concept(scheme_id=scheme.id, pref_label="Apple")
-    concept_m = Concept(scheme_id=scheme.id, pref_label="Mango")
+    concept_z = Concept(scheme_id=scheme.id, pref_label="Zebra", identifier="zebra")
+    concept_a = Concept(scheme_id=scheme.id, pref_label="Apple", identifier="apple")
+    concept_m = Concept(scheme_id=scheme.id, pref_label="Mango", identifier="mango")
     db_session.add_all([concept_z, concept_a, concept_m])
     await db_session.flush()
 
@@ -91,7 +92,6 @@ async def test_create_concept(authenticated_client: AsyncClient, scheme: Concept
         f"/api/schemes/{scheme.id}/concepts",
         json={
             "pref_label": "New Concept",
-            "identifier": "new",
             "definition": "A new concept",
             "scope_note": "Use for new things",
         },
@@ -99,10 +99,8 @@ async def test_create_concept(authenticated_client: AsyncClient, scheme: Concept
     assert response.status_code == 201
     data = response.json()
     assert data["pref_label"] == "New Concept"
-    assert data["identifier"] == "new"
     assert data["definition"] == "A new concept"
     assert data["scheme_id"] == str(scheme.id)
-    assert data["uri"] == "http://example.org/concepts/new"  # Computed URI
     assert "id" in data
     assert "created_at" in data
 
@@ -169,7 +167,7 @@ async def test_get_concept_with_broader(
 ) -> None:
     """Test getting a concept includes its broader concepts."""
     # Create a broader concept
-    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
+    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept", identifier="broader")
     db_session.add(broader)
     await db_session.flush()
 
@@ -266,7 +264,7 @@ async def test_add_broader(
     concept: Concept,
 ) -> None:
     """Test adding a broader relationship."""
-    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
+    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept", identifier="broader")
     db_session.add(broader)
     await db_session.flush()
     await db_session.refresh(broader)
@@ -318,7 +316,7 @@ async def test_add_broader_duplicate(
     concept: Concept,
 ) -> None:
     """Test adding duplicate broader relationship fails."""
-    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
+    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept", identifier="broader")
     db_session.add(broader)
     await db_session.flush()
     rel = ConceptBroader(concept_id=concept.id, broader_concept_id=broader.id)
@@ -340,7 +338,7 @@ async def test_remove_broader(
     concept: Concept,
 ) -> None:
     """Test removing a broader relationship."""
-    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept")
+    broader = Concept(scheme_id=scheme.id, pref_label="Broader Concept", identifier="broader")
     db_session.add(broader)
     await db_session.flush()
     rel = ConceptBroader(concept_id=concept.id, broader_concept_id=broader.id)
@@ -383,8 +381,8 @@ async def test_get_tree_flat(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting tree with only root concepts."""
-    concept1 = Concept(scheme_id=scheme.id, pref_label="Root 1")
-    concept2 = Concept(scheme_id=scheme.id, pref_label="Root 2")
+    concept1 = Concept(scheme_id=scheme.id, pref_label="Root 1", identifier="root-1")
+    concept2 = Concept(scheme_id=scheme.id, pref_label="Root 2", identifier="root-2")
     db_session.add_all([concept1, concept2])
     await db_session.flush()
 
@@ -401,8 +399,8 @@ async def test_get_tree_with_hierarchy(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test getting tree with parent-child relationships."""
-    parent = Concept(scheme_id=scheme.id, pref_label="Parent")
-    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    parent = Concept(scheme_id=scheme.id, pref_label="Parent", identifier="parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child", identifier="child")
     db_session.add_all([parent, child])
     await db_session.flush()
 
@@ -426,9 +424,9 @@ async def test_get_tree_polyhierarchy(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that concept appears under all parents in tree (DAG)."""
-    mammals = Concept(scheme_id=scheme.id, pref_label="Mammals")
-    pets = Concept(scheme_id=scheme.id, pref_label="Pets")
-    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs")
+    mammals = Concept(scheme_id=scheme.id, pref_label="Mammals", identifier="mammals")
+    pets = Concept(scheme_id=scheme.id, pref_label="Pets", identifier="pets")
+    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="dogs")
     db_session.add_all([mammals, pets, dogs])
     await db_session.flush()
 
@@ -504,6 +502,7 @@ async def test_get_concept_includes_alt_labels(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Animals",
+        identifier="animals",
         alt_labels=["Fauna", "Living things"],
     )
     db_session.add(concept)
@@ -539,6 +538,7 @@ async def test_update_concept_clear_alt_labels(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test",
+        identifier="test-clear",
         alt_labels=["Label 1", "Label 2"],
     )
     db_session.add(concept)
@@ -562,6 +562,7 @@ async def test_update_concept_without_alt_labels_preserves_existing(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test",
+        identifier="test-preserve",
         alt_labels=["Existing Label"],
     )
     db_session.add(concept)
@@ -585,6 +586,7 @@ async def test_list_concepts_includes_alt_labels(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Test",
+        identifier="test-synonym",
         alt_labels=["Synonym"],
     )
     db_session.add(concept)
@@ -605,6 +607,7 @@ async def test_tree_includes_alt_labels(
     concept = Concept(
         scheme_id=scheme.id,
         pref_label="Root",
+        identifier="root",
         alt_labels=["Base", "Top"],
     )
     db_session.add(concept)
@@ -625,9 +628,9 @@ async def test_move_concept_to_new_parent(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test moving a concept from one parent to another."""
-    old_parent = Concept(scheme_id=scheme.id, pref_label="Old Parent")
-    new_parent = Concept(scheme_id=scheme.id, pref_label="New Parent")
-    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    old_parent = Concept(scheme_id=scheme.id, pref_label="Old Parent", identifier="old-parent")
+    new_parent = Concept(scheme_id=scheme.id, pref_label="New Parent", identifier="new-parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child", identifier="child")
     db_session.add_all([old_parent, new_parent, child])
     await db_session.flush()
 
@@ -657,8 +660,8 @@ async def test_move_concept_to_root(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test moving a concept to root level (removing its parent)."""
-    parent = Concept(scheme_id=scheme.id, pref_label="Parent")
-    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    parent = Concept(scheme_id=scheme.id, pref_label="Parent", identifier="parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child", identifier="child")
     db_session.add_all([parent, child])
     await db_session.flush()
 
@@ -683,9 +686,9 @@ async def test_move_concept_add_parent_polyhierarchy(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test adding an additional parent (polyhierarchy) without removing existing."""
-    parent1 = Concept(scheme_id=scheme.id, pref_label="Parent 1")
-    parent2 = Concept(scheme_id=scheme.id, pref_label="Parent 2")
-    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    parent1 = Concept(scheme_id=scheme.id, pref_label="Parent 1", identifier="parent-1")
+    parent2 = Concept(scheme_id=scheme.id, pref_label="Parent 2", identifier="parent-2")
+    child = Concept(scheme_id=scheme.id, pref_label="Child", identifier="child")
     db_session.add_all([parent1, parent2, child])
     await db_session.flush()
 
@@ -728,9 +731,9 @@ async def test_move_concept_to_descendant_fails(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
 ) -> None:
     """Test that moving a concept to its descendant fails (cycle detection)."""
-    grandparent = Concept(scheme_id=scheme.id, pref_label="Grandparent")
-    parent = Concept(scheme_id=scheme.id, pref_label="Parent")
-    child = Concept(scheme_id=scheme.id, pref_label="Child")
+    grandparent = Concept(scheme_id=scheme.id, pref_label="Grandparent", identifier="grandparent")
+    parent = Concept(scheme_id=scheme.id, pref_label="Parent", identifier="parent")
+    child = Concept(scheme_id=scheme.id, pref_label="Child", identifier="child")
     db_session.add_all([grandparent, parent, child])
     await db_session.flush()
 
@@ -769,3 +772,47 @@ async def test_move_nonexistent_concept_fails(authenticated_client: AsyncClient)
         json={"new_parent_id": None},
     )
     assert response.status_code == 404
+
+
+# Identifier allocation wiring
+
+
+@pytest.mark.asyncio
+async def test_create_concept_allocates_identifier(
+    authenticated_client: AsyncClient, scheme: ConceptScheme
+) -> None:
+    """Creating a concept via the API allocates a sequential identifier."""
+    r1 = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "First"},
+    )
+    r2 = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Second"},
+    )
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+    assert r1.json()["identifier"] == "TST000001"
+    assert r2.json()["identifier"] == "TST000002"
+
+
+@pytest.mark.asyncio
+async def test_create_concept_no_prefix_returns_409(
+    authenticated_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Creating a concept fails with 409 when project has no identifier prefix."""
+    project = Project(name="No Prefix Project", namespace="https://example.org/np/")
+    db_session.add(project)
+    await db_session.flush()
+
+    scheme = ConceptScheme(
+        project_id=project.id, title="Scheme", uri="http://example.org/np/scheme"
+    )
+    db_session.add(scheme)
+    await db_session.flush()
+
+    response = await authenticated_client.post(
+        f"/api/schemes/{scheme.id}/concepts",
+        json={"pref_label": "Should Fail"},
+    )
+    assert response.status_code == 409

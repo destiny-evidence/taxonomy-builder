@@ -4,8 +4,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept import Concept
-from taxonomy_builder.models.concept_scheme import ConceptScheme
-from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.concept_service import (
     ConceptService,
     RelatedRelationshipExistsError,
@@ -13,49 +11,6 @@ from taxonomy_builder.services.concept_service import (
     RelatedSameSchemeError,
     RelatedSelfReferenceError,
 )
-
-
-@pytest.fixture
-async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a concept scheme for testing."""
-    scheme = ConceptScheme(project_id=project.id, title="Test Scheme")
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
-
-
-@pytest.fixture
-async def scheme2(db_session: AsyncSession, project: Project) -> ConceptScheme:
-    """Create a second scheme for cross-scheme tests."""
-    scheme = ConceptScheme(project_id=project.id, title="Other Scheme")
-    db_session.add(scheme)
-    await db_session.flush()
-    await db_session.refresh(scheme)
-    return scheme
-
-
-@pytest.fixture
-async def concepts(db_session: AsyncSession, scheme: ConceptScheme) -> list[Concept]:
-    """Create multiple concepts for testing."""
-    dogs = Concept(scheme_id=scheme.id, pref_label="Dogs")
-    cats = Concept(scheme_id=scheme.id, pref_label="Cats")
-    vet_medicine = Concept(scheme_id=scheme.id, pref_label="Veterinary Medicine")
-    db_session.add_all([dogs, cats, vet_medicine])
-    await db_session.flush()
-    for c in [dogs, cats, vet_medicine]:
-        await db_session.refresh(c)
-    return [dogs, cats, vet_medicine]
-
-
-@pytest.fixture
-async def concept_other_scheme(db_session: AsyncSession, scheme2: ConceptScheme) -> Concept:
-    """Create a concept in a different scheme."""
-    concept = Concept(scheme_id=scheme2.id, pref_label="Other Concept")
-    db_session.add(concept)
-    await db_session.flush()
-    await db_session.refresh(concept)
-    return concept
 
 
 @pytest.fixture

@@ -18,7 +18,9 @@ from taxonomy_builder.services.property_service import PropertyService
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Test Project", namespace="https://example.org/vocab/")
+    project = Project(
+        name="Test Project", namespace="https://example.org/vocab/", identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -50,6 +52,7 @@ async def test_get_scheme_history(
     concept = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
     await service.update_concept(
         concept_id=concept.id,
@@ -80,6 +83,7 @@ async def test_get_scheme_history_with_pagination(
         await service.create_concept(
             scheme_id=scheme.id,
             concept_in=ConceptCreate(pref_label=f"Concept {i}"),
+            identifier=f"c{i}",
         )
 
     # Test limit
@@ -105,6 +109,7 @@ async def test_get_concept_history(
     concept = await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Dogs"),
+        identifier="dogs",
     )
     await service.update_concept(
         concept_id=concept.id,
@@ -136,6 +141,7 @@ async def test_get_scheme_history_includes_user_display_name(
     await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="Test Concept"),
+        identifier="test-concept",
     )
 
     response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history")
@@ -157,6 +163,7 @@ async def test_get_scheme_history_null_user_returns_null_display_name(
     await service.create_concept(
         scheme_id=scheme.id,
         concept_in=ConceptCreate(pref_label="System Concept"),
+        identifier="system-concept",
     )
 
     response = await authenticated_client.get(f"/api/schemes/{scheme.id}/history")
