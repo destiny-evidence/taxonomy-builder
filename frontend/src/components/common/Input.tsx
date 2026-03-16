@@ -8,6 +8,8 @@ interface InputProps {
   value: string;
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
   multiline?: boolean;
   rows?: number;
   error?: string;
@@ -21,6 +23,8 @@ export function Input({
   value,
   placeholder,
   required = false,
+  disabled = false,
+  maxLength,
   multiline = false,
   rows = 3,
   error,
@@ -48,6 +52,8 @@ export function Input({
           value={value}
           placeholder={placeholder}
           required={required}
+          disabled={disabled}
+          maxLength={maxLength}
           rows={rows}
           onInput={handleChange}
         />
@@ -60,6 +66,8 @@ export function Input({
           value={value}
           placeholder={placeholder}
           required={required}
+          disabled={disabled}
+          maxLength={maxLength}
           onInput={handleChange}
         />
       )}

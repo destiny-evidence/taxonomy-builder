@@ -16,6 +16,7 @@ async def project(db_session: AsyncSession) -> Project:
     project = Project(
         name="Test Project",
         namespace="https://example.org/vocab/",
+        identifier_prefix="TST",
     )
     db_session.add(project)
     await db_session.flush()

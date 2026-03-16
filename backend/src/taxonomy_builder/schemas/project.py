@@ -13,7 +13,7 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     namespace: HttpUrl
-    identifier_prefix: str | None = Field(default=None, max_length=4, pattern=r"^[A-Z]{1,4}$")
+    identifier_prefix: str = Field(..., max_length=4, pattern=r"^[A-Z]{1,4}$")
 
     @field_validator("name")
     @classmethod
@@ -45,6 +45,13 @@ class ProjectUpdate(BaseModel):
             raise ValueError("namespace cannot be set to null")
         return self
 
+    @model_validator(mode="after")
+    def prevent_null_prefix(self) -> Self:
+        """Reject explicitly setting identifier_prefix to null."""
+        if "identifier_prefix" in self.model_fields_set and self.identifier_prefix is None:
+            raise ValueError("identifier_prefix cannot be set to null")
+        return self
+
 
 class ProjectRead(BaseModel):
     """Schema for reading a project."""
@@ -55,7 +62,8 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None
     namespace: str
-    identifier_prefix: str | None
+    identifier_prefix: str
     identifier_counter: int
+    prefix_locked: bool
     created_at: datetime
     updated_at: datetime

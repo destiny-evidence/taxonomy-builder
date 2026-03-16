@@ -115,8 +115,16 @@ async def test_unique_title_per_project(db_session: AsyncSession, project: Proje
 @pytest.mark.asyncio
 async def test_same_title_different_projects(db_session: AsyncSession) -> None:
     """Test that same title can exist in different projects."""
-    project1 = Project(name="Project 1", namespace="https://example.org/p1/")
-    project2 = Project(name="Project 2", namespace="https://example.org/p2/")
+    project1 = Project(
+        name="Project 1",
+        namespace="https://example.org/p1/",
+        identifier_prefix="TST",
+    )
+    project2 = Project(
+        name="Project 2",
+        namespace="https://example.org/p2/",
+        identifier_prefix="TST",
+    )
     db_session.add_all([project1, project2])
     await db_session.flush()
 

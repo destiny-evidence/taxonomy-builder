@@ -22,7 +22,11 @@ from taxonomy_builder.schemas.snapshot import (
 @pytest.fixture
 async def published_version(db_session: AsyncSession) -> PublishedVersion:
     """Create a project with a published version containing a snapshot."""
-    project = Project(name="Export Project", namespace="http://example.org/namespace")
+    project = Project(
+        name="Export Project",
+        namespace="http://example.org/namespace",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -119,8 +123,18 @@ async def test_list_projects_empty(authenticated_client: AsyncClient) -> None:
 async def test_list_projects(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test listing projects."""
     # Create some projects directly in the database
-    project1 = Project(name="Project 1", description="First project", namespace="https://example.org/p1/")
-    project2 = Project(name="Project 2", description="Second project", namespace="https://example.org/p2/")
+    project1 = Project(
+        name="Project 1",
+        description="First project",
+        namespace="https://example.org/p1/",
+        identifier_prefix="TST",
+    )
+    project2 = Project(
+        name="Project 2",
+        description="Second project",
+        namespace="https://example.org/p2/",
+        identifier_prefix="TST",
+    )
     db_session.add_all([project1, project2])
     await db_session.flush()
 
@@ -138,7 +152,12 @@ async def test_create_project(authenticated_client: AsyncClient) -> None:
     """Test creating a new project."""
     response = await authenticated_client.post(
         "/api/projects",
-        json={"name": "New Project", "description": "A new project", "namespace": "https://example.org/vocab"},
+        json={
+            "name": "New Project",
+            "description": "A new project",
+            "namespace": "https://example.org/vocab",
+            "identifier_prefix": "TST",
+        },
     )
     assert response.status_code == 201
 
@@ -156,7 +175,11 @@ async def test_create_project_without_description(authenticated_client: AsyncCli
     """Test creating a project without a description."""
     response = await authenticated_client.post(
         "/api/projects",
-        json={"name": "No Description Project", "namespace": "https://example.org/vocab"},
+        json={
+            "name": "No Description Project",
+            "namespace": "https://example.org/vocab",
+            "identifier_prefix": "TST",
+        },
     )
     assert response.status_code == 201
 
@@ -169,11 +192,25 @@ async def test_create_project_without_description(authenticated_client: AsyncCli
 async def test_create_project_duplicate_name(authenticated_client: AsyncClient) -> None:
     """Test creating a project with a duplicate name fails."""
     # Create first project
-    response1 = await authenticated_client.post("/api/projects", json={"name": "Duplicate Name", "namespace": "https://example.org/vocab"})
+    response1 = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Duplicate Name",
+            "namespace": "https://example.org/vocab",
+            "identifier_prefix": "TST",
+        },
+    )
     assert response1.status_code == 201
 
     # Try to create second project with same name
-    response2 = await authenticated_client.post("/api/projects", json={"name": "Duplicate Name", "namespace": "https://example.org/vocab2"})
+    response2 = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Duplicate Name",
+            "namespace": "https://example.org/vocab2",
+            "identifier_prefix": "DUP",
+        },
+    )
     assert response2.status_code == 409  # Conflict
 
 
@@ -194,7 +231,12 @@ async def test_create_project_without_namespace_fails(authenticated_client: Asyn
 @pytest.mark.asyncio
 async def test_get_project(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test getting a single project by ID."""
-    project = Project(name="Get Test", description="For getting", namespace="https://example.org/vocab")
+    project = Project(
+        name="Get Test",
+        description="For getting",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -225,7 +267,12 @@ async def test_get_project_invalid_uuid(authenticated_client: AsyncClient) -> No
 @pytest.mark.asyncio
 async def test_update_project(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test updating a project."""
-    project = Project(name="Original", description="Original description", namespace="https://example.org/vocab")
+    project = Project(
+        name="Original",
+        description="Original description",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -247,7 +294,12 @@ async def test_update_project_partial(
     db_session: AsyncSession,
 ) -> None:
     """Test partially updating a project (only name)."""
-    project = Project(name="Original", description="Keep this", namespace="https://example.org/vocab")
+    project = Project(
+        name="Original",
+        description="Keep this",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -275,7 +327,12 @@ async def test_update_project_not_found(authenticated_client: AsyncClient) -> No
 @pytest.mark.asyncio
 async def test_delete_project(authenticated_client: AsyncClient, db_session: AsyncSession) -> None:
     """Test deleting a project."""
-    project = Project(name="To Delete", description="Will be deleted", namespace="https://example.org/vocab")
+    project = Project(
+        name="To Delete",
+        description="Will be deleted",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -306,6 +363,7 @@ async def test_create_project_with_namespace(authenticated_client: AsyncClient) 
             "name": "ESEA Vocabulary",
             "description": "Education vocabulary",
             "namespace": "https://esea.org/vocab",
+            "identifier_prefix": "TST",
         },
     )
     assert response.status_code == 201
@@ -325,6 +383,7 @@ async def test_create_project_with_namespace_stored_in_db(
         json={
             "name": "Test Project",
             "namespace": "https://example.org/vocab",
+            "identifier_prefix": "TST",
         },
     )
     assert response.status_code == 201
@@ -370,6 +429,7 @@ async def test_create_project_with_http_namespace(authenticated_client: AsyncCli
         json={
             "name": "HTTP Namespace Project",
             "namespace": "http://example.org/vocab",
+            "identifier_prefix": "TST",
         },
     )
     assert response.status_code == 201
@@ -382,7 +442,11 @@ async def test_update_project_change_namespace_to_new_value(
     db_session: AsyncSession,
 ) -> None:
     """Test updating a project's namespace to a new value."""
-    project = Project(name="Has Namespace", namespace="https://example.org/old-vocab")
+    project = Project(
+        name="Has Namespace",
+        namespace="https://example.org/old-vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -403,7 +467,11 @@ async def test_update_project_change_namespace(
 ) -> None:
     """Test changing a project's namespace."""
     # Create project with namespace
-    project = Project(name="With Namespace", namespace="https://old.example.org/vocab")
+    project = Project(
+        name="With Namespace",
+        namespace="https://old.example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -424,7 +492,11 @@ async def test_update_project_invalid_namespace(
 ) -> None:
     """Test that updating to an invalid namespace fails."""
     # Create project
-    project = Project(name="Test Project", namespace="https://example.org/vocab")
+    project = Project(
+        name="Test Project",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -443,7 +515,11 @@ async def test_update_project_clear_namespace_rejected(
     db_session: AsyncSession,
 ) -> None:
     """Test that clearing a namespace is rejected."""
-    project = Project(name="Has Namespace", namespace="https://example.org/vocab")
+    project = Project(
+        name="Has Namespace",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -581,7 +657,11 @@ async def test_update_project_prefix_locked_returns_409(
     from taxonomy_builder.models.concept import Concept
     from taxonomy_builder.models.concept_scheme import ConceptScheme
 
-    project = Project(name="API Lock Test", namespace="https://example.org/vocab", identifier_prefix="TST")
+    project = Project(
+        name="API Lock Test",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)

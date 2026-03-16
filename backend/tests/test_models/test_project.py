@@ -12,7 +12,12 @@ from taxonomy_builder.models.project import Project
 @pytest.mark.asyncio
 async def test_create_project(db_session: AsyncSession) -> None:
     """Test creating a project in the database."""
-    project = Project(name="Test Project", description="A test project", namespace="https://example.org/test/")
+    project = Project(
+        name="Test Project",
+        description="A test project",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -28,7 +33,12 @@ async def test_create_project(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_project_id_is_uuidv7(db_session: AsyncSession) -> None:
     """Test that project IDs are UUIDv7 (version 7)."""
-    project = Project(name="UUID Test", description="Testing UUID version", namespace="https://example.org/test/")
+    project = Project(
+        name="UUID Test",
+        description="Testing UUID version",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -42,11 +52,21 @@ async def test_project_name_is_unique(db_session: AsyncSession) -> None:
     """Test that project names must be unique."""
     from sqlalchemy.exc import IntegrityError
 
-    project1 = Project(name="Unique Name", description="First project", namespace="https://example.org/test/")
+    project1 = Project(
+        name="Unique Name",
+        description="First project",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project1)
     await db_session.flush()
 
-    project2 = Project(name="Unique Name", description="Second project", namespace="https://example.org/test2/")
+    project2 = Project(
+        name="Unique Name",
+        description="Second project",
+        namespace="https://example.org/test2/",
+        identifier_prefix="TST",
+    )
     db_session.add(project2)
 
     with pytest.raises(IntegrityError):
@@ -58,11 +78,19 @@ async def test_project_namespace_is_unique(db_session: AsyncSession) -> None:
     """Test that project namespaces must be unique."""
     from sqlalchemy.exc import IntegrityError
 
-    project1 = Project(name="Project A", namespace="https://example.org/vocab/")
+    project1 = Project(
+        name="Project A",
+        namespace="https://example.org/vocab/",
+        identifier_prefix="TST",
+    )
     db_session.add(project1)
     await db_session.flush()
 
-    project2 = Project(name="Project B", namespace="https://example.org/vocab/")
+    project2 = Project(
+        name="Project B",
+        namespace="https://example.org/vocab/",
+        identifier_prefix="TST",
+    )
     db_session.add(project2)
 
     with pytest.raises(IntegrityError):
@@ -72,7 +100,11 @@ async def test_project_namespace_is_unique(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_project_description_is_optional(db_session: AsyncSession) -> None:
     """Test that project description is optional."""
-    project = Project(name="No Description", namespace="https://example.org/test/")
+    project = Project(
+        name="No Description",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -83,7 +115,12 @@ async def test_project_description_is_optional(db_session: AsyncSession) -> None
 @pytest.mark.asyncio
 async def test_query_project_by_name(db_session: AsyncSession) -> None:
     """Test querying a project by name."""
-    project = Project(name="Queryable Project", description="For querying", namespace="https://example.org/test/")
+    project = Project(
+        name="Queryable Project",
+        description="For querying",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
 
@@ -97,7 +134,12 @@ async def test_query_project_by_name(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_update_project(db_session: AsyncSession) -> None:
     """Test updating a project."""
-    project = Project(name="Original Name", description="Original description", namespace="https://example.org/test/")
+    project = Project(
+        name="Original Name",
+        description="Original description",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     project.name = "Updated Name"
@@ -113,7 +155,12 @@ async def test_update_project(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_delete_project(db_session: AsyncSession) -> None:
     """Test deleting a project."""
-    project = Project(name="To Delete", description="Will be deleted", namespace="https://example.org/test/")
+    project = Project(
+        name="To Delete",
+        description="Will be deleted",
+        namespace="https://example.org/test/",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     project_id = project.id

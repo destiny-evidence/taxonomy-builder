@@ -14,7 +14,11 @@ from taxonomy_builder.services.skos_import_service import SKOSImportService
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Turtle Import Test Project", namespace="http://example.org")
+    project = Project(
+        name="Turtle Import Test Project",
+        namespace="http://example.org",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)

@@ -22,7 +22,11 @@ from taxonomy_builder.services.snapshot_service import SnapshotService
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
     """Create a project for testing."""
-    project = Project(name="Snapshot Test Project", namespace="http://example.org/vocab")
+    project = Project(
+        name="Snapshot Test Project",
+        namespace="http://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
@@ -72,6 +76,7 @@ async def test_project_metadata(db_session: AsyncSession) -> None:
         name="Vocab Project",
         description="A vocabulary for testing",
         namespace="http://example.org/vocab",
+        identifier_prefix="TST",
     )
     db_session.add(project)
     await db_session.flush()

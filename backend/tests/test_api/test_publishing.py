@@ -16,7 +16,11 @@ from taxonomy_builder.models.project import Project
 
 @pytest.fixture
 async def project(db_session: AsyncSession) -> Project:
-    project = Project(name="API Publish Test", namespace="http://example.org/vocab")
+    project = Project(
+        name="API Publish Test",
+        namespace="http://example.org/vocab",
+        identifier_prefix="TST",
+    )
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)

@@ -16,6 +16,7 @@ async def project(db_session: AsyncSession) -> Project:
     project = Project(
         name="Test Project",
         namespace="https://example.org/vocab/",
+        identifier_prefix="TST",
     )
     db_session.add(project)
     await db_session.flush()
@@ -72,8 +73,16 @@ async def test_ontology_class_same_uri_different_projects(
     db_session: AsyncSession,
 ) -> None:
     """Test that the same URI can exist in different projects."""
-    project1 = Project(name="Project 1", namespace="https://example.org/1/")
-    project2 = Project(name="Project 2", namespace="https://example.org/2/")
+    project1 = Project(
+        name="Project 1",
+        namespace="https://example.org/1/",
+        identifier_prefix="TST",
+    )
+    project2 = Project(
+        name="Project 2",
+        namespace="https://example.org/2/",
+        identifier_prefix="TST",
+    )
     db_session.add_all([project1, project2])
     await db_session.flush()
     await db_session.refresh(project1)
