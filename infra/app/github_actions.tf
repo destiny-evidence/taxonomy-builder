@@ -185,7 +185,7 @@ resource "github_actions_environment_variable" "keycloak_url" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "KEYCLOAK_URL"
-  value         = var.keycloak_url
+  value         = var.shared_keycloak_url
 }
 
 resource "github_actions_environment_variable" "keycloak_realm" {
@@ -232,11 +232,18 @@ resource "github_actions_environment_variable" "feedback_storage_account_name" {
   value         = azurerm_storage_account.feedback.name
 }
 
+resource "github_actions_environment_variable" "frontdoor_resource_group" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "FRONTDOOR_RESOURCE_GROUP"
+  value         = var.shared_resource_group_name
+}
+
 resource "github_actions_environment_variable" "frontdoor_profile_name" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "FRONTDOOR_PROFILE_NAME"
-  value         = azurerm_cdn_frontdoor_profile.this.name
+  value         = data.azurerm_cdn_frontdoor_profile.shared.name
 }
 
 resource "github_actions_environment_variable" "frontdoor_endpoint_name" {

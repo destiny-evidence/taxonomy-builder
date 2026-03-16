@@ -1,7 +1,7 @@
 # Shared container registry
 data "azurerm_container_registry" "this" {
-  name                = var.container_registry_name
-  resource_group_name = var.container_registry_resource_group
+  name                = var.shared_container_registry_name
+  resource_group_name = var.shared_resource_group_name
 }
 
 resource "azurerm_resource_group" "this" {
@@ -27,7 +27,7 @@ resource "azuread_group_member" "api_to_db_crud" {
 # API Container App
 module "container_app_api" {
   source                          = "app.terraform.io/destiny-evidence/container-app/azure"
-  version                         = "1.9.0"
+  version                         = "1.9.1"
   app_name                        = var.app_name
   cpu                             = var.api_cpu
   environment                     = var.environment
@@ -70,7 +70,7 @@ module "container_app_api" {
     },
     {
       name  = "TAXONOMY_KEYCLOAK_URL"
-      value = var.keycloak_url
+      value = var.shared_keycloak_url
     },
     {
       name  = "TAXONOMY_KEYCLOAK_REALM"
@@ -100,8 +100,8 @@ module "container_app_api" {
       name = "TAXONOMY_CDN"
       value = jsonencode({
         subscription_id = data.azurerm_subscription.current.subscription_id
-        resource_group  = azurerm_resource_group.this.name
-        profile_name    = azurerm_cdn_frontdoor_profile.this.name
+        resource_group  = var.shared_resource_group_name
+        profile_name    = data.azurerm_cdn_frontdoor_profile.shared.name
         endpoint_name   = azurerm_cdn_frontdoor_endpoint.this.name
       })
     },
@@ -139,12 +139,5 @@ module "container_app_api" {
       }
     }
   ]
-}
-
-# Data source for API Container App (for gateway backend)
-data "azurerm_container_app" "api" {
-  name                = module.container_app_api.container_app_name
-  resource_group_name = azurerm_resource_group.this.name
-  depends_on          = [module.container_app_api]
 }
 

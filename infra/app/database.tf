@@ -181,6 +181,9 @@ resource "azurerm_container_app_job" "db_migrator" {
   tags = local.minimum_resource_tags
 
   lifecycle {
-    ignore_changes = [template[0].container[0].image]
+    ignore_changes = [
+      template[0].container[0].image,
+      workload_profile_name,
+    ]
   }
 }

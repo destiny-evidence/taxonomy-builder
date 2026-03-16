@@ -5,17 +5,12 @@ output "resource_group_name" {
 
 output "api_container_app_fqdn" {
   description = "FQDN of the API container app"
-  value       = data.azurerm_container_app.api.ingress[0].fqdn
+  value       = module.container_app_api.container_app_fqdn
 }
 
 output "frontdoor_endpoint_hostname" {
   description = "Hostname of the Front Door endpoint"
   value       = azurerm_cdn_frontdoor_endpoint.this.host_name
-}
-
-output "frontdoor_custom_domain_validation_token" {
-  description = "DNS TXT record value for custom domain validation (add as _dnsauth.yourdomain)"
-  value       = azurerm_cdn_frontdoor_custom_domain.this.validation_token
 }
 
 output "postgresql_server_fqdn" {
@@ -32,9 +27,3 @@ output "container_registry_login_server" {
   description = "Login server for the container registry"
   value       = data.azurerm_container_registry.this.login_server
 }
-
-output "feedback_frontdoor_custom_domain_validation_token" {
-  description = "DNS TXT record value for feedback custom domain validation (add as _dnsauth.{feedback_domain})"
-  value       = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
-}
-
