@@ -332,3 +332,121 @@ class TestDeleteOntologyClass:
         assert response.status_code == 409
         assert "cannot be deleted" in response.json()["detail"]
         assert "referenced by one or more properties" in response.json()["detail"]
+
+
+class TestOntologyClassReadEnrichedFields:
+    """Tests for enriched fields on OntologyClassRead (superclass_uris, subclass_uris, restrictions)."""
+
+    @pytest.mark.asyncio
+    async def test_class_with_no_relationships_returns_empty_lists(
+        self,
+        authenticated_client: AsyncClient,
+        ontology_class_obj: OntologyClass,
+    ) -> None:
+        """A class with no superclasses, subclasses, or restrictions returns empty lists."""
+        response = await authenticated_client.get(f"/api/classes/{ontology_class_obj.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["superclass_uris"] == []
+        assert data["subclass_uris"] == []
+        assert data["restrictions"] == []
+
+    @pytest.mark.asyncio
+    async def test_class_with_superclass(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        project: Project,
+        ontology_class_obj: OntologyClass,
+    ) -> None:
+        """A class with a superclass returns its URI in superclass_uris."""
+        parent = OntologyClass(
+            project_id=project.id,
+            identifier="Thing",
+            label="Thing",
+            uri="https://example.org/vocab/Thing",
+        )
+        db_session.add(parent)
+        await db_session.flush()
+
+        ontology_class_obj.superclasses.append(parent)
+        await db_session.flush()
+
+        response = await authenticated_client.get(f"/api/classes/{ontology_class_obj.id}")
+        data = response.json()
+        assert data["superclass_uris"] == ["https://example.org/vocab/Thing"]
+
+    @pytest.mark.asyncio
+    async def test_class_with_subclass(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        project: Project,
+        ontology_class_obj: OntologyClass,
+    ) -> None:
+        """A class with a subclass returns its URI in subclass_uris."""
+        from taxonomy_builder.models.class_superclass import ClassSuperclass
+
+        child = OntologyClass(
+            project_id=project.id,
+            identifier="SpecialReference",
+            label="Special Reference",
+            uri="https://example.org/vocab/SpecialReference",
+        )
+        db_session.add(child)
+        await db_session.flush()
+
+        db_session.add(ClassSuperclass(
+            class_id=child.id,
+            superclass_id=ontology_class_obj.id,
+        ))
+        await db_session.flush()
+        # subclasses is viewonly — refresh to pick up the join table change
+        await db_session.refresh(ontology_class_obj, ["subclasses"])
+
+        response = await authenticated_client.get(f"/api/classes/{ontology_class_obj.id}")
+        data = response.json()
+        assert data["subclass_uris"] == ["https://example.org/vocab/SpecialReference"]
+
+    @pytest.mark.asyncio
+    async def test_class_with_restrictions(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        ontology_class_obj: OntologyClass,
+    ) -> None:
+        """A class with restrictions returns them as structured objects."""
+        from taxonomy_builder.models.class_restriction import ClassRestriction
+
+        restriction = ClassRestriction(
+            class_id=ontology_class_obj.id,
+            on_property_uri="https://example.org/vocab/hasOutcome",
+            restriction_type="allValuesFrom",
+            value_uri="https://example.org/vocab/Outcome",
+        )
+        ontology_class_obj.restrictions.append(restriction)
+        await db_session.flush()
+
+        response = await authenticated_client.get(f"/api/classes/{ontology_class_obj.id}")
+        data = response.json()
+        assert len(data["restrictions"]) == 1
+        r = data["restrictions"][0]
+        assert r["on_property_uri"] == "https://example.org/vocab/hasOutcome"
+        assert r["restriction_type"] == "allValuesFrom"
+        assert r["value_uri"] == "https://example.org/vocab/Outcome"
+
+    @pytest.mark.asyncio
+    async def test_list_classes_includes_enriched_fields(
+        self,
+        authenticated_client: AsyncClient,
+        project: Project,
+        ontology_class_obj: OntologyClass,
+    ) -> None:
+        """List endpoint also includes enriched fields."""
+        response = await authenticated_client.get(f"/api/projects/{project.id}/classes")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert "superclass_uris" in data[0]
+        assert "subclass_uris" in data[0]
+        assert "restrictions" in data[0]

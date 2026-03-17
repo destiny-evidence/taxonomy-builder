@@ -315,6 +315,75 @@ class TestUpdateProperty:
         assert response.status_code == 404
 
 
+class TestPropertyReadEnrichedFields:
+    """Tests for enriched fields on PropertyRead (property_type, domain_class_uris)."""
+
+    @pytest.mark.asyncio
+    async def test_get_property_includes_property_type(
+        self, authenticated_client: AsyncClient, property_obj: Property
+    ) -> None:
+        """Property response includes property_type (defaults to 'object')."""
+        response = await authenticated_client.get(f"/api/properties/{property_obj.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["property_type"] == "object"
+
+    @pytest.mark.asyncio
+    async def test_get_property_domain_class_uris_fallback_to_scalar(
+        self, authenticated_client: AsyncClient, property_obj: Property
+    ) -> None:
+        """When join table is empty, domain_class_uris falls back to scalar domain_class."""
+        response = await authenticated_client.get(f"/api/properties/{property_obj.id}")
+        data = response.json()
+        assert data["domain_class_uris"] == ["https://example.org/vocab/Finding"]
+
+    @pytest.mark.asyncio
+    async def test_get_property_domain_class_uris_from_join_table(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        project: Project,
+        property_obj: Property,
+    ) -> None:
+        """When join table is populated, domain_class_uris reflects it."""
+        cls1 = OntologyClass(
+            project_id=project.id,
+            identifier="Finding",
+            label="Finding",
+            uri="https://example.org/vocab/Finding",
+        )
+        cls2 = OntologyClass(
+            project_id=project.id,
+            identifier="Outcome",
+            label="Outcome",
+            uri="https://example.org/vocab/Outcome",
+        )
+        db_session.add_all([cls1, cls2])
+        await db_session.flush()
+
+        property_obj.domain_classes.extend([cls1, cls2])
+        await db_session.flush()
+
+        response = await authenticated_client.get(f"/api/properties/{property_obj.id}")
+        data = response.json()
+        assert sorted(data["domain_class_uris"]) == [
+            "https://example.org/vocab/Finding",
+            "https://example.org/vocab/Outcome",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_list_properties_includes_enriched_fields(
+        self, authenticated_client: AsyncClient, project: Project, property_obj: Property
+    ) -> None:
+        """List endpoint also includes enriched fields."""
+        response = await authenticated_client.get(f"/api/projects/{project.id}/properties")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert "property_type" in data[0]
+        assert "domain_class_uris" in data[0]
+
+
 class TestDeleteProperty:
     """Tests for deleting properties."""
 

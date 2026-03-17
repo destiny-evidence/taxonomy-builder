@@ -1,12 +1,17 @@
 """Pydantic schemas for Property."""
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from taxonomy_builder.schemas.validators import validate_identifier
+
+if TYPE_CHECKING:
+    from taxonomy_builder.models.property import Property
 
 _RANGE_FIELDS = ("range_scheme_id", "range_datatype", "range_class")
 
@@ -144,6 +149,8 @@ class PropertyRead(BaseModel):
     label: str
     description: str | None
     domain_class: str
+    domain_class_uris: list[str] = []
+    property_type: str
     range_scheme_id: UUID | None
     range_scheme: ConceptSchemeBrief | None
     range_datatype: str | None
@@ -153,3 +160,35 @@ class PropertyRead(BaseModel):
     uri: str
     created_at: datetime
     updated_at: datetime
+
+    @classmethod
+    def from_orm_model(cls, obj: Property) -> PropertyRead:
+        """Build from ORM model, extracting relationship-derived fields."""
+        domain_uris = (
+            sorted(c.uri for c in obj.domain_classes)
+            if obj.domain_classes
+            else [obj.domain_class]
+        )
+        return cls(
+            id=obj.id,
+            project_id=obj.project_id,
+            identifier=obj.identifier,
+            label=obj.label,
+            description=obj.description,
+            domain_class=obj.domain_class,
+            domain_class_uris=domain_uris,
+            property_type=obj.property_type,
+            range_scheme_id=obj.range_scheme_id,
+            range_scheme=(
+                ConceptSchemeBrief.model_validate(obj.range_scheme, from_attributes=True)
+                if obj.range_scheme
+                else None
+            ),
+            range_datatype=obj.range_datatype,
+            range_class=obj.range_class,
+            cardinality=obj.cardinality,
+            required=obj.required,
+            uri=obj.uri,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
