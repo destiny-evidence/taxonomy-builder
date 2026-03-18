@@ -36,9 +36,6 @@ class Property(Base):
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Domain: the ontology class this property applies to
-    domain_class: Mapped[str] = mapped_column(UrlString(), nullable=False)
-
     # Range: a concept scheme, a datatype, or an ontology class
     range_scheme_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("concept_schemes.id", ondelete="RESTRICT"), nullable=True

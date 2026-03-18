@@ -27,21 +27,6 @@ async def project(db_session: AsyncSession) -> Project:
     return project
 
 
-@pytest.fixture
-async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
-    """Create an ontology class in the test project."""
-    cls = OntologyClass(
-        project_id=project.id,
-        identifier="Finding",
-        label="Finding",
-        uri="https://example.org/vocab/Finding",
-    )
-    db_session.add(cls)
-    await db_session.flush()
-    await db_session.refresh(cls)
-    return cls
-
-
 @pytest.mark.asyncio
 async def test_get_scheme_history(
     authenticated_client: AsyncClient, db_session: AsyncSession, scheme: ConceptScheme
@@ -215,7 +200,7 @@ async def test_get_project_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Birth Date",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:date",
             cardinality="single",
         ),
@@ -225,7 +210,7 @@ async def test_get_project_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Date of Birth",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:date",
             cardinality="single",
         ),
@@ -263,7 +248,7 @@ async def test_get_project_history_with_pagination(
             property_in=PropertyCreate(
                 identifier=f"prop{i}",
                 label=f"Property {i}",
-                domain_class="https://example.org/vocab/Finding",
+                domain_class_uris=["https://example.org/vocab/Finding"],
                 range_datatype="xsd:string",
                 cardinality="single",
             ),
@@ -301,7 +286,7 @@ async def test_get_property_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Birth Date",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:date",
             cardinality="single",
         ),
@@ -311,7 +296,7 @@ async def test_get_property_history(
         property_in=PropertyCreate(
             identifier="birthDate",
             label="Date of Birth",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:date",
             cardinality="single",
         ),

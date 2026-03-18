@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -91,16 +91,30 @@ class PropertyService:
         self._scheme_service = scheme_service
         self._tracker = ChangeTracker(db, user_id)
 
-    async def _validate_domain_class(self, project_id: UUID, domain_class: str) -> None:
-        """Validate that domain_class exists in the project's ontology classes."""
+    async def _resolve_domain_class_uris(
+        self, project_id: UUID, uris: list[str]
+    ) -> list[OntologyClass]:
+        """Resolve domain class URIs to OntologyClass objects, validating each.
+
+        Deduplicates input URIs (preserving order) to avoid join table
+        PK violations from duplicate entries.
+        """
+        unique_uris = list(dict.fromkeys(uris))
         result = await self.db.execute(
-            select(OntologyClass.id).where(
+            select(OntologyClass).where(
                 OntologyClass.project_id == project_id,
-                OntologyClass.uri == domain_class,
+                OntologyClass.uri.in_(unique_uris),
             )
         )
-        if result.scalar_one_or_none() is None:
-            raise DomainClassNotFoundError(domain_class)
+        found = {cls.uri: cls for cls in result.scalars().all()}
+        for uri in unique_uris:
+            if uri not in found:
+                raise DomainClassNotFoundError(uri)
+        return [found[uri] for uri in unique_uris]
+
+    @staticmethod
+    def _infer_property_type(range_datatype: str | None) -> str:
+        return "datatype" if range_datatype else "object"
 
     async def _validate_range(
         self,
@@ -139,10 +153,11 @@ class PropertyService:
             "identifier": prop.identifier,
             "label": prop.label,
             "description": prop.description,
-            "domain_class": prop.domain_class,
+            "domain_class_uris": sorted(c.uri for c in prop.domain_classes),
             "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
             "range_datatype": prop.range_datatype,
             "range_class": prop.range_class,
+            "property_type": prop.property_type,
             "cardinality": prop.cardinality,
             "required": prop.required,
             "uri": prop.uri,
@@ -170,8 +185,10 @@ class PropertyService:
         # Verify project exists and get namespace for URI computation
         project = await self._project_service.get_project(project_id)
 
-        # Validate domain class
-        await self._validate_domain_class(project_id, property_in.domain_class)
+        # Resolve domain classes
+        domain_classes = await self._resolve_domain_class_uris(
+            project_id, property_in.domain_class_uris
+        )
 
         # Validate range
         await self._validate_range(
@@ -193,14 +210,15 @@ class PropertyService:
             identifier=property_in.identifier,
             label=property_in.label,
             description=property_in.description,
-            domain_class=property_in.domain_class,
             range_scheme_id=property_in.range_scheme_id,
             range_datatype=property_in.range_datatype,
             range_class=property_in.range_class,
             cardinality=property_in.cardinality,
+            property_type=self._infer_property_type(property_in.range_datatype),
             required=property_in.required,
             uri=uri,
         )
+        prop.domain_classes = domain_classes
         self.db.add(prop)
 
         try:
@@ -301,28 +319,31 @@ class PropertyService:
             await self._validate_range(
                 prop.project_id, new_scheme_id, new_datatype, new_range_class
             )
+            # Re-derive property_type when range changes
+            update_data["property_type"] = self._infer_property_type(new_datatype)
 
-        # Validate domain class if being updated
-        if "domain_class" in update_data:
-            await self._validate_domain_class(prop.project_id, update_data["domain_class"])
-
-            # Clear stale join rows — scalar is now the source of truth
-            # until #128 adds multi-domain CRUD support
-
-            from taxonomy_builder.models.property_domain_class import PropertyDomainClass
-
-            await self.db.execute(
-                delete(PropertyDomainClass).where(
-                    PropertyDomainClass.property_id == prop.id
-                )
+        # Handle domain_class_uris if provided
+        if "domain_class_uris" in update_data:
+            domain_classes = await self._resolve_domain_class_uris(
+                prop.project_id, update_data.pop("domain_class_uris")
             )
+            prop.domain_classes = domain_classes
 
         # Apply updates
         for key, value in update_data.items():
             setattr(prop, key, value)
 
-        await self.db.flush()
-        await self.db.refresh(prop)
+        try:
+            await self.db.flush()
+            await self.db.refresh(prop)
+        except IntegrityError as e:
+            await self.db.rollback()
+            constraint = get_constraint_name(e)
+            if "uq_properties_project_uri" in constraint:
+                raise PropertyURIExistsError(prop.uri, prop.project_id)
+            if "uq_property_identifier_per_project" in constraint:
+                raise PropertyIdentifierExistsError(prop.identifier, prop.project_id)
+            raise
 
         # Record change event
         await self._tracker.record(

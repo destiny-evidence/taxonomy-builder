@@ -288,12 +288,12 @@ class TestDeleteOntologyClass:
             project_id=project.id,
             identifier="hasFinding",
             label="Has Finding",
-            domain_class=ontology_class_obj.uri,
             range_datatype="xsd:string",
             cardinality="single",
             required=False,
             uri="https://example.org/vocab/hasFinding",
         )
+        prop.domain_classes = [ontology_class_obj]
         db_session.add(prop)
         await db_session.flush()
 
@@ -317,12 +317,12 @@ class TestDeleteOntologyClass:
             project_id=project.id,
             identifier="relatesTo",
             label="Relates To",
-            domain_class="https://example.org/vocab/Other",
             range_class=ontology_class_obj.uri,
             cardinality="single",
             required=False,
             uri="https://example.org/vocab/relatesTo",
         )
+        prop.domain_classes = [ontology_class_obj]
         db_session.add(prop)
         await db_session.flush()
 

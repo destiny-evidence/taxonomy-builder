@@ -40,7 +40,7 @@ def _property(**overrides) -> dict:
         "identifier": "prop1",
         "uri": "http://example.org/prop1",
         "label": "Property One",
-        "domain_class": "http://example.org/Class",
+        "domain_class_uris": ["http://example.org/Class"],
         "range_datatype": "xsd:string",
         "cardinality": "single",
         "required": False,

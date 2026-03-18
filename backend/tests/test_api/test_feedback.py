@@ -62,7 +62,7 @@ def _make_snapshot(project_id: UUID) -> dict:
                 "identifier": "testProp",
                 "label": "Test Property",
                 "uri": "http://example.org/properties/testProp",
-                "domain_class": "TestClass",
+                "domain_class_uris": ["http://example.org/classes/TestClass"],
                 "range_datatype": "xsd:string",
                 "cardinality": "0..*",
                 "required": False,

@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 
@@ -40,7 +41,8 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 @pytest.mark.asyncio
 async def test_create_property_with_range_scheme(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme,
+    ontology_class: OntologyClass,
 ) -> None:
     """Test creating a property with range_scheme_id."""
     prop = Property(
@@ -48,12 +50,12 @@ async def test_create_property_with_range_scheme(
         identifier="educationLevel",
         label="Education Level",
         description="The level of education",
-        domain_class="https://evrepo.example.org/vocab/Finding",
         range_scheme_id=scheme.id,
         cardinality="single",
         required=False,
         uri="https://example.org/vocab/educationLevel",
     )
+    prop.domain_classes = [ontology_class]
     db_session.add(prop)
     await db_session.flush()
     await db_session.refresh(prop)
@@ -64,7 +66,6 @@ async def test_create_property_with_range_scheme(
     assert prop.identifier == "educationLevel"
     assert prop.label == "Education Level"
     assert prop.description == "The level of education"
-    assert prop.domain_class == "https://evrepo.example.org/vocab/Finding"
     assert prop.range_scheme_id == scheme.id
     assert prop.range_datatype is None
     assert prop.cardinality == "single"
@@ -76,19 +77,19 @@ async def test_create_property_with_range_scheme(
 
 @pytest.mark.asyncio
 async def test_create_property_with_range_datatype(
-    db_session: AsyncSession, project: Project
+    db_session: AsyncSession, project: Project, ontology_class: OntologyClass,
 ) -> None:
     """Test creating a property with range_datatype."""
     prop = Property(
         project_id=project.id,
         identifier="sampleSize",
         label="Sample Size",
-        domain_class="https://evrepo.example.org/vocab/Finding",
         range_datatype="xsd:integer",
         cardinality="single",
         required=True,
         uri="https://example.org/vocab/sampleSize",
     )
+    prop.domain_classes = [ontology_class]
     db_session.add(prop)
     await db_session.flush()
     await db_session.refresh(prop)
@@ -101,18 +102,20 @@ async def test_create_property_with_range_datatype(
 
 
 @pytest.mark.asyncio
-async def test_property_id_is_uuidv7(db_session: AsyncSession, project: Project) -> None:
+async def test_property_id_is_uuidv7(
+    db_session: AsyncSession, project: Project, ontology_class: OntologyClass,
+) -> None:
     """Test that property IDs are UUIDv7."""
     prop = Property(
         project_id=project.id,
         identifier="testProp",
         label="Test Property",
-        domain_class="https://evrepo.example.org/vocab/Finding",
         range_datatype="xsd:string",
         cardinality="single",
         required=False,
         uri="https://example.org/vocab/testProp",
     )
+    prop.domain_classes = [ontology_class]
     db_session.add(prop)
     await db_session.flush()
     await db_session.refresh(prop)
@@ -122,19 +125,20 @@ async def test_property_id_is_uuidv7(db_session: AsyncSession, project: Project)
 
 @pytest.mark.asyncio
 async def test_property_relationships(
-    db_session: AsyncSession, project: Project, scheme: ConceptScheme
+    db_session: AsyncSession, project: Project, scheme: ConceptScheme,
+    ontology_class: OntologyClass,
 ) -> None:
     """Test that property relationships are loaded correctly."""
     prop = Property(
         project_id=project.id,
         identifier="educationLevel",
         label="Education Level",
-        domain_class="https://evrepo.example.org/vocab/Finding",
         range_scheme_id=scheme.id,
         cardinality="single",
         required=False,
         uri="https://example.org/vocab/educationLevel",
     )
+    prop.domain_classes = [ontology_class]
     db_session.add(prop)
     await db_session.flush()
     await db_session.refresh(prop)
@@ -144,3 +148,5 @@ async def test_property_relationships(
     assert prop.project.id == project.id
     assert prop.range_scheme is not None
     assert prop.range_scheme.id == scheme.id
+    assert len(prop.domain_classes) == 1
+    assert prop.domain_classes[0].id == ontology_class.id

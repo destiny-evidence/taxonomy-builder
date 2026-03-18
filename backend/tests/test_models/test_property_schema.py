@@ -22,7 +22,7 @@ class TestPropertyCreate:
             identifier="educationLevel",
             label="Education Level",
             description="The level of education",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
             range_scheme_id=scheme_id,
             cardinality="single",
             required=False,
@@ -37,7 +37,7 @@ class TestPropertyCreate:
         prop = PropertyCreate(
             identifier="sampleSize",
             label="Sample Size",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
             range_datatype="xsd:integer",
             cardinality="single",
             required=True,
@@ -51,7 +51,7 @@ class TestPropertyCreate:
         prop = PropertyCreate(
             identifier="  educationLevel  ",
             label="Education Level",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -64,7 +64,7 @@ class TestPropertyCreate:
             PropertyCreate(
                 identifier="education level",
                 label="Education Level",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
                 range_datatype="xsd:string",
                 cardinality="single",
             )
@@ -76,7 +76,7 @@ class TestPropertyCreate:
             PropertyCreate(
                 identifier="123abc",
                 label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
                 range_datatype="xsd:string",
                 cardinality="single",
             )
@@ -87,7 +87,7 @@ class TestPropertyCreate:
         prop = PropertyCreate(
             identifier="education_level-type",
             label="Education Level Type",
-            domain_class="https://evrepo.example.org/vocab/Finding",
+            domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -99,7 +99,7 @@ class TestPropertyCreate:
             PropertyCreate(
                 identifier="test",
                 label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
                 range_datatype="xsd:string",
                 cardinality="many",
             )
@@ -111,7 +111,7 @@ class TestPropertyCreate:
             prop = PropertyCreate(
                 identifier="testProp",
                 label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
                 range_datatype=datatype,
                 cardinality="single",
             )
@@ -123,7 +123,7 @@ class TestPropertyCreate:
             PropertyCreate(
                 identifier="testProp",
                 label="Test",
-                domain_class="https://evrepo.example.org/vocab/Finding",
+                domain_class_uris=["https://evrepo.example.org/vocab/Finding"],
                 range_datatype="xsd:float",
                 cardinality="single",
             )

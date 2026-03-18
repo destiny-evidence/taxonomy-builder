@@ -944,9 +944,6 @@ async def test_execute_creates_property_domain_class_row(
     assert len(prop.domain_classes) == 1
     assert prop.domain_classes[0].uri == "http://example.org/Finding"
 
-    # Scalar column still populated
-    assert prop.domain_class == "http://example.org/Finding"
-
 UNION_DOMAIN_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -997,8 +994,6 @@ async def test_execute_creates_multi_domain_rows(
         "http://example.org/Study",
     ]
 
-    # Scalar = first sorted URI
-    assert prop.domain_class == "http://example.org/CodingAnnotation"
 
 @pytest.mark.asyncio
 async def test_execute_reimport_replaces_domain_rows(
@@ -1050,8 +1045,6 @@ ex:supportingText a owl:DatatypeProperty ;
         "http://example.org/Study",
     ]
 
-    # Scalar updated to first sorted URI
-    assert prop.domain_class == "http://example.org/Finding"
 
 @pytest.mark.asyncio
 async def test_execute_reimport_same_domain_idempotent(

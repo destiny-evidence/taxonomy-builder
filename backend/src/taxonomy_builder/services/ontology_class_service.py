@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 from taxonomy_builder.schemas.ontology_class import OntologyClassCreate, OntologyClassUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
 from taxonomy_builder.services.project_service import ProjectService
@@ -238,13 +239,20 @@ class OntologyClassService:
         if ontology_class is None:
             return False
 
+        # Check join table references (domain)
+        result = await self.db.execute(
+            select(PropertyDomainClass.property_id).where(
+                PropertyDomainClass.class_id == ontology_class_id,
+            )
+        )
+        if result.first() is not None:
+            raise OntologyClassReferencedByPropertyError(ontology_class_id)
+
+        # Check range_class references
         result = await self.db.execute(
             select(Property.id).where(
                 Property.project_id == ontology_class.project_id,
-                or_(
-                    Property.domain_class == ontology_class.uri,
-                    Property.range_class == ontology_class.uri,
-                ),
+                Property.range_class == ontology_class.uri,
             )
         )
         if result.first() is not None:

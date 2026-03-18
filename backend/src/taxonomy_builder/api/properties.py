@@ -93,10 +93,16 @@ async def update_property(
                 detail=f"Property with id '{property_id}' not found",
             )
         return PropertyRead.from_orm_model(prop)
+    except DomainClassNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except InvalidRangeError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except SchemeNotInProjectError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except PropertyIdentifierExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except PropertyURIExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @properties_router.delete("/{property_id}", status_code=status.HTTP_204_NO_CONTENT)

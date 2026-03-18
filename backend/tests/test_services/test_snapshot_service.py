@@ -231,17 +231,27 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
     await db_session.flush()
     await db_session.refresh(scheme)
 
+    ont_cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="http://example.org/vocab/Finding",
+    )
+    db_session.add(ont_cls)
+    await db_session.flush()
+    await db_session.refresh(ont_cls)
+
     prop = Property(
         project_id=project.id,
         identifier="testProp",
         label="Test Property",
         description="A test property",
-        domain_class="http://example.org/vocab/Finding",
         range_scheme_id=scheme.id,
         cardinality="single",
         required=True,
         uri="http://example.org/vocab/testProp",
     )
+    prop.domain_classes = [ont_cls]
     db_session.add(prop)
     await db_session.flush()
     await db_session.refresh(prop)
@@ -255,7 +265,6 @@ async def test_properties(db_session: AsyncSession, project: Project) -> None:
     assert p.uri == "http://example.org/vocab/testProp"
     assert p.label == "Test Property"
     assert p.description == "A test property"
-    assert p.domain_class == ""  # deprecated; domain_class_uris is authoritative
     assert p.range_scheme_id == scheme.id
     assert p.range_scheme_uri == "http://example.org/range"
     assert p.range_datatype is None
@@ -365,12 +374,12 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
         project_id=project.id,
         identifier="topic",
         label="Topic",
-        domain_class="http://example.org/vocab/Finding",
         range_scheme_id=scheme1.id,
         cardinality="multiple",
         required=False,
         uri="http://example.org/vocab/topic",
     )
+    prop.domain_classes = [ont_cls]
     db_session.add(prop)
     await db_session.flush()
 
@@ -466,7 +475,6 @@ async def test_snapshot_property_domain_class_uris_from_join_table(
         project_id=project.id,
         identifier="title",
         label="Title",
-        domain_class="http://example.org/vocab/Finding",
         range_datatype="xsd:string",
         cardinality="single",
         required=False,
@@ -493,19 +501,17 @@ async def test_snapshot_property_domain_class_uris_from_join_table(
         "http://example.org/vocab/Finding",
         "http://example.org/vocab/Study",
     ]
-    assert sp.domain_class == ""  # deprecated; domain_class_uris is authoritative
 
 
 @pytest.mark.asyncio
 async def test_snapshot_property_domain_class_uris_fallback_to_scalar(
     db_session: AsyncSession, project: Project
 ) -> None:
-    """from_property falls back to scalar when no join rows exist."""
+    """domain_class_uris is empty when no join rows exist."""
     prop = Property(
         project_id=project.id,
         identifier="title",
         label="Title",
-        domain_class="http://example.org/vocab/Finding",
         range_datatype="xsd:string",
         cardinality="single",
         required=False,
@@ -518,5 +524,4 @@ async def test_snapshot_property_domain_class_uris_fallback_to_scalar(
     snapshot = await service(db_session).build_snapshot(project.id)
 
     sp = snapshot.properties[0]
-    assert sp.domain_class_uris == ["http://example.org/vocab/Finding"]
-    assert sp.domain_class == ""  # deprecated; domain_class_uris is authoritative
+    assert sp.domain_class_uris == []

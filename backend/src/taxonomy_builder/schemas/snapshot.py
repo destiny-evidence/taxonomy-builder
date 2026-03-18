@@ -135,7 +135,6 @@ class SnapshotProperty(BaseModel):
     label: str
     uri: str
     description: str | None = None
-    domain_class: str = ""  # kept for backward compat; domain_class_uris is authoritative
     domain_class_uris: list[str] = Field(default_factory=list)
     property_type: Literal["object", "datatype", "rdf"] = "object"
     range_scheme_id: UUID | None = None
@@ -195,22 +194,13 @@ class SnapshotProperty(BaseModel):
 
     @classmethod
     def from_property(cls, property: Property) -> Self:
-        # Prioritize join table, fallback to scalar, then empty list
-        if property.domain_classes:
-            uris = [c.uri for c in property.domain_classes]
-        elif property.domain_class:
-            uris = [property.domain_class]
-        else:
-            uris = []
-
         return SnapshotProperty.model_construct(
             id=property.id,
             identifier=property.identifier,
             uri=property.uri,
             label=property.label,
             description=property.description,
-            domain_class="",  # deprecated; domain_class_uris is authoritative
-            domain_class_uris=uris,
+            domain_class_uris=[c.uri for c in property.domain_classes],
             property_type=property.property_type,
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,

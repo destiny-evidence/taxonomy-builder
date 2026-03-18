@@ -96,7 +96,6 @@ def _make_snapshot(
                 "uri": "http://example.org/riskColor",
                 "label": "Risk Color",
                 "description": "Color for risk.",
-                "domain_class": "http://example.org/Finding",
                 "domain_class_uris": ["http://example.org/Finding"],
                 "property_type": "object",
                 "range_scheme_id": str(SCHEME_ID),
