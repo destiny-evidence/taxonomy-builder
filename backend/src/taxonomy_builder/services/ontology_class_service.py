@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.ontology_class import OntologyClass
@@ -155,7 +156,13 @@ class OntologyClassService:
         """
         await self._project_service.get_project(project_id)
         result = await self.db.execute(
-            select(OntologyClass).where(OntologyClass.project_id == project_id)
+            select(OntologyClass)
+            .where(OntologyClass.project_id == project_id)
+            .options(
+                selectinload(OntologyClass.superclasses),
+                selectinload(OntologyClass.subclasses),
+                selectinload(OntologyClass.restrictions),
+            )
         )
         return list(result.scalars().all())
 
@@ -169,7 +176,13 @@ class OntologyClassService:
             The ontology class or None if not found
         """
         result = await self.db.execute(
-            select(OntologyClass).where(OntologyClass.id == ontology_class_id)
+            select(OntologyClass)
+            .where(OntologyClass.id == ontology_class_id)
+            .options(
+                selectinload(OntologyClass.superclasses),
+                selectinload(OntologyClass.subclasses),
+                selectinload(OntologyClass.restrictions),
+            )
         )
         return result.scalar_one_or_none()
 

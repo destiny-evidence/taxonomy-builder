@@ -59,7 +59,7 @@ describe("propertiesApi", () => {
       const newProperty = {
         identifier: "birthDate",
         label: "Birth Date",
-        domain_class: "http://example.org/Person",
+        domain_class_uris: ["http://example.org/Person"],
         range_datatype: "xsd:date",
         cardinality: "single" as const,
         required: false,

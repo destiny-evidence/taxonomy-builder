@@ -90,6 +90,8 @@ const VOCABULARY: Vocabulary = {
       description: null,
       scope_note: null,
       superclasses: [],
+      subclasses: [],
+      restrictions: [],
     },
   ],
   properties: [

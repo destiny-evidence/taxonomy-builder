@@ -30,9 +30,9 @@ export function ClassDetailPane({
   const { height: sectionHeight, onResizeStart } = useResizeHandle();
 
   const ontologyClass = ontologyClasses.value.find((c) => c.uri === classUri);
-  const classProperties = properties.value.filter((p) => p.domain_class === classUri);
+  const classProperties = properties.value.filter((p) => p.domain_class_uris.includes(classUri));
   const rangeProperties = properties.value.filter(
-    (p) => p.range_class === classUri && p.domain_class !== classUri,
+    (p) => p.range_class === classUri && !p.domain_class_uris.includes(classUri),
   );
 
   function handleAddProperty() {
@@ -130,7 +130,7 @@ export function ClassDetailPane({
                     {prop.label}
                   </button>
                   <span class="class-detail-pane__datatype">
-                    {ontologyClasses.value.find((c) => c.uri === prop.domain_class)?.label ?? prop.domain_class}
+                    {ontologyClasses.value.find((c) => c.uri === prop.domain_class_uris[0])?.label ?? prop.domain_class_uris[0]}
                   </span>
                 </li>
               ))}
