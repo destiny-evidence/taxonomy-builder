@@ -98,6 +98,7 @@ class ReaderFileService:
                     "description": cls.description,
                     "scope_note": cls.scope_note,
                     "superclasses": cls.superclass_uris,
+                    "subclasses": cls.subclass_uris,
                     "restrictions": [
                         {
                             "on_property_uri": r.on_property_uri,

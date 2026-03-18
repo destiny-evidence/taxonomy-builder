@@ -59,6 +59,7 @@ class SnapshotService:
             .where(OntologyClass.project_id == project_id)
             .options(
                 selectinload(OntologyClass.superclasses),
+                selectinload(OntologyClass.subclasses),
                 selectinload(OntologyClass.restrictions),
             )
         )

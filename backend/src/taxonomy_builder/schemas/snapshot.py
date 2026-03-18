@@ -229,6 +229,7 @@ class SnapshotClass(BaseModel):
     description: str | None = None
     scope_note: str | None = None
     superclass_uris: list[str] = Field(default_factory=list)
+    subclass_uris: list[str] = Field(default_factory=list)
     restrictions: list[SnapshotRestriction] = Field(default_factory=list)
 
     @field_validator("label", mode="after")
@@ -257,6 +258,9 @@ class SnapshotClass(BaseModel):
             scope_note=ontology_class.scope_note,
             superclass_uris=sorted(
                 sc.uri for sc in ontology_class.superclasses if sc.uri
+            ),
+            subclass_uris=sorted(
+                sc.uri for sc in ontology_class.subclasses if sc.uri
             ),
             restrictions=sorted(
                 [

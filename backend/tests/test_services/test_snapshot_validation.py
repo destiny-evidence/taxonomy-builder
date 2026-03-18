@@ -69,6 +69,7 @@ def _stub_ontology_class(**overrides):
         description=None,
         scope_note=None,
         superclasses=[],
+        subclasses=[],
         restrictions=[],
     )
     return SimpleNamespace(**(defaults | overrides))
