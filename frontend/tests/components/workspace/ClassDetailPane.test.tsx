@@ -101,12 +101,15 @@ describe("ClassDetailPane", () => {
   const mockOnSchemeNavigate = vi.fn();
   const mockOnRefresh = vi.fn();
   const mockOnClassDeleted = vi.fn();
+  const defaultClasses = structuredClone(mockOntologyClasses.value);
 
   beforeEach(() => {
     vi.resetAllMocks();
     properties.value = mockProperties;
     selectedPropertyId.value = null;
     creatingProperty.value = null;
+    mockOntologyClasses.value = structuredClone(defaultClasses);
+    mockSelectedClassUri.value = null;
   });
 
   describe("header", () => {
@@ -330,13 +333,6 @@ describe("ClassDetailPane", () => {
   });
 
   describe("hierarchy section", () => {
-    const defaultClasses = structuredClone(mockOntologyClasses.value);
-
-    afterEach(() => {
-      mockOntologyClasses.value = structuredClone(defaultClasses);
-      mockSelectedClassUri.value = null;
-    });
-
     it("is hidden when class has no superclasses or subclasses", () => {
       render(
         <ClassDetailPane
@@ -457,6 +453,86 @@ describe("ClassDetailPane", () => {
       // "NamedIndividual" extracted from the OWL hash URI — shown as plain text, not a button
       expect(screen.getByText("NamedIndividual")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "NamedIndividual" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("restrictions section", () => {
+    it("is hidden when class has no restrictions", () => {
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      expect(screen.queryByText("Restrictions")).not.toBeInTheDocument();
+    });
+
+    it("shows restrictions with resolved class label and restriction type", () => {
+      mockOntologyClasses.value = [
+        {
+          ...defaultClasses[0],
+          restrictions: [
+            {
+              on_property_uri: "http://example.org/birthDate",
+              restriction_type: "allValuesFrom",
+              value_uri: "http://example.org/Organization",
+            },
+          ],
+        },
+        { ...defaultClasses[1] },
+      ];
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      expect(screen.getByText("Restrictions")).toBeInTheDocument();
+      // Property URI falls back to extractLocalName (mock prop has uri: null)
+      expect(screen.getByText("birthDate")).toBeInTheDocument();
+      expect(screen.getByText("allValuesFrom")).toBeInTheDocument();
+      // Class URI resolves to label from mockOntologyClasses
+      expect(screen.getByText("Organization")).toBeInTheDocument();
+    });
+
+    it("falls back to extractLocalName for unresolvable restriction URIs", () => {
+      mockOntologyClasses.value = [
+        {
+          ...defaultClasses[0],
+          restrictions: [
+            {
+              on_property_uri: "https://external.org/vocab#someProperty",
+              restriction_type: "someValuesFrom",
+              value_uri: "https://external.org/vocab#SomeClass",
+            },
+          ],
+        },
+      ];
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      expect(screen.getByText("someProperty")).toBeInTheDocument();
+      expect(screen.getByText("SomeClass")).toBeInTheDocument();
     });
   });
 

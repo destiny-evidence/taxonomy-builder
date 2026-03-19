@@ -81,6 +81,23 @@
   color: var(--color-text-muted);
 }
 
+.class-detail-pane__restriction-row {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) 0;
+}
+
+.class-detail-pane__restriction-prop {
+  font-weight: 500;
+}
+
+.class-detail-pane__restriction-type {
+  color: var(--color-text-muted);
+}
+
+.class-detail-pane__restriction-value {
+  color: var(--color-primary);
+}
+
 .class-detail-pane__empty {
   padding: var(--spacing-lg);
   text-align: center;
