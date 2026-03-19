@@ -92,3 +92,16 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
+
+.workspace-detail__link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.workspace-detail__link:hover {
+  text-decoration: underline;
+}
