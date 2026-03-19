@@ -8,7 +8,7 @@ import { ontologyClasses } from "../../state/classes";
 import { schemes } from "../../state/schemes";
 import { DATATYPE_LABELS } from "../../types/models";
 import type { Property, PropertyCreate } from "../../types/models";
-import { toCamelCase, validateIdentifier } from "../../utils/strings";
+import { toCamelCase, validateIdentifier, extractLocalName } from "../../utils/strings";
 import { formatDatetime } from "../../utils/dates";
 import "../common/WorkspaceDetail.css";
 import "./PropertyDetail.css";
@@ -42,14 +42,6 @@ interface EditDraft {
   range_class: string;
   cardinality: "single" | "multiple";
   required: boolean;
-}
-
-
-function extractLocalName(uri: string): string {
-  const hashIndex = uri.lastIndexOf("#");
-  const slashIndex = uri.lastIndexOf("/");
-  const index = Math.max(hashIndex, slashIndex);
-  return index >= 0 ? uri.substring(index + 1) : uri;
 }
 
 export function PropertyDetail(props: PropertyDetailProps) {

@@ -37,3 +37,14 @@ export function validateIdentifier(value: string): string | null {
   }
   return null;
 }
+
+/**
+ * Extract the local name from a URI — the part after the last `#` or `/`.
+ * Used as fallback display when the entity isn't in the local registry.
+ */
+export function extractLocalName(uri: string): string {
+  const hashIndex = uri.lastIndexOf("#");
+  const slashIndex = uri.lastIndexOf("/");
+  const index = Math.max(hashIndex, slashIndex);
+  return index >= 0 ? uri.substring(index + 1) : uri;
+}
