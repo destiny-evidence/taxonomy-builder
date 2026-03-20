@@ -1,7 +1,5 @@
 """Pydantic schemas for Property."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
@@ -42,10 +40,10 @@ class PropertyCreate(BaseModel):
     domain_class_uris: list[str] = Field(..., min_length=1)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
-    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
+    range_class: str | None = Field(default=None, min_length=1)
     cardinality: Literal["single", "multiple"]
     required: bool = False
-    uri: str | None = Field(default=None, min_length=1, max_length=2048)
+    uri: str | None = Field(default=None, min_length=1)
 
     @field_validator("identifier")
     @classmethod
@@ -90,7 +88,7 @@ class PropertyUpdate(BaseModel):
     domain_class_uris: list[str] | None = Field(default=None, min_length=1)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
-    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
+    range_class: str | None = Field(default=None, min_length=1)
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
 

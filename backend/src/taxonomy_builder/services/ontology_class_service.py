@@ -159,8 +159,9 @@ class OntologyClassService:
             select(OntologyClass)
             .where(OntologyClass.project_id == project_id)
             .options(
-                selectinload(OntologyClass.superclasses),
-                selectinload(OntologyClass.subclasses),
+                # Arbitrarily large depth; cycle detection at import prevents infinite chains
+                selectinload(OntologyClass.superclasses, recursion_depth=10),
+                selectinload(OntologyClass.subclasses, recursion_depth=10),
                 selectinload(OntologyClass.restrictions),
             )
         )
@@ -179,8 +180,8 @@ class OntologyClassService:
             select(OntologyClass)
             .where(OntologyClass.id == ontology_class_id)
             .options(
-                selectinload(OntologyClass.superclasses),
-                selectinload(OntologyClass.subclasses),
+                selectinload(OntologyClass.superclasses, recursion_depth=10),
+                selectinload(OntologyClass.subclasses, recursion_depth=10),
                 selectinload(OntologyClass.restrictions),
             )
         )

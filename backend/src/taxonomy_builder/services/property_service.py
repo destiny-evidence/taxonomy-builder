@@ -259,6 +259,10 @@ class PropertyService:
             ProjectNotFoundError: If the project doesn't exist
         """
         await self._project_service.get_project(project_id)
+        # Explicit selectinload required despite model-level lazy="selectin":
+        # without it, cascade loading of OntologyClass's own selectin-lazy
+        # relationships (superclasses, subclasses, restrictions) triggers
+        # MissingGreenlet errors in async context.
         result = await self.db.execute(
             select(Property)
             .where(Property.project_id == project_id)
