@@ -1,7 +1,7 @@
 import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
 import { navigate } from "../../router";
 import { FeedbackSection } from "../feedback/FeedbackSection";
-import type { VocabClass } from "../../api/published";
+import type { VocabClass, VocabProperty } from "../../api/published";
 
 interface ClassDetailProps {
   classId: string;
@@ -18,6 +18,36 @@ function extractLocalName(uri: string): string {
   const slashIndex = uri.lastIndexOf("/");
   const index = Math.max(hashIndex, slashIndex);
   return index >= 0 ? uri.substring(index + 1) : uri;
+}
+
+function buildClassAncestors(
+  classes: VocabClass[],
+): Map<string, Set<string>> {
+  const uriToSuperclasses = new Map<string, string[]>();
+  for (const cls of classes) {
+    uriToSuperclasses.set(cls.uri, cls.superclasses);
+  }
+  const result = new Map<string, Set<string>>();
+  for (const cls of classes) {
+    const ancestors = new Set<string>();
+    const queue = [...cls.superclasses];
+    while (queue.length > 0) {
+      const uri = queue.shift()!;
+      if (uri === cls.uri || ancestors.has(uri)) continue;
+      ancestors.add(uri);
+      const parents = uriToSuperclasses.get(uri);
+      if (parents) queue.push(...parents);
+    }
+    result.set(cls.uri, ancestors);
+  }
+  return result;
+}
+
+interface InheritedGroup {
+  ancestorUri: string;
+  label: string;
+  depth: number;
+  properties: VocabProperty[];
 }
 
 function PropertyLink({ id, label }: { id: string; label: string }) {
@@ -56,14 +86,76 @@ export function ClassDetail({ classId }: ClassDetailProps) {
   const allProperties = vocabulary.value?.properties ?? [];
   const allClasses = vocabulary.value?.classes ?? [];
 
-  // Properties that use this class as domain
-  const domainProperties = allProperties.filter(
-    (p) => p.domain_class_uris.includes(cls.uri)
-  );
-
   // Properties that use this class as range
   const rangeProperties = allProperties.filter(
     (p) => p.range_class === cls.uri
+  );
+
+  // Applicability closure: direct + inherited properties
+  const ancestorMap = buildClassAncestors(allClasses);
+  const classAncestors = ancestorMap.get(cls.uri) ?? new Set<string>();
+
+  const applicableProperties = allProperties.filter((p) => {
+    if (p.domain_class_uris.includes(cls.uri)) return true;
+    return p.domain_class_uris.some((uri) => classAncestors.has(uri));
+  });
+
+  const directProperties = applicableProperties.filter((p) =>
+    p.domain_class_uris.includes(cls.uri)
+  );
+  const directIds = new Set(directProperties.map((p) => p.id));
+
+  // BFS for ancestor depths
+  const ancestorDepth = new Map<string, number>();
+  const depthQueue: [string, number][] = cls.superclasses.map(
+    (uri) => [uri, 1] as [string, number]
+  );
+  const depthVisited = new Set<string>();
+  while (depthQueue.length > 0) {
+    const [uri, depth] = depthQueue.shift()!;
+    if (depthVisited.has(uri)) continue;
+    depthVisited.add(uri);
+    ancestorDepth.set(uri, depth);
+    const ancestorClass = allClasses.find((c) => c.uri === uri);
+    if (ancestorClass) {
+      for (const parentUri of ancestorClass.superclasses) {
+        depthQueue.push([parentUri, depth + 1]);
+      }
+    }
+  }
+
+  // Group inherited properties by nearest ancestor (tie-break by label)
+  const groupMap = new Map<string, InheritedGroup>();
+  for (const prop of applicableProperties) {
+    if (directIds.has(prop.id)) continue;
+    let nearestUri: string | null = null;
+    let nearestDepth = Infinity;
+    let nearestLabel = "";
+    for (const domainUri of prop.domain_class_uris) {
+      const depth = ancestorDepth.get(domainUri);
+      if (depth === undefined) continue;
+      const label = allClasses.find((c) => c.uri === domainUri)?.label ?? extractLocalName(domainUri);
+      if (depth < nearestDepth || (depth === nearestDepth && label.localeCompare(nearestLabel) < 0)) {
+        nearestDepth = depth;
+        nearestUri = domainUri;
+        nearestLabel = label;
+      }
+    }
+    if (nearestUri) {
+      if (!groupMap.has(nearestUri)) {
+        groupMap.set(nearestUri, {
+          ancestorUri: nearestUri,
+          label: nearestLabel,
+          depth: nearestDepth,
+          properties: [],
+        });
+      }
+      groupMap.get(nearestUri)!.properties.push(prop);
+    }
+  }
+
+  const inheritedGroups = [...groupMap.values()].sort((a, b) =>
+    a.depth !== b.depth ? a.depth - b.depth : a.label.localeCompare(b.label)
   );
 
   return (
@@ -137,17 +229,39 @@ export function ClassDetail({ classId }: ClassDetailProps) {
         </div>
       )}
 
-      {domainProperties.length > 0 && (
+      {(directProperties.length > 0 || inheritedGroups.length > 0) && (
         <div class="detail__section">
           <div class="detail__label">Properties</div>
-          <div class="detail__link-list">
-            {domainProperties.map((p) => (
-              <span key={p.id}>
-                <PropertyLink id={p.id} label={p.label} />
-                {" "}({p.cardinality}{p.required ? ", required" : ""})
-              </span>
-            ))}
-          </div>
+          {directProperties.length > 0 && (
+            <div>
+              {inheritedGroups.length > 0 && (
+                <div class="detail__text" style={{ fontWeight: 500, fontSize: "0.85em", color: "var(--color-text-secondary, #666)" }}>Direct</div>
+              )}
+              <div class="detail__link-list">
+                {directProperties.map((p) => (
+                  <span key={p.id}>
+                    <PropertyLink id={p.id} label={p.label} />
+                    {" "}({p.cardinality}{p.required ? ", required" : ""})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {inheritedGroups.map((group) => (
+            <div key={group.ancestorUri}>
+              <div class="detail__text" style={{ fontWeight: 500, fontSize: "0.85em", color: "var(--color-text-muted, #999)" }}>
+                Inherited from <ClassLink uri={group.ancestorUri} />
+              </div>
+              <div class="detail__link-list">
+                {group.properties.map((p) => (
+                  <span key={p.id} style={{ opacity: 0.7 }}>
+                    <PropertyLink id={p.id} label={p.label} />
+                    {" "}({p.cardinality}{p.required ? ", required" : ""})
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
