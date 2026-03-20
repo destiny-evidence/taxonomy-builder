@@ -13,6 +13,13 @@ function findClass(classId: string): VocabClass | null {
   return vocab.classes.find((c) => c.id === classId) ?? null;
 }
 
+function extractLocalName(uri: string): string {
+  const hashIndex = uri.lastIndexOf("#");
+  const slashIndex = uri.lastIndexOf("/");
+  const index = Math.max(hashIndex, slashIndex);
+  return index >= 0 ? uri.substring(index + 1) : uri;
+}
+
 function PropertyLink({ id, label }: { id: string; label: string }) {
   const version = selectedVersion.value;
   const projectId = currentProjectId.value;
@@ -26,11 +33,28 @@ function PropertyLink({ id, label }: { id: string; label: string }) {
   );
 }
 
+function ClassLink({ uri }: { uri: string }) {
+  const version = selectedVersion.value;
+  const projectId = currentProjectId.value;
+  const allClasses = vocabulary.value?.classes ?? [];
+  const target = allClasses.find((c) => c.uri === uri);
+  if (!target) return <span>{extractLocalName(uri)}</span>;
+  return (
+    <span
+      class="detail__link"
+      onClick={() => version && projectId && navigate(projectId, version, "class", target.id)}
+    >
+      {target.label}
+    </span>
+  );
+}
+
 export function ClassDetail({ classId }: ClassDetailProps) {
   const cls = findClass(classId);
   if (!cls) return <div class="detail">Class not found</div>;
 
   const allProperties = vocabulary.value?.properties ?? [];
+  const allClasses = vocabulary.value?.classes ?? [];
 
   // Properties that use this class as domain
   const domainProperties = allProperties.filter(
@@ -65,6 +89,53 @@ export function ClassDetail({ classId }: ClassDetailProps) {
         <div class="detail__label">Identifier</div>
         <div class="detail__text">{cls.identifier}</div>
       </div>
+
+      {(cls.superclasses.length > 0 || cls.subclasses.length > 0) && (
+        <div class="detail__section">
+          <div class="detail__label">Hierarchy</div>
+          {cls.superclasses.length > 0 && (
+            <div class="detail__text">
+              Superclass:{" "}
+              {cls.superclasses.map((uri, i) => (
+                <span key={uri}>
+                  {i > 0 && ", "}
+                  <ClassLink uri={uri} />
+                </span>
+              ))}
+            </div>
+          )}
+          {cls.subclasses.length > 0 && (
+            <div class="detail__text">
+              Subclasses:{" "}
+              {cls.subclasses.map((uri, i) => (
+                <span key={uri}>
+                  {i > 0 && ", "}
+                  <ClassLink uri={uri} />
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {cls.restrictions.length > 0 && (
+        <div class="detail__section">
+          <div class="detail__label">Restrictions</div>
+          {cls.restrictions.map((r, i) => {
+            const propLabel = allProperties.find(
+              (p) => p.uri === r.on_property_uri
+            )?.label ?? extractLocalName(r.on_property_uri);
+            const valueLabel = allClasses.find(
+              (c) => c.uri === r.value_uri
+            )?.label ?? extractLocalName(r.value_uri);
+            return (
+              <div key={i} class="detail__text">
+                <strong>{propLabel}</strong> {r.restriction_type} {valueLabel}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {domainProperties.length > 0 && (
         <div class="detail__section">

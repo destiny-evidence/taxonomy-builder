@@ -1,10 +1,12 @@
+import { Fragment } from "preact";
 import { useState } from "preact/hooks";
 import { Button } from "../common/Button";
 import { ClassDetail } from "../classes/ClassDetail";
 import { HistoryPanel } from "../history/HistoryPanel";
 import { useResizeHandle } from "../../hooks/useResizeHandle";
-import { ontologyClasses } from "../../state/classes";
+import { ontologyClasses, selectedClassUri } from "../../state/classes";
 import { properties, selectedPropertyId, creatingProperty } from "../../state/properties";
+import { extractLocalName } from "../../utils/strings";
 import { historyVersion } from "../../state/history";
 import { datatypeLabel } from "../../types/models";
 import "./ClassDetailPane.css";
@@ -56,6 +58,92 @@ export function ClassDetailPane({
       </div>
 
       <div class="class-detail-pane__content">
+        {ontologyClass && (ontologyClass.superclass_uris.length > 0 || ontologyClass.subclass_uris.length > 0) ? (
+          <div class="class-detail-pane__section">
+            <div class="class-detail-pane__section-header">
+              <h3 class="class-detail-pane__section-title">Hierarchy</h3>
+            </div>
+            {ontologyClass.superclass_uris.length > 0 && (
+              <div class="class-detail-pane__field">
+                <span class="class-detail-pane__field-label">Superclass: </span>
+                {ontologyClass.superclass_uris.map((uri, i) => {
+                  const cls = ontologyClasses.value.find((c) => c.uri === uri);
+                  return (
+                    <Fragment key={uri}>
+                      {i > 0 && ", "}
+                      {cls ? (
+                        <button
+                          class="class-detail-pane__class-link"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectedClassUri.value = uri;
+                          }}
+                        >
+                          {cls.label}
+                        </button>
+                      ) : (
+                        <span class="class-detail-pane__class-external">{extractLocalName(uri)}</span>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            )}
+            {ontologyClass.subclass_uris.length > 0 && (
+              <div class="class-detail-pane__field">
+                <span class="class-detail-pane__field-label">Subclasses: </span>
+                {ontologyClass.subclass_uris.map((uri, i) => {
+                  const cls = ontologyClasses.value.find((c) => c.uri === uri);
+                  return (
+                    <Fragment key={uri}>
+                      {i > 0 && ", "}
+                      {cls ? (
+                        <button
+                          class="class-detail-pane__class-link"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectedClassUri.value = uri;
+                          }}
+                        >
+                          {cls.label}
+                        </button>
+                      ) : (
+                        <span class="class-detail-pane__class-external">{extractLocalName(uri)}</span>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {ontologyClass && ontologyClass.restrictions.length > 0 && (
+          <div class="class-detail-pane__section">
+            <div class="class-detail-pane__section-header">
+              <h3 class="class-detail-pane__section-title">Restrictions</h3>
+            </div>
+            {ontologyClass.restrictions.map((r) => {
+              const propLabel = properties.value.find(
+                (p) => p.uri === r.on_property_uri
+              )?.label ?? extractLocalName(r.on_property_uri);
+              const valueLabel = ontologyClasses.value.find(
+                (c) => c.uri === r.value_uri
+              )?.label ?? extractLocalName(r.value_uri);
+
+              return (
+                <div key={`${r.on_property_uri}-${r.restriction_type}-${r.value_uri}`} class="class-detail-pane__restriction-row">
+                  <span class="class-detail-pane__restriction-prop">{propLabel}</span>
+                  {" "}
+                  <span class="class-detail-pane__restriction-type">{r.restriction_type}</span>
+                  {" "}
+                  <span class="class-detail-pane__restriction-value">{valueLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <div class="class-detail-pane__section">
           <div class="class-detail-pane__section-header">
             <h3 class="class-detail-pane__section-title">Properties</h3>
