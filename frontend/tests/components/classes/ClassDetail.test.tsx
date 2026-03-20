@@ -14,6 +14,9 @@ const mockClass: OntologyClass = {
   description: "A human being",
   scope_note: "Used for individual persons",
   uri: "http://example.org/Person",
+  superclass_uris: [],
+  subclass_uris: [],
+  restrictions: [],
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -26,6 +29,9 @@ const mockClassNoDescription: OntologyClass = {
   description: null,
   scope_note: null,
   uri: "http://example.org/Organization",
+  superclass_uris: [],
+  subclass_uris: [],
+  restrictions: [],
   created_at: "2024-01-02T00:00:00Z",
   updated_at: "2024-01-02T00:00:00Z",
 };

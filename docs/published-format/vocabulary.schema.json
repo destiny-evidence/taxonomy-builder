@@ -166,7 +166,7 @@
       "description": "Ontology classes (domain entities). Referenced by properties via domain_class_uris.",
       "items": {
         "type": "object",
-        "required": ["id", "identifier", "uri", "label", "superclasses"],
+        "required": ["id", "identifier", "uri", "label", "superclasses", "subclasses"],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -199,6 +199,11 @@
             "type": "array",
             "items": { "type": "string", "format": "uri" },
             "description": "URIs of direct superclasses (rdfs:subClassOf). Empty array if none."
+          },
+          "subclasses": {
+            "type": "array",
+            "items": { "type": "string", "format": "uri" },
+            "description": "URIs of direct subclasses (inverse of rdfs:subClassOf). Empty array if none."
           },
           "restrictions": {
             "type": "array",

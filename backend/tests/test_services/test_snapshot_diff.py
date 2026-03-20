@@ -48,7 +48,7 @@ def _concept(label: str, **kwargs) -> SnapshotConcept:
 def _property(label: str, **kwargs) -> SnapshotProperty:
     defaults = {
         "identifier": "prop",
-        "domain_class": "SomeClass",
+        "domain_class_uris": ["http://example.org/SomeClass"],
         "cardinality": "1",
         "required": False,
     }

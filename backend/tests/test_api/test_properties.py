@@ -41,34 +41,21 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
 
 
 @pytest.fixture
-async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
-    """Create an ontology class in the test project."""
-    cls = OntologyClass(
-        project_id=project.id,
-        identifier="Finding",
-        label="Finding",
-        uri="https://example.org/vocab/Finding",
-    )
-    db_session.add(cls)
-    await db_session.flush()
-    await db_session.refresh(cls)
-    return cls
-
-
-@pytest.fixture
-async def property_obj(db_session: AsyncSession, project: Project) -> Property:
+async def property_obj(
+    db_session: AsyncSession, project: Project, ontology_class: OntologyClass
+) -> Property:
     """Create a property for testing."""
     prop = Property(
         project_id=project.id,
         identifier="sampleSize",
         label="Sample Size",
         description="The sample size",
-        domain_class="https://example.org/vocab/Finding",
         range_datatype="xsd:integer",
         cardinality="single",
         required=True,
         uri="https://example.org/vocab/sampleSize",
     )
+    prop.domain_classes = [ontology_class]
     db_session.add(prop)
     await db_session.flush()
     await db_session.refresh(prop)
@@ -122,7 +109,7 @@ class TestCreateProperty:
             json={
                 "identifier": "sampleSize",
                 "label": "Sample Size",
-                "domain_class": "https://example.org/vocab/Finding",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
                 "range_datatype": "xsd:integer",
                 "cardinality": "single",
                 "required": True,
@@ -148,7 +135,7 @@ class TestCreateProperty:
             json={
                 "identifier": "educationLevel",
                 "label": "Education Level",
-                "domain_class": "https://example.org/vocab/Finding",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
                 "range_scheme_id": str(scheme.id),
                 "cardinality": "multiple",
                 "required": False,
@@ -170,7 +157,7 @@ class TestCreateProperty:
             json={
                 "identifier": "testProp",
                 "label": "Test",
-                "domain_class": "https://invalid.org/NotAClass",
+                "domain_class_uris": ["https://invalid.org/NotAClass"],
                 "range_datatype": "xsd:string",
                 "cardinality": "single",
             },
@@ -188,7 +175,7 @@ class TestCreateProperty:
             json={
                 "identifier": "educationLevel",
                 "label": "Education Level",
-                "domain_class": "https://example.org/vocab/Finding",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
                 "range_class": "https://example.org/ontology/EducationLevel",
                 "cardinality": "single",
             },
@@ -209,7 +196,7 @@ class TestCreateProperty:
             json={
                 "identifier": "testProp",
                 "label": "Test",
-                "domain_class": "https://example.org/vocab/Finding",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
                 "cardinality": "single",
             },
         )
@@ -225,7 +212,7 @@ class TestCreateProperty:
             json={
                 "identifier": "sampleSize",  # Same as property_obj
                 "label": "Another Sample Size",
-                "domain_class": "https://example.org/vocab/Finding",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
                 "range_datatype": "xsd:integer",
                 "cardinality": "single",
             },
@@ -242,7 +229,7 @@ class TestCreateProperty:
             json={
                 "identifier": "testProp",
                 "label": "Test",
-                "domain_class": "https://example.org/vocab/Finding",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
                 "range_datatype": "xsd:string",
                 "cardinality": "single",
             },
@@ -313,6 +300,151 @@ class TestUpdateProperty:
             json={"label": "New Label"},
         )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_property_invalid_domain_class_uris(
+        self, authenticated_client: AsyncClient, property_obj: Property
+    ) -> None:
+        """Updating with invalid domain_class_uris returns 400."""
+        response = await authenticated_client.put(
+            f"/api/properties/{property_obj.id}",
+            json={"domain_class_uris": ["https://example.org/vocab/NonExistent"]},
+        )
+        assert response.status_code == 400
+        assert "domain class" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_update_property_duplicate_identifier(
+        self, authenticated_client: AsyncClient, project: Project,
+        property_obj: Property,
+    ) -> None:
+        """Renaming to an existing identifier returns 409."""
+        # Create a second property
+        await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "otherProp",
+                "label": "Other",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
+                "range_datatype": "xsd:string",
+                "cardinality": "single",
+            },
+        )
+        # Try to rename property_obj to the same identifier
+        response = await authenticated_client.put(
+            f"/api/properties/{property_obj.id}",
+            json={"identifier": "otherProp"},
+        )
+        assert response.status_code == 409
+        assert "already exists" in response.json()["detail"].lower()
+
+
+@pytest.mark.usefixtures("ontology_class")
+class TestCreatePropertyDedup:
+    """Tests for duplicate URI handling."""
+
+    @pytest.mark.asyncio
+    async def test_create_property_with_duplicate_uris_deduplicates(
+        self, authenticated_client: AsyncClient, project: Project
+    ) -> None:
+        """Duplicate URIs in domain_class_uris are silently deduplicated."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "sampleSize",
+                "label": "Sample Size",
+                "domain_class_uris": [
+                    "https://example.org/vocab/Finding",
+                    "https://example.org/vocab/Finding",
+                ],
+                "range_datatype": "xsd:integer",
+                "cardinality": "single",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["domain_class_uris"] == ["https://example.org/vocab/Finding"]
+
+
+class TestPropertyReadEnrichedFields:
+    """Tests for enriched fields on PropertyRead (property_type, domain_class_uris)."""
+
+    @pytest.mark.asyncio
+    async def test_get_property_includes_property_type(
+        self, authenticated_client: AsyncClient, property_obj: Property
+    ) -> None:
+        """Property response includes property_type (defaults to 'object')."""
+        response = await authenticated_client.get(f"/api/properties/{property_obj.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["property_type"] == "object"
+
+    @pytest.mark.asyncio
+    async def test_get_property_domain_class_uris_empty_when_no_join_rows(
+        self, authenticated_client: AsyncClient, db_session: AsyncSession,
+        project: Project,
+    ) -> None:
+        """When join table is empty, domain_class_uris is empty."""
+        # Intentionally no domain_classes — testing the empty case
+        prop = Property(
+            project_id=project.id,
+            identifier="bare",
+            label="Bare Property",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+            uri="https://example.org/vocab/bare",
+        )
+        db_session.add(prop)
+        await db_session.flush()
+        await db_session.refresh(prop)
+
+        response = await authenticated_client.get(f"/api/properties/{prop.id}")
+        data = response.json()
+        assert data["domain_class_uris"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_property_domain_class_uris_from_join_table(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        project: Project,
+        ontology_class: OntologyClass,
+        property_obj: Property,
+    ) -> None:
+        """When join table is populated, domain_class_uris reflects it."""
+        # property_obj already has ontology_class (Finding) via fixture;
+        # add a second class to verify multiple URIs
+        cls2 = OntologyClass(
+            project_id=project.id,
+            identifier="Outcome",
+            label="Outcome",
+            uri="https://example.org/vocab/Outcome",
+        )
+        db_session.add(cls2)
+        await db_session.flush()
+
+        property_obj.domain_classes.append(cls2)
+        await db_session.flush()
+
+        response = await authenticated_client.get(f"/api/properties/{property_obj.id}")
+        data = response.json()
+        assert sorted(data["domain_class_uris"]) == [
+            "https://example.org/vocab/Finding",
+            "https://example.org/vocab/Outcome",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_list_properties_includes_enriched_fields(
+        self, authenticated_client: AsyncClient, project: Project, property_obj: Property
+    ) -> None:
+        """List endpoint also includes enriched fields."""
+        response = await authenticated_client.get(f"/api/projects/{project.id}/properties")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert "property_type" in data[0]
+        assert "domain_class_uris" in data[0]
 
 
 class TestDeleteProperty:

@@ -5,7 +5,7 @@ from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import SKOS
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.class_restriction import ClassRestriction
@@ -704,24 +704,24 @@ class SKOSImportService:
         known_uris = set(existing_prop_uris)
         uri_to_id = class_uri_to_id or {}
         prop_uri_to_id = existing_prop_uri_to_id or {}
-        to_create: list[tuple[Property, list[str]]] = []  # (prop, domain_uris)
+        to_create: list[tuple[Property, list[str]]] = []  # (prop, domain_class_uris)
 
         for pm in property_metadata:
             identifier = pm["identifier"]
             if pm["uri"] in known_uris or identifier in known_ids:
                 # Re-import: update domain classes for existing property
                 if pm["uri"] in prop_uri_to_id:
-                    domain_uris = sorted(pm["domain_uris"])
-                    if domain_uris:
+                    domain_class_uris = sorted(pm["domain_uris"])
+                    if domain_class_uris:
                         await self._update_property_domains(
                             prop_uri_to_id[pm["uri"]],
-                            domain_uris,
+                            domain_class_uris,
                             uri_to_id,
                         )
                 continue
 
-            domain_uris = sorted(pm["domain_uris"])
-            if not domain_uris:
+            domain_class_uris = sorted(pm["domain_uris"])
+            if not domain_class_uris:
                 warnings.append(
                     f"Property '{identifier}' skipped: "
                     f"no rdfs:domain declared"
@@ -763,7 +763,6 @@ class SKOSImportService:
                 identifier=identifier,
                 label=pm["label"],
                 description=pm["description"],
-                domain_class=domain_uris[0],
                 range_scheme_id=range_scheme_id,
                 range_datatype=range_datatype,
                 range_class=range_class,
@@ -775,7 +774,7 @@ class SKOSImportService:
             self.db.add(prop)
             known_ids.add(identifier)
             known_uris.add(pm["uri"])
-            to_create.append((prop, domain_uris))
+            to_create.append((prop, domain_class_uris))
 
         if to_create:
             await self.db.flush()
@@ -804,7 +803,6 @@ class SKOSImportService:
                     "id": str(prop.id),
                     "identifier": prop.identifier,
                     "label": prop.label,
-                    "domain_class": prop.domain_class,
                     "range_scheme_id": str(prop.range_scheme_id) if prop.range_scheme_id else None,
                     "range_datatype": prop.range_datatype,
                     "range_class": prop.range_class,
@@ -826,11 +824,11 @@ class SKOSImportService:
     async def _update_property_domains(
         self,
         property_id: UUID,
-        domain_uris: list[str],
+        domain_class_uris: list[str],
         class_uri_to_id: dict[str, UUID],
     ) -> None:
-        """Replace PropertyDomainClass rows and update scalar for re-import."""
-        if not domain_uris:
+        """Replace PropertyDomainClass rows for re-import."""
+        if not domain_class_uris:
             return
 
         # Delete existing join rows
@@ -841,19 +839,13 @@ class SKOSImportService:
         )
 
         # Insert new rows
-        for uri in domain_uris:
+        for uri in domain_class_uris:
             if uri in class_uri_to_id:
                 self.db.add(PropertyDomainClass(
                     property_id=property_id,
                     class_id=class_uri_to_id[uri],
                 ))
 
-        # Update scalar to first sorted URI
-        await self.db.execute(
-            update(Property)
-            .where(Property.id == property_id)
-            .values(domain_class=domain_uris[0])
-        )
         await self.db.flush()
 
     async def _get_unique_title(self, project_id: UUID, base_title: str) -> str:

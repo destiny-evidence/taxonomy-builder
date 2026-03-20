@@ -96,7 +96,6 @@ def _make_snapshot(
                 "uri": "http://example.org/riskColor",
                 "label": "Risk Color",
                 "description": "Color for risk.",
-                "domain_class": "http://example.org/Finding",
                 "domain_class_uris": ["http://example.org/Finding"],
                 "property_type": "object",
                 "range_scheme_id": str(SCHEME_ID),
@@ -117,6 +116,7 @@ def _make_snapshot(
                 "description": "A finding.",
                 "scope_note": None,
                 "superclass_uris": [],
+                "subclass_uris": [],
             }
         ]
     return {
@@ -280,6 +280,13 @@ class TestRenderVocabulary:
         cls = result["classes"][0]
         assert "superclasses" in cls
         assert cls["superclasses"] == []
+
+    def test_class_subclasses_present(self):
+        version = _make_version()
+        result = json.loads(ReaderFileService.render_vocabulary(version))
+        cls = result["classes"][0]
+        assert "subclasses" in cls
+        assert cls["subclasses"] == []
 
     def test_concept_type_uris_present(self):
         version = _make_version()

@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 
 
@@ -261,17 +262,26 @@ async def test_delete_scheme_referenced_by_property(
     """Test deleting a scheme that is referenced by a property fails."""
     from taxonomy_builder.models.property import Property
 
+    ont_cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="https://example.org/vocab/Finding",
+    )
+    db_session.add(ont_cls)
+    await db_session.flush()
+
     # Create a property that references this scheme
     prop = Property(
         project_id=project.id,
         identifier="testProp",
         label="Test Property",
-        domain_class="https://evrepo.example.org/vocab/Finding",
         range_scheme_id=scheme.id,
         cardinality="single",
         required=False,
         uri="https://example.org/vocab/testProp",
     )
+    prop.domain_classes = [ont_cls]
     db_session.add(prop)
     await db_session.flush()
 

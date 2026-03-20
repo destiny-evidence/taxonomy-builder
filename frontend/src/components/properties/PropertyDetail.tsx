@@ -35,7 +35,7 @@ interface EditDraft {
   label: string;
   identifier: string;
   description: string;
-  domain_class: string;
+  domain_class_uri: string;
   range_type: "scheme" | "datatype" | "class";
   range_scheme_id: string;
   range_datatype: string;
@@ -63,7 +63,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
           label: "",
           identifier: "",
           description: "",
-          domain_class: (props as CreateProps).domainClassUri ?? "",
+          domain_class_uri: (props as CreateProps).domainClassUri ?? "",
           range_type: "datatype",
           range_scheme_id: "",
           range_datatype: "",
@@ -110,7 +110,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
       label: property.label,
       identifier: property.identifier,
       description: property.description ?? "",
-      domain_class: property.domain_class,
+      domain_class_uri: property.domain_class_uris[0] ?? "",
       range_type: property.range_scheme_id ? "scheme" : property.range_class ? "class" : "datatype",
       range_scheme_id: property.range_scheme_id ?? "",
       range_datatype: property.range_datatype ?? "",
@@ -147,7 +147,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
           label: editDraft.label.trim(),
           identifier: editDraft.identifier.trim(),
           description: editDraft.description.trim() || undefined,
-          domain_class: editDraft.domain_class,
+          domain_class_uris: [editDraft.domain_class_uri],
           range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || undefined : undefined,
           range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || undefined : undefined,
           range_class: editDraft.range_type === "class" ? editDraft.range_class || undefined : undefined,
@@ -160,7 +160,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
         await propertiesApi.update(property!.id, {
           label: editDraft.label,
           description: editDraft.description || null,
-          domain_class: editDraft.domain_class,
+          domain_class_uris: [editDraft.domain_class_uri],
           range_scheme_id: editDraft.range_type === "scheme" ? editDraft.range_scheme_id || null : null,
           range_datatype: editDraft.range_type === "datatype" ? editDraft.range_datatype || null : null,
           range_class: editDraft.range_type === "class" ? editDraft.range_class || null : null,
@@ -218,7 +218,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
 
   const isFormValid = editDraft
     ? !!editDraft.label.trim() &&
-      !!editDraft.domain_class &&
+      !!editDraft.domain_class_uri &&
       (editDraft.range_type === "scheme"
         ? !!editDraft.range_scheme_id
         : editDraft.range_type === "class"
@@ -239,7 +239,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
     if (!editDraft.label.trim()) missing.push("Label");
     if (isCreateMode && !editDraft.identifier.trim()) missing.push("Identifier");
     else if (isCreateMode && identifierError) missing.push("Valid identifier");
-    if (!editDraft.domain_class) missing.push("Class");
+    if (!editDraft.domain_class_uri) missing.push("Class");
     if (editDraft.range_type === "scheme" && !editDraft.range_scheme_id) missing.push("Range scheme");
     if (editDraft.range_type === "datatype" && !editDraft.range_datatype) missing.push("Range datatype");
     if (editDraft.range_type === "class" && !editDraft.range_class) missing.push("Range class");
@@ -336,7 +336,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
             <div class="workspace-detail__field">
               <label class="workspace-detail__label">Class</label>
               <div class="workspace-detail__value">
-                {classes.find((c) => c.uri === editDraft.domain_class)?.label ?? extractLocalName(editDraft.domain_class)}
+                {classes.find((c) => c.uri === editDraft.domain_class_uri)?.label ?? extractLocalName(editDraft.domain_class_uri)}
               </div>
             </div>
 
@@ -491,7 +491,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
             <div class="workspace-detail__field">
               <label class="workspace-detail__label">Class</label>
               <div class="workspace-detail__value">
-                {classes.find((c) => c.uri === property.domain_class)?.label ?? extractLocalName(property.domain_class)}
+                {classes.find((c) => c.uri === property.domain_class_uris[0])?.label ?? extractLocalName(property.domain_class_uris[0] ?? "")}
               </div>
             </div>
 

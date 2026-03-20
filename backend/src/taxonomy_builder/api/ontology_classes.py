@@ -5,7 +5,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from taxonomy_builder.api.dependencies import get_ontology_class_service
-from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.schemas.ontology_class import (
     OntologyClassCreate,
     OntologyClassRead,
@@ -26,33 +25,32 @@ project_ontology_classes_router = APIRouter(prefix="/api/projects", tags=["ontol
 ontology_classes_router = APIRouter(prefix="/api/classes", tags=["ontology_classes"])
 
 
-@project_ontology_classes_router.get(
-    "/{project_id}/classes", response_model=list[OntologyClassRead]
-)
+@project_ontology_classes_router.get("/{project_id}/classes")
 async def list_ontology_classes(
     project_id: UUID,
     service: OntologyClassService = Depends(get_ontology_class_service),
-) -> list[OntologyClass]:
+) -> list[OntologyClassRead]:
     """List all ontology classes for a project."""
     try:
-        return await service.list_ontology_classes(project_id)
+        classes = await service.list_ontology_classes(project_id)
+        return [OntologyClassRead.from_orm_model(c) for c in classes]
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @project_ontology_classes_router.post(
     "/{project_id}/classes",
-    response_model=OntologyClassRead,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_ontology_class(
     project_id: UUID,
     ontology_class_in: OntologyClassCreate,
     service: OntologyClassService = Depends(get_ontology_class_service),
-) -> OntologyClass:
+) -> OntologyClassRead:
     """Create a new ontology class in a project."""
     try:
-        return await service.create_ontology_class(project_id, ontology_class_in)
+        obj = await service.create_ontology_class(project_id, ontology_class_in)
+        return OntologyClassRead.from_orm_model(obj)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except OntologyClassIdentifierExistsError as e:
@@ -61,11 +59,11 @@ async def create_ontology_class(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@ontology_classes_router.get("/{class_id}", response_model=OntologyClassRead)
+@ontology_classes_router.get("/{class_id}")
 async def get_ontology_class(
     class_id: UUID,
     service: OntologyClassService = Depends(get_ontology_class_service),
-) -> OntologyClass:
+) -> OntologyClassRead:
     """Get a single ontology class by ID."""
     ontology_class = await service.get_ontology_class(class_id)
     if ontology_class is None:
@@ -73,15 +71,15 @@ async def get_ontology_class(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ontology class with id '{class_id}' not found",
         )
-    return ontology_class
+    return OntologyClassRead.from_orm_model(ontology_class)
 
 
-@ontology_classes_router.put("/{class_id}", response_model=OntologyClassRead)
+@ontology_classes_router.put("/{class_id}")
 async def update_ontology_class(
     class_id: UUID,
     ontology_class_in: OntologyClassUpdate,
     service: OntologyClassService = Depends(get_ontology_class_service),
-) -> OntologyClass:
+) -> OntologyClassRead:
     """Update an existing ontology class."""
     try:
         ontology_class = await service.update_ontology_class(class_id, ontology_class_in)
@@ -90,7 +88,7 @@ async def update_ontology_class(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Ontology class with id '{class_id}' not found",
             )
-        return ontology_class
+        return OntologyClassRead.from_orm_model(ontology_class)
     except OntologyClassIdentifierExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
