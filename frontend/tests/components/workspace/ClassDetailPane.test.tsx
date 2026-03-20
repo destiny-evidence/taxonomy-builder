@@ -7,6 +7,30 @@ import * as historyApi from "../../../src/api/history";
 
 vi.mock("../../../src/api/history");
 
+/** Replicates the BFS logic from classes.ts for test data. */
+function buildMockAncestors(
+  classes: { uri: string; superclass_uris: string[] }[],
+): Map<string, Set<string>> {
+  const uriToSuperclasses = new Map<string, string[]>();
+  for (const cls of classes) {
+    uriToSuperclasses.set(cls.uri, cls.superclass_uris);
+  }
+  const result = new Map<string, Set<string>>();
+  for (const cls of classes) {
+    const ancestors = new Set<string>();
+    const queue = [...cls.superclass_uris];
+    while (queue.length > 0) {
+      const uri = queue.shift()!;
+      if (uri === cls.uri || ancestors.has(uri)) continue;
+      ancestors.add(uri);
+      const parents = uriToSuperclasses.get(uri);
+      if (parents) queue.push(...parents);
+    }
+    result.set(cls.uri, ancestors);
+  }
+  return result;
+}
+
 const mockProperties: Property[] = [
   {
     id: "prop-1",
@@ -65,7 +89,7 @@ const mockProperties: Property[] = [
 ];
 
 // vi.hoisted runs before vi.mock hoisting — makes these available to the factory
-const { mockOntologyClasses, mockSelectedClassUri } = vi.hoisted(() => ({
+const { mockOntologyClasses, mockSelectedClassUri, mockClassAncestors } = vi.hoisted(() => ({
   mockOntologyClasses: {
     value: [
       { id: "cls-1", project_id: "proj-1", identifier: "Person", uri: "http://example.org/Person", label: "Person", description: "A human being", scope_note: null, superclass_uris: [] as string[], subclass_uris: [] as string[], restrictions: [] as OntologyClass["restrictions"], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
@@ -73,6 +97,7 @@ const { mockOntologyClasses, mockSelectedClassUri } = vi.hoisted(() => ({
     ] as OntologyClass[],
   },
   mockSelectedClassUri: { value: null as string | null },
+  mockClassAncestors: { value: new Map<string, Set<string>>() },
 }));
 
 vi.mock("../../../src/state/classes", async () => {
@@ -81,6 +106,14 @@ vi.mock("../../../src/state/classes", async () => {
     ...actual,
     ontologyClasses: mockOntologyClasses,
     selectedClassUri: mockSelectedClassUri,
+    classAncestors: mockClassAncestors,
+    // Must stay in sync with isApplicable in state/classes.ts
+    isApplicable: (classUri: string, domainClassUris: string[]) => {
+      if (domainClassUris.includes(classUri)) return true;
+      const ancestors = mockClassAncestors.value.get(classUri);
+      if (!ancestors) return false;
+      return domainClassUris.some((uri: string) => ancestors.has(uri));
+    },
   };
 });
 
@@ -109,6 +142,7 @@ describe("ClassDetailPane", () => {
     selectedPropertyId.value = null;
     creatingProperty.value = null;
     mockOntologyClasses.value = structuredClone(defaultClasses);
+    mockClassAncestors.value = buildMockAncestors(mockOntologyClasses.value);
     mockSelectedClassUri.value = null;
   });
 
@@ -533,6 +567,247 @@ describe("ClassDetailPane", () => {
 
       expect(screen.getByText("someProperty")).toBeInTheDocument();
       expect(screen.getByText("SomeClass")).toBeInTheDocument();
+    });
+  });
+
+  describe("inherited properties", () => {
+    const employeeClass: OntologyClass = {
+      id: "cls-3", project_id: "proj-1", identifier: "Employee",
+      uri: "http://example.org/Employee", label: "Employee",
+      description: null, scope_note: null,
+      superclass_uris: ["http://example.org/Person"],
+      subclass_uris: [],
+      restrictions: [],
+      created_at: "2024-01-03T00:00:00Z", updated_at: "2024-01-03T00:00:00Z",
+    };
+
+    const employeeProperty: Property = {
+      id: "prop-4", project_id: "proj-1", identifier: "employeeId",
+      label: "Employee ID", description: null,
+      domain_class_uris: ["http://example.org/Employee"],
+      property_type: "datatype", range_scheme_id: null, range_scheme: null,
+      range_datatype: "xsd:string", range_class: null,
+      cardinality: "single", required: true, uri: null,
+      created_at: "2024-01-04T00:00:00Z", updated_at: "2024-01-04T00:00:00Z",
+    };
+
+    beforeEach(() => {
+      mockOntologyClasses.value = [
+        { ...defaultClasses[0], subclass_uris: ["http://example.org/Employee"] },
+        { ...defaultClasses[1] },
+        employeeClass,
+      ];
+      mockClassAncestors.value = buildMockAncestors(mockOntologyClasses.value);
+      properties.value = [...mockProperties, employeeProperty];
+    });
+
+    it("shows inherited properties from superclass", () => {
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Employee"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      // Direct property on Employee
+      expect(screen.getByText("Employee ID")).toBeInTheDocument();
+      // Inherited from Person
+      expect(screen.getByText("Birth Date")).toBeInTheDocument();
+      expect(screen.getByText("Country")).toBeInTheDocument();
+      // Group header
+      expect(screen.getByText(/Inherited from/)).toBeInTheDocument();
+    });
+
+    it("navigates to ancestor when inherited group link clicked", () => {
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Employee"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      const inheritedLink = screen.getAllByRole("button", { name: "Person" }).find((link) =>
+        link.closest(".class-detail-pane__group-header--inherited")
+      );
+      expect(inheritedLink).toBeDefined();
+      fireEvent.click(inheritedLink!);
+      expect(mockSelectedClassUri.value).toBe("http://example.org/Person");
+    });
+
+    it("hides Direct subheader when there are no inherited properties", () => {
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      expect(screen.getByText("Birth Date")).toBeInTheDocument();
+      expect(screen.queryByText("Direct")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Inherited from/)).not.toBeInTheDocument();
+    });
+
+    it("deduplicates property that is both direct and inherited", () => {
+      const sharedProperty: Property = {
+        id: "prop-5", project_id: "proj-1", identifier: "sharedProp",
+        label: "Shared Property", description: null,
+        domain_class_uris: ["http://example.org/Person", "http://example.org/Employee"],
+        property_type: "datatype", range_scheme_id: null, range_scheme: null,
+        range_datatype: "xsd:string", range_class: null,
+        cardinality: "single", required: false, uri: null,
+        created_at: "2024-01-05T00:00:00Z", updated_at: "2024-01-05T00:00:00Z",
+      };
+      properties.value = [...mockProperties, employeeProperty, sharedProperty];
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Employee"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      const matches = screen.getAllByText("Shared Property");
+      expect(matches).toHaveLength(1);
+    });
+
+    it("breaks ties for equidistant ancestors by label alphabetically", () => {
+      // Employee has two parents at depth 1: Manager and Worker
+      // A property on both should be assigned to Manager (alphabetically first)
+      const managerClass: OntologyClass = {
+        id: "cls-m", project_id: "proj-1", identifier: "Manager",
+        uri: "http://example.org/Manager", label: "Manager",
+        description: null, scope_note: null,
+        superclass_uris: [], subclass_uris: ["http://example.org/Employee"],
+        restrictions: [],
+        created_at: "2024-01-05T00:00:00Z", updated_at: "2024-01-05T00:00:00Z",
+      };
+      const workerClass: OntologyClass = {
+        id: "cls-w", project_id: "proj-1", identifier: "Worker",
+        uri: "http://example.org/Worker", label: "Worker",
+        description: null, scope_note: null,
+        superclass_uris: [], subclass_uris: ["http://example.org/Employee"],
+        restrictions: [],
+        created_at: "2024-01-06T00:00:00Z", updated_at: "2024-01-06T00:00:00Z",
+      };
+      const sharedAncestorProp: Property = {
+        id: "prop-shared", project_id: "proj-1", identifier: "badge",
+        label: "Badge Number", description: null,
+        domain_class_uris: ["http://example.org/Worker", "http://example.org/Manager"],
+        property_type: "datatype", range_scheme_id: null, range_scheme: null,
+        range_datatype: "xsd:string", range_class: null,
+        cardinality: "single", required: false, uri: null,
+        created_at: "2024-01-07T00:00:00Z", updated_at: "2024-01-07T00:00:00Z",
+      };
+
+      const employeeWithTwoParents: OntologyClass = {
+        ...employeeClass,
+        superclass_uris: ["http://example.org/Manager", "http://example.org/Worker"],
+      };
+
+      mockOntologyClasses.value = [
+        { ...defaultClasses[0] },
+        { ...defaultClasses[1] },
+        employeeWithTwoParents,
+        managerClass,
+        workerClass,
+      ];
+      mockClassAncestors.value = buildMockAncestors(mockOntologyClasses.value);
+      properties.value = [employeeProperty, sharedAncestorProp];
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Employee"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      // Property should be grouped under Manager (alphabetically before Worker)
+      const inheritedHeaders = screen.getAllByText(/Inherited from/);
+      expect(inheritedHeaders).toHaveLength(1);
+      // Manager appears in both hierarchy section and inherited group header
+      const managerInGroup = screen.getAllByRole("button", { name: "Manager" }).filter((btn) =>
+        btn.closest(".class-detail-pane__group-header--inherited")
+      );
+      expect(managerInGroup).toHaveLength(1);
+      // Worker should NOT appear as a group header
+      const workerInGroup = screen.queryAllByRole("button", { name: "Worker" }).filter((btn) =>
+        btn.closest(".class-detail-pane__group-header--inherited")
+      );
+      expect(workerInGroup).toHaveLength(0);
+    });
+
+    it("shows multiple inherited groups from different ancestors in depth order", () => {
+      const animalClass: OntologyClass = {
+        id: "cls-4", project_id: "proj-1", identifier: "Animal",
+        uri: "http://example.org/Animal", label: "Animal",
+        description: null, scope_note: null,
+        superclass_uris: [],
+        subclass_uris: ["http://example.org/Person"],
+        restrictions: [],
+        created_at: "2024-01-05T00:00:00Z", updated_at: "2024-01-05T00:00:00Z",
+      };
+      const animalProperty: Property = {
+        id: "prop-6", project_id: "proj-1", identifier: "species",
+        label: "Species", description: null,
+        domain_class_uris: ["http://example.org/Animal"],
+        property_type: "datatype", range_scheme_id: null, range_scheme: null,
+        range_datatype: "xsd:string", range_class: null,
+        cardinality: "single", required: false, uri: null,
+        created_at: "2024-01-06T00:00:00Z", updated_at: "2024-01-06T00:00:00Z",
+      };
+
+      mockOntologyClasses.value = [
+        {
+          ...defaultClasses[0],
+          superclass_uris: ["http://example.org/Animal"],
+          subclass_uris: ["http://example.org/Employee"],
+        },
+        { ...defaultClasses[1] },
+        employeeClass,
+        animalClass,
+      ];
+      mockClassAncestors.value = buildMockAncestors(mockOntologyClasses.value);
+      properties.value = [...mockProperties, employeeProperty, animalProperty];
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Employee"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      // Two inherited groups
+      const inheritedHeaders = screen.getAllByText(/Inherited from/);
+      expect(inheritedHeaders).toHaveLength(2);
+
+      // Person's properties inherited
+      expect(screen.getByText("Birth Date")).toBeInTheDocument();
+      // Animal's property inherited
+      expect(screen.getByText("Species")).toBeInTheDocument();
     });
   });
 
