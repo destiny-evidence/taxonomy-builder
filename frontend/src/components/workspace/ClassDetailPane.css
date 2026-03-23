@@ -63,18 +63,6 @@
   font-size: var(--font-size-xs);
 }
 
-.class-detail-pane__class-link {
-  background: none;
-  border: none;
-  color: var(--color-primary);
-  cursor: pointer;
-  padding: 0;
-  font-size: inherit;
-}
-
-.class-detail-pane__class-link:hover {
-  text-decoration: underline;
-}
 
 .class-detail-pane__class-external {
   font-style: italic;

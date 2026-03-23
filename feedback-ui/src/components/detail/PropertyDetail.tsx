@@ -53,6 +53,11 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
       <div class="detail__section">
         <div class="detail__meta-row">
           <div class="detail__meta-item">
+            <strong>Type: </strong>
+            {{"object": "Object Property", "datatype": "Datatype Property", "rdf": "RDF Property"}[prop.property_type] ?? prop.property_type}
+          </div>
+
+          <div class="detail__meta-item">
             <strong>Domain: </strong>
             {domainClasses.length > 0 ? (
               domainClasses.map((dc, i) => (

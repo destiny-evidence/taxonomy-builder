@@ -1,3 +1,4 @@
+import { Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
 import { Input } from "../common/Input";
@@ -18,6 +19,7 @@ interface ViewEditProps {
   property: Property;
   onRefresh: () => void;
   onClose: () => void;
+  onClassSelect?: (classUri: string) => void;
 }
 
 interface CreateProps {
@@ -44,9 +46,17 @@ interface EditDraft {
   required: boolean;
 }
 
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  object: "Object Property",
+  datatype: "Datatype Property",
+  rdf: "RDF Property",
+};
+
 export function PropertyDetail(props: PropertyDetailProps) {
   const isCreateMode = props.mode === "create";
   const property = isCreateMode ? null : props.property;
+  const onClassSelect = isCreateMode ? undefined : props.onClassSelect;
 
   const [isEditing, setIsEditing] = useState(isCreateMode);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(
@@ -261,7 +271,12 @@ export function PropertyDetail(props: PropertyDetailProps) {
         <h3 class="workspace-detail__title">{title}</h3>
         {!isCreateMode && !isEditing && (
           <div class="workspace-detail__header-actions">
-            <Button variant="ghost" size="sm" onClick={handleEditClick}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleEditClick}
+              disabled={property!.domain_class_uris.length > 1}
+            >
               Edit
             </Button>
             <Button
@@ -481,9 +496,33 @@ export function PropertyDetail(props: PropertyDetailProps) {
             )}
 
             <div class="workspace-detail__field">
-              <label class="workspace-detail__label">Class</label>
+              <label class="workspace-detail__label">Type</label>
               <div class="workspace-detail__value">
-                {classes.find((c) => c.uri === property.domain_class_uris[0])?.label ?? extractLocalName(property.domain_class_uris[0] ?? "")}
+                {PROPERTY_TYPE_LABELS[property.property_type] ?? property.property_type}
+              </div>
+            </div>
+
+            <div class="workspace-detail__field">
+              <label class="workspace-detail__label">Domain {property.domain_class_uris.length > 1 ? "Classes" : "Class"}</label>
+              <div class="workspace-detail__value">
+                {property.domain_class_uris.map((uri, i) => {
+                  const cls = classes.find((c) => c.uri === uri);
+                  return (
+                    <Fragment key={uri}>
+                      {i > 0 && ", "}
+                      {cls && onClassSelect ? (
+                        <button
+                          class="workspace-detail__link"
+                          onClick={() => onClassSelect(uri)}
+                        >
+                          {cls.label}
+                        </button>
+                      ) : (
+                        <span>{cls?.label ?? extractLocalName(uri)}</span>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </div>
             </div>
 

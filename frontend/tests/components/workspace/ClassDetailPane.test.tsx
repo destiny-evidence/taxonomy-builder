@@ -367,7 +367,7 @@ describe("ClassDetailPane", () => {
 
       expect(screen.getByText("Hierarchy")).toBeInTheDocument();
       const link = screen.getByRole("button", { name: "Organization" });
-      expect(link).toHaveClass("class-detail-pane__class-link");
+      expect(link).toHaveClass("workspace-detail__link");
     });
 
     it("navigates to superclass when link clicked", () => {

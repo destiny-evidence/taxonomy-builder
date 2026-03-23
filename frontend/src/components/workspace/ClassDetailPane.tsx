@@ -9,6 +9,7 @@ import { properties, selectedPropertyId, creatingProperty } from "../../state/pr
 import { extractLocalName } from "../../utils/strings";
 import { historyVersion } from "../../state/history";
 import { datatypeLabel } from "../../types/models";
+import "../common/WorkspaceDetail.css";
 import "./ClassDetailPane.css";
 
 interface ClassDetailPaneProps {
@@ -73,7 +74,7 @@ export function ClassDetailPane({
                       {i > 0 && ", "}
                       {cls ? (
                         <button
-                          class="class-detail-pane__class-link"
+                          class="workspace-detail__link"
                           onClick={(e) => {
                             e.stopPropagation();
                             selectedClassUri.value = uri;
@@ -99,7 +100,7 @@ export function ClassDetailPane({
                       {i > 0 && ", "}
                       {cls ? (
                         <button
-                          class="class-detail-pane__class-link"
+                          class="workspace-detail__link"
                           onClick={(e) => {
                             e.stopPropagation();
                             selectedClassUri.value = uri;
