@@ -56,10 +56,9 @@ class PublishingService:
         db: AsyncSession,
         project_service: ProjectService,
         snapshot_service: SnapshotService,
-        *,
-        reader_file_service: ReaderFileService | None = None,
-        blob_store: BlobStore | None = None,
-        skos_export_service: SKOSExportService | None = None,
+        reader_file_service: ReaderFileService,
+        blob_store: BlobStore,
+        skos_export_service: SKOSExportService,
     ) -> None:
         self.db = db
         self._project_service = project_service
@@ -267,12 +266,6 @@ class PublishingService:
 
     async def publish_artifacts(self, version: PublishedVersion) -> None:
         """Write reader files and RDF artifacts to blob storage."""
-        if not self._reader_file_service or not self._blob_store or not self._skos_export_service:
-            raise RuntimeError(
-                "reader_file_service, blob_store, and skos_export_service"
-                " are required for artifact publishing"
-            )
-
         all_versions = await self.list_versions(version.project_id)
         is_first_publish = len(all_versions) == 1
         projects_with_latest = None
