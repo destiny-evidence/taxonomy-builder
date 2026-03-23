@@ -135,11 +135,51 @@ class TestValidProject:
         assert result.errors == []
 
 
-class TestNoSchemes:
-    def test_no_schemes(self) -> None:
+class TestEmptyProject:
+    def test_completely_empty_project(self) -> None:
+        """A project with no schemes, classes, or properties is invalid."""
         result = validate_snapshot(_vocab())
         assert result.valid is False
-        assert any(e.code == "no_schemes" for e in result.errors)
+        assert any(e.code == "empty_project" for e in result.errors)
+
+    def test_ontology_only_project_is_valid(self) -> None:
+        """A project with classes and properties but no schemes is valid."""
+        cls = _class("Finding", uri="http://example.org/Finding")
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class_uris=["http://example.org/Finding"],
+            property_type="object",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        )
+        result = validate_snapshot(_vocab(properties=[prop], classes=[cls]))
+        assert result.valid is True
+
+    def test_classes_only_project_is_valid(self) -> None:
+        """A project with only classes (no schemes or properties) is valid."""
+        cls = _class("Finding", uri="http://example.org/Finding")
+        result = validate_snapshot(_vocab(classes=[cls]))
+        assert result.valid is True
+
+    def test_properties_only_still_invalid(self) -> None:
+        """Properties without any classes or schemes is still invalid (no domain to resolve)."""
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Orphan Property",
+            domain_class_uris=[],
+            property_type="rdf",
+            cardinality="single",
+            required=False,
+        )
+        result = validate_snapshot(_vocab(properties=[prop]))
+        assert result.valid is False
+        assert any(e.code == "empty_project" for e in result.errors)
 
 
 class TestNoConceptsInScheme:
