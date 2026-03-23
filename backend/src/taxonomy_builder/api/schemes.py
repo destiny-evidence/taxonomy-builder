@@ -128,20 +128,17 @@ async def export_scheme(
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    # Get format configuration
-    rdflib_format, content_type, extension, _ = FORMAT_CONFIG[format]
+    fmt = FORMAT_CONFIG[format]
 
-    # Export the scheme
     try:
-        content = await export_service.export_scheme(scheme_id, rdflib_format)
+        content = await export_service.export_scheme(scheme_id, fmt.rdflib_format)
     except ExportSchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    # Generate filename from scheme title
-    filename = f"{slugify(scheme.title)}{extension}"
+    filename = f"{slugify(scheme.title)}{fmt.extension}"
 
     return Response(
         content=content,
-        media_type=f"{content_type}; charset=utf-8",
+        media_type=f"{fmt.content_type}; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

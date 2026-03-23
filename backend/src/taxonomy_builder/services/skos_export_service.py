@@ -1,6 +1,7 @@
 """SKOS Export service for generating RDF output."""
 
 from enum import StrEnum
+from typing import NamedTuple
 from uuid import UUID
 
 from rdflib import BNode, Graph, Literal, URIRef
@@ -29,11 +30,19 @@ class ExportFormat(StrEnum):
     JSONLD = "jsonld"
 
 
-# Format → (rdflib format string, MIME content type, file extension, artifact filename)
-FORMAT_CONFIG = {
-    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl", "vocabulary.ttl"),
-    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf", "vocabulary.rdf"),
-    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld", "vocabulary.jsonld"),
+class FormatConfig(NamedTuple):
+    rdflib_format: str
+    content_type: str
+    extension: str
+    filename: str
+
+
+FORMAT_CONFIG: dict[ExportFormat, FormatConfig] = {
+    ExportFormat.TTL: FormatConfig("turtle", "text/turtle", ".ttl", "vocabulary.ttl"),
+    ExportFormat.XML: FormatConfig("xml", "application/rdf+xml", ".rdf", "vocabulary.rdf"),
+    ExportFormat.JSONLD: FormatConfig(
+        "json-ld", "application/ld+json", ".jsonld", "vocabulary.jsonld"
+    ),
 }
 
 
@@ -155,12 +164,12 @@ class SKOSExportService:
         """
         g = self._build_graph_from_snapshot(version.snapshot)
         result: dict[str, tuple[bytes, str]] = {}
-        for rdflib_format, content_type, _, filename in FORMAT_CONFIG.values():
+        for fmt in FORMAT_CONFIG.values():
             # Once we have context jsonlds availabe, we can also create
             # compact jsonlds with compact kwarg
             # https://rdflib.readthedocs.io/en/7.1.1/_modules/rdflib/plugins/serializers/jsonld.html#JsonLDSerializer
-            data = g.serialize(format=rdflib_format).encode()
-            result[filename] = (data, content_type)
+            data = g.serialize(format=fmt.rdflib_format).encode()
+            result[fmt.filename] = (data, fmt.content_type)
         return result
 
     def _add_scheme_to_graph(self, g: Graph, scheme_snapshot: SnapshotScheme) -> None:

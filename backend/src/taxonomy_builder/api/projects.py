@@ -160,15 +160,15 @@ async def export_version(
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    rdflib_format, content_type, extension, _ = FORMAT_CONFIG[format]
-    content = await export_service.export_published_version(published_version, rdflib_format)
+    fmt = FORMAT_CONFIG[format]
+    content = await export_service.export_published_version(published_version, fmt.rdflib_format)
     filename = (
         f"{published_version.project.name}-{published_version.version}-{published_version.title}"
     )
-    filename = f"{slugify(filename)}{extension}"
+    filename = f"{slugify(filename)}{fmt.extension}"
 
     return Response(
         content=content,
-        media_type=f"{content_type}; charset=utf-8",
+        media_type=f"{fmt.content_type}; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

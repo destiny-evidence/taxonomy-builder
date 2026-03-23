@@ -109,6 +109,6 @@ async def get_artifact(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
     base = settings.published_base_url.rstrip("/")
-    _, _, _, filename = FORMAT_CONFIG[format]
-    url = f"{base}/{project_id}/{version}/{filename}"
+    fmt = FORMAT_CONFIG[format]
+    url = f"{base}/{project_id}/{version}/{fmt.filename}"
     return RedirectResponse(url=url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
