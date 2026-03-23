@@ -8,20 +8,12 @@ via the `/api/projects/{id}/import` endpoint or the UI import dialog.
 
 ### ontology-expressivity.ttl
 
-Exercises the full range of OWL/RDFS features supported by the import pipeline:
-
-- **Class hierarchy**: 3 levels deep (Entity → Study → RCT), two branches
-- **Diamond inheritance**: MeasuredOutcome is a subclass of both Outcome and Finding
-- **Multi-domain properties**: `owl:unionOf` domains spanning multiple classes
-- **Property types**: `owl:ObjectProperty`, `owl:DatatypeProperty`, `rdf:Property`
-- **OWL restrictions**: `allValuesFrom`, `someValuesFrom`, `hasValue`
-- **Equal-depth tie-breaking**: multi-domain property on two parents at the same
-  depth in a diamond — tests alphabetical grouping in the closure UI
-- **Concept schemes**: two schemes with hierarchical concepts, used as range targets
-- **Concept-typed classes**: `rdfs:subClassOf skos:Concept` for scheme-backed ranges
+Exercises the full range of OWL/RDFS features supported by the import pipeline
+(class hierarchy, diamond inheritance, multi-domain properties, property types,
+OWL restrictions, concept schemes, concept-typed classes). See the file header
+comment for the complete list of features and expected UI behaviour per class.
 
 Import into a fresh project with namespace `https://example.org/epic108/`.
-The file header documents expected UI behaviour per class after import.
 
 ## Adding fixtures
 
