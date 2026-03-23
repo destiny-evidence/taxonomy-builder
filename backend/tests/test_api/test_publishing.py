@@ -560,6 +560,18 @@ class TestArtifactRedirect:
         assert f"{publishable_project.id}/1.0/vocabulary.jsonld" in resp.headers["location"]
 
     @pytest.mark.asyncio
+    async def test_invalid_format_returns_422(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts?format=csv",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_nonexistent_version_returns_404(
         self,
         authenticated_client: AsyncClient,

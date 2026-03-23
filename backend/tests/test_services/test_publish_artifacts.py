@@ -1,4 +1,4 @@
-"""Tests for PublishedFileService and SKOSExportService.render_rdf_artifacts."""
+"""Tests for SKOSExportService.render_rdf_artifacts and PublishingService.publish_artifacts."""
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
