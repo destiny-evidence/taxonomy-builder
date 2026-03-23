@@ -267,9 +267,10 @@ class PublishingService:
 
     async def publish_artifacts(self, version: PublishedVersion) -> None:
         """Write reader files and RDF artifacts to blob storage."""
-        if self._reader_file_service is None or self._blob_store is None:
+        if not self._reader_file_service or not self._blob_store or not self._skos_export_service:
             raise RuntimeError(
-                "reader_file_service and blob_store are required for artifact publishing"
+                "reader_file_service, blob_store, and skos_export_service"
+                " are required for artifact publishing"
             )
 
         all_versions = await self.list_versions(version.project_id)
@@ -282,16 +283,15 @@ class PublishingService:
             version, all_versions, projects_with_latest
         )
 
-        if self._skos_export_service is not None:
-            artifacts = self._skos_export_service.render_rdf_artifacts(version)
-            project = version.project
-            for filename, (data, content_type) in artifacts.items():
-                path = f"{project.id}/{version.version}/{filename}"
-                await self._blob_store.put(path, data, content_type=content_type)
+        artifacts = self._skos_export_service.render_rdf_artifacts(version)
+        project = version.project
+        for filename, (data, content_type) in artifacts.items():
+            path = f"{project.id}/{version.version}/{filename}"
+            await self._blob_store.put(path, data, content_type=content_type)
 
-            logger.info(
-                "Published RDF artifacts for %s v%s (%d files)",
-                project.id,
-                version.version,
-                len(artifacts),
-            )
+        logger.info(
+            "Published RDF artifacts for %s v%s (%d files)",
+            project.id,
+            version.version,
+            len(artifacts),
+        )

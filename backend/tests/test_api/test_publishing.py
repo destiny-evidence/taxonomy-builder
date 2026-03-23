@@ -522,7 +522,7 @@ class TestArtifactRedirect:
             f"/api/projects/{publishable_project.id}/versions/1.0/artifacts",
             follow_redirects=False,
         )
-        assert resp.status_code == 307
+        assert resp.status_code == 301
         assert f"{publishable_project.id}/1.0/vocabulary.ttl" in resp.headers["location"]
 
     @pytest.mark.asyncio
@@ -539,7 +539,7 @@ class TestArtifactRedirect:
             f"/api/projects/{publishable_project.id}/versions/1.0/artifacts?format=xml",
             follow_redirects=False,
         )
-        assert resp.status_code == 307
+        assert resp.status_code == 301
         assert f"{publishable_project.id}/1.0/vocabulary.rdf" in resp.headers["location"]
 
     @pytest.mark.asyncio
@@ -556,7 +556,7 @@ class TestArtifactRedirect:
             f"/api/projects/{publishable_project.id}/versions/1.0/artifacts?format=jsonld",
             follow_redirects=False,
         )
-        assert resp.status_code == 307
+        assert resp.status_code == 301
         assert f"{publishable_project.id}/1.0/vocabulary.jsonld" in resp.headers["location"]
 
     @pytest.mark.asyncio

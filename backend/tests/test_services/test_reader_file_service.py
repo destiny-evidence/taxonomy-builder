@@ -500,6 +500,7 @@ class TestPublishReaderFiles:
         from taxonomy_builder.services.concept_service import ConceptService
         from taxonomy_builder.services.project_service import ProjectService
         from taxonomy_builder.services.publishing_service import PublishingService
+        from taxonomy_builder.services.skos_export_service import SKOSExportService
         from taxonomy_builder.services.snapshot_service import SnapshotService
 
         ps = ProjectService(db_session)
@@ -509,6 +510,7 @@ class TestPublishReaderFiles:
             db_session, ps, ss,
             reader_file_service=ReaderFileService(blob_store, cdn_purger),
             blob_store=blob_store,
+            skos_export_service=SKOSExportService(db_session),
         )
 
     async def _publish(self, service, project, version_str="1.0", pre_release=False):

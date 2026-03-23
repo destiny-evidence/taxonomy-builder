@@ -111,4 +111,4 @@ async def get_artifact(
     base = settings.published_base_url.rstrip("/")
     _, _, _, filename = FORMAT_CONFIG[format]
     url = f"{base}/{project_id}/{version}/{filename}"
-    return RedirectResponse(url=url)
+    return RedirectResponse(url=url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
