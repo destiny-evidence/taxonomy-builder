@@ -9,9 +9,10 @@ interface PropertyPaneProps {
   onDelete: () => void;
   onRefresh: () => void;
   onSchemeNavigate: (schemeId: string) => void;
+  onClassSelect?: (classUri: string) => void;
 }
 
-export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate }: PropertyPaneProps) {
+export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate, onClassSelect }: PropertyPaneProps) {
   const creating = creatingProperty.value;
   const property = selectedProperty.value;
 
@@ -59,6 +60,7 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate 
         property={property}
         onRefresh={onRefresh}
         onClose={handleClose}
+        onClassSelect={onClassSelect}
       />
 
       {/* Values section - shows what values this property can have */}

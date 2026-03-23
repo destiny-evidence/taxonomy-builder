@@ -46,6 +46,7 @@ describe("PropertyDetail", () => {
   const mockOnClose = vi.fn();
   const mockOnSuccess = vi.fn();
   const mockOnCancel = vi.fn();
+  const mockOnClassSelect = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -107,15 +108,30 @@ describe("PropertyDetail", () => {
       expect(screen.queryByText("Description")).not.toBeInTheDocument();
     });
 
-    it("displays class label (not 'Domain')", () => {
-      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+    it("displays domain class as clickable link", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} onClassSelect={mockOnClassSelect} />);
 
-      expect(screen.getByText("Class")).toBeInTheDocument();
-      expect(screen.getByText("Person")).toBeInTheDocument();
-      expect(screen.queryByText("Domain")).not.toBeInTheDocument();
+      expect(screen.getByText("Domain Class")).toBeInTheDocument();
+      const link = screen.getByRole("button", { name: "Person" });
+      expect(link).toHaveClass("workspace-detail__link");
+
+      fireEvent.click(link);
+      expect(mockOnClassSelect).toHaveBeenCalledWith("http://example.org/Person");
     });
 
-    it("falls back to local name from URI when class not in ontology", () => {
+    it("displays multiple domain classes as comma-separated links", () => {
+      const multiDomainProperty = {
+        ...mockProperty,
+        domain_class_uris: ["http://example.org/Person", "http://example.org/Organization"],
+      };
+      render(<PropertyDetail property={multiDomainProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} onClassSelect={mockOnClassSelect} />);
+
+      expect(screen.getByText("Domain Classes")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Person" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Organization" })).toBeInTheDocument();
+    });
+
+    it("renders unresolvable domain URIs as non-navigable text", () => {
       const unknownClassProperty = {
         ...mockProperty,
         domain_class_uris: ["http://example.org/UnknownThing"],
@@ -123,6 +139,7 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={unknownClassProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       expect(screen.getByText("UnknownThing")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "UnknownThing" })).not.toBeInTheDocument();
     });
 
     it("displays cardinality", () => {

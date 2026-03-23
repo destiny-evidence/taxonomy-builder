@@ -366,6 +366,7 @@ export function SchemeWorkspacePage({
             onDelete={handlePropertyDelete}
             onRefresh={handlePropertiesRefresh}
             onSchemeNavigate={handleSchemeNavigate}
+            onClassSelect={handleClassSelect}
           />
         ) : isSchemeMode.value && schemeId ? (
           <ConceptPane
