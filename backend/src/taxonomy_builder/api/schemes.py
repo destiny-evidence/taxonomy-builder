@@ -129,7 +129,7 @@ async def export_scheme(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
     # Get format configuration
-    rdflib_format, content_type, extension = FORMAT_CONFIG[format]
+    rdflib_format, content_type, extension, _ = FORMAT_CONFIG[format]
 
     # Export the scheme
     try:

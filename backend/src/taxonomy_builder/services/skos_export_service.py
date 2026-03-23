@@ -1,7 +1,5 @@
 """SKOS Export service for generating RDF output."""
 
-from __future__ import annotations
-
 from enum import StrEnum
 from uuid import UUID
 
@@ -14,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.snapshot import (
     SnapshotClass,
     SnapshotProperty,
@@ -30,18 +29,11 @@ class ExportFormat(StrEnum):
     JSONLD = "jsonld"
 
 
-# Format to RDFLib format string and content type mapping
+# Format → (rdflib format string, MIME content type, file extension, artifact filename)
 FORMAT_CONFIG = {
-    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl"),
-    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf"),
-    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld"),
-}
-
-# Artifact filename → (rdflib format, content type)
-RDF_ARTIFACT_CONFIG = {
-    "vocabulary.ttl": ("turtle", "text/turtle"),
-    "vocabulary.rdf": ("xml", "application/rdf+xml"),
-    "vocabulary.jsonld": ("json-ld", "application/ld+json"),
+    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl", "vocabulary.ttl"),
+    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf", "vocabulary.rdf"),
+    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld", "vocabulary.jsonld"),
 }
 
 
@@ -55,160 +47,6 @@ class SchemeNotFoundError(Exception):
 
 # Default base URI for schemes without a URI set
 DEFAULT_BASE_URI = "http://example.org/schemes"
-
-
-# ------------------------------------------------------------------
-# Pure graph-building functions (no DB, no I/O)
-# ------------------------------------------------------------------
-
-
-def build_graph_from_snapshot(snapshot: dict) -> Graph:
-    """Build an rdflib Graph from a PublishedVersion snapshot dict."""
-    vocabulary = SnapshotVocabulary.model_validate(snapshot)
-
-    g = Graph()
-    g.bind("skos", SKOS)
-    g.bind("dct", DCTERMS)
-    g.bind("owl", OWL)
-    g.bind("rdfs", RDFS)
-    g.bind("xsd", XSD)
-
-    for scheme_snapshot in vocabulary.concept_schemes:
-        _add_scheme_to_graph(g, scheme_snapshot)
-
-    for snapshot_property in vocabulary.properties:
-        _add_property_to_graph(g, snapshot_property)
-
-    for snapshot_class in vocabulary.classes:
-        _add_class_to_graph(g, snapshot_class)
-
-    return g
-
-
-def _add_scheme_to_graph(g: Graph, scheme_snapshot: SnapshotScheme) -> None:
-    """Add a single concept scheme and its concepts to an RDF graph."""
-    scheme_uri = URIRef(scheme_snapshot.uri)
-
-    g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
-    g.add((scheme_uri, DCTERMS.title, Literal(scheme_snapshot.title)))
-
-    if scheme_snapshot.description:
-        g.add((scheme_uri, DCTERMS.description, Literal(scheme_snapshot.description)))
-
-    concept_uris: dict[UUID, URIRef] = {}
-    for concept in scheme_snapshot.concepts:
-        concept_uris[concept.id] = URIRef(concept.uri)
-
-    has_broader: set[UUID] = {c.id for c in scheme_snapshot.concepts if c.broader_ids}
-
-    for concept in scheme_snapshot.concepts:
-        concept_uri = concept_uris[concept.id]
-
-        g.add((concept_uri, RDF.type, SKOS.Concept))
-        for type_uri in concept.concept_type_uris:
-            g.add((concept_uri, RDF.type, URIRef(type_uri)))
-        g.add((concept_uri, SKOS.prefLabel, Literal(concept.pref_label)))
-        g.add((concept_uri, SKOS.inScheme, scheme_uri))
-
-        if concept.definition:
-            g.add((concept_uri, SKOS.definition, Literal(concept.definition)))
-        if concept.scope_note:
-            g.add((concept_uri, SKOS.scopeNote, Literal(concept.scope_note)))
-
-        for alt_label in concept.alt_labels:
-            g.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
-
-        for broader_id in concept.broader_ids:
-            if broader_id in concept_uris:
-                broader_uri = concept_uris[broader_id]
-                g.add((concept_uri, SKOS.broader, broader_uri))
-                g.add((broader_uri, SKOS.narrower, concept_uri))
-
-        for related_id in concept.related_ids:
-            if related_id in concept_uris:
-                related_uri = concept_uris[related_id]
-                g.add((concept_uri, SKOS.related, related_uri))
-
-        if concept.id not in has_broader:
-            g.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
-
-
-def _add_property_to_graph(g: Graph, snapshot_property: SnapshotProperty) -> None:
-    """Add an OWL property to an RDF graph."""
-    prop_uri = URIRef(snapshot_property.uri)
-
-    type_map = {
-        "object": OWL.ObjectProperty,
-        "datatype": OWL.DatatypeProperty,
-        "rdf": RDF.Property,
-    }
-    rdf_type = type_map.get(snapshot_property.property_type)
-    if rdf_type is None:
-        raise ValueError(
-            f"Unknown property_type '{snapshot_property.property_type}'"
-            f" for {prop_uri}"
-        )
-    g.add((prop_uri, RDF.type, rdf_type))
-
-    if snapshot_property.range_scheme_uri:
-        g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_scheme_uri)))
-    elif snapshot_property.range_class:
-        g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_class)))
-    elif snapshot_property.range_datatype:
-        g.add((prop_uri, RDFS.range, XSD[snapshot_property.range_datatype.split(":")[-1]]))
-
-    g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
-
-    uris = snapshot_property.domain_class_uris
-    if len(uris) == 1:
-        g.add((prop_uri, RDFS.domain, URIRef(uris[0])))
-    elif len(uris) > 1:
-        bnode = BNode()
-        g.add((bnode, RDF.type, OWL.Class))
-        g.add((prop_uri, RDFS.domain, bnode))
-        union_bnode = BNode()
-        Collection(g, union_bnode, [URIRef(u) for u in sorted(uris)])
-        g.add((bnode, OWL.unionOf, union_bnode))
-
-    if snapshot_property.description:
-        g.add((prop_uri, DCTERMS.description, Literal(snapshot_property.description)))
-
-
-def _add_class_to_graph(g: Graph, snapshot_class: SnapshotClass) -> None:
-    """Add an OWL class to an RDF graph."""
-    class_uri = URIRef(snapshot_class.uri)
-
-    g.add((class_uri, RDF.type, OWL.Class))
-    g.add((class_uri, RDFS.label, Literal(snapshot_class.label)))
-
-    if snapshot_class.description:
-        g.add((class_uri, DCTERMS.description, Literal(snapshot_class.description)))
-    if snapshot_class.scope_note:
-        g.add((class_uri, SKOS.scopeNote, Literal(snapshot_class.scope_note)))
-    for superclass_uri in snapshot_class.superclass_uris:
-        g.add((class_uri, RDFS.subClassOf, URIRef(superclass_uri)))
-    restriction_predicate_map = {
-        "allValuesFrom": OWL.allValuesFrom,
-        "someValuesFrom": OWL.someValuesFrom,
-        "hasValue": OWL.hasValue,
-    }
-    for restriction in snapshot_class.restrictions:
-        owl_pred = restriction_predicate_map.get(restriction.restriction_type)
-        if owl_pred is None:
-            raise ValueError(
-                f"Unknown restriction_type '{restriction.restriction_type}'"
-                f" for {class_uri}"
-            )
-        bnode = BNode()
-        g.add((class_uri, RDFS.subClassOf, bnode))
-        g.add((bnode, RDF.type, OWL.Restriction))
-        g.add((bnode, OWL.onProperty, URIRef(restriction.on_property_uri)))
-        g.add((bnode, owl_pred, URIRef(restriction.value_uri)))
-
-
-# ------------------------------------------------------------------
-# Service class (DB-dependent methods + render_rdf_artifacts)
-# ------------------------------------------------------------------
 
 
 class SKOSExportService:
@@ -241,37 +79,209 @@ class SKOSExportService:
             return URIRef(scheme.uri)
         return URIRef(f"{DEFAULT_BASE_URI}/{scheme.id}")
 
+    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
+        """Build an rdflib Graph from a snapshot dict."""
+        vocabulary = SnapshotVocabulary.model_validate(snapshot)
+
+        g = Graph()
+        g.bind("skos", SKOS)
+        g.bind("dct", DCTERMS)
+        g.bind("owl", OWL)
+        g.bind("rdfs", RDFS)
+        g.bind("xsd", XSD)
+
+        for scheme_snapshot in vocabulary.concept_schemes:
+            self._add_scheme_to_graph(g, scheme_snapshot)
+
+        for snapshot_property in vocabulary.properties:
+            self._add_property_to_graph(g, snapshot_property)
+
+        for snapshot_class in vocabulary.classes:
+            self._add_class_to_graph(g, snapshot_class)
+
+        return g
+
     async def export_scheme(self, scheme_id: UUID, format: str) -> str:
-        """Export a concept scheme as SKOS RDF."""
+        """Export a concept scheme as SKOS RDF.
+
+        Args:
+            scheme_id: The ID of the scheme to export
+            format: The RDF format - 'ttl' (Turtle), 'xml' (RDF/XML), or 'json-ld'
+
+        Returns:
+            The serialized RDF as a string
+
+        Raises:
+            SchemeNotFoundError: If the scheme doesn't exist
+        """
         scheme = await self._get_scheme(scheme_id)
 
         graph = Graph()
+
+        # Bind namespaces for cleaner output
         graph.bind("skos", SKOS)
         graph.bind("dct", DCTERMS)
         graph.bind("owl", OWL)
         graph.bind("rdfs", RDFS)
 
         snapshot_scheme = SnapshotScheme.from_scheme(scheme)
+
+        # Ensure scheme uri
         snapshot_scheme.uri = self._get_scheme_uri(scheme)
-        _add_scheme_to_graph(graph, snapshot_scheme)
+
+        self._add_scheme_to_graph(graph, snapshot_scheme)
 
         return graph.serialize(format=format)
 
     async def export_published_version(
-        self, published_version: object, format: str
+        self, published_version: PublishedVersion, format: str
     ) -> str:
-        """Export a published version's snapshot as SKOS RDF."""
-        g = build_graph_from_snapshot(published_version.snapshot)
+        """Export a published version's snapshot as SKOS RDF.
+
+        Args:
+            published_version: The PublishedVersion model containing the snapshot
+            format: The RDF format - 'turtle', 'xml', or 'json-ld'
+
+        Returns:
+            The serialized RDF as a string
+        """
+        g = self._build_graph_from_snapshot(published_version.snapshot)
         return g.serialize(format=format)
 
-    def render_rdf_artifacts(self, version: object) -> dict[str, tuple[bytes, str]]:
+    def render_rdf_artifacts(self, version: PublishedVersion) -> dict[str, tuple[bytes, str]]:
         """Build graph once from snapshot, serialize to all RDF formats.
 
         Returns a dict of {filename: (data_bytes, content_type)}.
         """
-        g = build_graph_from_snapshot(version.snapshot)
+        g = self._build_graph_from_snapshot(version.snapshot)
         result: dict[str, tuple[bytes, str]] = {}
-        for filename, (rdflib_format, content_type) in RDF_ARTIFACT_CONFIG.items():
+        for rdflib_format, content_type, _, filename in FORMAT_CONFIG.values():
+            # Once we have context jsonlds availabe, we can also create
+            # compact jsonlds with compact kwarg
+            # https://rdflib.readthedocs.io/en/7.1.1/_modules/rdflib/plugins/serializers/jsonld.html#JsonLDSerializer
             data = g.serialize(format=rdflib_format).encode()
             result[filename] = (data, content_type)
         return result
+
+    def _add_scheme_to_graph(self, g: Graph, scheme_snapshot: SnapshotScheme) -> None:
+        """Add a single concept scheme and its concepts to an RDF graph."""
+        scheme_uri = URIRef(scheme_snapshot.uri)
+
+        # Add ConceptScheme
+        g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
+        g.add((scheme_uri, DCTERMS.title, Literal(scheme_snapshot.title)))
+
+        if scheme_snapshot.description:
+            g.add((scheme_uri, DCTERMS.description, Literal(scheme_snapshot.description)))
+
+        # Build concept URI lookup keyed by ID
+        concept_uris: dict[UUID, URIRef] = {}
+        for concept in scheme_snapshot.concepts:
+            concept_uris[concept.id] = URIRef(concept.uri)
+
+        # Determine which concepts have broader (i.e. are not top concepts)
+        has_broader: set[UUID] = {c.id for c in scheme_snapshot.concepts if c.broader_ids}
+
+        # Add Concepts
+        for concept in scheme_snapshot.concepts:
+            concept_uri = concept_uris[concept.id]
+
+            g.add((concept_uri, RDF.type, SKOS.Concept))
+            for type_uri in concept.concept_type_uris:
+                g.add((concept_uri, RDF.type, URIRef(type_uri)))
+            g.add((concept_uri, SKOS.prefLabel, Literal(concept.pref_label)))
+            g.add((concept_uri, SKOS.inScheme, scheme_uri))
+
+            if concept.definition:
+                g.add((concept_uri, SKOS.definition, Literal(concept.definition)))
+            if concept.scope_note:
+                g.add((concept_uri, SKOS.scopeNote, Literal(concept.scope_note)))
+
+            for alt_label in concept.alt_labels:
+                g.add((concept_uri, SKOS.altLabel, Literal(alt_label)))
+
+            for broader_id in concept.broader_ids:
+                if broader_id in concept_uris:
+                    broader_uri = concept_uris[broader_id]
+                    g.add((concept_uri, SKOS.broader, broader_uri))
+                    g.add((broader_uri, SKOS.narrower, concept_uri))
+
+            for related_id in concept.related_ids:
+                if related_id in concept_uris:
+                    related_uri = concept_uris[related_id]
+                    g.add((concept_uri, SKOS.related, related_uri))
+
+            if concept.id not in has_broader:
+                g.add((scheme_uri, SKOS.hasTopConcept, concept_uri))
+
+    def _add_property_to_graph(self, g: Graph, snapshot_property: SnapshotProperty) -> None:
+        """Add an OWL property to an RDF graph."""
+        prop_uri = URIRef(snapshot_property.uri)
+
+        # Emit rdf:type from property_type column
+        type_map = {
+            "object": OWL.ObjectProperty,
+            "datatype": OWL.DatatypeProperty,
+            "rdf": RDF.Property,
+        }
+        rdf_type = type_map.get(snapshot_property.property_type)
+        if rdf_type is None:
+            raise ValueError(
+                f"Unknown property_type '{snapshot_property.property_type}' for {prop_uri}"
+            )
+        g.add((prop_uri, RDF.type, rdf_type))
+
+        # Emit range (independent of property_type)
+        if snapshot_property.range_scheme_uri:
+            g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_scheme_uri)))
+        elif snapshot_property.range_class:
+            g.add((prop_uri, RDFS.range, URIRef(snapshot_property.range_class)))
+        elif snapshot_property.range_datatype:
+            g.add((prop_uri, RDFS.range, XSD[snapshot_property.range_datatype.split(":")[-1]]))
+
+        g.add((prop_uri, RDFS.label, Literal(snapshot_property.label)))
+
+        # Emit domain: plain triple for single, owl:unionOf for multi
+        uris = snapshot_property.domain_class_uris
+        if len(uris) == 1:
+            g.add((prop_uri, RDFS.domain, URIRef(uris[0])))
+        elif len(uris) > 1:
+            bnode = BNode()
+            g.add((bnode, RDF.type, OWL.Class))
+            g.add((prop_uri, RDFS.domain, bnode))
+            union_bnode = BNode()
+            Collection(g, union_bnode, [URIRef(u) for u in sorted(uris)])
+            g.add((bnode, OWL.unionOf, union_bnode))
+
+        if snapshot_property.description:
+            g.add((prop_uri, DCTERMS.description, Literal(snapshot_property.description)))
+
+    def _add_class_to_graph(self, g: Graph, snapshot_class: SnapshotClass) -> None:
+        """Add an OWL class to an RDF graph."""
+        class_uri = URIRef(snapshot_class.uri)
+
+        g.add((class_uri, RDF.type, OWL.Class))
+        g.add((class_uri, RDFS.label, Literal(snapshot_class.label)))
+
+        if snapshot_class.description:
+            g.add((class_uri, DCTERMS.description, Literal(snapshot_class.description)))
+        if snapshot_class.scope_note:
+            g.add((class_uri, SKOS.scopeNote, Literal(snapshot_class.scope_note)))
+        for superclass_uri in snapshot_class.superclass_uris:
+            g.add((class_uri, RDFS.subClassOf, URIRef(superclass_uri)))
+        restriction_predicate_map = {
+            "allValuesFrom": OWL.allValuesFrom,
+            "someValuesFrom": OWL.someValuesFrom,
+            "hasValue": OWL.hasValue,
+        }
+        for restriction in snapshot_class.restrictions:
+            owl_pred = restriction_predicate_map.get(restriction.restriction_type)
+            if owl_pred is None:
+                raise ValueError(
+                    f"Unknown restriction_type '{restriction.restriction_type}' for {class_uri}"
+                )
+            bnode = BNode()
+            g.add((class_uri, RDFS.subClassOf, bnode))
+            g.add((bnode, RDF.type, OWL.Restriction))
+            g.add((bnode, OWL.onProperty, URIRef(restriction.on_property_uri)))
+            g.add((bnode, owl_pred, URIRef(restriction.value_uri)))

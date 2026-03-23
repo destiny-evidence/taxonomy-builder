@@ -48,7 +48,6 @@ async def list_projects(
     return await service.list_projects()
 
 
-
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_in: ProjectCreate,
@@ -161,7 +160,7 @@ async def export_version(
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    rdflib_format, content_type, extension = FORMAT_CONFIG[format]
+    rdflib_format, content_type, extension, _ = FORMAT_CONFIG[format]
     content = await export_service.export_published_version(published_version, rdflib_format)
     filename = (
         f"{published_version.project.name}-{published_version.version}-{published_version.title}"

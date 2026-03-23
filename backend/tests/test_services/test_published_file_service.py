@@ -164,11 +164,11 @@ class TestRenderRdfArtifacts:
 
 
 # ===================================================================
-# PublishedFileService.publish integration tests
+# PublishingService.publish_artifacts integration tests
 # ===================================================================
 
 
-class TestPublishedFileServicePublish:
+class TestPublishArtifacts:
     @pytest.fixture
     async def publishable(self, db_session):
         from taxonomy_builder.models.concept import Concept
@@ -193,48 +193,44 @@ class TestPublishedFileServicePublish:
         await db_session.flush()
         await db_session.refresh(scheme)
 
-        db_session.add(
-            Concept(scheme_id=scheme.id, pref_label="Alpha", identifier="alpha")
-        )
+        db_session.add(Concept(scheme_id=scheme.id, pref_label="Alpha", identifier="alpha"))
         await db_session.flush()
 
         db_session.expunge(project)
         return project
 
-    def _make_services(self, db_session):
+    def _make_service(self, db_session, blob_store, purger):
         from taxonomy_builder.services.concept_service import ConceptService
         from taxonomy_builder.services.project_service import ProjectService
         from taxonomy_builder.services.publishing_service import PublishingService
+        from taxonomy_builder.services.reader_file_service import ReaderFileService
         from taxonomy_builder.services.snapshot_service import SnapshotService
 
         ps = ProjectService(db_session)
         cs = ConceptService(db_session)
         ss = SnapshotService(db_session, ps, cs)
-        return PublishingService(db_session, ps, ss)
+        return PublishingService(
+            db_session,
+            ps,
+            ss,
+            reader_file_service=ReaderFileService(blob_store, purger),
+            blob_store=blob_store,
+            skos_export_service=SKOSExportService(db_session),
+        )
 
-    async def _publish(self, db_session, project, version_str="1.0"):
+    async def _publish(self, service, project, version_str="1.0"):
         from taxonomy_builder.schemas.publishing import PublishRequest
 
-        pub = self._make_services(db_session)
-        request = PublishRequest(
-            version=version_str, title=f"V{version_str}", pre_release=False
-        )
-        return await pub.publish(project.id, request, publisher="Tester")
+        request = PublishRequest(version=version_str, title=f"V{version_str}", pre_release=False)
+        return await service.publish(project.id, request, publisher="Tester")
 
     @pytest.mark.asyncio
     async def test_writes_rdf_artifacts(self, db_session, publishable, tmp_path):
-        from taxonomy_builder.services.published_file_service import PublishedFileService
-        from taxonomy_builder.services.reader_file_service import ReaderFileService
-
         blob_store = FilesystemBlobStore(root=tmp_path)
         purger = NoOpPurger()
-        version = await self._publish(db_session, publishable)
-
-        pub_service = self._make_services(db_session)
-        reader_service = ReaderFileService(pub_service, blob_store, purger)
-        export_service = SKOSExportService(db_session)
-        service = PublishedFileService(reader_service, export_service, blob_store, purger)
-        await service.publish(version)
+        service = self._make_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         pid = str(publishable.id)
         assert (tmp_path / pid / "1.0" / "vocabulary.ttl").exists()
@@ -245,18 +241,11 @@ class TestPublishedFileServicePublish:
 
     @pytest.mark.asyncio
     async def test_rdf_artifacts_parseable(self, db_session, publishable, tmp_path):
-        from taxonomy_builder.services.published_file_service import PublishedFileService
-        from taxonomy_builder.services.reader_file_service import ReaderFileService
-
         blob_store = FilesystemBlobStore(root=tmp_path)
         purger = NoOpPurger()
-        version = await self._publish(db_session, publishable)
-
-        pub_service = self._make_services(db_session)
-        reader_service = ReaderFileService(pub_service, blob_store, purger)
-        export_service = SKOSExportService(db_session)
-        service = PublishedFileService(reader_service, export_service, blob_store, purger)
-        await service.publish(version)
+        service = self._make_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         pid = str(publishable.id)
         for filename, fmt in [
