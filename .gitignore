@@ -41,6 +41,9 @@ htmlcov/
 *~
 .DS_Store
 
+# Claude Code local settings (per-developer)
+.claude/settings.local.json
+
 # uv
 .uv/
 

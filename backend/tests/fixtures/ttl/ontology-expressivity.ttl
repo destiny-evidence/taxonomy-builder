@@ -1,0 +1,314 @@
+## Ontology Expressivity Test Vocabulary
+##
+## A self-contained ontology exercising the full range of OWL/RDFS features
+## supported by the taxonomy builder's import, snapshot, and export pipeline:
+##
+##   - Class hierarchies (3 levels deep)
+##   - Diamond inheritance (MeasuredOutcome ← Outcome + Finding)
+##   - Multi-domain properties (owl:unionOf)
+##   - Property types (owl:ObjectProperty, owl:DatatypeProperty, rdf:Property)
+##   - OWL restrictions (allValuesFrom, someValuesFrom, hasValue)
+##   - Applicability closure (inherited properties at multiple depths)
+##   - Equal-depth ancestor tie-breaking in diamond hierarchies
+##   - Concept schemes with concepts (range targets)
+##   - Concept-typed classes (rdfs:subClassOf skos:Concept)
+##
+## Expected UI behaviour when imported into a project:
+##
+##   RCT (3-level chain: Entity → Study → RCT):
+##     Direct:             blinding (String)
+##     Inherited from Study:   year (Integer), study_design (Study Design Types)
+##     Inherited from Entity:  identifier, label (String), description (String)
+##     Restrictions:       someValuesFrom StudyDesignConcept on study_design
+##
+##   Observational Study (pure inheritance, no direct props):
+##     Inherited from Study:   year, study_design, design_classification
+##     Inherited from Entity:  identifier, label, description
+##     Restrictions:       hasValue designCohort on design_classification
+##
+##   Quantitative Finding:
+##     Direct:             sample_size (Integer)
+##     Inherited from Finding:  effect_size (Decimal), for_outcome (→ Outcome)
+##     Inherited from Entity:  identifier, label, description
+##     Restrictions:       allValuesFrom xsd:decimal on effect_size
+##
+##   Outcome (root with direct + multi-domain inherited):
+##     Direct:             outcome_name (String)
+##     (also receives "notes" via multi-domain: domain union(Outcome, Study))
+##
+##   Measured Outcome (diamond: subclass of both Outcome and Finding):
+##     Direct:             measurement_tool (String)
+##     Inherited from Finding:  effect_size, for_outcome, shared_note
+##     Inherited from Outcome:  outcome_name
+##     Inherited from Entity:   identifier, label, description
+##     (notes: appears under nearest ancestor — Outcome at depth 1)
+##     (shared_note: union lists Outcome first, but should group under Finding — proves sort)
+
+@prefix test: <https://example.org/epic108/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+
+# ──────────────────────────────────────────────
+# Classes — hierarchy
+# ──────────────────────────────────────────────
+
+test:Entity a owl:Class ;
+    rdfs:label "Entity"@en ;
+    rdfs:comment "Root class for all domain objects."@en .
+
+# ── Study branch (Entity → Study → RCT / ObservationalStudy)
+
+test:Study a owl:Class ;
+    rdfs:subClassOf test:Entity ;
+    rdfs:label "Study"@en ;
+    rdfs:comment "A research investigation producing findings."@en .
+
+test:RCT a owl:Class ;
+    rdfs:subClassOf test:Study ;
+    rdfs:label "Randomised Controlled Trial"@en ;
+    rdfs:comment "A study with random assignment to conditions."@en ;
+    skos:scopeNote "Gold standard for causal inference."@en .
+
+test:ObservationalStudy a owl:Class ;
+    rdfs:subClassOf test:Study ;
+    rdfs:label "Observational Study"@en ;
+    rdfs:comment "A study without random assignment."@en .
+
+# ── Finding branch (Entity → Finding → QuantitativeFinding)
+
+test:Finding a owl:Class ;
+    rdfs:subClassOf test:Entity ;
+    rdfs:label "Finding"@en ;
+    rdfs:comment "A result or conclusion from a study."@en .
+
+test:QuantitativeFinding a owl:Class ;
+    rdfs:subClassOf test:Finding ;
+    rdfs:label "Quantitative Finding"@en ;
+    rdfs:comment "A finding with numeric effect size data."@en ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty test:effect_size ;
+        owl:allValuesFrom xsd:decimal
+    ] .
+
+# ── Outcome (standalone root)
+
+test:Outcome a owl:Class ;
+    rdfs:label "Outcome"@en ;
+    rdfs:comment "What was measured in a study."@en .
+
+# ── Diamond inheritance (subclass of both Outcome AND Finding)
+
+test:MeasuredOutcome a owl:Class ;
+    rdfs:subClassOf test:Outcome ;
+    rdfs:subClassOf test:Finding ;
+    rdfs:label "Measured Outcome"@en ;
+    rdfs:comment "An outcome with associated quantitative findings."@en .
+
+# ── Concept-typed class (for concept scheme range testing)
+
+test:StudyDesignConcept a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Study Design Concept"@en ;
+    rdfs:comment "A concept representing a study design type."@en .
+
+
+# ──────────────────────────────────────────────
+# Properties — varied types
+# ──────────────────────────────────────────────
+
+# rdf:Property (polymorphic)
+test:identifier a rdf:Property ;
+    rdfs:label "identifier"@en ;
+    rdfs:domain test:Entity ;
+    rdfs:comment "A unique identifier. Type varies by context."@en .
+
+# Datatype properties
+test:label a owl:DatatypeProperty ;
+    rdfs:label "label"@en ;
+    rdfs:domain test:Entity ;
+    rdfs:range xsd:string .
+
+test:description a owl:DatatypeProperty ;
+    rdfs:label "description"@en ;
+    rdfs:domain test:Entity ;
+    rdfs:range xsd:string .
+
+test:year a owl:DatatypeProperty ;
+    rdfs:label "year"@en ;
+    rdfs:domain test:Study ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Publication year of the study."@en .
+
+test:blinding a owl:DatatypeProperty ;
+    rdfs:label "blinding"@en ;
+    rdfs:domain test:RCT ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Blinding level (single, double, triple, open-label)."@en .
+
+test:effect_size a owl:DatatypeProperty ;
+    rdfs:label "effect size"@en ;
+    rdfs:domain test:Finding ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Standardised effect size estimate."@en .
+
+test:sample_size a owl:DatatypeProperty ;
+    rdfs:label "sample size"@en ;
+    rdfs:domain test:QuantitativeFinding ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Total sample size across arms."@en .
+
+test:outcome_name a owl:DatatypeProperty ;
+    rdfs:label "outcome name"@en ;
+    rdfs:domain test:Outcome ;
+    rdfs:range xsd:string .
+
+test:measurement_tool a owl:DatatypeProperty ;
+    rdfs:label "measurement tool"@en ;
+    rdfs:domain test:MeasuredOutcome ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Instrument used to measure the outcome."@en .
+
+test:design_classification a owl:ObjectProperty ;
+    rdfs:label "design classification"@en ;
+    rdfs:domain test:Study ;
+    rdfs:range test:StudyDesignConcept ;
+    rdfs:comment "The methodological classification of this study."@en .
+
+# Object property — range is a class
+test:for_outcome a owl:ObjectProperty ;
+    rdfs:label "for outcome"@en ;
+    rdfs:domain test:Finding ;
+    rdfs:range test:Outcome ;
+    rdfs:comment "The outcome this finding measures."@en .
+
+# Object property — range is a concept scheme
+test:study_design a owl:ObjectProperty ;
+    rdfs:label "study design"@en ;
+    rdfs:domain test:Study ;
+    rdfs:range test:StudyDesignScheme ;
+    rdfs:comment "The design methodology of the study."@en .
+
+# Multi-domain property via owl:unionOf
+test:notes a owl:DatatypeProperty ;
+    rdfs:label "notes"@en ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( test:Outcome test:Study )
+    ] ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Free-text notes. Applies to both Outcome and Study."@en .
+
+# Multi-domain at equal depth from MeasuredOutcome — tests alphabetical tie-breaking.
+# Finding and Outcome are both direct parents of MeasuredOutcome. The union
+# deliberately lists Outcome first (non-alphabetical source order), so if the
+# closure UI groups this under Finding, it proves alphabetical sorting is working.
+test:shared_note a owl:DatatypeProperty ;
+    rdfs:label "shared note"@en ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( test:Outcome test:Finding )
+    ] ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Tests equal-depth ancestor tie-breaking in diamond hierarchies."@en .
+
+# Multi-value property (exercises cardinality display)
+test:keywords a owl:DatatypeProperty ;
+    rdfs:label "keywords"@en ;
+    rdfs:domain test:Study ;
+    rdfs:range xsd:string ;
+    test:allowMultiple true ;
+    rdfs:comment "Keyword tags for the study."@en .
+
+
+# ──────────────────────────────────────────────
+# Restrictions
+# ──────────────────────────────────────────────
+
+# allValuesFrom on QuantitativeFinding (defined inline above via rdfs:subClassOf)
+
+# someValuesFrom on RCT — study_design must include at least one StudyDesignConcept
+test:RCT rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty test:study_design ;
+    owl:someValuesFrom test:StudyDesignConcept
+] .
+
+# hasValue on ObservationalStudy — design_classification must be designCohort
+test:ObservationalStudy rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty test:design_classification ;
+    owl:hasValue test:designCohort
+] .
+
+
+# ──────────────────────────────────────────────
+# Concept Scheme — Study Design Types
+# ──────────────────────────────────────────────
+
+test:StudyDesignScheme a skos:ConceptScheme ;
+    rdfs:label "Study Design Types"@en ;
+    rdfs:comment "Controlled vocabulary of research design methodologies."@en ;
+    skos:hasTopConcept test:designRCT , test:designCCT , test:designCohort .
+
+test:designRCT a test:StudyDesignConcept , skos:Concept ;
+    skos:inScheme test:StudyDesignScheme ;
+    skos:topConceptOf test:StudyDesignScheme ;
+    skos:prefLabel "Randomised Controlled Trial"@en ;
+    skos:definition "Random assignment of participants to intervention and control groups."@en ;
+    skos:altLabel "RCT"@en .
+
+test:designCCT a test:StudyDesignConcept , skos:Concept ;
+    skos:inScheme test:StudyDesignScheme ;
+    skos:topConceptOf test:StudyDesignScheme ;
+    skos:prefLabel "Controlled Clinical Trial"@en ;
+    skos:definition "Non-random assignment to intervention and control groups."@en ;
+    skos:altLabel "CCT"@en .
+
+test:designCohort a test:StudyDesignConcept , skos:Concept ;
+    skos:inScheme test:StudyDesignScheme ;
+    skos:topConceptOf test:StudyDesignScheme ;
+    skos:prefLabel "Cohort Study"@en ;
+    skos:definition "Longitudinal observation of exposed vs unexposed groups."@en .
+
+test:designQuasiExp a test:StudyDesignConcept , skos:Concept ;
+    skos:inScheme test:StudyDesignScheme ;
+    skos:prefLabel "Quasi-Experimental"@en ;
+    skos:definition "Non-random assignment with pre/post measurement."@en ;
+    skos:broader test:designCCT .
+
+
+# ──────────────────────────────────────────────
+# Second Concept Scheme — Outcome Domains
+# ──────────────────────────────────────────────
+
+test:OutcomeDomainScheme a skos:ConceptScheme ;
+    rdfs:label "Outcome Domains"@en ;
+    rdfs:comment "Broad categories of measured outcomes."@en ;
+    skos:hasTopConcept test:domainAcademic , test:domainBehavioural .
+
+test:domainAcademic a skos:Concept ;
+    skos:inScheme test:OutcomeDomainScheme ;
+    skos:topConceptOf test:OutcomeDomainScheme ;
+    skos:prefLabel "Academic Achievement"@en ;
+    skos:definition "Learning outcomes measured by tests or grades."@en .
+
+test:domainBehavioural a skos:Concept ;
+    skos:inScheme test:OutcomeDomainScheme ;
+    skos:topConceptOf test:OutcomeDomainScheme ;
+    skos:prefLabel "Behavioural"@en ;
+    skos:definition "Behavioural outcomes such as attendance or conduct."@en .
+
+test:domainReading a skos:Concept ;
+    skos:inScheme test:OutcomeDomainScheme ;
+    skos:prefLabel "Reading"@en ;
+    skos:definition "Reading comprehension and literacy outcomes."@en ;
+    skos:broader test:domainAcademic .
+
+test:domainMaths a skos:Concept ;
+    skos:inScheme test:OutcomeDomainScheme ;
+    skos:prefLabel "Mathematics"@en ;
+    skos:definition "Numeracy and mathematical reasoning outcomes."@en ;
+    skos:broader test:domainAcademic .
