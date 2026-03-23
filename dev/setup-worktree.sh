@@ -71,8 +71,10 @@ echo "  Frontend port: $FRONTEND_PORT"
 echo "  Feedback UI port: $FEEDBACK_PORT"
 echo "  Keycloak: $KEYCLOAK_URL"
 if [ -n "$DEV_DOMAIN" ]; then
+    PUBLISHED_BASE_URL="https://${SAFE_NAME}.${DEV_DOMAIN}/published"
     echo "  URL: https://${SAFE_NAME}.${DEV_DOMAIN}"
 else
+    PUBLISHED_BASE_URL="http://localhost:${FRONTEND_PORT}/published"
     echo "  URL: http://localhost:${FRONTEND_PORT}"
 fi
 echo ""
@@ -143,7 +145,8 @@ cat > "$VSCODE_DIR/tasks.json" << EOF
         "env": {
           "TAXONOMY_DATABASE_URL": "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/${DB_NAME}",
           "TAXONOMY_KEYCLOAK_URL": "${KEYCLOAK_URL}",
-          "TAXONOMY_BLOB_FILESYSTEM_ROOT": "${REPO_ROOT}/.blob-storage"
+          "TAXONOMY_BLOB_FILESYSTEM_ROOT": "${REPO_ROOT}/.blob-storage",
+          "TAXONOMY_PUBLISHED_BASE_URL": "${PUBLISHED_BASE_URL}"
         }
       },
       "isBackground": true,
