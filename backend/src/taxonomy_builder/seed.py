@@ -68,7 +68,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
     project = Project(
         name="Evidence Synthesis Taxonomy",
         description="A taxonomy for categorizing systematic review methods and approaches.",
-        namespace="https://evrepo.example.org/vocab",
+        namespace="https://vocab.evidence-repository.org/",
         identifier_prefix="EVD",
     )
     session.add(project)
