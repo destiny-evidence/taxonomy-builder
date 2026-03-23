@@ -46,6 +46,13 @@ interface EditDraft {
   required: boolean;
 }
 
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  object: "Object Property",
+  datatype: "Datatype Property",
+  rdf: "RDF Property",
+};
+
 export function PropertyDetail(props: PropertyDetailProps) {
   const isCreateMode = props.mode === "create";
   const property = isCreateMode ? null : props.property;
@@ -487,6 +494,13 @@ export function PropertyDetail(props: PropertyDetailProps) {
                 <div class="workspace-detail__value">{property.description}</div>
               </div>
             )}
+
+            <div class="workspace-detail__field">
+              <label class="workspace-detail__label">Type</label>
+              <div class="workspace-detail__value">
+                {PROPERTY_TYPE_LABELS[property.property_type] ?? property.property_type}
+              </div>
+            </div>
 
             <div class="workspace-detail__field">
               <label class="workspace-detail__label">Domain {property.domain_class_uris.length > 1 ? "Classes" : "Class"}</label>
