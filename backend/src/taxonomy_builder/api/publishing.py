@@ -15,12 +15,14 @@ from taxonomy_builder.schemas.publishing import (
 )
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
+from taxonomy_builder.services.published_file_service import PublishedFileService
 from taxonomy_builder.services.publishing_service import (
     PublishingService,
     ValidationFailedError,
     VersionConflictError,
 )
 from taxonomy_builder.services.reader_file_service import ReaderFileService
+from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
 router = APIRouter(prefix="/api/projects", tags=["publishing"])
@@ -58,6 +60,7 @@ async def publish_version(
     project_id: UUID,
     request: PublishRequest,
     current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
     service: PublishingService = Depends(_get_publishing_service),
 ) -> PublishedVersionRead:
     """Publish a new version (release or pre-release) of a project."""
@@ -65,8 +68,14 @@ async def publish_version(
         version = await service.publish(
             project_id, request, publisher=current_user.user.display_name
         )
-        reader_service = ReaderFileService(service, get_blob_store(), get_cdn_purger())
-        await reader_service.publish_reader_files(version)
+        blob_store = get_blob_store()
+        cdn_purger = get_cdn_purger()
+        reader_service = ReaderFileService(service, blob_store, cdn_purger)
+        export_service = SKOSExportService(db)
+        published_file_service = PublishedFileService(
+            reader_service, export_service, blob_store, cdn_purger
+        )
+        await published_file_service.publish(version)
         return PublishedVersionRead.model_validate(version)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -97,5 +106,3 @@ async def list_versions(
         return [PublishedVersionRead.model_validate(v) for v in versions]
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
-

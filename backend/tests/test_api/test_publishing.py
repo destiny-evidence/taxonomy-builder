@@ -500,3 +500,20 @@ class TestReaderFiles:
         )
         data = json.loads((blob_store._root / "index.json").read_bytes())
         assert any(p["id"] == str(publishable_project.id) for p in data["projects"])
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_rdf_artifacts(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        assert resp.status_code == 201
+        pid = str(publishable_project.id)
+        assert await blob_store.exists(f"{pid}/1.0/vocabulary.ttl")
+        assert await blob_store.exists(f"{pid}/1.0/vocabulary.jsonld")
+        assert await blob_store.exists(f"{pid}/1.0/vocabulary.rdf")
