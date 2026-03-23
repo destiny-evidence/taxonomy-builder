@@ -517,3 +517,69 @@ class TestReaderFiles:
         assert await blob_store.exists(f"{pid}/1.0/vocabulary.ttl")
         assert await blob_store.exists(f"{pid}/1.0/vocabulary.jsonld")
         assert await blob_store.exists(f"{pid}/1.0/vocabulary.rdf")
+
+
+class TestArtifactRedirect:
+    """Verify the artifact redirect endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_redirect_to_vocabulary_ttl(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts/vocabulary.ttl",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 307
+        assert f"{publishable_project.id}/1.0/vocabulary.ttl" in resp.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_redirect_to_vocabulary_json(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts/vocabulary.json",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 307
+        assert f"{publishable_project.id}/1.0/vocabulary.json" in resp.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_unknown_artifact_returns_404(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts/unknown.txt",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_version_returns_404(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/9.9/artifacts/vocabulary.ttl",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 404

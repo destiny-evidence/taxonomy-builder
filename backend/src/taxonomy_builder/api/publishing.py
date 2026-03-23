@@ -2,12 +2,16 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi.responses import RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.api.dependencies import CurrentUser
 from taxonomy_builder.blob_store import get_blob_store, get_cdn_purger
+from taxonomy_builder.config import settings
 from taxonomy_builder.database import get_db
+from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.publishing import (
     PublishedVersionRead,
     PublishPreview,
@@ -22,7 +26,7 @@ from taxonomy_builder.services.publishing_service import (
     VersionConflictError,
 )
 from taxonomy_builder.services.reader_file_service import ReaderFileService
-from taxonomy_builder.services.skos_export_service import SKOSExportService
+from taxonomy_builder.services.skos_export_service import RDF_ARTIFACT_CONFIG, SKOSExportService
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
 router = APIRouter(prefix="/api/projects", tags=["publishing"])
@@ -106,3 +110,40 @@ async def list_versions(
         return [PublishedVersionRead.model_validate(v) for v in versions]
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+VALID_ARTIFACT_NAMES = {"vocabulary.json"} | set(RDF_ARTIFACT_CONFIG.keys())
+
+
+@router.get(
+    "/{project_id}/versions/{version}/artifacts/{filename}",
+    response_class=RedirectResponse,
+)
+async def get_artifact(
+    project_id: UUID,
+    version: str = Path(pattern=r"^\d+(\.\d+)+(-pre\d+)?$"),
+    filename: str = Path(),
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """Redirect to the CDN URL for a published artifact."""
+    if filename not in VALID_ARTIFACT_NAMES:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown artifact: {filename}",
+        )
+
+    result = await db.execute(
+        select(PublishedVersion).where(
+            PublishedVersion.project_id == project_id,
+            PublishedVersion.version == version,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Version '{version}' not found for project {project_id}",
+        )
+
+    base = settings.published_base_url.rstrip("/")
+    url = f"{base}/{project_id}/{version}/{filename}"
+    return RedirectResponse(url=url)

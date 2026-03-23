@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     blob_azure_account_url: str | None = None
     blob_azure_container: str = "published"
 
+    # Published artifacts base URL (CDN/Caddy root for published content)
+    published_base_url: str = "http://localhost:8080/published"
+
     # CDN cache purge (Azure Front Door)
     cdn: CDNSettings | None = None
 
