@@ -267,6 +267,35 @@ class TestCollisions:
         assert ctx[f"{EXTERNAL_NS}Outcome"] == "evrepo:Outcome"
 
 
+class TestLongestMatchPrefix:
+    def test_longer_namespace_matches_before_shorter(self):
+        """When one namespace is a prefix of another, the longer one should match."""
+        snapshot = _make_snapshot(
+            namespace_prefixes={
+                "esea": PROJECT_NS,
+                "evrepo": EXTERNAL_NS,
+                "evreposub": f"{EXTERNAL_NS}sub/",
+            },
+            classes=[
+                {
+                    "id": str(EXT_CLASS_ID),
+                    "identifier": "Widget",
+                    "label": "Widget",
+                    "uri": f"{EXTERNAL_NS}sub/Widget",
+                },
+                {
+                    "id": str(CLASS_ID),
+                    "identifier": "Investigation",
+                    "label": "Investigation",
+                    "uri": f"{EXTERNAL_NS}Investigation",
+                },
+            ],
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert ctx["Widget"] == "evreposub:Widget"
+        assert ctx["Investigation"] == "evrepo:Investigation"
+
+
 class TestEmptySnapshot:
     def test_no_classes_no_properties(self):
         snapshot = _make_snapshot(classes=[], properties=[])

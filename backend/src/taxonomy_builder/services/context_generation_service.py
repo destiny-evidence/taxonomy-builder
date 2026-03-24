@@ -16,8 +16,15 @@ class ContextGenerationService:
         project_ns = snapshot.project.namespace.rstrip("/") + "/"
         prefixes = dict(snapshot.project.namespace_prefixes)
 
-        # Build reverse lookup: namespace URL → prefix name
-        ns_to_prefix: dict[str, str] = {ns: pfx for pfx, ns in prefixes.items()}
+        # Build reverse lookup: namespace URL → prefix name (longest NS first
+        # so that more-specific namespaces match before shorter ones).
+        ns_to_prefix: dict[str, str] = dict(
+            sorted(
+                ((ns, pfx) for pfx, ns in prefixes.items()),
+                key=lambda item: len(item[0]),
+                reverse=True,
+            )
+        )
 
         ctx: dict[str, object] = {}
 

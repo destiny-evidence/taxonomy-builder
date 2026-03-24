@@ -286,7 +286,7 @@ class SnapshotProjectMetadata(BaseModel):
     namespace_prefixes: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
-    def from_project(cls, project: Project) -> SnapshotProjectMetadata:
+    def from_project(cls, project: Project) -> Self:
         return cls.model_construct(
             id=project.id,
             name=project.name,

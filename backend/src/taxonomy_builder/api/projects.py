@@ -1,5 +1,6 @@
 """Projects API endpoints."""
 
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -17,6 +18,7 @@ from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from taxonomy_builder.schemas.publishing import VERSION_PATTERN
 from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse
+from taxonomy_builder.services.context_generation_service import ContextGenerationService
 from taxonomy_builder.services.project_service import (
     PrefixLockedError,
     ProjectNameExistsError,
@@ -167,16 +169,16 @@ async def export_version(
     filename = f"{slugify(filename)}{fmt.extension}"
 
     if format == ExportFormat.CONTEXT:
-        import json
-
-        from taxonomy_builder.services.context_generation_service import ContextGenerationService
-
         context_doc = ContextGenerationService().generate(published_version.snapshot_vocabulary)
         content = json.dumps(context_doc, indent=2)
-    else:
-        assert fmt.rdflib_format is not None
+    elif fmt.rdflib_format is not None:
         content = await export_service.export_published_version(
             published_version, fmt.rdflib_format
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported export format: {format}",
         )
 
     return Response(

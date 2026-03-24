@@ -1,5 +1,6 @@
 """SKOS Import service for importing parsed RDF into the database."""
 
+import logging
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -215,6 +216,9 @@ class SKOSImportService:
 
         project = await self.db.get(Project, project_id)
         if project is None:
+            logging.getLogger(__name__).warning(
+                "Project %s not found during prefix merge — skipping", project_id
+            )
             return
 
         imported = {
