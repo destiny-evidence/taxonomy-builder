@@ -22,6 +22,7 @@ from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.publishing_service import PublishingService
 from taxonomy_builder.services.reader_file_service import ReaderFileService
+from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.skos_import_service import SKOSImportService
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
@@ -385,8 +386,14 @@ async def publish_seed_projects(session_manager: DatabaseSessionManager) -> None
             project_svc = ProjectService(session)
             concept_svc = ConceptService(session)
             snapshot_svc = SnapshotService(session, project_svc, concept_svc)
-            publishing_svc = PublishingService(session, project_svc, snapshot_svc)
-            reader_svc = ReaderFileService(publishing_svc, blob_store, cdn_purger)
+            publishing_svc = PublishingService(
+                session,
+                project_svc,
+                snapshot_svc,
+                reader_file_service=ReaderFileService(blob_store, cdn_purger),
+                blob_store=blob_store,
+                skos_export_service=SKOSExportService(session),
+            )
 
             projects = await project_svc.list_projects()
             published = 0
@@ -405,7 +412,7 @@ async def publish_seed_projects(session_manager: DatabaseSessionManager) -> None
                         ),
                         publisher="seed",
                     )
-                    await reader_svc.publish_reader_files(version)
+                    await publishing_svc.publish_artifacts(version)
                     published += 1
                     print(f"  - {project.name}: published v1.0")
                 except Exception as exc:

@@ -496,35 +496,39 @@ class TestPublishReaderFiles:
         db_session.expunge(project)
         return project
 
-    def _make_publishing_service(self, db_session):
+    def _make_publishing_service(self, db_session, blob_store, cdn_purger):
         from taxonomy_builder.services.concept_service import ConceptService
         from taxonomy_builder.services.project_service import ProjectService
         from taxonomy_builder.services.publishing_service import PublishingService
+        from taxonomy_builder.services.skos_export_service import SKOSExportService
         from taxonomy_builder.services.snapshot_service import SnapshotService
 
         ps = ProjectService(db_session)
         cs = ConceptService(db_session)
         ss = SnapshotService(db_session, ps, cs)
-        return PublishingService(db_session, ps, ss)
+        return PublishingService(
+            db_session, ps, ss,
+            reader_file_service=ReaderFileService(blob_store, cdn_purger),
+            blob_store=blob_store,
+            skos_export_service=SKOSExportService(db_session),
+        )
 
-    async def _publish(self, db_session, project, version_str="1.0", pre_release=False):
+    async def _publish(self, service, project, version_str="1.0", pre_release=False):
         """Publish a version via the service layer."""
         from taxonomy_builder.schemas.publishing import PublishRequest
 
-        pub = self._make_publishing_service(db_session)
         request = PublishRequest(
             version=version_str, title=f"V{version_str}", pre_release=pre_release
         )
-        return await pub.publish(project.id, request, publisher="Tester")
+        return await service.publish(project.id, request, publisher="Tester")
 
     @pytest.mark.asyncio
     async def test_writes_all_three_files(self, db_session, publishable, tmp_path):
         blob_store = FilesystemBlobStore(root=tmp_path)
         purger = NoOpPurger()
-        version = await self._publish(db_session, publishable)
-
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, purger)
-        await service.publish_reader_files(version)
+        service = self._make_publishing_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         pid = str(publishable.id)
         assert (tmp_path / pid / "1.0" / "vocabulary.json").exists()
@@ -535,10 +539,9 @@ class TestPublishReaderFiles:
     async def test_vocabulary_content(self, db_session, publishable, tmp_path):
         blob_store = FilesystemBlobStore(root=tmp_path)
         purger = NoOpPurger()
-        version = await self._publish(db_session, publishable)
-
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, purger)
-        await service.publish_reader_files(version)
+        service = self._make_publishing_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         vocab = json.loads(
             (tmp_path / str(publishable.id) / "1.0" / "vocabulary.json").read_text()
@@ -554,10 +557,9 @@ class TestPublishReaderFiles:
     async def test_project_index_content(self, db_session, publishable, tmp_path):
         blob_store = FilesystemBlobStore(root=tmp_path)
         purger = NoOpPurger()
-        version = await self._publish(db_session, publishable)
-
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, purger)
-        await service.publish_reader_files(version)
+        service = self._make_publishing_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         idx = json.loads(
             (tmp_path / str(publishable.id) / "index.json").read_text()
@@ -571,10 +573,9 @@ class TestPublishReaderFiles:
     async def test_root_index_content(self, db_session, publishable, tmp_path):
         blob_store = FilesystemBlobStore(root=tmp_path)
         purger = NoOpPurger()
-        version = await self._publish(db_session, publishable)
-
-        service = ReaderFileService(self._make_publishing_service(db_session), blob_store, purger)
-        await service.publish_reader_files(version)
+        service = self._make_publishing_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         root = json.loads((tmp_path / "index.json").read_text())
         assert len(root["projects"]) == 1
@@ -593,11 +594,9 @@ class TestPublishReaderFiles:
             async def close(self) -> None:
                 pass
 
-        version = await self._publish(db_session, publishable)
-        service = ReaderFileService(
-            self._make_publishing_service(db_session), blob_store, RecordingPurger()
-        )
-        await service.publish_reader_files(version)
+        service = self._make_publishing_service(db_session, blob_store, RecordingPurger())
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
 
         assert len(purged) == 1
         paths = purged[0]
@@ -618,16 +617,15 @@ class TestPublishReaderFiles:
             async def close(self) -> None:
                 pass
 
+        service = self._make_publishing_service(db_session, blob_store, RecordingPurger())
+
         # First publish a release
-        v1 = await self._publish(db_session, publishable, "1.0")
-        service = ReaderFileService(
-            self._make_publishing_service(db_session), blob_store, RecordingPurger()
-        )
-        await service.publish_reader_files(v1)
+        v1 = await self._publish(service, publishable, "1.0")
+        await service.publish_artifacts(v1)
 
         # Now publish a pre-release
-        v2 = await self._publish(db_session, publishable, "2.0-pre1", pre_release=True)
-        await service.publish_reader_files(v2)
+        v2 = await self._publish(service, publishable, "2.0-pre1", pre_release=True)
+        await service.publish_artifacts(v2)
 
         # Second publish should NOT include root index in purge paths
         assert len(purged) == 2
@@ -648,13 +646,11 @@ class TestPublishReaderFiles:
             async def close(self) -> None:
                 pass
 
+        service = self._make_publishing_service(db_session, blob_store, RecordingPurger())
         version = await self._publish(
-            db_session, publishable, "1.0-pre1", pre_release=True
+            service, publishable, "1.0-pre1", pre_release=True
         )
-        service = ReaderFileService(
-            self._make_publishing_service(db_session), blob_store, RecordingPurger()
-        )
-        await service.publish_reader_files(version)
+        await service.publish_artifacts(version)
 
         assert (tmp_path / "index.json").exists()
         assert "/index.json" in purged[0]

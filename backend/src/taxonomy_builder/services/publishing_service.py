@@ -1,5 +1,6 @@
 """Service for the publishing workflow orchestration."""
 
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from taxonomy_builder.blob_store import BlobStore
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.publishing import (
@@ -19,11 +21,15 @@ from taxonomy_builder.schemas.snapshot import (
     ValidationResult,
 )
 from taxonomy_builder.services.project_service import ProjectService
+from taxonomy_builder.services.reader_file_service import ReaderFileService
+from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.snapshot_service import (
     SnapshotService,
     compute_diff,
     validate_snapshot,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ValidationFailedError(Exception):
@@ -43,17 +49,23 @@ class VersionConflictError(Exception):
 
 
 class PublishingService:
-    """Orchestrates validation, snapshot, diff, and version creation."""
+    """Orchestrates validation, snapshot, diff, version creation, and artifact publishing."""
 
     def __init__(
         self,
         db: AsyncSession,
         project_service: ProjectService,
         snapshot_service: SnapshotService,
+        reader_file_service: ReaderFileService,
+        blob_store: BlobStore,
+        skos_export_service: SKOSExportService,
     ) -> None:
         self.db = db
         self._project_service = project_service
         self._snapshot_service = snapshot_service
+        self._reader_file_service = reader_file_service
+        self._blob_store = blob_store
+        self._skos_export_service = skos_export_service
 
     async def publish(
         self,
@@ -94,6 +106,10 @@ class PublishingService:
 
         await self.db.refresh(version)
         return version
+
+    async def get_version(self, project_id: UUID, version: str) -> PublishedVersion:
+        """Get a specific published version by project and version string."""
+        return await self._project_service.get_project_version(project_id, version)
 
     async def list_versions(self, project_id: UUID) -> list[PublishedVersion]:
         """List all published versions for a project, newest first."""
@@ -247,3 +263,28 @@ class PublishingService:
             pre_num = await self._next_pre_release_number(project_id, base)
             return f"{base}-pre{pre_num}"
         return base
+
+    async def publish_artifacts(self, version: PublishedVersion) -> None:
+        """Write reader files and RDF artifacts to blob storage."""
+        all_versions = await self.list_versions(version.project_id)
+        is_first_publish = len(all_versions) == 1
+        projects_with_latest = None
+        if version.finalized or is_first_publish:
+            projects_with_latest = await self.list_projects_with_latest_version()
+
+        await self._reader_file_service.publish_reader_files(
+            version, all_versions, projects_with_latest
+        )
+
+        artifacts = self._skos_export_service.render_rdf_artifacts(version)
+        project = version.project
+        for filename, (data, content_type) in artifacts.items():
+            path = f"{project.id}/{version.version}/{filename}"
+            await self._blob_store.put(path, data, content_type=content_type)
+
+        logger.info(
+            "Published RDF artifacts for %s v%s (%d files)",
+            project.id,
+            version.version,
+            len(artifacts),
+        )

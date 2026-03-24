@@ -2,35 +2,29 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi.responses import RedirectResponse
 
-from taxonomy_builder.api.dependencies import CurrentUser
-from taxonomy_builder.blob_store import get_blob_store, get_cdn_purger
-from taxonomy_builder.database import get_db
+from taxonomy_builder.api.dependencies import CurrentUser, get_publishing_service
+from taxonomy_builder.config import settings
 from taxonomy_builder.schemas.publishing import (
+    VERSION_PATTERN,
     PublishedVersionRead,
     PublishPreview,
     PublishRequest,
 )
-from taxonomy_builder.services.concept_service import ConceptService
-from taxonomy_builder.services.project_service import ProjectNotFoundError, ProjectService
+from taxonomy_builder.services.project_service import (
+    ProjectNotFoundError,
+    VersionNotFoundError,
+)
 from taxonomy_builder.services.publishing_service import (
     PublishingService,
     ValidationFailedError,
     VersionConflictError,
 )
-from taxonomy_builder.services.reader_file_service import ReaderFileService
-from taxonomy_builder.services.snapshot_service import SnapshotService
+from taxonomy_builder.services.skos_export_service import FORMAT_CONFIG, ExportFormat
 
 router = APIRouter(prefix="/api/projects", tags=["publishing"])
-
-
-def _get_publishing_service(db: AsyncSession = Depends(get_db)) -> PublishingService:
-    project_service = ProjectService(db)
-    concept_service = ConceptService(db)
-    snapshot_service = SnapshotService(db, project_service, concept_service)
-    return PublishingService(db, project_service, snapshot_service)
 
 
 @router.get(
@@ -40,7 +34,7 @@ def _get_publishing_service(db: AsyncSession = Depends(get_db)) -> PublishingSer
 async def preview_publish(
     project_id: UUID,
     current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
+    service: PublishingService = Depends(get_publishing_service),
 ) -> PublishPreview:
     """Preview what would be published: validation, diff, content summary."""
     try:
@@ -58,15 +52,14 @@ async def publish_version(
     project_id: UUID,
     request: PublishRequest,
     current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
+    service: PublishingService = Depends(get_publishing_service),
 ) -> PublishedVersionRead:
     """Publish a new version (release or pre-release) of a project."""
     try:
         version = await service.publish(
             project_id, request, publisher=current_user.user.display_name
         )
-        reader_service = ReaderFileService(service, get_blob_store(), get_cdn_purger())
-        await reader_service.publish_reader_files(version)
+        await service.publish_artifacts(version)
         return PublishedVersionRead.model_validate(version)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -89,7 +82,7 @@ async def publish_version(
 async def list_versions(
     project_id: UUID,
     current_user: CurrentUser,
-    service: PublishingService = Depends(_get_publishing_service),
+    service: PublishingService = Depends(get_publishing_service),
 ) -> list[PublishedVersionRead]:
     """List all published versions for a project."""
     try:
@@ -99,3 +92,23 @@ async def list_versions(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+@router.get(
+    "/{project_id}/versions/{version}/artifacts",
+    response_class=RedirectResponse,
+)
+async def get_artifact(
+    project_id: UUID,
+    version: str = Path(pattern=VERSION_PATTERN),
+    format: ExportFormat = Query(default=ExportFormat.TTL, description="Export format"),
+    service: PublishingService = Depends(get_publishing_service),
+) -> RedirectResponse:
+    """Redirect to the CDN URL for a published vocabulary artifact."""
+    try:
+        await service.get_version(project_id, version)
+    except VersionNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    base = settings.published_base_url.rstrip("/")
+    fmt = FORMAT_CONFIG[format]
+    url = f"{base}/{project_id}/{version}/{fmt.filename}"
+    return RedirectResponse(url=url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
