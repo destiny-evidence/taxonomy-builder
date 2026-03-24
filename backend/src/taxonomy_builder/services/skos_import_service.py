@@ -203,7 +203,11 @@ class SKOSImportService:
             property_uri_to_id={p.uri: p.id for p in existing_props},
         )
 
-    # Prefixes to exclude: built-in RDF bindings that don't belong in a JSON-LD context
+    # Prefixes that must not be overwritten: built-in RDF bindings and
+    # well-known vocabularies whose CURIEs appear in generated JSON-LD
+    # @type values (e.g. "xsd:boolean").
+    _RESERVED_PREFIXES = frozenset({"", "rdf", "rdfs", "owl", "xml", "xsd", "skos"})
+
     async def _merge_namespace_prefixes(
         self, project_id: UUID, g: Graph
     ) -> None:
@@ -224,6 +228,7 @@ class SKOSImportService:
         imported = {
             prefix: str(ns)
             for prefix, ns in g.namespace_manager.namespaces()
+            if prefix not in self._RESERVED_PREFIXES
         }
 
         if not imported:
@@ -232,6 +237,7 @@ class SKOSImportService:
         merged = dict(project.namespace_prefixes or {})
         merged.update(imported)
         project.namespace_prefixes = merged
+        await self.db.flush()
 
     def _preview_schemes(
         self,

@@ -296,6 +296,20 @@ class TestLongestMatchPrefix:
         assert ctx["Investigation"] == "evrepo:Investigation"
 
 
+class TestEmptyPrefixFiltering:
+    def test_empty_prefix_not_emitted(self):
+        """An empty-string prefix key should not appear in the context."""
+        snapshot = _make_snapshot(
+            namespace_prefixes={
+                "": "https://example.org/default/",
+                "esea": PROJECT_NS,
+            },
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert "" not in ctx
+        assert "esea" in ctx
+
+
 class TestEmptySnapshot:
     def test_no_classes_no_properties(self):
         snapshot = _make_snapshot(classes=[], properties=[])

@@ -31,9 +31,10 @@ class ContextGenerationService:
         # 1. @vocab — bare terms resolve to the project namespace
         ctx["@vocab"] = project_ns
 
-        # 2. Namespace prefix mappings
+        # 2. Namespace prefix mappings (skip empty-string keys — invalid in JSON-LD)
         for prefix, ns in sorted(prefixes.items()):
-            ctx[prefix] = ns
+            if prefix:
+                ctx[prefix] = ns
 
         # 3. Class term mappings
         used_terms: dict[str, str] = {}  # local_name → full URI (for collision detection)
