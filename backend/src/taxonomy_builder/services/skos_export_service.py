@@ -96,12 +96,13 @@ class SKOSExportService:
         """Build an rdflib Graph from a snapshot dict."""
         vocabulary = SnapshotVocabulary.model_validate(snapshot)
 
-        g = Graph()
+        g = Graph(bind_namespaces="none")
         g.bind("skos", SKOS)
         g.bind("dct", DCTERMS)
         g.bind("owl", OWL)
         g.bind("rdfs", RDFS)
         g.bind("xsd", XSD)
+        g.bind("rdf", RDF)
 
         for prefix, ns in vocabulary.project.namespace_prefixes.items():
             g.bind(prefix, ns)
@@ -167,16 +168,11 @@ class SKOSExportService:
     def render_rdf_artifacts(
         self,
         version: PublishedVersion,
-        context: dict | None = None,
     ) -> dict[str, tuple[bytes, str]]:
         """Build graph once from snapshot, serialize to all RDF formats.
 
-        Args:
-            version: The published version to serialize.
-            context: Optional JSON-LD @context dict. When provided, the
-                JSON-LD artifact is serialized in compact form.
-
         Returns a dict of {filename: (data_bytes, content_type)}.
+        JSON-LD is serialized in compact form using the graph's bound prefixes.
         """
         g = self._build_graph_from_snapshot(version.snapshot)
         result: dict[str, tuple[bytes, str]] = {}
@@ -184,8 +180,8 @@ class SKOSExportService:
             if fmt.rdflib_format is None:
                 continue
             kwargs: dict = {}
-            if fmt.rdflib_format == "json-ld" and context is not None:
-                kwargs["context"] = context.get("@context", context)
+            if fmt.rdflib_format == "json-ld":
+                kwargs["auto_compact"] = True
             data = g.serialize(format=fmt.rdflib_format, **kwargs).encode()
             result[fmt.filename] = (data, fmt.content_type)
         return result

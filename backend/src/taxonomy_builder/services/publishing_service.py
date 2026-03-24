@@ -278,12 +278,14 @@ class PublishingService:
             version, all_versions, projects_with_latest
         )
 
-        # Generate JSON-LD @context and use it for compact JSON-LD serialization
-        context_doc = ContextGenerationService().generate(version.snapshot_vocabulary)
-        artifacts = self._skos_export_service.render_rdf_artifacts(version, context=context_doc)
+        artifacts = self._skos_export_service.render_rdf_artifacts(version)
 
-        context_data = json.dumps(context_doc, indent=2).encode()
-        artifacts["context.jsonld"] = (context_data, "application/ld+json")
+        # Generate standalone JSON-LD @context document
+        context_doc = ContextGenerationService().generate(version.snapshot_vocabulary)
+        artifacts["context.jsonld"] = (
+            json.dumps(context_doc, indent=2).encode(),
+            "application/ld+json",
+        )
 
         project = version.project
         for filename, (data, content_type) in artifacts.items():

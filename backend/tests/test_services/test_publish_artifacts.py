@@ -179,8 +179,8 @@ class TestRenderRdfArtifacts:
         assert "@prefix ex: <https://vocab.example.org/>" in ttl
         assert "ex:colors" in ttl
 
-    def test_jsonld_compact_with_context(self, service):
-        """JSON-LD output should use compact terms when context is provided."""
+    def test_jsonld_auto_compact(self, service):
+        """JSON-LD output should use compact prefixed terms via auto_compact."""
         snap = _make_snapshot()
         snap["project"]["namespace"] = "https://vocab.example.org/"
         snap["project"]["namespace_prefixes"] = {
@@ -190,10 +190,7 @@ class TestRenderRdfArtifacts:
         snap["concept_schemes"][0]["concepts"][0]["uri"] = "https://vocab.example.org/colors/red"
         snap["concept_schemes"][0]["concepts"][1]["uri"] = "https://vocab.example.org/colors/blue"
         version = _make_version(snapshot=snap)
-
-        from taxonomy_builder.services.context_generation_service import ContextGenerationService
-        context_doc = ContextGenerationService().generate(version.snapshot_vocabulary)
-        artifacts = service.render_rdf_artifacts(version, context=context_doc)
+        artifacts = service.render_rdf_artifacts(version)
 
         jsonld = artifacts["vocabulary.jsonld"][0].decode()
         # Compact JSON-LD should still be parseable
