@@ -155,18 +155,29 @@ async def export_version(
     project_service: ProjectService = Depends(get_project_service),
     export_service: SKOSExportService = Depends(get_export_service),
 ) -> Response:
-    """Export a published project version as SKOS RDF."""
+    """Export a published project version as SKOS RDF or JSON-LD @context."""
     try:
         published_version = await project_service.get_project_version(project_id, version_id)
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    rdflib_format, content_type, extension = FORMAT_CONFIG[format]
-    content = await export_service.export_published_version(published_version, rdflib_format)
+    _, content_type, extension = FORMAT_CONFIG[format]
     filename = (
         f"{published_version.project.name}-{published_version.version}-{published_version.title}"
     )
     filename = f"{slugify(filename)}{extension}"
+
+    if format == ExportFormat.CONTEXT:
+        import json
+
+        from taxonomy_builder.services.context_generation_service import ContextGenerationService
+
+        context_doc = ContextGenerationService().generate(published_version.snapshot_vocabulary)
+        content = json.dumps(context_doc, indent=2)
+    else:
+        rdflib_format = FORMAT_CONFIG[format][0]
+        assert rdflib_format is not None
+        content = await export_service.export_published_version(published_version, rdflib_format)
 
     return Response(
         content=content,

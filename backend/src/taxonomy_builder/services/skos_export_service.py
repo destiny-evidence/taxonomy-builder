@@ -27,6 +27,7 @@ class ExportFormat(StrEnum):
     TTL = "ttl"
     XML = "xml"
     JSONLD = "jsonld"
+    CONTEXT = "context"
 
 
 # Format to RDFLib format string and content type mapping
@@ -34,6 +35,7 @@ FORMAT_CONFIG = {
     ExportFormat.TTL: ("turtle", "text/turtle", ".ttl"),
     ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf"),
     ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld"),
+    ExportFormat.CONTEXT: (None, "application/ld+json", ".context.jsonld"),
 }
 
 
