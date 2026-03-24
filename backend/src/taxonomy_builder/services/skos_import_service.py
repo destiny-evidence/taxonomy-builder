@@ -203,12 +203,14 @@ class SKOSImportService:
         )
 
     # Prefixes to exclude: built-in RDF bindings that don't belong in a JSON-LD context
-    _BUILTIN_PREFIXES = frozenset({"rdf", "rdfs", "owl", "xml", ""})
-
     async def _merge_namespace_prefixes(
         self, project_id: UUID, g: Graph
     ) -> None:
-        """Extract @prefix bindings from an RDF graph and merge into the project."""
+        """Extract @prefix bindings from an RDF graph and merge into the project.
+
+        The graph is parsed with ``bind_namespaces="none"`` (see ``parse_rdf``),
+        so only prefixes explicitly declared in the file are reported.
+        """
         from taxonomy_builder.models.project import Project
 
         project = await self.db.get(Project, project_id)
@@ -218,7 +220,6 @@ class SKOSImportService:
         imported = {
             prefix: str(ns)
             for prefix, ns in g.namespace_manager.namespaces()
-            if prefix not in self._BUILTIN_PREFIXES
         }
 
         if not imported:

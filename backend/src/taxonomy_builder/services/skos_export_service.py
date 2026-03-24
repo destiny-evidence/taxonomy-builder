@@ -96,13 +96,12 @@ class SKOSExportService:
         """Build an rdflib Graph from a snapshot dict."""
         vocabulary = SnapshotVocabulary.model_validate(snapshot)
 
-        g = Graph(bind_namespaces="none")
+        g = Graph()
         g.bind("skos", SKOS)
         g.bind("dct", DCTERMS)
         g.bind("owl", OWL)
         g.bind("rdfs", RDFS)
         g.bind("xsd", XSD)
-        g.bind("rdf", RDF)
 
         for prefix, ns in vocabulary.project.namespace_prefixes.items():
             g.bind(prefix, ns)

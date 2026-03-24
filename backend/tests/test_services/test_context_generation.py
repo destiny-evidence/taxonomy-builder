@@ -162,6 +162,7 @@ class TestPropertyTerms:
         ])
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["isRetracted"] == {"@type": "xsd:boolean"}
+        assert ctx["xsd"] == "http://www.w3.org/2001/XMLSchema#"
 
     def test_multiple_cardinality_has_container_set(self):
         snapshot = _make_snapshot(properties=[
