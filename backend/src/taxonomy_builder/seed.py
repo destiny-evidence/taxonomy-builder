@@ -71,6 +71,9 @@ async def create_seed_data(session: AsyncSession) -> dict:
         description="A taxonomy for categorizing systematic review methods and approaches.",
         namespace="https://vocab.evidence-repository.org/",
         identifier_prefix="EVD",
+        namespace_prefixes={
+            "evrepo": "https://vocab.evidence-repository.org/",
+        },
     )
     session.add(project)
     await session.flush()

@@ -103,6 +103,9 @@ class SKOSExportService:
         g.bind("rdfs", RDFS)
         g.bind("xsd", XSD)
 
+        for prefix, ns in vocabulary.project.namespace_prefixes.items():
+            g.bind(prefix, ns)
+
         for scheme_snapshot in vocabulary.concept_schemes:
             self._add_scheme_to_graph(g, scheme_snapshot)
 
@@ -161,18 +164,29 @@ class SKOSExportService:
         g = self._build_graph_from_snapshot(published_version.snapshot)
         return g.serialize(format=format)
 
-    def render_rdf_artifacts(self, version: PublishedVersion) -> dict[str, tuple[bytes, str]]:
+    def render_rdf_artifacts(
+        self,
+        version: PublishedVersion,
+        context: dict | None = None,
+    ) -> dict[str, tuple[bytes, str]]:
         """Build graph once from snapshot, serialize to all RDF formats.
+
+        Args:
+            version: The published version to serialize.
+            context: Optional JSON-LD @context dict. When provided, the
+                JSON-LD artifact is serialized in compact form.
 
         Returns a dict of {filename: (data_bytes, content_type)}.
         """
         g = self._build_graph_from_snapshot(version.snapshot)
         result: dict[str, tuple[bytes, str]] = {}
         for fmt in FORMAT_CONFIG.values():
-            # Once we have context jsonlds availabe, we can also create
-            # compact jsonlds with compact kwarg
-            # https://rdflib.readthedocs.io/en/7.1.1/_modules/rdflib/plugins/serializers/jsonld.html#JsonLDSerializer
-            data = g.serialize(format=fmt.rdflib_format).encode()
+            if fmt.rdflib_format is None:
+                continue
+            kwargs: dict = {}
+            if fmt.rdflib_format == "json-ld" and context is not None:
+                kwargs["context"] = context.get("@context", context)
+            data = g.serialize(format=fmt.rdflib_format, **kwargs).encode()
             result[fmt.filename] = (data, fmt.content_type)
         return result
 

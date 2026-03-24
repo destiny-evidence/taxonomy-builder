@@ -1,8 +1,8 @@
 """add namespace_prefixes to projects
 
-Revision ID: c0898378272f
-Revises: d085863314a9
-Create Date: 2026-03-20 16:27:08.395009
+Revision ID: 5890c2d4e19b
+Revises: 848fa99ec415
+Create Date: 2026-03-24 15:00:02.112622
 
 """
 
@@ -14,8 +14,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "c0898378272f"
-down_revision: str | Sequence[str] | None = "d085863314a9"
+revision: str = "5890c2d4e19b"
+down_revision: str | Sequence[str] | None = "848fa99ec415"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
