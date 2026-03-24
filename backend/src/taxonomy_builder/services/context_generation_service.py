@@ -8,7 +8,7 @@ class ContextGenerationService:
 
     The generated context enables consumers to expand compact URIs
     (e.g. ``esea:C00008``) and bare type terms (e.g. ``Investigation``)
-    used in ``LinkedDataEnhancement`` documents.
+    back to their full URIs.
     """
 
     def generate(self, snapshot: SnapshotVocabulary) -> dict:
