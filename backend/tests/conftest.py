@@ -14,6 +14,7 @@ from taxonomy_builder.database import Base, db_manager, get_db
 from taxonomy_builder.main import app
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.user import User
 
@@ -159,6 +160,24 @@ async def scheme2(db_session: AsyncSession, project: Project) -> ConceptScheme:
     await db_session.flush()
     await db_session.refresh(scheme)
     return scheme
+
+
+@pytest.fixture
+async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
+    """Create a basic Finding ontology class.
+
+    Override in test files that need a different identifier, label, or URI.
+    """
+    cls = OntologyClass(
+        project_id=project.id,
+        identifier="Finding",
+        label="Finding",
+        uri="https://example.org/vocab/Finding",
+    )
+    db_session.add(cls)
+    await db_session.flush()
+    await db_session.refresh(cls)
+    return cls
 
 
 @pytest.fixture

@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     blob_azure_account_url: str | None = None
     blob_azure_container: str = "published"
 
+    # Published artifacts base URL (CDN/Caddy root for published content)
+    published_base_url: str = "http://localhost:3001/published"
+
     # CDN cache purge (Azure Front Door)
     cdn: CDNSettings | None = None
 
@@ -53,7 +56,9 @@ class Settings(BaseSettings):
             return self.database_url
         if self.db_host and self.db_name and self.db_user and self.db_password:
             password = quote_plus(self.db_password)
-            return f"postgresql+asyncpg://{self.db_user}:{password}@{self.db_host}:5432/{self.db_name}"
+            return (
+                f"postgresql+asyncpg://{self.db_user}:{password}@{self.db_host}:5432/{self.db_name}"
+            )
         # Default for local development
         return "postgresql+asyncpg://taxonomy:taxonomy@localhost:5432/taxonomy_builder"
 

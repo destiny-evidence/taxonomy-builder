@@ -48,7 +48,6 @@ async def list_projects(
     return await service.list_projects()
 
 
-
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_in: ProjectCreate,
@@ -161,11 +160,11 @@ async def export_version(
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    _, content_type, extension = FORMAT_CONFIG[format]
+    fmt = FORMAT_CONFIG[format]
     filename = (
         f"{published_version.project.name}-{published_version.version}-{published_version.title}"
     )
-    filename = f"{slugify(filename)}{extension}"
+    filename = f"{slugify(filename)}{fmt.extension}"
 
     if format == ExportFormat.CONTEXT:
         import json
@@ -175,12 +174,13 @@ async def export_version(
         context_doc = ContextGenerationService().generate(published_version.snapshot_vocabulary)
         content = json.dumps(context_doc, indent=2)
     else:
-        rdflib_format = FORMAT_CONFIG[format][0]
-        assert rdflib_format is not None
-        content = await export_service.export_published_version(published_version, rdflib_format)
+        assert fmt.rdflib_format is not None
+        content = await export_service.export_published_version(
+            published_version, fmt.rdflib_format
+        )
 
     return Response(
         content=content,
-        media_type=f"{content_type}; charset=utf-8",
+        media_type=f"{fmt.content_type}; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

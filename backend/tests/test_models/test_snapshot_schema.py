@@ -40,7 +40,7 @@ def _property(**overrides) -> dict:
         "identifier": "prop1",
         "uri": "http://example.org/prop1",
         "label": "Property One",
-        "domain_class": "http://example.org/Class",
+        "domain_class_uris": ["http://example.org/Class"],
         "range_datatype": "xsd:string",
         "cardinality": "single",
         "required": False,
@@ -181,12 +181,9 @@ class TestSnapshotProjectMetadata:
 
 
 class TestSnapshotVocabulary:
-    def test_empty_snapshot(self) -> None:
-        s = SnapshotVocabulary(**_snapshot())
-        assert s.project.name == "Test Project"
-        assert s.concept_schemes == []
-        assert s.properties == []
-        assert s.classes == []
+    def test_empty_snapshot_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="empty_project"):
+            SnapshotVocabulary(**_snapshot())
 
     def test_full_snapshot(self) -> None:
         s = SnapshotVocabulary(

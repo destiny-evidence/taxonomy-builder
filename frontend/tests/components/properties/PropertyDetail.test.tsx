@@ -15,7 +15,8 @@ const mockProperty: Property = {
   identifier: "birthDate",
   label: "Birth Date",
   description: "The date when a person was born",
-  domain_class: "http://example.org/Person",
+  domain_class_uris: ["http://example.org/Person"],
+  property_type: "datatype",
   range_scheme_id: null,
   range_scheme: null,
   range_datatype: "xsd:date",
@@ -45,13 +46,14 @@ describe("PropertyDetail", () => {
   const mockOnClose = vi.fn();
   const mockOnSuccess = vi.fn();
   const mockOnCancel = vi.fn();
+  const mockOnClassSelect = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
     // Set up ontology classes for edit mode dropdowns
     ontologyClasses.value = [
-      { id: "cls-1", project_id: "proj-1", identifier: "Person", uri: "http://example.org/Person", label: "Person", description: null, scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-      { id: "cls-2", project_id: "proj-1", identifier: "Organization", uri: "http://example.org/Organization", label: "Organization", description: null, scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+      { id: "cls-1", project_id: "proj-1", identifier: "Person", uri: "http://example.org/Person", label: "Person", description: null, scope_note: null, superclass_uris: [], subclass_uris: [], restrictions: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+      { id: "cls-2", project_id: "proj-1", identifier: "Organization", uri: "http://example.org/Organization", label: "Organization", description: null, scope_note: null, superclass_uris: [], subclass_uris: [], restrictions: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
     ];
     // Set up schemes for edit mode dropdowns
     schemes.value = [
@@ -106,22 +108,38 @@ describe("PropertyDetail", () => {
       expect(screen.queryByText("Description")).not.toBeInTheDocument();
     });
 
-    it("displays class label (not 'Domain')", () => {
-      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+    it("displays domain class as clickable link", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} onClassSelect={mockOnClassSelect} />);
 
-      expect(screen.getByText("Class")).toBeInTheDocument();
-      expect(screen.getByText("Person")).toBeInTheDocument();
-      expect(screen.queryByText("Domain")).not.toBeInTheDocument();
+      expect(screen.getByText("Domain Class")).toBeInTheDocument();
+      const link = screen.getByRole("button", { name: "Person" });
+      expect(link).toHaveClass("workspace-detail__link");
+
+      fireEvent.click(link);
+      expect(mockOnClassSelect).toHaveBeenCalledWith("http://example.org/Person");
     });
 
-    it("falls back to local name from URI when class not in ontology", () => {
+    it("displays multiple domain classes as comma-separated links", () => {
+      const multiDomainProperty = {
+        ...mockProperty,
+        domain_class_uris: ["http://example.org/Person", "http://example.org/Organization"],
+      };
+      render(<PropertyDetail property={multiDomainProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} onClassSelect={mockOnClassSelect} />);
+
+      expect(screen.getByText("Domain Classes")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Person" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Organization" })).toBeInTheDocument();
+    });
+
+    it("renders unresolvable domain URIs as non-navigable text", () => {
       const unknownClassProperty = {
         ...mockProperty,
-        domain_class: "http://example.org/UnknownThing",
+        domain_class_uris: ["http://example.org/UnknownThing"],
       };
       render(<PropertyDetail property={unknownClassProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       expect(screen.getByText("UnknownThing")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "UnknownThing" })).not.toBeInTheDocument();
     });
 
     it("displays cardinality", () => {
@@ -403,7 +421,7 @@ describe("PropertyDetail", () => {
         expect(propertiesApi.update).toHaveBeenCalledWith("prop-1", {
           label: "Updated Label",
           description: "The date when a person was born",
-          domain_class: "http://example.org/Person",
+          domain_class_uris: ["http://example.org/Person"],
           range_scheme_id: null,
           range_datatype: "xsd:date",
           range_class: null,
@@ -439,7 +457,7 @@ describe("PropertyDetail", () => {
         expect(propertiesApi.update).toHaveBeenCalledWith("prop-1", {
           label: "Birth Date",
           description: "The date when a person was born",
-          domain_class: "http://example.org/Person",
+          domain_class_uris: ["http://example.org/Person"],
           range_scheme_id: null,
           range_datatype: "xsd:date",
           range_class: null,
@@ -468,7 +486,7 @@ describe("PropertyDetail", () => {
         expect(propertiesApi.update).toHaveBeenCalledWith("prop-2", {
           label: "Nationality Updated",
           description: null,
-          domain_class: "http://example.org/Person",
+          domain_class_uris: ["http://example.org/Person"],
           range_scheme_id: "scheme-1",
           range_datatype: null,
           range_class: null,
@@ -687,7 +705,8 @@ describe("PropertyDetail", () => {
         identifier: "myCoolProperty",
         label: "My Cool Property",
         description: null,
-        domain_class: "http://example.org/Person",
+        domain_class_uris: ["http://example.org/Person"],
+        property_type: "datatype",
         range_scheme_id: null,
         range_scheme: null,
         range_datatype: "xsd:string",
@@ -712,7 +731,7 @@ describe("PropertyDetail", () => {
         expect(propertiesApi.create).toHaveBeenCalledWith("proj-1", expect.objectContaining({
           label: "My Cool Property",
           identifier: "myCoolProperty",
-          domain_class: "http://example.org/Person",
+          domain_class_uris: ["http://example.org/Person"],
           range_datatype: "xsd:string",
           cardinality: "single",
           required: false,
@@ -727,7 +746,8 @@ describe("PropertyDetail", () => {
         identifier: "test",
         label: "Test",
         description: null,
-        domain_class: "http://example.org/Person",
+        domain_class_uris: ["http://example.org/Person"],
+        property_type: "datatype",
         range_scheme_id: null,
         range_scheme: null,
         range_datatype: "xsd:string",

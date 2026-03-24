@@ -80,7 +80,7 @@ async def published_version(db_session: AsyncSession) -> PublishedVersion:
                 identifier="studyType",
                 label="Study Type",
                 uri="http://example.org/ontology/studyType",
-                domain_class="http://example.org/ontology/Study",
+                domain_class_uris=["http://example.org/ontology/Study"],
                 range_scheme_id=scheme_id,
                 range_scheme_uri="http://example.org/taxonomy",
                 cardinality="single",

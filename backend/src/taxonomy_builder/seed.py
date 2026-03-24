@@ -22,12 +22,13 @@ from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.publishing_service import PublishingService
 from taxonomy_builder.services.reader_file_service import ReaderFileService
+from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.skos_import_service import SKOSImportService
 from taxonomy_builder.services.snapshot_service import SnapshotService
 
-_EVREPO_CORE_TTL = (
-    Path(__file__).parent.parent.parent.parent / "vocab" / "evrepo-core" / "evrepo-core.ttl"
-)
+_BACKEND_ROOT = Path(__file__).parent.parent.parent.parent
+_EVREPO_CORE_TTL = _BACKEND_ROOT / "vocab" / "evrepo-core" / "evrepo-core.ttl"
+_EXPRESSIVITY_TTL = _BACKEND_ROOT / "backend" / "tests" / "fixtures" / "ttl" / "ontology-expressivity.ttl"
 
 
 async def create_seed_data(session: AsyncSession) -> dict:
@@ -68,7 +69,7 @@ async def create_seed_data(session: AsyncSession) -> dict:
     project = Project(
         name="Evidence Synthesis Taxonomy",
         description="A taxonomy for categorizing systematic review methods and approaches.",
-        namespace="https://evrepo.example.org/vocab",
+        namespace="https://vocab.evidence-repository.org/",
         identifier_prefix="EVD",
     )
     session.add(project)
@@ -349,6 +350,28 @@ async def create_seed_data(session: AsyncSession) -> dict:
         session.add(ConceptBroader(concept_id=concept_id, broader_concept_id=broader_id))
     await session.flush()
 
+    # Create a third project by importing the ontology expressivity test fixture.
+    # Exercises: class hierarchy, diamond inheritance, multi-domain properties,
+    # property types, OWL restrictions, concept-typed classes, scheme-backed ranges.
+    expressivity_project = Project(
+        name="Ontology Expressivity Test",
+        description="Exercises the full range of OWL/RDFS features supported by the import pipeline.",
+        namespace="https://example.org/epic108",
+        identifier_prefix="OET",
+    )
+    session.add(expressivity_project)
+    await session.flush()
+    created["projects"] += 1
+
+    expressivity_ttl = _EXPRESSIVITY_TTL.read_bytes()
+    expressivity_result = await import_service.execute(
+        expressivity_project.id, expressivity_ttl, "ontology-expressivity.ttl"
+    )
+    created["schemes"] += len(expressivity_result.schemes_created)
+    created["concepts"] += expressivity_result.total_concepts_created
+    created["classes"] += len(expressivity_result.classes_created)
+    created["properties"] += len(expressivity_result.properties_created)
+
     return created
 
 
@@ -363,8 +386,14 @@ async def publish_seed_projects(session_manager: DatabaseSessionManager) -> None
             project_svc = ProjectService(session)
             concept_svc = ConceptService(session)
             snapshot_svc = SnapshotService(session, project_svc, concept_svc)
-            publishing_svc = PublishingService(session, project_svc, snapshot_svc)
-            reader_svc = ReaderFileService(publishing_svc, blob_store, cdn_purger)
+            publishing_svc = PublishingService(
+                session,
+                project_svc,
+                snapshot_svc,
+                reader_file_service=ReaderFileService(blob_store, cdn_purger),
+                blob_store=blob_store,
+                skos_export_service=SKOSExportService(session),
+            )
 
             projects = await project_svc.list_projects()
             published = 0
@@ -373,18 +402,21 @@ async def publish_seed_projects(session_manager: DatabaseSessionManager) -> None
                 if existing:
                     continue
 
-                version = await publishing_svc.publish(
-                    project.id,
-                    PublishRequest(
-                        version="1.0",
-                        title=f"{project.name} v1.0",
-                        notes="Seed data for local development.",
-                    ),
-                    publisher="seed",
-                )
-                await reader_svc.publish_reader_files(version)
-                published += 1
-                print(f"  - {project.name}: published v1.0")
+                try:
+                    version = await publishing_svc.publish(
+                        project.id,
+                        PublishRequest(
+                            version="1.0",
+                            title=f"{project.name} v1.0",
+                            notes="Seed data for local development.",
+                        ),
+                        publisher="seed",
+                    )
+                    await publishing_svc.publish_artifacts(version)
+                    published += 1
+                    print(f"  - {project.name}: published v1.0")
+                except Exception as exc:
+                    print(f"  - {project.name}: skipped ({exc})")
 
             if published == 0:
                 print("  (all projects already published)")

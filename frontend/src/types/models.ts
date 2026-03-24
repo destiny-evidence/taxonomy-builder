@@ -193,7 +193,8 @@ export interface Property {
   identifier: string;
   label: string;
   description: string | null;
-  domain_class: string;
+  domain_class_uris: string[];
+  property_type: "object" | "datatype" | "rdf";
   range_scheme_id: string | null;
   range_scheme: ConceptSchemeBrief | null;
   range_datatype: string | null;
@@ -209,7 +210,7 @@ export interface PropertyCreate {
   identifier: string;
   label: string;
   description?: string | null;
-  domain_class: string;
+  domain_class_uris: string[];
   range_scheme_id?: string | null;
   range_datatype?: string | null;
   range_class?: string | null;
@@ -221,7 +222,7 @@ export interface PropertyUpdate {
   identifier?: string;
   label?: string;
   description?: string | null;
-  domain_class?: string;
+  domain_class_uris?: string[];
   range_scheme_id?: string | null;
   range_datatype?: string | null;
   range_class?: string | null;
@@ -269,6 +270,12 @@ export interface FeedbackManagerRead {
 }
 
 // ============ Ontology Classes ============
+export interface Restriction {
+  on_property_uri: string;
+  restriction_type: "allValuesFrom" | "someValuesFrom" | "hasValue";
+  value_uri: string;
+}
+
 export interface OntologyClass {
   id: string;
   project_id: string;
@@ -277,6 +284,9 @@ export interface OntologyClass {
   description: string | null;
   scope_note: string | null;
   uri: string;
+  superclass_uris: string[];
+  subclass_uris: string[];
+  restrictions: Restriction[];
   created_at: string;
   updated_at: string;
 }

@@ -68,6 +68,12 @@ export interface VocabScheme {
   concepts: Record<string, VocabConcept>;
 }
 
+export interface VocabRestriction {
+  on_property_uri: string;
+  restriction_type: string;
+  value_uri: string;
+}
+
 export interface VocabClass {
   id: string;
   identifier: string;
@@ -76,6 +82,8 @@ export interface VocabClass {
   description: string | null;
   scope_note: string | null;
   superclasses: string[];
+  subclasses: string[];
+  restrictions: VocabRestriction[];
 }
 
 export interface VocabProperty {

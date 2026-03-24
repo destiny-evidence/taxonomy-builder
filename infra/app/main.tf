@@ -97,6 +97,10 @@ module "container_app_api" {
       value = azurerm_storage_container.published.name
     },
     {
+      name  = "TAXONOMY_PUBLISHED_BASE_URL"
+      value = "https://${local.builder_custom_domain}/${azurerm_storage_container.published.name}"
+    },
+    {
       name = "TAXONOMY_CDN"
       value = jsonencode({
         subscription_id = data.azurerm_subscription.current.subscription_id

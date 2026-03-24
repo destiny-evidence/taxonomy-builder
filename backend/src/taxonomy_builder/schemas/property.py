@@ -1,12 +1,15 @@
 """Pydantic schemas for Property."""
 
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from taxonomy_builder.schemas.validators import validate_identifier
+
+if TYPE_CHECKING:
+    from taxonomy_builder.models.property import Property
 
 _RANGE_FIELDS = ("range_scheme_id", "range_datatype", "range_class")
 
@@ -34,13 +37,13 @@ class PropertyCreate(BaseModel):
     identifier: str = Field(..., min_length=1, max_length=255)
     label: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
-    domain_class: str = Field(..., max_length=2048)
+    domain_class_uris: list[str] = Field(..., min_length=1)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
-    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
+    range_class: str | None = Field(default=None, min_length=1)
     cardinality: Literal["single", "multiple"]
     required: bool = False
-    uri: str | None = Field(default=None, min_length=1, max_length=2048)
+    uri: str | None = Field(default=None, min_length=1)
 
     @field_validator("identifier")
     @classmethod
@@ -82,10 +85,10 @@ class PropertyUpdate(BaseModel):
     identifier: str | None = Field(default=None, min_length=1, max_length=255)
     label: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
-    domain_class: str | None = Field(default=None, max_length=2048)
+    domain_class_uris: list[str] | None = Field(default=None, min_length=1)
     range_scheme_id: UUID | None = None
     range_datatype: str | None = Field(default=None, max_length=50)
-    range_class: str | None = Field(default=None, min_length=1, max_length=2048)
+    range_class: str | None = Field(default=None, min_length=1)
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
 
@@ -143,7 +146,8 @@ class PropertyRead(BaseModel):
     identifier: str
     label: str
     description: str | None
-    domain_class: str
+    domain_class_uris: list[str] = []
+    property_type: str
     range_scheme_id: UUID | None
     range_scheme: ConceptSchemeBrief | None
     range_datatype: str | None
@@ -153,3 +157,29 @@ class PropertyRead(BaseModel):
     uri: str
     created_at: datetime
     updated_at: datetime
+
+    @classmethod
+    def from_orm_model(cls, obj: Property) -> PropertyRead:
+        """Build from ORM model, extracting relationship-derived fields."""
+        return cls(
+            id=obj.id,
+            project_id=obj.project_id,
+            identifier=obj.identifier,
+            label=obj.label,
+            description=obj.description,
+            domain_class_uris=sorted(c.uri for c in obj.domain_classes),
+            property_type=obj.property_type,
+            range_scheme_id=obj.range_scheme_id,
+            range_scheme=(
+                ConceptSchemeBrief.model_validate(obj.range_scheme, from_attributes=True)
+                if obj.range_scheme
+                else None
+            ),
+            range_datatype=obj.range_datatype,
+            range_class=obj.range_class,
+            cardinality=obj.cardinality,
+            required=obj.required,
+            uri=obj.uri,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )

@@ -1,14 +1,11 @@
 """Service for generating and writing published reader files to blob storage."""
 
-from __future__ import annotations
-
 import json
 import logging
 
 from taxonomy_builder.blob_store import BlobStore, CdnPurger
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
-from taxonomy_builder.services.publishing_service import PublishingService
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +17,9 @@ class ReaderFileService:
 
     def __init__(
         self,
-        publishing_service: PublishingService,
         blob_store: BlobStore,
         cdn_purger: CdnPurger,
     ) -> None:
-        self._publishing_service = publishing_service
         self._blob_store = blob_store
         self._cdn_purger = cdn_purger
 
@@ -98,6 +93,7 @@ class ReaderFileService:
                     "description": cls.description,
                     "scope_note": cls.scope_note,
                     "superclasses": cls.superclass_uris,
+                    "subclasses": cls.subclass_uris,
                     "restrictions": [
                         {
                             "on_property_uri": r.on_property_uri,
@@ -199,10 +195,15 @@ class ReaderFileService:
         return json.dumps(doc, separators=(",", ":")).encode()
 
     # ------------------------------------------------------------------
-    # Orchestration (service queries → render → blob writes → CDN purge)
+    # Orchestration (render → blob writes → CDN purge)
     # ------------------------------------------------------------------
 
-    async def publish_reader_files(self, version: PublishedVersion) -> None:
+    async def publish_reader_files(
+        self,
+        version: PublishedVersion,
+        all_versions: list[PublishedVersion],
+        projects_with_latest: list[tuple[Project, str | None]] | None = None,
+    ) -> None:
         """Generate and write all reader files for a published version."""
         project = version.project
 
@@ -211,7 +212,6 @@ class ReaderFileService:
         await self._blob_store.put(vocab_path, self.render_vocabulary(version))
 
         # 2. Write project index (mutable — regenerated on each publish)
-        all_versions = await self._publishing_service.list_versions(project.id)
         project_index_path = f"{project.id}/index.json"
         await self._blob_store.put(
             project_index_path, self.render_project_index(project, all_versions)
@@ -220,10 +220,7 @@ class ReaderFileService:
         # 3. Write root index (skip for pre-releases of already-published projects)
         purge_paths = [f"/{project_index_path}"]
         is_first_publish = len(all_versions) == 1
-        if version.finalized or is_first_publish:
-            projects_with_latest = (
-                await self._publishing_service.list_projects_with_latest_version()
-            )
+        if (version.finalized or is_first_publish) and projects_with_latest is not None:
             await self._blob_store.put(
                 "index.json", self.render_root_index(projects_with_latest)
             )

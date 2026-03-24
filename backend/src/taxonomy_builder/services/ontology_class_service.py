@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from taxonomy_builder.database import get_constraint_name
 from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.property import Property
+from taxonomy_builder.models.property_domain_class import PropertyDomainClass
 from taxonomy_builder.schemas.ontology_class import OntologyClassCreate, OntologyClassUpdate
 from taxonomy_builder.services.change_tracker import ChangeTracker
 from taxonomy_builder.services.project_service import ProjectService
@@ -154,7 +156,14 @@ class OntologyClassService:
         """
         await self._project_service.get_project(project_id)
         result = await self.db.execute(
-            select(OntologyClass).where(OntologyClass.project_id == project_id)
+            select(OntologyClass)
+            .where(OntologyClass.project_id == project_id)
+            .options(
+                # Arbitrarily large depth; cycle detection at import prevents infinite chains
+                selectinload(OntologyClass.superclasses, recursion_depth=10),
+                selectinload(OntologyClass.subclasses, recursion_depth=10),
+                selectinload(OntologyClass.restrictions),
+            )
         )
         return list(result.scalars().all())
 
@@ -168,7 +177,13 @@ class OntologyClassService:
             The ontology class or None if not found
         """
         result = await self.db.execute(
-            select(OntologyClass).where(OntologyClass.id == ontology_class_id)
+            select(OntologyClass)
+            .where(OntologyClass.id == ontology_class_id)
+            .options(
+                selectinload(OntologyClass.superclasses, recursion_depth=10),
+                selectinload(OntologyClass.subclasses, recursion_depth=10),
+                selectinload(OntologyClass.restrictions),
+            )
         )
         return result.scalar_one_or_none()
 
@@ -238,13 +253,20 @@ class OntologyClassService:
         if ontology_class is None:
             return False
 
+        # Check join table references (domain)
+        result = await self.db.execute(
+            select(PropertyDomainClass.property_id).where(
+                PropertyDomainClass.class_id == ontology_class_id,
+            )
+        )
+        if result.first() is not None:
+            raise OntologyClassReferencedByPropertyError(ontology_class_id)
+
+        # Check range_class references
         result = await self.db.execute(
             select(Property.id).where(
                 Property.project_id == ontology_class.project_id,
-                or_(
-                    Property.domain_class == ontology_class.uri,
-                    Property.range_class == ontology_class.uri,
-                ),
+                Property.range_class == ontology_class.uri,
             )
         )
         if result.first() is not None:

@@ -1,6 +1,7 @@
 """SKOS Export service for generating RDF output."""
 
 from enum import StrEnum
+from typing import NamedTuple
 from uuid import UUID
 
 from rdflib import BNode, Graph, Literal, URIRef
@@ -30,12 +31,22 @@ class ExportFormat(StrEnum):
     CONTEXT = "context"
 
 
-# Format to RDFLib format string and content type mapping
-FORMAT_CONFIG = {
-    ExportFormat.TTL: ("turtle", "text/turtle", ".ttl"),
-    ExportFormat.XML: ("xml", "application/rdf+xml", ".rdf"),
-    ExportFormat.JSONLD: ("json-ld", "application/ld+json", ".jsonld"),
-    ExportFormat.CONTEXT: (None, "application/ld+json", ".context.jsonld"),
+class FormatConfig(NamedTuple):
+    rdflib_format: str | None
+    content_type: str
+    extension: str
+    filename: str
+
+
+FORMAT_CONFIG: dict[ExportFormat, FormatConfig] = {
+    ExportFormat.TTL: FormatConfig("turtle", "text/turtle", ".ttl", "vocabulary.ttl"),
+    ExportFormat.XML: FormatConfig("xml", "application/rdf+xml", ".rdf", "vocabulary.rdf"),
+    ExportFormat.JSONLD: FormatConfig(
+        "json-ld", "application/ld+json", ".jsonld", "vocabulary.jsonld"
+    ),
+    ExportFormat.CONTEXT: FormatConfig(
+        None, "application/ld+json", ".context.jsonld", "context.jsonld"
+    ),
 }
 
 
@@ -81,6 +92,28 @@ class SKOSExportService:
             return URIRef(scheme.uri)
         return URIRef(f"{DEFAULT_BASE_URI}/{scheme.id}")
 
+    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
+        """Build an rdflib Graph from a snapshot dict."""
+        vocabulary = SnapshotVocabulary.model_validate(snapshot)
+
+        g = Graph()
+        g.bind("skos", SKOS)
+        g.bind("dct", DCTERMS)
+        g.bind("owl", OWL)
+        g.bind("rdfs", RDFS)
+        g.bind("xsd", XSD)
+
+        for scheme_snapshot in vocabulary.concept_schemes:
+            self._add_scheme_to_graph(g, scheme_snapshot)
+
+        for snapshot_property in vocabulary.properties:
+            self._add_property_to_graph(g, snapshot_property)
+
+        for snapshot_class in vocabulary.classes:
+            self._add_class_to_graph(g, snapshot_class)
+
+        return g
+
     async def export_scheme(self, scheme_id: UUID, format: str) -> str:
         """Export a concept scheme as SKOS RDF.
 
@@ -125,25 +158,23 @@ class SKOSExportService:
         Returns:
             The serialized RDF as a string
         """
-        vocabulary = SnapshotVocabulary.model_validate(published_version.snapshot)
-
-        g = Graph()
-        g.bind("skos", SKOS)
-        g.bind("dct", DCTERMS)
-        g.bind("owl", OWL)
-        g.bind("rdfs", RDFS)
-        g.bind("xsd", XSD)
-
-        for scheme_snapshot in vocabulary.concept_schemes:
-            self._add_scheme_to_graph(g, scheme_snapshot)
-
-        for snapshot_property in vocabulary.properties:
-            self._add_property_to_graph(g, snapshot_property)
-
-        for snapshot_class in vocabulary.classes:
-            self._add_class_to_graph(g, snapshot_class)
-
+        g = self._build_graph_from_snapshot(published_version.snapshot)
         return g.serialize(format=format)
+
+    def render_rdf_artifacts(self, version: PublishedVersion) -> dict[str, tuple[bytes, str]]:
+        """Build graph once from snapshot, serialize to all RDF formats.
+
+        Returns a dict of {filename: (data_bytes, content_type)}.
+        """
+        g = self._build_graph_from_snapshot(version.snapshot)
+        result: dict[str, tuple[bytes, str]] = {}
+        for fmt in FORMAT_CONFIG.values():
+            # Once we have context jsonlds availabe, we can also create
+            # compact jsonlds with compact kwarg
+            # https://rdflib.readthedocs.io/en/7.1.1/_modules/rdflib/plugins/serializers/jsonld.html#JsonLDSerializer
+            data = g.serialize(format=fmt.rdflib_format).encode()
+            result[fmt.filename] = (data, fmt.content_type)
+        return result
 
     def _add_scheme_to_graph(self, g: Graph, scheme_snapshot: SnapshotScheme) -> None:
         """Add a single concept scheme and its concepts to an RDF graph."""
@@ -209,8 +240,7 @@ class SKOSExportService:
         rdf_type = type_map.get(snapshot_property.property_type)
         if rdf_type is None:
             raise ValueError(
-                f"Unknown property_type '{snapshot_property.property_type}'"
-                f" for {prop_uri}"
+                f"Unknown property_type '{snapshot_property.property_type}' for {prop_uri}"
             )
         g.add((prop_uri, RDF.type, rdf_type))
 
@@ -261,8 +291,7 @@ class SKOSExportService:
             owl_pred = restriction_predicate_map.get(restriction.restriction_type)
             if owl_pred is None:
                 raise ValueError(
-                    f"Unknown restriction_type '{restriction.restriction_type}'"
-                    f" for {class_uri}"
+                    f"Unknown restriction_type '{restriction.restriction_type}' for {class_uri}"
                 )
             bnode = BNode()
             g.add((class_uri, RDFS.subClassOf, bnode))

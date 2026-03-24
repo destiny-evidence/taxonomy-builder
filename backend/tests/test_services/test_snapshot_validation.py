@@ -47,7 +47,6 @@ def _stub_property(**overrides):
         uri="http://example.org/prop1",
         label="Test Prop",
         description=None,
-        domain_class="",
         domain_classes=[],
         property_type="object",
         range_datatype=None,
@@ -70,6 +69,7 @@ def _stub_ontology_class(**overrides):
         description=None,
         scope_note=None,
         superclasses=[],
+        subclasses=[],
         restrictions=[],
     )
     return SimpleNamespace(**(defaults | overrides))
@@ -135,11 +135,51 @@ class TestValidProject:
         assert result.errors == []
 
 
-class TestNoSchemes:
-    def test_no_schemes(self) -> None:
+class TestEmptyProject:
+    def test_completely_empty_project(self) -> None:
+        """A project with no schemes, classes, or properties is invalid."""
         result = validate_snapshot(_vocab())
         assert result.valid is False
-        assert any(e.code == "no_schemes" for e in result.errors)
+        assert any(e.code == "empty_project" for e in result.errors)
+
+    def test_ontology_only_project_is_valid(self) -> None:
+        """A project with classes and properties but no schemes is valid."""
+        cls = _class("Finding", uri="http://example.org/Finding")
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Test Property",
+            domain_class_uris=["http://example.org/Finding"],
+            property_type="object",
+            range_datatype="xsd:string",
+            cardinality="single",
+            required=False,
+        )
+        result = validate_snapshot(_vocab(properties=[prop], classes=[cls]))
+        assert result.valid is True
+
+    def test_classes_only_project_is_valid(self) -> None:
+        """A project with only classes (no schemes or properties) is valid."""
+        cls = _class("Finding", uri="http://example.org/Finding")
+        result = validate_snapshot(_vocab(classes=[cls]))
+        assert result.valid is True
+
+    def test_properties_only_still_invalid(self) -> None:
+        """Properties without any classes or schemes is still invalid (no domain to resolve)."""
+        prop = SnapshotProperty.model_construct(
+            id=uuid4(),
+            identifier="prop1",
+            uri="http://example.org/prop1",
+            label="Orphan Property",
+            domain_class_uris=[],
+            property_type="rdf",
+            cardinality="single",
+            required=False,
+        )
+        result = validate_snapshot(_vocab(properties=[prop]))
+        assert result.valid is False
+        assert any(e.code == "empty_project" for e in result.errors)
 
 
 class TestNoConceptsInScheme:
@@ -250,7 +290,7 @@ class TestPropertyMissingRangeSchemeUri:
             identifier="prop1",
             uri="http://example.org/prop1",
             label="Test Property",
-            domain_class="http://example.org/Class",
+            domain_class_uris=["http://example.org/Class"],
             range_scheme_id=uuid4(),
             range_scheme_uri=None,
             cardinality="one",
@@ -273,7 +313,7 @@ class TestBrokenRangeSchemeRef:
             identifier="prop1",
             uri="http://example.org/prop1",
             label="Test Property",
-            domain_class="http://example.org/Class",
+            domain_class_uris=["http://example.org/Class"],
             range_scheme_id=orphan_scheme_id,
             range_scheme_uri="http://example.org/orphan",
             cardinality="one",
@@ -295,7 +335,7 @@ class TestBrokenRangeSchemeRef:
             identifier="prop1",
             uri="http://example.org/prop1",
             label="Test Property",
-            domain_class="http://example.org/Class",
+            domain_class_uris=["http://example.org/Class"],
             range_scheme_id=scheme.id,
             range_scheme_uri="http://example.org/scheme",
             cardinality="one",
@@ -311,7 +351,7 @@ class TestBrokenRangeSchemeRef:
             identifier="prop1",
             uri="http://example.org/prop1",
             label="Test Property",
-            domain_class="http://example.org/Class",
+            domain_class_uris=["http://example.org/Class"],
             range_scheme_id=None,
             range_datatype="xsd:string",
             cardinality="one",
@@ -396,15 +436,14 @@ class TestSnapshotConceptTypeUris:
 class TestSnapshotPropertyNewFields:
     """SnapshotProperty should carry property_type and domain_class_uris."""
 
-    def test_domain_class_uris_wraps_scalar(self) -> None:
-        """from_property() should wrap scalar domain_class in a list."""
+    def test_domain_class_uris_from_empty_domain_classes(self) -> None:
+        """from_property() returns empty list when domain_classes is empty."""
         stub = _stub_property(
-            domain_class="http://example.org/Class",
             property_type="datatype",
             range_datatype="xsd:string",
         )
         prop = SnapshotProperty.from_property(stub)
-        assert prop.domain_class_uris == ["http://example.org/Class"]
+        assert prop.domain_class_uris == []
 
     def test_property_type_from_column_datatype(self) -> None:
         """property_type='datatype' passes through from column."""
@@ -429,7 +468,6 @@ def _fake_property(**overrides):
         "uri": "http://example.org/prop1",
         "label": "Test Property",
         "description": None,
-        "domain_class": "http://example.org/Class",
         "domain_classes": [],
         "property_type": "object",
         "range_scheme_id": None,

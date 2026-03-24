@@ -234,7 +234,7 @@ async def test_jsonb_round_trip(db_session: AsyncSession, project: Project) -> N
                 "uri": "http://example.org/vocab/testProp",
                 "label": "Test Property",
                 "description": None,
-                "domain_class": "http://example.org/vocab/Finding",
+                "domain_class_uris": ["http://example.org/vocab/Finding"],
                 "range_scheme_id": None,
                 "range_datatype": "xsd:string",
                 "cardinality": "single",

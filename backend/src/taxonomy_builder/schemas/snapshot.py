@@ -135,7 +135,6 @@ class SnapshotProperty(BaseModel):
     label: str
     uri: str
     description: str | None = None
-    domain_class: str = ""  # kept for backward compat; domain_class_uris is authoritative
     domain_class_uris: list[str] = Field(default_factory=list)
     property_type: Literal["object", "datatype", "rdf"] = "object"
     range_scheme_id: UUID | None = None
@@ -195,22 +194,13 @@ class SnapshotProperty(BaseModel):
 
     @classmethod
     def from_property(cls, property: Property) -> Self:
-        # Prioritize join table, fallback to scalar, then empty list
-        if property.domain_classes:
-            uris = [c.uri for c in property.domain_classes]
-        elif property.domain_class:
-            uris = [property.domain_class]
-        else:
-            uris = []
-
         return cls.model_construct(
             id=property.id,
             identifier=property.identifier,
             uri=property.uri,
             label=property.label,
             description=property.description,
-            domain_class="",  # deprecated; domain_class_uris is authoritative
-            domain_class_uris=uris,
+            domain_class_uris=[c.uri for c in property.domain_classes],
             property_type=property.property_type,
             range_scheme_id=property.range_scheme_id,
             range_scheme_uri=property.range_scheme.uri if property.range_scheme else None,
@@ -239,6 +229,7 @@ class SnapshotClass(BaseModel):
     description: str | None = None
     scope_note: str | None = None
     superclass_uris: list[str] = Field(default_factory=list)
+    subclass_uris: list[str] = Field(default_factory=list)
     restrictions: list[SnapshotRestriction] = Field(default_factory=list)
 
     @field_validator("label", mode="after")
@@ -267,6 +258,9 @@ class SnapshotClass(BaseModel):
             scope_note=ontology_class.scope_note,
             superclass_uris=sorted(
                 sc.uri for sc in ontology_class.superclasses if sc.uri
+            ),
+            subclass_uris=sorted(
+                sc.uri for sc in ontology_class.subclasses if sc.uri
             ),
             restrictions=sorted(
                 [
@@ -310,19 +304,16 @@ class SnapshotVocabulary(BaseModel):
     properties: list[SnapshotProperty] = Field(default_factory=list)
     classes: list[SnapshotClass] = Field(default_factory=list)
 
-    @field_validator("concept_schemes", mode="after")
-    @classmethod
-    def require_schemes(
-        cls,
-        v: list[SnapshotScheme],
-    ) -> list[SnapshotScheme]:
-        if not v:
+    @model_validator(mode="after")
+    def require_content(self) -> Self:
+        """Reject completely empty projects (no schemes, no classes)."""
+        if not self.concept_schemes and not self.classes:
             raise PydanticCustomError(
-                "no_schemes",
-                "Project has no concept schemes.",
+                "empty_project",
+                "Project has no concept schemes or classes.",
                 {},
             )
-        return v
+        return self
 
     @classmethod
     def from_project(cls, project: Project) -> Self:

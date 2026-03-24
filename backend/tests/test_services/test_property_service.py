@@ -79,21 +79,6 @@ async def other_scheme(db_session: AsyncSession, other_project: Project) -> Conc
 
 
 @pytest.fixture
-async def ontology_class(db_session: AsyncSession, project: Project) -> OntologyClass:
-    """Create an ontology class in the test project (URI: https://example.org/vocab/Finding)."""
-    cls = OntologyClass(
-        project_id=project.id,
-        identifier="Finding",
-        label="Finding",
-        uri="https://example.org/vocab/Finding",
-    )
-    db_session.add(cls)
-    await db_session.flush()
-    await db_session.refresh(cls)
-    return cls
-
-
-@pytest.fixture
 async def other_ontology_class(db_session: AsyncSession, other_project: Project) -> OntologyClass:
     """Create an ontology class in the other project (URI: https://other.org/vocab/Finding)."""
     cls = OntologyClass(
@@ -154,7 +139,7 @@ class TestPropertySchemaValidation:
             PropertyCreate(
                 identifier="testProp",
                 label="Test",
-                domain_class="https://example.org/vocab/Finding",
+                domain_class_uris=["https://example.org/vocab/Finding"],
                 cardinality="single",
                 **range_kwargs,
             )
@@ -189,7 +174,7 @@ class TestCreateProperty:
             identifier="educationLevel",
             label="Education Level",
             description="The level of education",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_scheme_id=scheme.id,
             cardinality="single",
             required=False,
@@ -212,7 +197,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="sampleSize",
             label="Sample Size",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:integer",
             cardinality="single",
             required=True,
@@ -234,7 +219,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_class="https://example.org/ontology/EducationLevel",
             cardinality="single",
         )
@@ -255,7 +240,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/InvalidClass",
+            domain_class_uris=["https://example.org/InvalidClass"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -277,7 +262,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_scheme_id=other_scheme.id,
             cardinality="single",
         )
@@ -296,7 +281,7 @@ class TestCreateProperty:
         prop_in1 = PropertyCreate(
             identifier="testProp",
             label="Test 1",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -306,7 +291,7 @@ class TestCreateProperty:
         prop_in2 = PropertyCreate(
             identifier="testProp",
             label="Test 2",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:integer",
             cardinality="single",
         )
@@ -322,7 +307,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_scheme_id=uuid4(),
             cardinality="single",
         )
@@ -342,7 +327,7 @@ class TestCreateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://other.org/vocab/Finding",
+            domain_class_uris=["https://other.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -375,14 +360,14 @@ class TestListProperties:
         prop1_in = PropertyCreate(
             identifier="prop1",
             label="Property 1",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
         prop2_in = PropertyCreate(
             identifier="prop2",
             label="Property 2",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:integer",
             cardinality="multiple",
         )
@@ -410,14 +395,14 @@ class TestListProperties:
         prop1_in = PropertyCreate(
             identifier="prop1",
             label="Property 1",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
         prop2_in = PropertyCreate(
             identifier="prop2",
             label="Property 2",
-            domain_class="https://other.org/vocab/Finding",
+            domain_class_uris=["https://other.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -451,7 +436,7 @@ class TestGetProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test Property",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -485,7 +470,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Original Label",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -507,7 +492,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -528,7 +513,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
             required=False,
@@ -574,7 +559,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_scheme_id=scheme.id,
             cardinality="single",
         )
@@ -599,7 +584,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_scheme_id=scheme.id,
             cardinality="single",
         )
@@ -622,7 +607,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -652,7 +637,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -671,7 +656,7 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -691,13 +676,13 @@ class TestUpdateProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
         created = await service.create_property(project.id, prop_in)
 
-        update = PropertyUpdate(domain_class="https://example.org/vocab/NonExistent")
+        update = PropertyUpdate(domain_class_uris=["https://example.org/vocab/NonExistent"])
         with pytest.raises(DomainClassNotFoundError):
             await service.update_property(created.id, update)
 
@@ -715,7 +700,7 @@ class TestDeleteProperty:
         prop_in = PropertyCreate(
             identifier="testProp",
             label="Test",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -750,7 +735,7 @@ class TestPropertyURI:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -766,7 +751,7 @@ class TestPropertyURI:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
             uri="https://external.org/props/educationLevel",
@@ -783,7 +768,7 @@ class TestPropertyURI:
         prop_in = PropertyCreate(
             identifier="educationLevel",
             label="Education Level",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
         )
@@ -810,7 +795,7 @@ class TestURICollision:
         prop_in1 = PropertyCreate(
             identifier="prop1",
             label="Property 1",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
             cardinality="single",
             uri="https://example.org/vocab/sharedUri",
@@ -820,10 +805,77 @@ class TestURICollision:
         prop_in2 = PropertyCreate(
             identifier="prop2",
             label="Property 2",
-            domain_class="https://example.org/vocab/Finding",
+            domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:integer",
             cardinality="single",
             uri="https://example.org/vocab/sharedUri",
         )
         with pytest.raises(PropertyURIExistsError):
             await property_service.create_property(project.id, prop_in2)
+
+    @pytest.mark.asyncio
+    async def test_update_to_duplicate_identifier_raises(
+        self, project: Project, property_service: PropertyService
+    ) -> None:
+        """Renaming a property to an existing identifier raises PropertyIdentifierExistsError."""
+        prop1 = await property_service.create_property(
+            project.id,
+            PropertyCreate(
+                identifier="prop1",
+                label="Property 1",
+                domain_class_uris=["https://example.org/vocab/Finding"],
+                range_datatype="xsd:string",
+                cardinality="single",
+            ),
+        )
+        await property_service.create_property(
+            project.id,
+            PropertyCreate(
+                identifier="prop2",
+                label="Property 2",
+                domain_class_uris=["https://example.org/vocab/Finding"],
+                range_datatype="xsd:string",
+                cardinality="single",
+            ),
+        )
+
+        with pytest.raises(PropertyIdentifierExistsError):
+            await property_service.update_property(
+                prop1.id, PropertyUpdate(identifier="prop2")
+            )
+
+
+@pytest.mark.usefixtures("ontology_class")
+class TestChangeTracking:
+    """Tests for property change tracking serialization."""
+
+    @pytest.mark.asyncio
+    async def test_serialize_includes_property_type(
+        self, project: Project, property_service: PropertyService,
+        db_session: AsyncSession,
+    ) -> None:
+        """Change events include property_type in before/after snapshots."""
+        from taxonomy_builder.models.change_event import ChangeEvent
+
+        prop = await property_service.create_property(
+            project.id,
+            PropertyCreate(
+                identifier="testProp",
+                label="Test",
+                domain_class_uris=["https://example.org/vocab/Finding"],
+                range_datatype="xsd:string",
+                cardinality="single",
+            ),
+        )
+
+        # Fetch the create event
+        from sqlalchemy import select
+        result = await db_session.execute(
+            select(ChangeEvent).where(
+                ChangeEvent.entity_id == prop.id,
+                ChangeEvent.action == "create",
+            )
+        )
+        event = result.scalar_one()
+        assert "property_type" in event.after_state
+        assert event.after_state["property_type"] == "datatype"
