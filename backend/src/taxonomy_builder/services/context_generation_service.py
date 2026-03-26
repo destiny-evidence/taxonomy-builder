@@ -13,48 +13,50 @@ class ContextGenerationService:
 
     def generate(self, snapshot: SnapshotVocabulary) -> dict:
         """Build a JSON-LD @context from a vocabulary snapshot."""
-        project_ns = snapshot.project.namespace.rstrip("/") + "/"
+        project_namespace = snapshot.project.namespace.rstrip("/") + "/"
         prefixes = dict(snapshot.project.namespace_prefixes)
 
-        # Build reverse lookup: namespace URL → prefix name (longest NS first
-        # so that more-specific namespaces match before shorter ones).
-        ns_to_prefix: dict[str, str] = dict(
+        # Build reverse lookup: namespace URL → prefix name (longest namespace
+        # first so that more-specific namespaces match before shorter ones).
+        namespace_to_prefix: dict[str, str] = dict(
             sorted(
-                ((ns, pfx) for pfx, ns in prefixes.items()),
+                ((namespace, prefix) for prefix, namespace in prefixes.items()),
                 key=lambda item: len(item[0]),
                 reverse=True,
             )
         )
 
-        ctx: dict[str, object] = {}
+        context: dict[str, object] = {}
 
         # 1. @vocab — bare terms resolve to the project namespace
-        ctx["@vocab"] = project_ns
+        context["@vocab"] = project_namespace
 
-        # 2. Namespace prefix mappings (skip empty-string keys — invalid in JSON-LD)
-        for prefix, ns in sorted(prefixes.items()):
+        # 2. Namespace prefix mappings
+        # Skip empty-string keys: Turtle allows `@prefix : <ns>` which
+        # produces an empty prefix after import — invalid as a JSON-LD term.
+        for prefix, namespace in sorted(prefixes.items()):
             if prefix:
-                ctx[prefix] = ns
+                context[prefix] = namespace
 
         # 3. Class term mappings
         used_terms: dict[str, str] = {}  # local_name → full URI (for collision detection)
 
-        for cls in snapshot.classes:
-            local_name = self._local_name(cls.uri)
+        for snapshot_class in snapshot.classes:
+            local_name = self._local_name(snapshot_class.uri)
             if not local_name:
                 continue
-            if cls.uri.startswith(project_ns):
+            if snapshot_class.uri.startswith(project_namespace):
                 # Resolved via @vocab — no explicit entry needed,
                 # but reserve the local name for collision detection.
-                used_terms.setdefault(local_name, cls.uri)
+                used_terms.setdefault(local_name, snapshot_class.uri)
                 continue
-            compact = self._compact_uri(cls.uri, ns_to_prefix)
+            compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
             if local_name in used_terms:
                 # Collision — use full URI as key
-                ctx[cls.uri] = compact
+                context[snapshot_class.uri] = compact
             else:
-                used_terms[local_name] = cls.uri
-                ctx[local_name] = compact
+                used_terms[local_name] = snapshot_class.uri
+                context[local_name] = compact
 
         # 4. Property term mappings
         for prop in snapshot.properties:
@@ -62,12 +64,12 @@ class ContextGenerationService:
             if not local_name:
                 continue
 
-            in_project_ns = prop.uri.startswith(project_ns)
+            in_project_namespace = prop.uri.startswith(project_namespace)
             entry: dict[str, str] = {}
 
             # @id — only needed for properties outside the project namespace
-            if not in_project_ns:
-                entry["@id"] = self._compact_uri(prop.uri, ns_to_prefix)
+            if not in_project_namespace:
+                entry["@id"] = self._compact_uri(prop.uri, namespace_to_prefix)
 
             # @type
             if prop.property_type == "object" or (
@@ -95,11 +97,11 @@ class ContextGenerationService:
 
             # Simplify: if only @id, emit as string instead of object
             if set(entry.keys()) == {"@id"}:
-                ctx[term_key] = entry["@id"]
+                context[term_key] = entry["@id"]
             else:
-                ctx[term_key] = entry
+                context[term_key] = entry
 
-        return {"@context": ctx}
+        return {"@context": context}
 
     @staticmethod
     def _local_name(uri: str) -> str:
@@ -111,9 +113,9 @@ class ContextGenerationService:
         return uri
 
     @staticmethod
-    def _compact_uri(uri: str, ns_to_prefix: dict[str, str]) -> str:
+    def _compact_uri(uri: str, namespace_to_prefix: dict[str, str]) -> str:
         """Compact a URI using known prefix mappings, or return the full URI."""
-        for ns, prefix in ns_to_prefix.items():
-            if uri.startswith(ns):
-                return f"{prefix}:{uri[len(ns):]}"
+        for namespace, prefix in namespace_to_prefix.items():
+            if uri.startswith(namespace):
+                return f"{prefix}:{uri[len(namespace):]}"
         return uri
