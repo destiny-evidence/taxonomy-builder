@@ -92,16 +92,27 @@ class SKOSExportService:
             return URIRef(scheme.uri)
         return URIRef(f"{DEFAULT_BASE_URI}/{scheme.id}")
 
-    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
-        """Build an rdflib Graph from a snapshot dict."""
-        vocabulary = SnapshotVocabulary.model_validate(snapshot)
+    @staticmethod
+    def _new_graph() -> Graph:
+        """Create a Graph with only the standard vocabulary prefixes bound.
 
-        g = Graph()
+        Uses ``bind_namespaces="none"`` to avoid rdflib's ~29 built-in
+        prefixes leaking into serialized output (especially JSON-LD).
+        """
+        g = Graph(bind_namespaces="none")
+        g.bind("rdf", RDF)
         g.bind("skos", SKOS)
         g.bind("dct", DCTERMS)
         g.bind("owl", OWL)
         g.bind("rdfs", RDFS)
         g.bind("xsd", XSD)
+        return g
+
+    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
+        """Build an rdflib Graph from a snapshot dict."""
+        vocabulary = SnapshotVocabulary.model_validate(snapshot)
+
+        g = self._new_graph()
 
         for prefix, ns in vocabulary.project.namespace_prefixes.items():
             g.bind(prefix, ns)
@@ -132,13 +143,7 @@ class SKOSExportService:
         """
         scheme = await self._get_scheme(scheme_id)
 
-        graph = Graph()
-
-        # Bind namespaces for cleaner output
-        graph.bind("skos", SKOS)
-        graph.bind("dct", DCTERMS)
-        graph.bind("owl", OWL)
-        graph.bind("rdfs", RDFS)
+        graph = self._new_graph()
 
         snapshot_scheme = SnapshotScheme.from_scheme(scheme)
 

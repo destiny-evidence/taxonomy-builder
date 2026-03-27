@@ -18,6 +18,13 @@ PROP_RDF_ID = UUID("01965a00-0000-7000-8000-a00000000005")
 PROJECT_NS = "https://vocab.esea.education/"
 EXTERNAL_NS = "https://vocab.evidence-repository.org/"
 
+DEFAULT_PREFIXES = {
+    "esea": PROJECT_NS,
+    "evrepo": EXTERNAL_NS,
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+}
+
 
 def _make_snapshot(
     *,
@@ -33,12 +40,7 @@ def _make_snapshot(
             "name": "ESEA",
             "description": None,
             "namespace": namespace,
-            "namespace_prefixes": namespace_prefixes or {
-                "esea": PROJECT_NS,
-                "evrepo": EXTERNAL_NS,
-                "xsd": "http://www.w3.org/2001/XMLSchema#",
-                "skos": "http://www.w3.org/2004/02/skos/core#",
-            },
+            "namespace_prefixes": namespace_prefixes or DEFAULT_PREFIXES,
         },
         "concept_schemes": [
             {

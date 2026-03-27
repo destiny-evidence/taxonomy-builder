@@ -1,6 +1,10 @@
 """JSON-LD @context generation service."""
 
+import logging
+
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
+
+logger = logging.getLogger(__name__)
 
 
 class ContextGenerationService:
@@ -39,7 +43,8 @@ class ContextGenerationService:
                 context[prefix] = namespace
 
         # 3. Class term mappings
-        used_terms: dict[str, str] = {}  # local_name → full URI (for collision detection)
+        # Reserve prefix names so class/property local names can't overwrite them.
+        used_terms: dict[str, str] = {prefix: prefix for prefix in prefixes}
 
         for snapshot_class in snapshot.classes:
             local_name = self._local_name(snapshot_class.uri)
@@ -52,7 +57,12 @@ class ContextGenerationService:
                 continue
             compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
             if local_name in used_terms:
-                # Collision — use full URI as key
+                # Collision with existing term or prefix — use full URI as key
+                logger.warning(
+                    "Context term collision: class %s mapped to full URI "
+                    "(local name %r already used)",
+                    snapshot_class.uri, local_name,
+                )
                 context[snapshot_class.uri] = compact
             else:
                 used_terms[local_name] = snapshot_class.uri
@@ -90,6 +100,11 @@ class ContextGenerationService:
 
             # Determine the term key
             if local_name in used_terms and used_terms[local_name] != prop.uri:
+                logger.warning(
+                    "Context term collision: property %s mapped to full URI "
+                    "(local name %r already used)",
+                    prop.uri, local_name,
+                )
                 term_key = prop.uri  # collision
             else:
                 used_terms[local_name] = prop.uri

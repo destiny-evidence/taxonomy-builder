@@ -1494,16 +1494,15 @@ async def test_execute_stores_custom_namespace_prefix(
 
 
 @pytest.mark.asyncio
-async def test_execute_excludes_reserved_prefixes(
+async def test_execute_stores_all_declared_prefixes(
     db_session: AsyncSession, import_service: SKOSImportService, project_with_prefix: Project
 ) -> None:
-    """Reserved prefixes (xsd, skos, rdf, etc.) must not be stored."""
+    """All prefixes declared in the TTL should be stored, including standard ones."""
     await import_service.execute(
         project_with_prefix.id, PREFIXED_TTL_WITH_XSD_OVERRIDE, "test.ttl"
     )
     await db_session.refresh(project_with_prefix)
-    # xsd and skos declared in the TTL should be filtered out
-    assert "xsd" not in project_with_prefix.namespace_prefixes
-    assert "skos" not in project_with_prefix.namespace_prefixes
-    # but evrepo should still be stored
+    assert "xsd" in project_with_prefix.namespace_prefixes
+    assert "skos" in project_with_prefix.namespace_prefixes
+    assert "rdfs" in project_with_prefix.namespace_prefixes
     assert "evrepo" in project_with_prefix.namespace_prefixes

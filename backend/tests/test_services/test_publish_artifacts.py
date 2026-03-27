@@ -199,6 +199,18 @@ class TestRenderRdfArtifacts:
         assert (None, RDF.type, SKOS.ConceptScheme) in g
         assert (None, RDF.type, SKOS.Concept) in g
 
+    def test_jsonld_excludes_rdflib_builtin_prefixes(self, service):
+        """JSON-LD @context must not contain rdflib's ~29 default prefixes."""
+        version = _make_version()
+        artifacts = service.render_rdf_artifacts(version)
+        doc = json.loads(artifacts["vocabulary.jsonld"][0])
+        ctx = doc.get("@context", {})
+        rdflib_builtins = {"brick", "csvw", "dcam", "dcat", "dcmitype", "doap",
+                           "foaf", "geo", "odrl", "org", "prof", "prov", "qb",
+                           "schema", "sh", "sosa", "ssn", "time", "vann", "void", "wgs"}
+        leaked = rdflib_builtins & set(ctx.keys())
+        assert not leaked, f"rdflib built-in prefixes leaked into JSON-LD: {leaked}"
+
 
 # ===================================================================
 # PublishingService.publish_artifacts integration tests

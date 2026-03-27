@@ -203,18 +203,13 @@ class SKOSImportService:
             property_uri_to_id={p.uri: p.id for p in existing_props},
         )
 
-    # Prefixes that must not be overwritten: built-in RDF bindings and
-    # well-known vocabularies whose CURIEs appear in generated JSON-LD
-    # @type values (e.g. "xsd:boolean").
-    _RESERVED_PREFIXES = frozenset({"", "rdf", "rdfs", "owl", "xml", "xsd", "skos"})
-
     async def _merge_namespace_prefixes(
         self, project_id: UUID, g: Graph
     ) -> None:
         """Extract @prefix bindings from an RDF graph and merge into the project.
 
         The graph is parsed with ``bind_namespaces="none"`` (see ``parse_rdf``),
-        so only prefixes explicitly declared in the file are reported.
+        so only prefixes explicitly declared in the file are present.
         """
         from taxonomy_builder.models.project import Project
 
@@ -228,7 +223,7 @@ class SKOSImportService:
         imported = {
             prefix: str(ns)
             for prefix, ns in g.namespace_manager.namespaces()
-            if prefix not in self._RESERVED_PREFIXES
+            if prefix  # skip empty prefix from Turtle's `@prefix : <ns>`
         }
 
         if not imported:
