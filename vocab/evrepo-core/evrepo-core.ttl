@@ -110,7 +110,8 @@ evrepo:hasInvestigation a owl:ObjectProperty ;
 evrepo:hasFinding a owl:ObjectProperty ;
     rdfs:label "has finding"@en ;
     rdfs:domain evrepo:Investigation ;
-    rdfs:range evrepo:Finding .
+    rdfs:range evrepo:Finding ;
+    evrepo:allowMultiple true .
 
 evrepo:hasContext a owl:ObjectProperty ;
     rdfs:label "has context"@en ;
@@ -143,18 +144,21 @@ evrepo:hasArmData a owl:ObjectProperty ;
     rdfs:label "has arm data"@en ;
     rdfs:domain evrepo:Finding ;
     rdfs:range evrepo:ObservedResult ;
-    rdfs:comment "Links a Finding to per-arm summary statistics. A two-arm trial typically has two ObservedResults; multi-arm trials have more."@en .
+    rdfs:comment "Links a Finding to per-arm summary statistics. A two-arm trial typically has two ObservedResults; multi-arm trials have more."@en ;
+    evrepo:allowMultiple true .
 
 evrepo:hasEffectEstimate a owl:ObjectProperty ;
     rdfs:label "has effect estimate"@en ;
     rdfs:domain evrepo:Finding ;
-    rdfs:range evrepo:EffectEstimate .
+    rdfs:range evrepo:EffectEstimate ;
+    evrepo:allowMultiple true .
 
 evrepo:derivedFrom a owl:ObjectProperty ;
     rdfs:label "derived from"@en ;
     rdfs:domain evrepo:EffectEstimate ;
     rdfs:range evrepo:ObservedResult ;
-    rdfs:comment "Links an EffectEstimate back to the ObservedResult(s) it was computed from."@en .
+    rdfs:comment "Links an EffectEstimate back to the ObservedResult(s) it was computed from."@en ;
+    evrepo:allowMultiple true .
 
 evrepo:forCondition a owl:ObjectProperty ;
     rdfs:label "for condition"@en ;

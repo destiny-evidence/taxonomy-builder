@@ -50,18 +50,14 @@ class ContextGenerationService:
             local_name = self._local_name(snapshot_class.uri)
             if not local_name:
                 continue
-            if snapshot_class.uri.startswith(project_namespace):
-                # Resolved via @vocab — no explicit entry needed,
-                # but reserve the local name for collision detection.
-                used_terms.setdefault(local_name, snapshot_class.uri)
-                continue
             compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
             if local_name in used_terms:
                 # Collision with existing term or prefix — use full URI as key
                 logger.warning(
                     "Context term collision: class %s mapped to full URI "
                     "(local name %r already used)",
-                    snapshot_class.uri, local_name,
+                    snapshot_class.uri,
+                    local_name,
                 )
                 context[snapshot_class.uri] = compact
             else:
@@ -83,11 +79,10 @@ class ContextGenerationService:
 
             # @type
             if prop.property_type == "object" or (
-                prop.range_scheme_id is not None
-                or prop.range_class is not None
+                prop.range_scheme_id is not None or prop.range_class is not None
             ):
                 entry["@type"] = "@id"
-            elif prop.property_type == "datatype" and prop.range_datatype:
+            elif prop.range_datatype:
                 entry["@type"] = prop.range_datatype
 
             # @container
@@ -103,7 +98,8 @@ class ContextGenerationService:
                 logger.warning(
                     "Context term collision: property %s mapped to full URI "
                     "(local name %r already used)",
-                    prop.uri, local_name,
+                    prop.uri,
+                    local_name,
                 )
                 term_key = prop.uri  # collision
             else:
@@ -116,6 +112,15 @@ class ContextGenerationService:
             else:
                 context[term_key] = entry
 
+        # 5. Named individual aliases (e.g., CodingStatus values)
+        for individual in snapshot.named_individuals:
+            local_name = self._local_name(individual.uri)
+            if not local_name or local_name in used_terms:
+                continue
+            compact = self._compact_uri(individual.uri, namespace_to_prefix)
+            used_terms[local_name] = individual.uri
+            context[local_name] = compact
+
         return {"@context": context}
 
     @staticmethod
@@ -124,7 +129,7 @@ class ContextGenerationService:
         for sep in ("#", "/"):
             idx = uri.rfind(sep)
             if idx >= 0:
-                return uri[idx + 1:]
+                return uri[idx + 1 :]
         return uri
 
     @staticmethod
@@ -132,5 +137,5 @@ class ContextGenerationService:
         """Compact a URI using known prefix mappings, or return the full URI."""
         for namespace, prefix in namespace_to_prefix.items():
             if uri.startswith(namespace):
-                return f"{prefix}:{uri[len(namespace):]}"
+                return f"{prefix}:{uri[len(namespace) :]}"
         return uri

@@ -70,7 +70,6 @@ class SnapshotConcept(BaseModel):
         )
 
 
-
 class SnapshotScheme(BaseModel):
     """A concept scheme within a snapshot."""
 
@@ -256,12 +255,8 @@ class SnapshotClass(BaseModel):
             label=ontology_class.label,
             description=ontology_class.description,
             scope_note=ontology_class.scope_note,
-            superclass_uris=sorted(
-                sc.uri for sc in ontology_class.superclasses if sc.uri
-            ),
-            subclass_uris=sorted(
-                sc.uri for sc in ontology_class.subclasses if sc.uri
-            ),
+            superclass_uris=sorted(sc.uri for sc in ontology_class.superclasses if sc.uri),
+            subclass_uris=sorted(sc.uri for sc in ontology_class.subclasses if sc.uri),
             restrictions=sorted(
                 [
                     SnapshotRestriction(
@@ -296,6 +291,13 @@ class SnapshotProjectMetadata(BaseModel):
         )
 
 
+class SnapshotNamedIndividual(BaseModel):
+    """A named OWL individual within a snapshot (e.g., CodingStatus values)."""
+
+    uri: str
+    label: str
+
+
 class SnapshotVocabulary(BaseModel):
     """Complete immutable snapshot of a project's vocabulary."""
 
@@ -303,6 +305,7 @@ class SnapshotVocabulary(BaseModel):
     concept_schemes: list[SnapshotScheme] = Field(default_factory=list)
     properties: list[SnapshotProperty] = Field(default_factory=list)
     classes: list[SnapshotClass] = Field(default_factory=list)
+    named_individuals: list[SnapshotNamedIndividual] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_content(self) -> Self:
@@ -322,6 +325,10 @@ class SnapshotVocabulary(BaseModel):
             concept_schemes=[SnapshotScheme.from_scheme(s) for s in project.schemes],
             properties=[SnapshotProperty.from_property(p) for p in project.properties],
             classes=[SnapshotClass.from_class(c) for c in project.ontology_classes],
+            named_individuals=[
+                SnapshotNamedIndividual(uri=ni["uri"], label=ni["label"])
+                for ni in (project.named_individuals or [])
+            ],
         )
 
 

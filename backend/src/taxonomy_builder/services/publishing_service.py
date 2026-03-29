@@ -21,7 +21,9 @@ from taxonomy_builder.schemas.snapshot import (
     DiffResult,
     ValidationResult,
 )
-from taxonomy_builder.services.context_generation_service import ContextGenerationService
+from taxonomy_builder.services.context_generation_service import (
+    ContextGenerationService,
+)
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.reader_file_service import ReaderFileService
 from taxonomy_builder.services.skos_export_service import SKOSExportService
@@ -280,7 +282,9 @@ class PublishingService:
 
         artifacts = self._skos_export_service.render_rdf_artifacts(version)
 
-        # Generate standalone JSON-LD @context document
+        # Generate standalone JSON-LD @context document.
+        # Named individuals (e.g., CodingStatus values) are stored on the project
+        # during import and carried through the snapshot.
         context_doc = ContextGenerationService().generate(version.snapshot_vocabulary)
         artifacts["context.jsonld"] = (
             json.dumps(context_doc, indent=2).encode(),
