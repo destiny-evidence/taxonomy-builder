@@ -70,9 +70,7 @@ class TestPreview:
     async def test_preview_invalid(
         self, authenticated_client: AsyncClient, project: Project
     ) -> None:
-        resp = await authenticated_client.get(
-            f"/api/projects/{project.id}/publish/preview"
-        )
+        resp = await authenticated_client.get(f"/api/projects/{project.id}/publish/preview")
         assert resp.status_code == 200
         data = resp.json()
         assert data["validation"]["valid"] is False
@@ -228,18 +226,14 @@ class TestPreview:
 
     @pytest.mark.asyncio
     async def test_preview_not_found(self, authenticated_client: AsyncClient) -> None:
-        resp = await authenticated_client.get(
-            f"/api/projects/{uuid4()}/publish/preview"
-        )
+        resp = await authenticated_client.get(f"/api/projects/{uuid4()}/publish/preview")
         assert resp.status_code == 404
 
     @pytest.mark.asyncio
     async def test_preview_unauthenticated(
         self, client: AsyncClient, publishable_project: Project
     ) -> None:
-        resp = await client.get(
-            f"/api/projects/{publishable_project.id}/publish/preview"
-        )
+        resp = await client.get(f"/api/projects/{publishable_project.id}/publish/preview")
         assert resp.status_code == 401
 
 
@@ -399,17 +393,13 @@ class TestListVersions:
     async def test_list_empty(
         self, authenticated_client: AsyncClient, publishable_project: Project
     ) -> None:
-        resp = await authenticated_client.get(
-            f"/api/projects/{publishable_project.id}/versions"
-        )
+        resp = await authenticated_client.get(f"/api/projects/{publishable_project.id}/versions")
         assert resp.status_code == 200
         assert resp.json() == []
 
     @pytest.mark.asyncio
     async def test_list_not_found(self, authenticated_client: AsyncClient) -> None:
-        resp = await authenticated_client.get(
-            f"/api/projects/{uuid4()}/versions"
-        )
+        resp = await authenticated_client.get(f"/api/projects/{uuid4()}/versions")
         assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -424,9 +414,7 @@ class TestListVersions:
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "2.0", "title": "V2"},
         )
-        resp = await authenticated_client.get(
-            f"/api/projects/{publishable_project.id}/versions"
-        )
+        resp = await authenticated_client.get(f"/api/projects/{publishable_project.id}/versions")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 2
@@ -444,9 +432,7 @@ class TestListVersions:
             f"/api/projects/{publishable_project.id}/publish",
             json={"version": "1.1-pre1", "title": "Pre", "pre_release": True},
         )
-        resp = await authenticated_client.get(
-            f"/api/projects/{publishable_project.id}/versions"
-        )
+        resp = await authenticated_client.get(f"/api/projects/{publishable_project.id}/versions")
         data = resp.json()
         assert len(data) == 2
         assert data[0]["version"] == "1.1-pre1"
@@ -500,3 +486,99 @@ class TestReaderFiles:
         )
         data = json.loads((blob_store._root / "index.json").read_bytes())
         assert any(p["id"] == str(publishable_project.id) for p in data["projects"])
+
+    @pytest.mark.asyncio
+    async def test_publish_writes_rdf_artifacts(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+        blob_store: FilesystemBlobStore,
+    ) -> None:
+        resp = await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        assert resp.status_code == 201
+        pid = str(publishable_project.id)
+        assert await blob_store.exists(f"{pid}/1.0/vocabulary.ttl")
+        assert await blob_store.exists(f"{pid}/1.0/vocabulary.jsonld")
+        assert await blob_store.exists(f"{pid}/1.0/vocabulary.rdf")
+
+
+class TestArtifactRedirect:
+    """Verify the artifact redirect endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_redirect_defaults_to_ttl(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 301
+        assert f"{publishable_project.id}/1.0/vocabulary.ttl" in resp.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_redirect_xml_format(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts?format=xml",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 301
+        assert f"{publishable_project.id}/1.0/vocabulary.rdf" in resp.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_redirect_jsonld_format(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        await authenticated_client.post(
+            f"/api/projects/{publishable_project.id}/publish",
+            json={"version": "1.0", "title": "V1"},
+        )
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts?format=jsonld",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 301
+        assert f"{publishable_project.id}/1.0/vocabulary.jsonld" in resp.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_format_returns_422(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/1.0/artifacts?format=csv",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_version_returns_404(
+        self,
+        authenticated_client: AsyncClient,
+        publishable_project: Project,
+    ) -> None:
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/versions/9.9/artifacts",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 404

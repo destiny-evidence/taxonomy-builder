@@ -302,19 +302,16 @@ class SnapshotVocabulary(BaseModel):
     properties: list[SnapshotProperty] = Field(default_factory=list)
     classes: list[SnapshotClass] = Field(default_factory=list)
 
-    @field_validator("concept_schemes", mode="after")
-    @classmethod
-    def require_schemes(
-        cls,
-        v: list[SnapshotScheme],
-    ) -> list[SnapshotScheme]:
-        if not v:
+    @model_validator(mode="after")
+    def require_content(self) -> Self:
+        """Reject completely empty projects (no schemes, no classes)."""
+        if not self.concept_schemes and not self.classes:
             raise PydanticCustomError(
-                "no_schemes",
-                "Project has no concept schemes.",
+                "empty_project",
+                "Project has no concept schemes or classes.",
                 {},
             )
-        return v
+        return self
 
     @classmethod
     def from_project(cls, project: Project) -> Self:

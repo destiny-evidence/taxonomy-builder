@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from taxonomy_builder.services.ontology_class_service import OntologyClassService
     from taxonomy_builder.services.project_service import ProjectService
     from taxonomy_builder.services.property_service import PropertyService
+    from taxonomy_builder.services.publishing_service import PublishingService
     from taxonomy_builder.services.skos_export_service import SKOSExportService
     from taxonomy_builder.services.skos_import_service import SKOSImportService
 
@@ -224,6 +225,31 @@ def get_export_service(db: AsyncSession = Depends(get_db)) -> SKOSExportService:
     from taxonomy_builder.services.skos_export_service import SKOSExportService
 
     return SKOSExportService(db)
+
+
+def get_publishing_service(db: AsyncSession = Depends(get_db)) -> PublishingService:
+    """Dependency that provides a PublishingService with blob storage and export."""
+    from taxonomy_builder.blob_store import get_blob_store, get_cdn_purger
+    from taxonomy_builder.services.concept_service import ConceptService
+    from taxonomy_builder.services.project_service import ProjectService
+    from taxonomy_builder.services.publishing_service import PublishingService
+    from taxonomy_builder.services.reader_file_service import ReaderFileService
+    from taxonomy_builder.services.skos_export_service import SKOSExportService
+    from taxonomy_builder.services.snapshot_service import SnapshotService
+
+    project_service = ProjectService(db)
+    concept_service = ConceptService(db)
+    snapshot_service = SnapshotService(db, project_service, concept_service)
+    blob_store = get_blob_store()
+    cdn_purger = get_cdn_purger()
+    return PublishingService(
+        db,
+        project_service,
+        snapshot_service,
+        reader_file_service=ReaderFileService(blob_store, cdn_purger),
+        blob_store=blob_store,
+        skos_export_service=SKOSExportService(db),
+    )
 
 
 def get_feedback_service(
