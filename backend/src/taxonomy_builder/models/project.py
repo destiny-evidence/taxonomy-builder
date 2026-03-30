@@ -35,6 +35,13 @@ class Project(Base):
         JSONB, nullable=False, default=dict, server_default="{}"
     )
 
+    # OWL named individuals extracted during import (e.g., CodingStatus values).
+    # Stored as [{"uri": "...", "label": "..."}] — not a full entity table,
+    # just enough for context generation.
+    named_individuals: Mapped[list[dict]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
+
     __table_args__ = (
         CheckConstraint(
             r"identifier_prefix ~ '^[A-Z]{1,4}$'",

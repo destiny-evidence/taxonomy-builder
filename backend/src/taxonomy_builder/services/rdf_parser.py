@@ -92,14 +92,16 @@ def validate_graph(g: Graph, class_uris: set[str]) -> ValidationResult:
     result = ValidationResult()
 
     if len(g) == 0:
-        result.warnings.append(ValidationIssue(
-            severity="warning",
-            type="empty_graph",
-            message=(
-                "File parsed successfully but contains no RDF data — "
-                "check the file format matches the file extension"
-            ),
-        ))
+        result.warnings.append(
+            ValidationIssue(
+                severity="warning",
+                type="empty_graph",
+                message=(
+                    "File parsed successfully but contains no RDF data — "
+                    "check the file format matches the file extension"
+                ),
+            )
+        )
         return result
 
     _check_uri_schemes(g, result)
@@ -129,30 +131,32 @@ def _check_uri_schemes(g: Graph, result: ValidationResult) -> None:
                     continue
                 seen.add(uri_str)
                 if scheme == "file":
-                    result.errors.append(ValidationIssue(
-                        severity="error",
-                        type="file_uri",
-                        message=(
-                            f"file:// URI detected: {uri_str} — "
-                            f"this usually means the file is missing an @base directive"
-                        ),
-                        entity_uri=uri_str,
-                    ))
+                    result.errors.append(
+                        ValidationIssue(
+                            severity="error",
+                            type="file_uri",
+                            message=(
+                                f"file:// URI detected: {uri_str} — "
+                                f"this usually means the file is missing an @base directive"
+                            ),
+                            entity_uri=uri_str,
+                        )
+                    )
                 else:
-                    result.errors.append(ValidationIssue(
-                        severity="error",
-                        type="unsupported_uri_scheme",
-                        message=(
-                            f"Unsupported URI scheme '{scheme}:' in {uri_str} — "
-                            f"only http:// and https:// URIs are supported"
-                        ),
-                        entity_uri=uri_str,
-                    ))
+                    result.errors.append(
+                        ValidationIssue(
+                            severity="error",
+                            type="unsupported_uri_scheme",
+                            message=(
+                                f"Unsupported URI scheme '{scheme}:' in {uri_str} — "
+                                f"only http:// and https:// URIs are supported"
+                            ),
+                            entity_uri=uri_str,
+                        )
+                    )
 
 
-def _check_unresolved_domains(
-    g: Graph, class_uris: set[str], result: ValidationResult
-) -> None:
+def _check_unresolved_domains(g: Graph, class_uris: set[str], result: ValidationResult) -> None:
     """Warn when properties reference domain classes not in the known set."""
     # Collect classes defined in this graph
     file_class_uris = {str(uri) for uri in find_owl_classes(g)}
@@ -169,31 +173,35 @@ def _check_unresolved_domains(
 
         for domain_str in domain_strs:
             if domain_str not in all_class_uris:
-                result.warnings.append(ValidationIssue(
-                    severity="warning",
-                    type="unresolved_domain",
-                    message=(
-                        f"Property '{get_identifier_from_uri(uri)}' has domain "
-                        f"'{domain_str}' which doesn't match any class "
-                        f"in the project"
-                    ),
-                    entity_uri=str(uri),
-                ))
+                result.warnings.append(
+                    ValidationIssue(
+                        severity="warning",
+                        type="unresolved_domain",
+                        message=(
+                            f"Property '{get_identifier_from_uri(uri)}' has domain "
+                            f"'{domain_str}' which doesn't match any class "
+                            f"in the project"
+                        ),
+                        entity_uri=str(uri),
+                    )
+                )
 
 
 def _check_rdf_properties(g: Graph, result: ValidationResult) -> None:
     """Detect rdf:Property instances for informational reporting."""
     for subject in g.subjects(RDF.type, RDF.Property):
         if isinstance(subject, URIRef):
-            result.info.append(ValidationIssue(
-                severity="info",
-                type="rdf_property",
-                message=(
-                    f"'{get_identifier_from_uri(subject)}' is typed as rdf:Property "
-                    f"(not owl:ObjectProperty/DatatypeProperty)"
-                ),
-                entity_uri=str(subject),
-            ))
+            result.info.append(
+                ValidationIssue(
+                    severity="info",
+                    type="rdf_property",
+                    message=(
+                        f"'{get_identifier_from_uri(subject)}' is typed as rdf:Property "
+                        f"(not owl:ObjectProperty/DatatypeProperty)"
+                    ),
+                    entity_uri=str(subject),
+                )
+            )
 
 
 def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
@@ -204,36 +212,49 @@ def _check_superclass_cycles(g: Graph, result: ValidationResult) -> None:
     owl_classes = find_owl_classes(g)
     class_metadata = [
         extract_class_metadata(
-            g, cls, exclude_superclass_uris=WELL_KNOWN_SUPERCLASS_URIREFS,
+            g,
+            cls,
+            exclude_superclass_uris=WELL_KNOWN_SUPERCLASS_URIREFS,
         )
         for cls in owl_classes
     ]
     cycles = detect_superclass_cycles(class_metadata)
     if cycles:
         cycle_desc = ", ".join(f"{a} → {b}" for a, b in cycles)
-        result.errors.append(ValidationIssue(
-            severity="error",
-            type="superclass_cycle",
-            message=f"Cycle detected in rdfs:subClassOf hierarchy: {cycle_desc}",
-        ))
+        result.errors.append(
+            ValidationIssue(
+                severity="error",
+                type="superclass_cycle",
+                message=f"Cycle detected in rdfs:subClassOf hierarchy: {cycle_desc}",
+            )
+        )
 
+
+def find_named_individuals(g: Graph) -> list[tuple[str, str]]:
+    """Extract owl:NamedIndividual instances as (uri, label) pairs."""
+    individuals: list[tuple[str, str]] = []
+    for subject in g.subjects(RDF.type, OWL.NamedIndividual):
+        if isinstance(subject, URIRef):
+            uri = str(subject)
+            label = g.value(subject, RDFS.label)
+            individuals.append((uri, str(label) if label else uri.rsplit("/", 1)[-1]))
+    return sorted(individuals)
 
 
 def _check_unsupported_named_individuals(g: Graph, result: ValidationResult) -> None:
     """Detect owl:NamedIndividual instances."""
-    count = sum(
-        1 for s in g.subjects(RDF.type, OWL.NamedIndividual)
-        if isinstance(s, URIRef)
-    )
+    count = sum(1 for s in g.subjects(RDF.type, OWL.NamedIndividual) if isinstance(s, URIRef))
     if count:
-        result.info.append(ValidationIssue(
-            severity="info",
-            type="unsupported_named_individual",
-            message=(
-                f"Found {count} named individual{'s' if count != 1 else ''} "
-                f"— not yet supported (#112)"
-            ),
-        ))
+        result.info.append(
+            ValidationIssue(
+                severity="info",
+                type="unsupported_named_individual",
+                message=(
+                    f"Found {count} named individual{'s' if count != 1 else ''} "
+                    f"— not yet supported (#112)"
+                ),
+            )
+        )
 
 
 def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
@@ -257,15 +278,17 @@ def _check_unsupported_restrictions(g: Graph, result: ValidationResult) -> None:
 
     if restrictions:
         details = "; ".join(restrictions)
-        result.warnings.append(ValidationIssue(
-            severity="warning",
-            type="unsupported_restriction",
-            message=(
-                f"Found {len(restrictions)} unsupported OWL "
-                f"restriction{'s' if len(restrictions) != 1 else ''} "
-                f"that will be dropped on import: {details}"
-            ),
-        ))
+        result.warnings.append(
+            ValidationIssue(
+                severity="warning",
+                type="unsupported_restriction",
+                message=(
+                    f"Found {len(restrictions)} unsupported OWL "
+                    f"restriction{'s' if len(restrictions) != 1 else ''} "
+                    f"that will be dropped on import: {details}"
+                ),
+            )
+        )
 
 
 # --- URI helpers ---
@@ -279,10 +302,15 @@ def get_identifier_from_uri(uri: URIRef) -> str:
     return uri_str.rstrip("/").split("/")[-1]
 
 
+def is_xsd_type(uri_str: str) -> bool:
+    """Return True if the URI is in the XSD namespace."""
+    return uri_str.startswith(XSD_NS)
+
+
 def abbreviate_xsd(uri_str: str) -> str:
     """Convert full XSD URI to xsd: prefix form, or return as-is."""
-    if uri_str.startswith(XSD_NS):
-        return "xsd:" + uri_str[len(XSD_NS):]
+    if is_xsd_type(uri_str):
+        return "xsd:" + uri_str[len(XSD_NS) :]
     return uri_str
 
 
@@ -478,12 +506,14 @@ def extract_restrictions(g: Graph, class_uris: set[str]) -> list[dict]:
                 if not isinstance(value, URIRef):
                     # Skip anonymous class expressions (blank-node fillers)
                     continue
-                restrictions.append({
-                    "class_uri": class_uri_str,
-                    "on_property_uri": str(on_prop),
-                    "restriction_type": rtype.value,
-                    "value_uri": str(value),
-                })
+                restrictions.append(
+                    {
+                        "class_uri": class_uri_str,
+                        "on_property_uri": str(on_prop),
+                        "restriction_type": rtype.value,
+                        "value_uri": str(value),
+                    }
+                )
                 break  # one predicate per restriction bnode
     return restrictions
 
@@ -700,24 +730,16 @@ def analyze_graph(g: Graph) -> dict:
             concepts_by_scheme[schemes[0]].update(orphan_concepts)
         else:
             for orphan in orphan_concepts:
-                warnings.append(
-                    f"Concept {orphan} has no scheme membership and was skipped"
-                )
+                warnings.append(f"Concept {orphan} has no scheme membership and was skipped")
 
     owl_classes = find_owl_classes(g)
-    class_metadata = [
-        extract_class_metadata(g, cls)
-        for cls in owl_classes
-    ]
+    class_metadata = [extract_class_metadata(g, cls) for cls in owl_classes]
 
     class_uri_set = {cm["uri"] for cm in class_metadata}
     restrictions = extract_restrictions(g, class_uri_set)
 
     owl_properties = find_properties(g)
-    property_metadata = [
-        extract_property_metadata(g, uri, ptype)
-        for uri, ptype in owl_properties
-    ]
+    property_metadata = [extract_property_metadata(g, uri, ptype) for uri, ptype in owl_properties]
 
     return {
         "schemes": schemes,

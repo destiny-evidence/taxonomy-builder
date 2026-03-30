@@ -50,9 +50,7 @@ class SnapshotService:
         schemes = []
         for scheme in project.schemes:
             scheme.concepts = await self._concept_service.list_concepts_for_scheme(scheme.id)
-            schemes.append(
-                SnapshotScheme.from_scheme(scheme)
-            )
+            schemes.append(SnapshotScheme.from_scheme(scheme))
 
         result = await self.db.execute(
             select(OntologyClass)
@@ -68,11 +66,17 @@ class SnapshotService:
         properties = [SnapshotProperty.from_property(p) for p in project.properties]
         classes = [SnapshotClass.from_class(ontology_class) for ontology_class in ontology_classes]
 
+        from taxonomy_builder.schemas.snapshot import SnapshotNamedIndividual
+
         return SnapshotVocabulary.model_construct(
             project=SnapshotProjectMetadata.from_project(project),
             concept_schemes=schemes,
             properties=properties,
             classes=classes,
+            named_individuals=[
+                SnapshotNamedIndividual(uri=ni["uri"], label=ni["label"])
+                for ni in (project.named_individuals or [])
+            ],
         )
 
 

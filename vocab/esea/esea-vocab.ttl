@@ -88,7 +88,8 @@ esea:educationLevel a owl:ObjectProperty ;
     rdfs:label "education level"@en ;
     rdfs:comment "The ISCED-aligned level of education in which the target population is participating. Based on ISCED 2011, with additions from the INEE framework for informal education. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Context ;
-    rdfs:range esea:EducationLevelCodingAnnotation .
+    rdfs:range esea:EducationLevelCodingAnnotation ;
+    esea:allowMultiple true .
 
 # --- Concept Scheme ---
 
@@ -296,7 +297,8 @@ esea:educationTheme a owl:ObjectProperty ;
     rdfs:label "education theme"@en ;
     rdfs:comment "Strategic domain of focus within education systems that the intervention or policy addresses. 2-level hierarchy: category and specific theme. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Intervention ;
-    rdfs:range esea:EducationThemeCodingAnnotation .
+    rdfs:range esea:EducationThemeCodingAnnotation ;
+    esea:allowMultiple true .
 
 # --- Concept Scheme ---
 
@@ -872,7 +874,8 @@ esea:outcome a owl:ObjectProperty ;
     rdfs:label "outcome"@en ;
     rdfs:comment "Type of educational or other outcome measured. 2-level hierarchy: access/education/externalities/learning/returns categories with specific outcome types. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Outcome ;
-    rdfs:range esea:OutcomeCodingAnnotation .
+    rdfs:range esea:OutcomeCodingAnnotation ;
+    esea:allowMultiple true .
 
 # --- Concept Scheme ---
 
@@ -1174,7 +1177,8 @@ esea:implementationDescription a owl:ObjectProperty ;
     rdfs:comment "Type of implementation activity or modality. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Intervention ;
     rdfs:range esea:ImplementationDescriptionCodingAnnotation ;
-    rdfs:subPropertyOf evrepo:description .
+    rdfs:subPropertyOf evrepo:description ;
+    esea:allowMultiple true .
 
 # --- Concept Scheme ---
 
@@ -1314,7 +1318,8 @@ esea:setting a owl:ObjectProperty ;
     rdfs:label "setting"@en ;
     rdfs:comment "Physical or organizational setting where education provision occurs. 3-level hierarchy: Formal / Informal-NonFormal / Contextual, with specific setting types. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Context ;
-    rdfs:range esea:SettingCodingAnnotation .
+    rdfs:range esea:SettingCodingAnnotation ;
+    esea:allowMultiple true .
 
 # --- Concept Scheme ---
 
@@ -1553,7 +1558,8 @@ esea:participants a owl:ObjectProperty ;
     rdfs:label "participants"@en ;
     rdfs:comment "The stakeholder group for whom the outcomes apply (e.g., Students, Teachers, Parents, School Leaders). Open text field; multiple values may be coded."@en ;
     rdfs:domain evrepo:Context ;
-    rdfs:range evrepo:StringCodingAnnotation .
+    rdfs:range evrepo:StringCodingAnnotation ;
+    esea:allowMultiple true .
 
 
 # #############################################################################
@@ -1593,7 +1599,8 @@ esea:sampleFeatures a owl:ObjectProperty ;
     rdfs:label "sample features"@en ;
     rdfs:comment "Characteristics of the study sample. Multiple values may be coded."@en ;
     rdfs:domain evrepo:Context ;
-    rdfs:range esea:SampleFeaturesCodingAnnotation .
+    rdfs:range esea:SampleFeaturesCodingAnnotation ;
+    esea:allowMultiple true .
 
 # --- Concept Scheme ---
 
@@ -1817,7 +1824,8 @@ esea:country a owl:ObjectProperty ;
     rdfs:label "country"@en ;
     rdfs:comment "Country or countries where the study was conducted. Values are ISO 3166-1 alpha-2 codes (e.g., 'KE' for Kenya, 'GH' for Ghana). Multiple values may be coded."@en ;
     rdfs:domain evrepo:Context ;
-    rdfs:range evrepo:StringCodingAnnotation .
+    rdfs:range evrepo:StringCodingAnnotation ;
+    esea:allowMultiple true .
 
 
 # #############################################################################
@@ -1934,4 +1942,5 @@ esea:countryLevel1 a owl:ObjectProperty ;
     rdfs:label "country level 1"@en ;
     rdfs:comment "Sub-national region, province, state, or administrative division (country Level 1). Open text field allowing multiple values."@en ;
     rdfs:domain evrepo:Context ;
-    rdfs:range evrepo:StringCodingAnnotation .
+    rdfs:range evrepo:StringCodingAnnotation ;
+    esea:allowMultiple true .

@@ -87,28 +87,32 @@ class TestVocabAndPrefixes:
 
 class TestClassTerms:
     def test_external_class_mapped_with_prefix(self):
-        snapshot = _make_snapshot(classes=[
-            {
-                "id": str(EXT_CLASS_ID),
-                "identifier": "Investigation",
-                "label": "Investigation",
-                "uri": f"{EXTERNAL_NS}Investigation",
-            }
-        ])
+        snapshot = _make_snapshot(
+            classes=[
+                {
+                    "id": str(EXT_CLASS_ID),
+                    "identifier": "Investigation",
+                    "label": "Investigation",
+                    "uri": f"{EXTERNAL_NS}Investigation",
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["Investigation"] == "evrepo:Investigation"
 
-    def test_in_namespace_class_not_listed(self):
-        snapshot = _make_snapshot(classes=[
-            {
-                "id": str(CLASS_ID),
-                "identifier": "EducationLevelCodingAnnotation",
-                "label": "Education Level Coding Annotation",
-                "uri": f"{PROJECT_NS}EducationLevelCodingAnnotation",
-            }
-        ])
+    def test_in_namespace_class_listed_with_prefix(self):
+        snapshot = _make_snapshot(
+            classes=[
+                {
+                    "id": str(CLASS_ID),
+                    "identifier": "EducationLevelCodingAnnotation",
+                    "label": "Education Level Coding Annotation",
+                    "uri": f"{PROJECT_NS}EducationLevelCodingAnnotation",
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
-        assert "EducationLevelCodingAnnotation" not in ctx
+        assert ctx["EducationLevelCodingAnnotation"] == "esea:EducationLevelCodingAnnotation"
 
     def test_external_class_without_prefix_uses_full_uri(self):
         snapshot = _make_snapshot(
@@ -128,79 +132,87 @@ class TestClassTerms:
 
 class TestPropertyTerms:
     def test_object_property_has_type_id(self):
-        snapshot = _make_snapshot(properties=[
-            {
-                "id": str(PROP_OBJ_ID),
-                "identifier": "educationLevel",
-                "label": "Education Level",
-                "uri": f"{PROJECT_NS}educationLevel",
-                "property_type": "object",
-                "range_scheme_id": str(SCHEME_ID),
-                "range_scheme_uri": f"{PROJECT_NS}educationLevel",
-                "range_datatype": None,
-                "range_class": None,
-                "cardinality": "single",
-                "required": False,
-            }
-        ])
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_OBJ_ID),
+                    "identifier": "educationLevel",
+                    "label": "Education Level",
+                    "uri": f"{PROJECT_NS}educationLevel",
+                    "property_type": "object",
+                    "range_scheme_id": str(SCHEME_ID),
+                    "range_scheme_uri": f"{PROJECT_NS}educationLevel",
+                    "range_datatype": None,
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["educationLevel"] == {"@type": "@id"}
 
     def test_datatype_property_has_xsd_type(self):
-        snapshot = _make_snapshot(properties=[
-            {
-                "id": str(PROP_DT_ID),
-                "identifier": "isRetracted",
-                "label": "Is Retracted",
-                "uri": f"{PROJECT_NS}isRetracted",
-                "property_type": "datatype",
-                "range_scheme_id": None,
-                "range_scheme_uri": None,
-                "range_datatype": "xsd:boolean",
-                "range_class": None,
-                "cardinality": "single",
-                "required": False,
-            }
-        ])
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_DT_ID),
+                    "identifier": "isRetracted",
+                    "label": "Is Retracted",
+                    "uri": f"{PROJECT_NS}isRetracted",
+                    "property_type": "datatype",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": "xsd:boolean",
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["isRetracted"] == {"@type": "xsd:boolean"}
         assert ctx["xsd"] == "http://www.w3.org/2001/XMLSchema#"
 
     def test_multiple_cardinality_has_container_set(self):
-        snapshot = _make_snapshot(properties=[
-            {
-                "id": str(PROP_MULTI_ID),
-                "identifier": "educationLevel",
-                "label": "Education Level",
-                "uri": f"{PROJECT_NS}educationLevel",
-                "property_type": "object",
-                "range_scheme_id": str(SCHEME_ID),
-                "range_scheme_uri": f"{PROJECT_NS}educationLevel",
-                "range_datatype": None,
-                "range_class": None,
-                "cardinality": "multiple",
-                "required": False,
-            }
-        ])
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_MULTI_ID),
+                    "identifier": "educationLevel",
+                    "label": "Education Level",
+                    "uri": f"{PROJECT_NS}educationLevel",
+                    "property_type": "object",
+                    "range_scheme_id": str(SCHEME_ID),
+                    "range_scheme_uri": f"{PROJECT_NS}educationLevel",
+                    "range_datatype": None,
+                    "range_class": None,
+                    "cardinality": "multiple",
+                    "required": False,
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["educationLevel"] == {"@type": "@id", "@container": "@set"}
 
     def test_external_property_includes_id(self):
-        snapshot = _make_snapshot(properties=[
-            {
-                "id": str(PROP_EXT_ID),
-                "identifier": "hasInvestigation",
-                "label": "Has Investigation",
-                "uri": f"{EXTERNAL_NS}hasInvestigation",
-                "property_type": "object",
-                "range_scheme_id": None,
-                "range_scheme_uri": None,
-                "range_datatype": None,
-                "range_class": f"{EXTERNAL_NS}Investigation",
-                "cardinality": "single",
-                "required": False,
-            }
-        ])
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_EXT_ID),
+                    "identifier": "hasInvestigation",
+                    "label": "Has Investigation",
+                    "uri": f"{EXTERNAL_NS}hasInvestigation",
+                    "property_type": "object",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": None,
+                    "range_class": f"{EXTERNAL_NS}Investigation",
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["hasInvestigation"] == {
             "@id": "evrepo:hasInvestigation",
@@ -208,64 +220,70 @@ class TestPropertyTerms:
         }
 
     def test_rdf_property_no_range_in_project_ns_omitted(self):
-        snapshot = _make_snapshot(properties=[
-            {
-                "id": str(PROP_RDF_ID),
-                "identifier": "codedValue",
-                "label": "Coded Value",
-                "uri": f"{PROJECT_NS}codedValue",
-                "property_type": "rdf",
-                "range_scheme_id": None,
-                "range_scheme_uri": None,
-                "range_datatype": None,
-                "range_class": None,
-                "cardinality": "single",
-                "required": False,
-            }
-        ])
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_RDF_ID),
+                    "identifier": "codedValue",
+                    "label": "Coded Value",
+                    "uri": f"{PROJECT_NS}codedValue",
+                    "property_type": "rdf",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": None,
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert "codedValue" not in ctx
 
     def test_rdf_property_no_range_external_ns_has_id_only(self):
-        snapshot = _make_snapshot(properties=[
-            {
-                "id": str(PROP_RDF_ID),
-                "identifier": "codedValue",
-                "label": "Coded Value",
-                "uri": f"{EXTERNAL_NS}codedValue",
-                "property_type": "rdf",
-                "range_scheme_id": None,
-                "range_scheme_uri": None,
-                "range_datatype": None,
-                "range_class": None,
-                "cardinality": "single",
-                "required": False,
-            }
-        ])
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_RDF_ID),
+                    "identifier": "codedValue",
+                    "label": "Coded Value",
+                    "uri": f"{EXTERNAL_NS}codedValue",
+                    "property_type": "rdf",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": None,
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert ctx["codedValue"] == "evrepo:codedValue"
 
 
 class TestCollisions:
     def test_class_collision_project_ns_wins(self):
-        snapshot = _make_snapshot(classes=[
-            {
-                "id": str(CLASS_ID),
-                "identifier": "Outcome",
-                "label": "Outcome (ESEA)",
-                "uri": f"{PROJECT_NS}Outcome",
-            },
-            {
-                "id": str(EXT_CLASS_ID),
-                "identifier": "Outcome",
-                "label": "Outcome (Core)",
-                "uri": f"{EXTERNAL_NS}Outcome",
-            },
-        ])
+        snapshot = _make_snapshot(
+            classes=[
+                {
+                    "id": str(CLASS_ID),
+                    "identifier": "Outcome",
+                    "label": "Outcome (ESEA)",
+                    "uri": f"{PROJECT_NS}Outcome",
+                },
+                {
+                    "id": str(EXT_CLASS_ID),
+                    "identifier": "Outcome",
+                    "label": "Outcome (Core)",
+                    "uri": f"{EXTERNAL_NS}Outcome",
+                },
+            ]
+        )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
-        # Project-namespace class is resolved via @vocab, not explicitly listed.
+        # Project-namespace class takes the short name.
         # External class gets the full URI as key since "Outcome" is taken.
-        assert "Outcome" not in ctx
+        assert ctx["Outcome"] == "esea:Outcome"
         assert ctx[f"{EXTERNAL_NS}Outcome"] == "evrepo:Outcome"
 
 
@@ -319,3 +337,152 @@ class TestEmptySnapshot:
         ctx = result["@context"]
         assert "@vocab" in ctx
         assert "esea" in ctx
+
+
+class TestNamedIndividuals:
+    """Named individuals should appear as simple URI aliases in the context."""
+
+    def test_named_individuals_emitted(self):
+        from taxonomy_builder.schemas.snapshot import SnapshotNamedIndividual
+
+        snapshot = _make_snapshot()
+        snapshot.named_individuals = [
+            SnapshotNamedIndividual(uri=f"{EXTERNAL_NS}coded", label="Coded"),
+            SnapshotNamedIndividual(uri=f"{EXTERNAL_NS}notApplicable", label="Not Applicable"),
+            SnapshotNamedIndividual(uri=f"{EXTERNAL_NS}notReported", label="Not Reported"),
+        ]
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert ctx["coded"] == "evrepo:coded"
+        assert ctx["notApplicable"] == "evrepo:notApplicable"
+        assert ctx["notReported"] == "evrepo:notReported"
+
+    def test_named_individual_no_collision_with_class(self):
+        """If a named individual's local name collides with a class, skip it."""
+        from taxonomy_builder.schemas.snapshot import SnapshotNamedIndividual
+
+        snapshot = _make_snapshot(
+            classes=[
+                {
+                    "id": str(CLASS_ID),
+                    "identifier": "Coded",
+                    "label": "Coded",
+                    "uri": f"{PROJECT_NS}Coded",
+                }
+            ]
+        )
+        snapshot.named_individuals = [
+            SnapshotNamedIndividual(uri=f"{EXTERNAL_NS}Coded", label="Coded"),
+        ]
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        # Class wins — individual skipped
+        assert ctx["Coded"] == "esea:Coded"
+
+
+class TestInNamespaceClassesExplicit:
+    """Classes in the project namespace should still get explicit context entries.
+
+    Even when @vocab covers the project namespace, consumers need explicit
+    class terms so JSON-LD processors can resolve bare type names like
+    "EducationLevelCodingAnnotation" without relying on @vocab — particularly
+    when the consuming context uses a different @vocab.
+    """
+
+    def test_in_namespace_class_gets_explicit_entry(self):
+        """A class in the project namespace should appear with an explicit
+        prefixed mapping, not be silently omitted."""
+        snapshot = _make_snapshot(
+            classes=[
+                {
+                    "id": str(CLASS_ID),
+                    "identifier": "EducationLevelCodingAnnotation",
+                    "label": "Education Level Coding Annotation",
+                    "uri": f"{PROJECT_NS}EducationLevelCodingAnnotation",
+                }
+            ]
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert "EducationLevelCodingAnnotation" in ctx
+        assert ctx["EducationLevelCodingAnnotation"] == "esea:EducationLevelCodingAnnotation"
+
+    def test_multiple_in_namespace_classes_all_listed(self):
+        """All project-namespace classes should get entries, not just external ones."""
+        classes = [
+            {
+                "id": "01965a00-0000-7000-8000-b00000000010",
+                "identifier": name,
+                "label": name,
+                "uri": f"{PROJECT_NS}{name}",
+            }
+            for name in [
+                "EducationLevelCodingAnnotation",
+                "DocumentTypeCodingAnnotation",
+                "SettingCodingAnnotation",
+            ]
+        ]
+        snapshot = _make_snapshot(classes=classes)
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        for name in [
+            "EducationLevelCodingAnnotation",
+            "DocumentTypeCodingAnnotation",
+            "SettingCodingAnnotation",
+        ]:
+            assert name in ctx, f"{name} missing from context"
+            assert ctx[name] == f"esea:{name}"
+
+
+class TestRdfPropertyWithDatatype:
+    """rdf:Property with a range_datatype should emit @type, not collapse to
+    a bare string alias or be omitted entirely.
+
+    The generator currently handles rdf:Property with no range (correctly
+    emitting just @id for external, omitting for in-namespace), but when
+    a range_datatype IS present it should be honoured.
+    """
+
+    def test_rdf_property_with_datatype_external_ns(self):
+        """An external rdf:Property with range_datatype should include @type."""
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_RDF_ID),
+                    "identifier": "supportingText",
+                    "label": "Supporting Text",
+                    "uri": f"{EXTERNAL_NS}supportingText",
+                    "property_type": "rdf",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": "xsd:string",
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert ctx["supportingText"] == {
+            "@id": "evrepo:supportingText",
+            "@type": "xsd:string",
+        }
+
+    def test_rdf_property_with_datatype_in_namespace(self):
+        """An in-namespace rdf:Property with range_datatype should emit @type."""
+        snapshot = _make_snapshot(
+            properties=[
+                {
+                    "id": str(PROP_RDF_ID),
+                    "identifier": "dataSource",
+                    "label": "Data Source",
+                    "uri": f"{PROJECT_NS}dataSource",
+                    "property_type": "rdf",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": "xsd:string",
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ]
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert "dataSource" in ctx, "in-namespace rdf:Property with datatype should not be omitted"
+        assert ctx["dataSource"] == {"@type": "xsd:string"}

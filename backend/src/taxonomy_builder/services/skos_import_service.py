@@ -38,10 +38,12 @@ from taxonomy_builder.services.rdf_parser import (
     count_broader_relationships,
     detect_format,
     extract_concept_type_uris,
+    find_named_individuals,
     get_concept_pref_label,
     get_identifier_from_uri,
     get_scheme_description,
     get_scheme_title,
+    is_xsd_type,
     parse_rdf,
     resolve_object_range,
     validate_graph,
@@ -143,7 +145,9 @@ class SKOSImportService:
             scheme_uri_to_title[uri] = get_scheme_title(g, scheme_uri)
 
         scheme_previews, total_concepts, total_relationships = self._preview_schemes(
-            g, analysis["schemes"], analysis["concepts_by_scheme"],
+            g,
+            analysis["schemes"],
+            analysis["concepts_by_scheme"],
             existing.scheme_uris,
         )
         class_previews = self._preview_classes(
@@ -152,8 +156,13 @@ class SKOSImportService:
         # Build class_uris from existing + those that will actually be created
         class_uris = existing.class_uris | {cp.uri for cp in class_previews}
         property_previews, prop_warnings = self._preview_properties(
-            g, analysis["properties"], existing.property_identifiers,
-            existing.property_uris, scheme_uris, scheme_uri_to_title, class_uris,
+            g,
+            analysis["properties"],
+            existing.property_identifiers,
+            existing.property_uris,
+            scheme_uris,
+            scheme_uri_to_title,
+            class_uris,
         )
 
         return ImportPreviewResponse(
@@ -169,27 +178,33 @@ class SKOSImportService:
             validation_issues=validation_issues,
         )
 
-    async def _load_existing_project_data(
-        self, project_id: UUID
-    ) -> ExistingProjectData:
+    async def _load_existing_project_data(self, project_id: UUID) -> ExistingProjectData:
         """Load existing project entities for duplicate detection and range resolution."""
         existing_schemes = (
-            await self.db.execute(
-                select(ConceptScheme).where(ConceptScheme.project_id == project_id)
+            (
+                await self.db.execute(
+                    select(ConceptScheme).where(ConceptScheme.project_id == project_id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         existing_classes = (
-            await self.db.execute(
-                select(OntologyClass).where(OntologyClass.project_id == project_id)
+            (
+                await self.db.execute(
+                    select(OntologyClass).where(OntologyClass.project_id == project_id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         existing_props = (
-            await self.db.execute(
-                select(Property).where(Property.project_id == project_id)
-            )
-        ).scalars().all()
+            (await self.db.execute(select(Property).where(Property.project_id == project_id)))
+            .scalars()
+            .all()
+        )
 
         return ExistingProjectData(
             scheme_uris={s.uri for s in existing_schemes if s.uri},
@@ -203,9 +218,7 @@ class SKOSImportService:
             property_uri_to_id={p.uri: p.id for p in existing_props},
         )
 
-    async def _merge_namespace_prefixes(
-        self, project_id: UUID, g: Graph
-    ) -> None:
+    async def _merge_namespace_prefixes(self, project_id: UUID, g: Graph) -> None:
         """Extract @prefix bindings from an RDF graph and merge into the project.
 
         The graph is parsed with ``bind_namespaces="none"`` (see ``parse_rdf``),
@@ -232,6 +245,27 @@ class SKOSImportService:
         merged = dict(project.namespace_prefixes or {})
         merged.update(imported)
         project.namespace_prefixes = merged
+        await self.db.flush()
+
+    async def _merge_named_individuals(self, project_id: UUID, g: Graph) -> None:
+        """Extract owl:NamedIndividual instances from an RDF graph and merge into the project."""
+        from taxonomy_builder.models.project import Project
+
+        individuals = find_named_individuals(g)
+        if not individuals:
+            return
+
+        project = await self.db.get(Project, project_id)
+        if project is None:
+            return
+
+        existing = {ni["uri"] for ni in (project.named_individuals or [])}
+        merged = list(project.named_individuals or [])
+        for uri, label in individuals:
+            if uri not in existing:
+                merged.append({"uri": uri, "label": label})
+                existing.add(uri)
+        project.named_individuals = merged
         await self.db.flush()
 
     def _preview_schemes(
@@ -290,8 +324,7 @@ class SKOSImportService:
                 uri=cm["uri"],
             )
             for cm in class_metadata
-            if cm["uri"] not in existing_class_uris
-            and cm["identifier"] not in existing_identifiers
+            if cm["uri"] not in existing_class_uris and cm["identifier"] not in existing_identifiers
         ]
 
     def _preview_properties(
@@ -315,17 +348,12 @@ class SKOSImportService:
                 continue
 
             if not pm["domain_uris"]:
-                warnings.append(
-                    f"Property '{pm['identifier']}' skipped: "
-                    f"no rdfs:domain declared"
-                )
+                warnings.append(f"Property '{pm['identifier']}' skipped: no rdfs:domain declared")
                 continue
 
             range_scheme_title = None
             if pm["range_uri"] and pm["property_type"] == "object":
-                match resolve_object_range(
-                    g, pm["range_uri"], scheme_uris, class_uris
-                ):
+                match resolve_object_range(g, pm["range_uri"], scheme_uris, class_uris):
                     case ("scheme", scheme_uri):
                         range_scheme_title = scheme_uri_to_title.get(scheme_uri)
                     case ("ambiguous", _):
@@ -376,25 +404,21 @@ class SKOSImportService:
         validation = validate_graph(g, all_class_uris)
         if validation.has_errors:
             error_msgs = "; ".join(e.message for e in validation.errors)
-            raise SKOSImportError(
-                f"Import blocked by validation errors: {error_msgs}"
-            )
+            raise SKOSImportError(f"Import blocked by validation errors: {error_msgs}")
 
         validation_issues = _validation_to_responses(validation)
 
-        classes_created, superclass_warnings, class_uri_to_id = (
-            await self._import_classes(
-                project_id, analysis["classes"],
-                existing.class_uris, existing.class_identifiers,
-                existing.class_uri_to_id,
-            )
+        classes_created, superclass_warnings, class_uri_to_id = await self._import_classes(
+            project_id,
+            analysis["classes"],
+            existing.class_uris,
+            existing.class_identifiers,
+            existing.class_uri_to_id,
         )
 
         # Compute class IDs from this file only (not all project classes)
         file_class_ids = {
-            class_uri_to_id[cm["uri"]]
-            for cm in analysis["classes"]
-            if cm["uri"] in class_uri_to_id
+            class_uri_to_id[cm["uri"]] for cm in analysis["classes"] if cm["uri"] in class_uri_to_id
         }
         await self._import_restrictions(
             analysis.get("restrictions", []),
@@ -402,20 +426,31 @@ class SKOSImportService:
             file_class_ids,
         )
 
-        schemes_created, scheme_uri_to_id, total_concepts, total_relationships = (
-            await self._import_schemes(
-                g, project_id, analysis["schemes"], analysis["concepts_by_scheme"],
-                existing.scheme_uri_to_id,
-            )
+        (
+            schemes_created,
+            scheme_uri_to_id,
+            total_concepts,
+            total_relationships,
+        ) = await self._import_schemes(
+            g,
+            project_id,
+            analysis["schemes"],
+            analysis["concepts_by_scheme"],
+            existing.scheme_uri_to_id,
         )
 
         # Combine existing class URIs with those actually created (not skipped)
         class_uris = existing.class_uris | {c.uri for c in classes_created}
 
         properties_created, prop_warnings = await self._import_properties(
-            g, project_id, analysis["properties"],
-            existing.property_identifiers, existing.property_uris,
-            scheme_uri_to_id, class_uris, class_uri_to_id,
+            g,
+            project_id,
+            analysis["properties"],
+            existing.property_identifiers,
+            existing.property_uris,
+            scheme_uri_to_id,
+            class_uris,
+            class_uri_to_id,
             existing.property_uri_to_id,
         )
 
@@ -428,13 +463,14 @@ class SKOSImportService:
             if str(scheme_uri) not in existing.scheme_uri_to_id
             for concept_uri in concepts
         ]
-        await self._project_service.reconcile_identifier_counter(
-            project_id, imported_identifiers
-        )
+        await self._project_service.reconcile_identifier_counter(project_id, imported_identifiers)
 
         # Extract namespace prefix bindings from the parsed graph and merge
         # into the project's stored namespace_prefixes map.
         await self._merge_namespace_prefixes(project_id, g)
+
+        # Extract and store named individuals (e.g., CodingStatus values)
+        await self._merge_named_individuals(project_id, g)
 
         return ImportResultResponse(
             schemes_created=schemes_created,
@@ -447,8 +483,11 @@ class SKOSImportService:
         )
 
     async def _import_classes(
-        self, project_id: UUID, class_metadata: list[dict],
-        existing_class_uris: set[str], existing_identifiers: set[str],
+        self,
+        project_id: UUID,
+        class_metadata: list[dict],
+        existing_class_uris: set[str],
+        existing_identifiers: set[str],
         existing_class_uri_to_id: dict[str, UUID] | None = None,
     ) -> tuple[list[ClassCreatedResponse], list[str], dict[str, UUID]]:
         """Create OntologyClass records and ClassSuperclass join rows.
@@ -497,8 +536,9 @@ class SKOSImportService:
         existing_edges: set[tuple[UUID, UUID]] = set()
         if all_class_ids:
             edges_result = await self.db.execute(
-                select(ClassSuperclass.class_id, ClassSuperclass.superclass_id)
-                .where(ClassSuperclass.class_id.in_(all_class_ids))
+                select(ClassSuperclass.class_id, ClassSuperclass.superclass_id).where(
+                    ClassSuperclass.class_id.in_(all_class_ids)
+                )
             )
             existing_edges = {(row.class_id, row.superclass_id) for row in edges_result}
 
@@ -512,10 +552,12 @@ class SKOSImportService:
                 if superclass_uri in class_uri_to_id:
                     superclass_id = class_uri_to_id[superclass_uri]
                     if (class_id, superclass_id) not in existing_edges:
-                        self.db.add(ClassSuperclass(
-                            class_id=class_id,
-                            superclass_id=superclass_id,
-                        ))
+                        self.db.add(
+                            ClassSuperclass(
+                                class_id=class_id,
+                                superclass_id=superclass_id,
+                            )
+                        )
                         existing_edges.add((class_id, superclass_id))
                         edges_added = True
                 else:
@@ -566,9 +608,7 @@ class SKOSImportService:
 
         # Delete existing restrictions only for classes in this file
         await self.db.execute(
-            delete(ClassRestriction).where(
-                ClassRestriction.class_id.in_(file_class_ids)
-            )
+            delete(ClassRestriction).where(ClassRestriction.class_id.in_(file_class_ids))
         )
 
         # Insert new restrictions
@@ -576,12 +616,14 @@ class SKOSImportService:
             class_id = class_uri_to_id.get(r["class_uri"])
             if class_id is None:
                 continue
-            self.db.add(ClassRestriction(
-                class_id=class_id,
-                on_property_uri=r["on_property_uri"],
-                restriction_type=r["restriction_type"],
-                value_uri=r["value_uri"],
-            ))
+            self.db.add(
+                ClassRestriction(
+                    class_id=class_id,
+                    on_property_uri=r["on_property_uri"],
+                    restriction_type=r["restriction_type"],
+                    value_uri=r["value_uri"],
+                )
+            )
 
         await self.db.flush()
 
@@ -631,9 +673,7 @@ class SKOSImportService:
                 scheme_id=scheme.id,
             )
 
-            _, relationship_count = await self._import_concepts(
-                g, project_id, scheme.id, concepts
-            )
+            _, relationship_count = await self._import_concepts(g, project_id, scheme.id, concepts)
 
             created.append(
                 SchemeCreatedResponse(
@@ -758,10 +798,7 @@ class SKOSImportService:
 
             domain_class_uris = sorted(pm["domain_uris"])
             if not domain_class_uris:
-                warnings.append(
-                    f"Property '{identifier}' skipped: "
-                    f"no rdfs:domain declared"
-                )
+                warnings.append(f"Property '{identifier}' skipped: no rdfs:domain declared")
                 continue
 
             range_uri = pm["range_uri"]
@@ -771,12 +808,10 @@ class SKOSImportService:
             range_datatype: str | None = None
             range_class: str | None = None
 
-            if prop_type == "datatype" and range_uri:
+            if range_uri and is_xsd_type(range_uri):
                 range_datatype = abbreviate_xsd(range_uri)
             elif prop_type == "object" and range_uri:
-                match resolve_object_range(
-                    g, range_uri, set(scheme_uri_to_id.keys()), class_uris
-                ):
+                match resolve_object_range(g, range_uri, set(scheme_uri_to_id.keys()), class_uris):
                     case ("scheme", scheme_uri):
                         range_scheme_id = scheme_uri_to_id[scheme_uri]
                     case ("class", uri):
@@ -821,10 +856,12 @@ class SKOSImportService:
             for prop, d_uris in to_create:
                 for d_uri in d_uris:
                     if d_uri in uri_to_id:
-                        self.db.add(PropertyDomainClass(
-                            property_id=prop.id,
-                            class_id=uri_to_id[d_uri],
-                        ))
+                        self.db.add(
+                            PropertyDomainClass(
+                                property_id=prop.id,
+                                class_id=uri_to_id[d_uri],
+                            )
+                        )
             await self.db.flush()
 
         created: list[PropertyCreatedResponse] = []
@@ -869,18 +906,18 @@ class SKOSImportService:
 
         # Delete existing join rows
         await self.db.execute(
-            delete(PropertyDomainClass).where(
-                PropertyDomainClass.property_id == property_id
-            )
+            delete(PropertyDomainClass).where(PropertyDomainClass.property_id == property_id)
         )
 
         # Insert new rows
         for uri in domain_class_uris:
             if uri in class_uri_to_id:
-                self.db.add(PropertyDomainClass(
-                    property_id=property_id,
-                    class_id=class_uri_to_id[uri],
-                ))
+                self.db.add(
+                    PropertyDomainClass(
+                        property_id=property_id,
+                        class_id=class_uri_to_id[uri],
+                    )
+                )
 
         await self.db.flush()
 
