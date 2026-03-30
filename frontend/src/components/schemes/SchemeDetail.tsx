@@ -1,9 +1,11 @@
 import { useState, useEffect } from "preact/hooks";
 import { Button } from "../common/Button";
 import { Input } from "../common/Input";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { schemesApi } from "../../api/schemes";
 import { ApiError } from "../../api/client";
 import { schemes, currentScheme } from "../../state/schemes";
+import { concepts } from "../../state/concepts";
 import type { ConceptScheme } from "../../types/models";
 import { formatDatetime } from "../../utils/dates";
 import "./SchemeDetail.css";
@@ -11,6 +13,7 @@ import "./SchemeDetail.css";
 interface SchemeDetailProps {
   scheme: ConceptScheme;
   onRefresh: () => void;
+  onDeleted: () => void;
 }
 
 interface EditDraft {
@@ -19,12 +22,15 @@ interface EditDraft {
   description: string;
 }
 
-export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
+export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Exit edit mode when scheme changes
   useEffect(() => {
@@ -116,6 +122,26 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
     }
   }
 
+  async function handleDelete() {
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      await schemesApi.delete(scheme.id);
+      schemes.value = schemes.value.filter((s) => s.id !== scheme.id);
+      currentScheme.value = null;
+      onDeleted();
+    } catch (err) {
+      setShowDeleteConfirm(false);
+      if (err instanceof ApiError) {
+        setDeleteError(err.message);
+      } else {
+        setDeleteError(err instanceof Error ? err.message : "Failed to delete scheme");
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   function updateDraft(field: keyof EditDraft, value: string) {
     if (!editDraft) return;
     setEditDraft({ ...editDraft, [field]: value });
@@ -137,6 +163,9 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
     <div class="scheme-detail">
       {isEditing && error && (
         <div class="scheme-detail__error">{error}</div>
+      )}
+      {deleteError && (
+        <div class="scheme-detail__error">{deleteError}</div>
       )}
 
       <div class="scheme-detail__content">
@@ -210,10 +239,30 @@ export function SchemeDetail({ scheme, onRefresh }: SchemeDetailProps) {
               >
                 Edit
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Delete
+              </Button>
             </div>
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Scheme"
+        message={
+          concepts.value.length > 0
+            ? `Are you sure you want to delete "${scheme.title}"? This will also delete ${concepts.value.length} concept${concepts.value.length === 1 ? "" : "s"} within it.`
+            : `Are you sure you want to delete "${scheme.title}"?`
+        }
+        confirmLabel={deleteLoading ? "Deleting..." : "Delete"}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

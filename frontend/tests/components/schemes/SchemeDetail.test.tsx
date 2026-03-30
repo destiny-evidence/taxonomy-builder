@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { SchemeDetail } from "../../../src/components/schemes/SchemeDetail";
 import { schemes } from "../../../src/state/schemes";
+import { concepts } from "../../../src/state/concepts";
 import { schemesApi } from "../../../src/api/schemes";
 import type { ConceptScheme } from "../../../src/types/models";
 
@@ -19,14 +20,16 @@ const mockScheme: ConceptScheme = {
 
 describe("SchemeDetail", () => {
   const mockOnRefresh = vi.fn();
+  const mockOnDeleted = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
     schemes.value = [mockScheme];
+    concepts.value = [];
   });
 
   it("displays scheme details", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     // Title is not shown in read-only mode to avoid repetition (it's in TreePane header)
     expect(screen.getByText("http://example.org/animals")).toBeInTheDocument();
@@ -34,21 +37,21 @@ describe("SchemeDetail", () => {
   });
 
   it("displays all scheme fields including timestamps", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     expect(screen.getByText(/created/i)).toBeInTheDocument();
     expect(screen.getByText(/updated/i)).toBeInTheDocument();
   });
 
   it("hides null/empty optional fields in read-only view", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     // Version is removed, so it shouldn't be displayed in read-only mode
     expect(screen.queryByText(/version/i)).not.toBeInTheDocument();
   });
 
   it("shows all fields including null ones in edit mode", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -57,13 +60,13 @@ describe("SchemeDetail", () => {
   });
 
   it("displays Edit button in read-only mode", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
   });
 
   it("switches to edit mode when Edit button is clicked", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -77,7 +80,7 @@ describe("SchemeDetail", () => {
   });
 
   it("shows title input field in edit mode", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -87,7 +90,7 @@ describe("SchemeDetail", () => {
   });
 
   it("updates title in draft when input changes", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -98,7 +101,7 @@ describe("SchemeDetail", () => {
   });
 
   it("exits edit mode and discards changes when Cancel is clicked", () => {
-    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+    render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -114,14 +117,14 @@ describe("SchemeDetail", () => {
 
   it("exits edit mode when scheme changes", () => {
     const { rerender } = render(
-      <SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />,
+      <SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
     const differentScheme = { ...mockScheme, id: "scheme-2", title: "Plants" };
     rerender(
-      <SchemeDetail scheme={differentScheme} onRefresh={mockOnRefresh} />,
+      <SchemeDetail scheme={differentScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />,
     );
 
     expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
@@ -139,7 +142,7 @@ describe("SchemeDetail", () => {
     });
 
     it("displays input fields for all editable properties", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -152,7 +155,7 @@ describe("SchemeDetail", () => {
     });
 
     it("calls API with updated data when Save is clicked", async () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -171,7 +174,7 @@ describe("SchemeDetail", () => {
     });
 
     it("exits edit mode after successful save", async () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -184,7 +187,7 @@ describe("SchemeDetail", () => {
     });
 
     it("calls onRefresh after successful save", async () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -195,7 +198,7 @@ describe("SchemeDetail", () => {
     });
 
     it("updates schemes signal after successful save", async () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       const initialSchemesCount = schemes.value.length;
 
@@ -216,7 +219,7 @@ describe("SchemeDetail", () => {
         () => new Promise((resolve) => setTimeout(resolve, 100)),
       );
 
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -230,7 +233,7 @@ describe("SchemeDetail", () => {
 
   describe("Validation", () => {
     it("shows error when title is empty", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -241,7 +244,7 @@ describe("SchemeDetail", () => {
     });
 
     it("shows error for malformed URI", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -252,7 +255,7 @@ describe("SchemeDetail", () => {
     });
 
     it("accepts empty URI", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -265,7 +268,7 @@ describe("SchemeDetail", () => {
     });
 
     it("disables Save button when validation fails", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -277,7 +280,7 @@ describe("SchemeDetail", () => {
     });
 
     it("clears validation error when field is corrected", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -290,7 +293,7 @@ describe("SchemeDetail", () => {
     });
 
     it("allows http and https URIs", () => {
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
@@ -317,7 +320,7 @@ describe("SchemeDetail", () => {
       const errorMessage = "Network error occurred";
       vi.mocked(schemesApi.update).mockRejectedValue(new Error(errorMessage));
 
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -337,7 +340,7 @@ describe("SchemeDetail", () => {
         .mockRejectedValueOnce(new Error(errorMessage))
         .mockResolvedValueOnce({ ...mockScheme });
 
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -356,7 +359,7 @@ describe("SchemeDetail", () => {
     it("allows editing after save failure", async () => {
       vi.mocked(schemesApi.update).mockRejectedValue(new Error("Save failed"));
 
-      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} />);
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
 
       fireEvent.click(screen.getByRole("button", { name: /edit/i }));
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -368,6 +371,83 @@ describe("SchemeDetail", () => {
       const titleInput = screen.getByDisplayValue("Animals");
       fireEvent.input(titleInput, { target: { value: "New Title" } });
       expect(titleInput).toHaveValue("New Title");
+    });
+  });
+
+  describe("Deleting scheme", () => {
+    it("shows Delete button in read-only mode", () => {
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
+
+      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+    });
+
+    it("opens confirmation dialog when Delete is clicked", () => {
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+
+      expect(screen.getByText(/are you sure you want to delete "Animals"/i)).toBeInTheDocument();
+    });
+
+    it("shows concept count in confirmation when scheme has concepts", () => {
+      concepts.value = [
+        { id: "c1", scheme_id: "scheme-1", identifier: "c1", pref_label: "Cat", definition: null, scope_note: null, uri: "http://example.org/c1", alt_labels: [], broader: [], narrower: [], created_at: "", updated_at: "" },
+        { id: "c2", scheme_id: "scheme-1", identifier: "c2", pref_label: "Dog", definition: null, scope_note: null, uri: "http://example.org/c2", alt_labels: [], broader: [], narrower: [], created_at: "", updated_at: "" },
+      ] as any;
+
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+
+      expect(screen.getByText(/2 concepts/i)).toBeInTheDocument();
+    });
+
+    it("calls API and onDeleted on successful delete", async () => {
+      vi.mocked(schemesApi.delete).mockResolvedValue(undefined);
+
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+      // Click the danger confirm button inside the dialog
+      const dialog = screen.getByRole("dialog");
+      const confirmBtn = dialog.querySelector(".btn--danger") as HTMLElement;
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(schemesApi.delete).toHaveBeenCalledWith("scheme-1");
+        expect(mockOnDeleted).toHaveBeenCalled();
+      });
+    });
+
+    it("removes scheme from schemes signal on successful delete", async () => {
+      vi.mocked(schemesApi.delete).mockResolvedValue(undefined);
+
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+      const dialog = screen.getByRole("dialog");
+      const confirmBtn = dialog.querySelector(".btn--danger") as HTMLElement;
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(schemes.value).toEqual([]);
+      });
+    });
+
+    it("shows error when delete fails", async () => {
+      vi.mocked(schemesApi.delete).mockRejectedValue(new Error("Cannot delete"));
+
+      render(<SchemeDetail scheme={mockScheme} onRefresh={mockOnRefresh} onDeleted={mockOnDeleted} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+      const dialog = screen.getByRole("dialog");
+      const confirmBtn = dialog.querySelector(".btn--danger") as HTMLElement;
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("Cannot delete")).toBeInTheDocument();
+      });
+      expect(mockOnDeleted).not.toHaveBeenCalled();
     });
   });
 });

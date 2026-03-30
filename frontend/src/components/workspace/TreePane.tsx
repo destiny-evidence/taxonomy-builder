@@ -20,6 +20,7 @@ interface TreePaneProps {
   onCreate?: () => void;
   onAddChild?: (parentId: string) => void;
   onExport?: () => void;
+  onSchemeDeleted?: () => void;
 }
 
 export function TreePane({
@@ -30,6 +31,7 @@ export function TreePane({
   onCreate,
   onAddChild,
   onExport,
+  onSchemeDeleted,
 }: TreePaneProps) {
   const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
   const { height: sectionHeight, onResizeStart } = useResizeHandle();
@@ -78,7 +80,7 @@ export function TreePane({
 
       {expandedSection === "schemeDetails" && (
         <div class="tree-pane__scheme-detail">
-          <SchemeDetail scheme={scheme} onRefresh={onRefresh} />
+          <SchemeDetail scheme={scheme} onRefresh={onRefresh} onDeleted={onSchemeDeleted ?? (() => {})} />
         </div>
       )}
 

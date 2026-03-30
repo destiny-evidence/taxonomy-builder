@@ -19,6 +19,8 @@
 }
 
 .scheme-detail__actions-bottom {
+  display: flex;
+  gap: var(--spacing-xs);
   position: absolute;
   top: 0;
   right: 0;

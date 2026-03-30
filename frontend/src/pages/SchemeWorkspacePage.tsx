@@ -166,6 +166,14 @@ export function SchemeWorkspacePage({
     }
   }
 
+  function handleSchemeDeleted() {
+    currentScheme.value = null;
+    selectedConceptId.value = null;
+    treeData.value = [];
+    concepts.value = [];
+    route(`/projects/${projectId}`);
+  }
+
   async function handleClassDeleted() {
     selectedClassUri.value = null;
     selectionMode.value = null;
@@ -351,6 +359,7 @@ export function SchemeWorkspacePage({
             onCreate={handleCreate}
             onAddChild={handleAddChild}
             onExport={() => setIsExportOpen(true)}
+            onSchemeDeleted={handleSchemeDeleted}
           />
         ) : (
           <div class="scheme-workspace__placeholder">
