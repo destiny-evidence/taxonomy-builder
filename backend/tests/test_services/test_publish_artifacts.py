@@ -1,5 +1,6 @@
 """Tests for SKOSExportService.render_rdf_artifacts and PublishingService.publish_artifacts."""
 
+import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import UUID
@@ -162,6 +163,54 @@ class TestRenderRdfArtifacts:
             concepts = list(g.subjects(RDF.type, SKOS.Concept))
             assert len(concepts) == 2, f"{filename}: expected 2 concepts"
 
+    def test_ttl_uses_namespace_prefixes(self, service):
+        """TTL output should use project namespace prefixes."""
+        snap = _make_snapshot()
+        snap["project"]["namespace"] = "https://vocab.example.org/"
+        snap["project"]["namespace_prefixes"] = {
+            "ex": "https://vocab.example.org/",
+        }
+        snap["concept_schemes"][0]["uri"] = "https://vocab.example.org/colors"
+        snap["concept_schemes"][0]["concepts"][0]["uri"] = "https://vocab.example.org/colors/red"
+        snap["concept_schemes"][0]["concepts"][1]["uri"] = "https://vocab.example.org/colors/blue"
+        version = _make_version(snapshot=snap)
+        artifacts = service.render_rdf_artifacts(version)
+        ttl = artifacts["vocabulary.ttl"][0].decode()
+        assert "@prefix ex: <https://vocab.example.org/>" in ttl
+        assert "ex:colors" in ttl
+
+    def test_jsonld_auto_compact(self, service):
+        """JSON-LD output should use compact prefixed terms via auto_compact."""
+        snap = _make_snapshot()
+        snap["project"]["namespace"] = "https://vocab.example.org/"
+        snap["project"]["namespace_prefixes"] = {
+            "ex": "https://vocab.example.org/",
+        }
+        snap["concept_schemes"][0]["uri"] = "https://vocab.example.org/colors"
+        snap["concept_schemes"][0]["concepts"][0]["uri"] = "https://vocab.example.org/colors/red"
+        snap["concept_schemes"][0]["concepts"][1]["uri"] = "https://vocab.example.org/colors/blue"
+        version = _make_version(snapshot=snap)
+        artifacts = service.render_rdf_artifacts(version)
+
+        jsonld = artifacts["vocabulary.jsonld"][0].decode()
+        # Compact JSON-LD should still be parseable
+        g = Graph()
+        g.parse(data=jsonld, format="json-ld")
+        assert (None, RDF.type, SKOS.ConceptScheme) in g
+        assert (None, RDF.type, SKOS.Concept) in g
+
+    def test_jsonld_excludes_rdflib_builtin_prefixes(self, service):
+        """JSON-LD @context must not contain rdflib's ~29 default prefixes."""
+        version = _make_version()
+        artifacts = service.render_rdf_artifacts(version)
+        doc = json.loads(artifacts["vocabulary.jsonld"][0])
+        ctx = doc.get("@context", {})
+        rdflib_builtins = {"brick", "csvw", "dcam", "dcat", "dcmitype", "doap",
+                           "foaf", "geo", "odrl", "org", "prof", "prov", "qb",
+                           "schema", "sh", "sosa", "ssn", "time", "vann", "void", "wgs"}
+        leaked = rdflib_builtins & set(ctx.keys())
+        assert not leaked, f"rdflib built-in prefixes leaked into JSON-LD: {leaked}"
+
 
 # ===================================================================
 # PublishingService.publish_artifacts integration tests
@@ -236,6 +285,7 @@ class TestPublishArtifacts:
         assert (tmp_path / pid / "1.0" / "vocabulary.ttl").exists()
         assert (tmp_path / pid / "1.0" / "vocabulary.jsonld").exists()
         assert (tmp_path / pid / "1.0" / "vocabulary.rdf").exists()
+        assert (tmp_path / pid / "1.0" / "context.jsonld").exists()
         # Reader files should still be written too
         assert (tmp_path / pid / "1.0" / "vocabulary.json").exists()
 
@@ -258,3 +308,16 @@ class TestPublishArtifacts:
             g.parse(data=data, format=fmt)
             assert (None, RDF.type, SKOS.ConceptScheme) in g
             assert (None, RDF.type, SKOS.Concept) in g
+
+    @pytest.mark.asyncio
+    async def test_context_artifact_valid(self, db_session, publishable, tmp_path):
+        blob_store = FilesystemBlobStore(root=tmp_path)
+        purger = NoOpPurger()
+        service = self._make_service(db_session, blob_store, purger)
+        version = await self._publish(service, publishable)
+        await service.publish_artifacts(version)
+
+        pid = str(publishable.id)
+        data = json.loads((tmp_path / pid / "1.0" / "context.jsonld").read_text())
+        assert "@context" in data
+        assert "@vocab" in data["@context"]

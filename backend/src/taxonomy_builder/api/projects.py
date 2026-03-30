@@ -1,5 +1,6 @@
 """Projects API endpoints."""
 
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -17,6 +18,7 @@ from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from taxonomy_builder.schemas.publishing import VERSION_PATTERN
 from taxonomy_builder.schemas.skos_import import ImportPreviewResponse, ImportResultResponse
+from taxonomy_builder.services.context_generation_service import ContextGenerationService
 from taxonomy_builder.services.project_service import (
     PrefixLockedError,
     ProjectNameExistsError,
@@ -154,18 +156,30 @@ async def export_version(
     project_service: ProjectService = Depends(get_project_service),
     export_service: SKOSExportService = Depends(get_export_service),
 ) -> Response:
-    """Export a published project version as SKOS RDF."""
+    """Export a published project version as SKOS RDF or JSON-LD @context."""
     try:
         published_version = await project_service.get_project_version(project_id, version_id)
     except VersionNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
     fmt = FORMAT_CONFIG[format]
-    content = await export_service.export_published_version(published_version, fmt.rdflib_format)
     filename = (
         f"{published_version.project.name}-{published_version.version}-{published_version.title}"
     )
     filename = f"{slugify(filename)}{fmt.extension}"
+
+    if format == ExportFormat.CONTEXT:
+        context_doc = ContextGenerationService().generate(published_version.snapshot_vocabulary)
+        content = json.dumps(context_doc, indent=2)
+    elif fmt.rdflib_format is not None:
+        content = await export_service.export_published_version(
+            published_version, fmt.rdflib_format
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported export format: {format}",
+        )
 
     return Response(
         content=content,

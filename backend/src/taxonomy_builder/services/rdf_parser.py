@@ -47,7 +47,9 @@ def detect_format(filename: str) -> str:
 
 def parse_rdf(content: bytes, fmt: str) -> Graph:
     """Parse RDF content into a graph."""
-    g = Graph()
+    # "none" ensures only prefixes declared in the file are bound,
+    # not rdflib's 29 built-in defaults (brick, csvw, doap, …).
+    g = Graph(bind_namespaces="none")
     try:
         g.parse(data=content, format=fmt)
     except Exception as e:

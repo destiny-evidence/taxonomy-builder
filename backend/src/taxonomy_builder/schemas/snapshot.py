@@ -194,7 +194,7 @@ class SnapshotProperty(BaseModel):
 
     @classmethod
     def from_property(cls, property: Property) -> Self:
-        return SnapshotProperty.model_construct(
+        return cls.model_construct(
             id=property.id,
             identifier=property.identifier,
             uri=property.uri,
@@ -283,14 +283,16 @@ class SnapshotProjectMetadata(BaseModel):
     name: str
     description: str | None = None
     namespace: str
+    namespace_prefixes: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
     def from_project(cls, project: Project) -> Self:
-        return SnapshotProjectMetadata.model_construct(
+        return cls.model_construct(
             id=project.id,
             name=project.name,
             description=project.description,
             namespace=project.namespace,
+            namespace_prefixes=dict(project.namespace_prefixes or {}),
         )
 
 

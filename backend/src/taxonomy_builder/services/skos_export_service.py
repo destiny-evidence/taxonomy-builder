@@ -28,10 +28,11 @@ class ExportFormat(StrEnum):
     TTL = "ttl"
     XML = "xml"
     JSONLD = "jsonld"
+    CONTEXT = "context"
 
 
 class FormatConfig(NamedTuple):
-    rdflib_format: str
+    rdflib_format: str | None
     content_type: str
     extension: str
     filename: str
@@ -42,6 +43,9 @@ FORMAT_CONFIG: dict[ExportFormat, FormatConfig] = {
     ExportFormat.XML: FormatConfig("xml", "application/rdf+xml", ".rdf", "vocabulary.rdf"),
     ExportFormat.JSONLD: FormatConfig(
         "json-ld", "application/ld+json", ".jsonld", "vocabulary.jsonld"
+    ),
+    ExportFormat.CONTEXT: FormatConfig(
+        None, "application/ld+json", ".context.jsonld", "context.jsonld"
     ),
 }
 
@@ -88,16 +92,30 @@ class SKOSExportService:
             return URIRef(scheme.uri)
         return URIRef(f"{DEFAULT_BASE_URI}/{scheme.id}")
 
-    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
-        """Build an rdflib Graph from a snapshot dict."""
-        vocabulary = SnapshotVocabulary.model_validate(snapshot)
+    @staticmethod
+    def _new_graph() -> Graph:
+        """Create a Graph with only the standard vocabulary prefixes bound.
 
-        g = Graph()
+        Uses ``bind_namespaces="none"`` to avoid rdflib's ~29 built-in
+        prefixes leaking into serialized output (especially JSON-LD).
+        """
+        g = Graph(bind_namespaces="none")
+        g.bind("rdf", RDF)
         g.bind("skos", SKOS)
         g.bind("dct", DCTERMS)
         g.bind("owl", OWL)
         g.bind("rdfs", RDFS)
         g.bind("xsd", XSD)
+        return g
+
+    def _build_graph_from_snapshot(self, snapshot: dict) -> Graph:
+        """Build an rdflib Graph from a snapshot dict."""
+        vocabulary = SnapshotVocabulary.model_validate(snapshot)
+
+        g = self._new_graph()
+
+        for prefix, ns in vocabulary.project.namespace_prefixes.items():
+            g.bind(prefix, ns)
 
         for scheme_snapshot in vocabulary.concept_schemes:
             self._add_scheme_to_graph(g, scheme_snapshot)
@@ -125,13 +143,7 @@ class SKOSExportService:
         """
         scheme = await self._get_scheme(scheme_id)
 
-        graph = Graph()
-
-        # Bind namespaces for cleaner output
-        graph.bind("skos", SKOS)
-        graph.bind("dct", DCTERMS)
-        graph.bind("owl", OWL)
-        graph.bind("rdfs", RDFS)
+        graph = self._new_graph()
 
         snapshot_scheme = SnapshotScheme.from_scheme(scheme)
 
@@ -157,18 +169,24 @@ class SKOSExportService:
         g = self._build_graph_from_snapshot(published_version.snapshot)
         return g.serialize(format=format)
 
-    def render_rdf_artifacts(self, version: PublishedVersion) -> dict[str, tuple[bytes, str]]:
+    def render_rdf_artifacts(
+        self,
+        version: PublishedVersion,
+    ) -> dict[str, tuple[bytes, str]]:
         """Build graph once from snapshot, serialize to all RDF formats.
 
         Returns a dict of {filename: (data_bytes, content_type)}.
+        JSON-LD is serialized in compact form using the graph's bound prefixes.
         """
         g = self._build_graph_from_snapshot(version.snapshot)
         result: dict[str, tuple[bytes, str]] = {}
         for fmt in FORMAT_CONFIG.values():
-            # Once we have context jsonlds availabe, we can also create
-            # compact jsonlds with compact kwarg
-            # https://rdflib.readthedocs.io/en/7.1.1/_modules/rdflib/plugins/serializers/jsonld.html#JsonLDSerializer
-            data = g.serialize(format=fmt.rdflib_format).encode()
+            if fmt.rdflib_format is None:
+                continue
+            kwargs: dict = {}
+            if fmt.rdflib_format == "json-ld":
+                kwargs["auto_compact"] = True
+            data = g.serialize(format=fmt.rdflib_format, **kwargs).encode()
             result[fmt.filename] = (data, fmt.content_type)
         return result
 

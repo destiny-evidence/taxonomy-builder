@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid7
 
 from sqlalchemy import CheckConstraint, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from taxonomy_builder.database import Base, UrlString
@@ -29,6 +30,10 @@ class Project(Base):
 
     identifier_prefix: Mapped[str] = mapped_column(String(4), nullable=False)
     identifier_counter: Mapped[int] = mapped_column(default=0, server_default="0")
+
+    namespace_prefixes: Mapped[dict[str, str]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
 
     __table_args__ = (
         CheckConstraint(
