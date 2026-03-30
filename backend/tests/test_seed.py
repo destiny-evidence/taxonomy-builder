@@ -15,8 +15,8 @@ async def test_seed_creates_class_superclass_rows(db_session: AsyncSession) -> N
 
     # 17 from evrepo-core.ttl + 9 from ontology-expressivity.ttl
     assert created["classes"] == 26
-    # 41 from evrepo-core.ttl + 15 from ontology-expressivity.ttl
-    assert created["properties"] == 56
+    # 40 from evrepo-core.ttl + 15 from ontology-expressivity.ttl
+    assert created["properties"] == 55
 
     result = await db_session.execute(select(ClassSuperclass))
     edges = result.scalars().all()
