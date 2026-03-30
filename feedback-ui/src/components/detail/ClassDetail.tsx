@@ -235,7 +235,7 @@ export function ClassDetail({ classId }: ClassDetailProps) {
           {directProperties.length > 0 && (
             <div>
               {inheritedGroups.length > 0 && (
-                <div class="detail__text" style={{ fontWeight: 500, fontSize: "0.85em", color: "var(--color-text-secondary, #666)" }}>Direct</div>
+                <div class="detail__text detail__subheading">Direct</div>
               )}
               <div class="detail__link-list">
                 {directProperties.map((p) => (
@@ -249,12 +249,12 @@ export function ClassDetail({ classId }: ClassDetailProps) {
           )}
           {inheritedGroups.map((group) => (
             <div key={group.ancestorUri}>
-              <div class="detail__text" style={{ fontWeight: 500, fontSize: "0.85em", color: "var(--color-text-muted, #999)" }}>
+              <div class="detail__text detail__subheading detail__subheading--muted">
                 Inherited from <ClassLink uri={group.ancestorUri} />
               </div>
               <div class="detail__link-list">
                 {group.properties.map((p) => (
-                  <span key={p.id} style={{ opacity: 0.7 }}>
+                  <span key={p.id} class="detail__inherited-item">
                     <PropertyLink id={p.id} label={p.label} />
                     {" "}({p.cardinality}{p.required ? ", required" : ""})
                   </span>
