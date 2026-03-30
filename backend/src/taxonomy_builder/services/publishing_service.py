@@ -283,8 +283,10 @@ class PublishingService:
         artifacts = self._skos_export_service.render_rdf_artifacts(version)
 
         # Generate standalone JSON-LD @context document.
-        # Named individuals (e.g., CodingStatus values) are stored on the project
-        # during import and carried through the snapshot.
+        # Be aware: named individuals (e.g., CodingStatus values) have no entity
+        # table — they're stored as JSONB on project and must be carried through
+        # both snapshot code paths (from_project + build_snapshot).
+        # Full implementation with repository support outlined in #112.
         context_doc = ContextGenerationService().generate(version.snapshot_vocabulary)
         artifacts["context.jsonld"] = (
             json.dumps(context_doc, indent=2).encode(),
