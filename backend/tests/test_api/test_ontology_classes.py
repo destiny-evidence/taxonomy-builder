@@ -301,8 +301,10 @@ class TestDeleteOntologyClass:
             f"/api/classes/{ontology_class_obj.id}"
         )
         assert response.status_code == 409
-        assert "cannot be deleted" in response.json()["detail"]
-        assert "referenced by one or more properties" in response.json()["detail"]
+        detail = response.json()["detail"]
+        assert "cannot be deleted" in detail
+        assert "referenced by one or more properties" in detail
+        assert "Reference" in detail, "Error should show class label, not UUID"
 
     @pytest.mark.asyncio
     async def test_delete_ontology_class_referenced_as_range_class(
@@ -330,8 +332,10 @@ class TestDeleteOntologyClass:
             f"/api/classes/{ontology_class_obj.id}"
         )
         assert response.status_code == 409
-        assert "cannot be deleted" in response.json()["detail"]
-        assert "referenced by one or more properties" in response.json()["detail"]
+        detail = response.json()["detail"]
+        assert "cannot be deleted" in detail
+        assert "referenced by one or more properties" in detail
+        assert "Reference" in detail, "Error should show class label, not UUID"
 
 
 class TestOntologyClassReadEnrichedFields:

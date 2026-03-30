@@ -194,7 +194,7 @@ class SnapshotProperty(BaseModel):
 
     @classmethod
     def from_property(cls, property: Property) -> Self:
-        return SnapshotProperty.model_construct(
+        return cls.model_construct(
             id=property.id,
             identifier=property.identifier,
             uri=property.uri,
@@ -283,14 +283,16 @@ class SnapshotProjectMetadata(BaseModel):
     name: str
     description: str | None = None
     namespace: str
+    namespace_prefixes: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
     def from_project(cls, project: Project) -> Self:
-        return SnapshotProjectMetadata.model_construct(
+        return cls.model_construct(
             id=project.id,
             name=project.name,
             description=project.description,
             namespace=project.namespace,
+            namespace_prefixes=dict(project.namespace_prefixes or {}),
         )
 
 
@@ -302,19 +304,16 @@ class SnapshotVocabulary(BaseModel):
     properties: list[SnapshotProperty] = Field(default_factory=list)
     classes: list[SnapshotClass] = Field(default_factory=list)
 
-    @field_validator("concept_schemes", mode="after")
-    @classmethod
-    def require_schemes(
-        cls,
-        v: list[SnapshotScheme],
-    ) -> list[SnapshotScheme]:
-        if not v:
+    @model_validator(mode="after")
+    def require_content(self) -> Self:
+        """Reject completely empty projects (no schemes, no classes)."""
+        if not self.concept_schemes and not self.classes:
             raise PydanticCustomError(
-                "no_schemes",
-                "Project has no concept schemes.",
+                "empty_project",
+                "Project has no concept schemes or classes.",
                 {},
             )
-        return v
+        return self
 
     @classmethod
     def from_project(cls, project: Project) -> Self:

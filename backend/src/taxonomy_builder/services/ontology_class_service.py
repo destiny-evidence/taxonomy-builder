@@ -51,10 +51,10 @@ class OntologyClassURIExistsError(Exception):
 class OntologyClassReferencedByPropertyError(Exception):
     """Raised when attempting to delete a class that is referenced by properties."""
 
-    def __init__(self, class_id: UUID) -> None:
+    def __init__(self, class_id: UUID, label: str) -> None:
         self.class_id = class_id
         super().__init__(
-            f"Ontology class '{class_id}' cannot be deleted because"
+            f"Ontology class '{label}' cannot be deleted because"
             " it is referenced by one or more properties"
         )
 
@@ -260,7 +260,7 @@ class OntologyClassService:
             )
         )
         if result.first() is not None:
-            raise OntologyClassReferencedByPropertyError(ontology_class_id)
+            raise OntologyClassReferencedByPropertyError(ontology_class_id, ontology_class.label)
 
         # Check range_class references
         result = await self.db.execute(
@@ -270,7 +270,7 @@ class OntologyClassService:
             )
         )
         if result.first() is not None:
-            raise OntologyClassReferencedByPropertyError(ontology_class_id)
+            raise OntologyClassReferencedByPropertyError(ontology_class_id, ontology_class.label)
 
         before = self._serialize_ontology_class(ontology_class)
         project_id = ontology_class.project_id

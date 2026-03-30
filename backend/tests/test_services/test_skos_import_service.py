@@ -1447,3 +1447,62 @@ async def test_reimport_skipped_scheme_does_not_advance_counter(
     )
     await db_session.refresh(project_with_prefix)
     assert project_with_prefix.identifier_counter == 3
+
+
+# --- Namespace prefix merge tests ---
+
+PREFIXED_TTL_WITH_CUSTOM_NS = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix evrepo: <https://example.org/vocab/> .
+@prefix custom: <https://custom.org/> .
+
+evrepo:TestScheme a skos:ConceptScheme ;
+    rdfs:label "Test Scheme" .
+
+evrepo:C001 a skos:Concept ;
+    skos:inScheme evrepo:TestScheme ;
+    skos:prefLabel "Concept One" .
+"""
+
+PREFIXED_TTL_WITH_XSD_OVERRIDE = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://wrong.org/> .
+@prefix evrepo: <https://example.org/vocab/> .
+
+evrepo:SchemeB a skos:ConceptScheme ;
+    rdfs:label "Scheme B" .
+
+evrepo:C002 a skos:Concept ;
+    skos:inScheme evrepo:SchemeB ;
+    skos:prefLabel "Concept Two" .
+"""
+
+
+@pytest.mark.asyncio
+async def test_execute_stores_custom_namespace_prefix(
+    db_session: AsyncSession, import_service: SKOSImportService, project_with_prefix: Project
+) -> None:
+    """Import should store non-reserved namespace prefixes on the project."""
+    await import_service.execute(
+        project_with_prefix.id, PREFIXED_TTL_WITH_CUSTOM_NS, "test.ttl"
+    )
+    await db_session.refresh(project_with_prefix)
+    assert "custom" in project_with_prefix.namespace_prefixes
+    assert project_with_prefix.namespace_prefixes["custom"] == "https://custom.org/"
+
+
+@pytest.mark.asyncio
+async def test_execute_stores_all_declared_prefixes(
+    db_session: AsyncSession, import_service: SKOSImportService, project_with_prefix: Project
+) -> None:
+    """All prefixes declared in the TTL should be stored, including standard ones."""
+    await import_service.execute(
+        project_with_prefix.id, PREFIXED_TTL_WITH_XSD_OVERRIDE, "test.ttl"
+    )
+    await db_session.refresh(project_with_prefix)
+    assert "xsd" in project_with_prefix.namespace_prefixes
+    assert "skos" in project_with_prefix.namespace_prefixes
+    assert "rdfs" in project_with_prefix.namespace_prefixes
+    assert "evrepo" in project_with_prefix.namespace_prefixes
