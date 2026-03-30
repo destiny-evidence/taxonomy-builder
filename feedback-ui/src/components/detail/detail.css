@@ -210,3 +210,18 @@
   margin-top: var(--spacing-sm);
   white-space: pre-wrap;
 }
+
+/* Applicability closure: property grouping subheadings */
+.detail__subheading {
+  font-weight: 500;
+  font-size: 0.85em;
+  color: var(--color-text-secondary);
+}
+
+.detail__subheading--muted {
+  color: var(--color-text-muted);
+}
+
+.detail__inherited-item {
+  opacity: 0.7;
+}
