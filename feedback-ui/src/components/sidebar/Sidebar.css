@@ -196,6 +196,40 @@
   padding-left: calc(var(--spacing-sm) + 3px);
 }
 
+/* Search: match highlight */
+.concept-tree__node--match {
+  background: var(--color-warning-light);
+}
+
+.concept-tree__node--match:hover {
+  background: var(--color-warning-light);
+}
+
+/* Search: dimmed non-matches */
+.concept-tree__node--dimmed {
+  opacity: 0.4;
+}
+
+.sidebar__section-header--match {
+  background: var(--color-warning-light);
+}
+
+.sidebar__section-header--dimmed {
+  opacity: 0.4;
+}
+
+.data-model-item--match {
+  background: var(--color-warning-light);
+}
+
+.data-model-item--match:hover {
+  background: var(--color-warning-light);
+}
+
+.data-model-item--dimmed {
+  opacity: 0.4;
+}
+
 /* Feedback count badge */
 .sidebar__badge {
   display: inline-flex;

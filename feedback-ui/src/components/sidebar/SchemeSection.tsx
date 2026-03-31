@@ -1,5 +1,6 @@
 import { navigate, route } from "../../router";
-import { selectedVersion, currentProjectId, conceptTrees } from "../../state/vocabulary";
+import { selectedVersion, currentProjectId } from "../../state/vocabulary";
+import { searchQuery, searchFilteredConceptTrees } from "../../state/search";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 import { expandedIds, toggleExpanded } from "../../state/sidebar";
@@ -27,7 +28,13 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
     }
   }
 
-  const tree = conceptTrees.value.get(scheme.id) ?? [];
+  const tree = searchFilteredConceptTrees.value.get(scheme.id) ?? [];
+
+  const isSearchActive = searchQuery.value.trim().length > 0;
+  const q = searchQuery.value.trim().toLowerCase();
+  const schemeTitleMatches = isSearchActive && scheme.title.toLowerCase().includes(q);
+  const schemeHasMatchingConcepts = tree.some((n) => n.matchStatus !== "none");
+  const schemeDimmed = isSearchActive && !schemeTitleMatches && !schemeHasMatchingConcepts;
 
   const displayCount = (() => {
     if (!isAuthenticated.value) return 0;
@@ -42,7 +49,7 @@ export function SchemeSection({ scheme }: SchemeSectionProps) {
   return (
     <div class="sidebar__section">
       <div
-        class="sidebar__section-header"
+        class={`sidebar__section-header${schemeTitleMatches ? " sidebar__section-header--match" : ""}${schemeDimmed ? " sidebar__section-header--dimmed" : ""}`}
         role="button"
         tabIndex={0}
         aria-expanded={expanded}

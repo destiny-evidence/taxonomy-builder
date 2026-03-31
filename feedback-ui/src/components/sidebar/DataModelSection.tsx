@@ -1,5 +1,6 @@
 import { navigate, route } from "../../router";
 import { vocabulary, selectedVersion, currentProjectId } from "../../state/vocabulary";
+import { searchQuery } from "../../state/search";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 import { expandedIds, toggleExpanded } from "../../state/sidebar";
@@ -18,6 +19,11 @@ export function DataModelSection() {
   const properties = vocab.properties;
   if (classes.length === 0 && properties.length === 0) return null;
 
+  const isSearchActive = searchQuery.value.trim().length > 0;
+  const q = searchQuery.value.trim().toLowerCase();
+  const anyClassMatches = isSearchActive && classes.some((cls) => cls.label.toLowerCase().includes(q));
+  const anyPropMatches = isSearchActive && properties.some((p) => p.label.toLowerCase().includes(q));
+
   const classesAggCount = !classesExpanded && isAuthenticated.value
     ? classes.reduce((sum, cls) => sum + feedbackCountForEntity(cls.id, "class"), 0)
     : 0;
@@ -32,7 +38,7 @@ export function DataModelSection() {
       <div class="sidebar__group-body">
         {classes.length > 0 && (
           <div class="sidebar__section">
-            <div class="sidebar__section-header" role="button" tabIndex={0} aria-expanded={classesExpanded} onClick={() => toggleExpanded(CLASSES_ID)} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(CLASSES_ID); } }}>
+            <div class={`sidebar__section-header${isSearchActive && !anyClassMatches ? " sidebar__section-header--dimmed" : ""}`} role="button" tabIndex={0} aria-expanded={classesExpanded} onClick={() => toggleExpanded(CLASSES_ID)} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(CLASSES_ID); } }}>
               <svg class={`sidebar__chevron${classesExpanded ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
@@ -45,6 +51,8 @@ export function DataModelSection() {
                   const count = isAuthenticated.value ? feedbackCountForEntity(cls.id, "class") : 0;
                   const version = selectedVersion.value;
                   const isActive = route.value.entityKind === "class" && route.value.entityId === cls.id;
+                  const clsMatches = isSearchActive && cls.label.toLowerCase().includes(q);
+                  const clsDimmed = isSearchActive && !clsMatches;
                   const handleNav = () => {
                     if (isActive) { (document.querySelector(".detail__title") as HTMLElement)?.focus({ preventScroll: true }); return; }
                     const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "class", cls.id);
@@ -52,7 +60,7 @@ export function DataModelSection() {
                   return (
                     <div
                       key={cls.id}
-                      class={`data-model-item${isActive ? " data-model-item--active" : ""}`}
+                      class={`data-model-item${isActive ? " data-model-item--active" : ""}${clsMatches ? " data-model-item--match" : ""}${clsDimmed ? " data-model-item--dimmed" : ""}`}
                       role="button"
                       tabIndex={0}
                       onClick={handleNav}
@@ -69,7 +77,7 @@ export function DataModelSection() {
         )}
         {properties.length > 0 && (
           <div class="sidebar__section">
-            <div class="sidebar__section-header" role="button" tabIndex={0} aria-expanded={propsExpanded} onClick={() => toggleExpanded(PROPERTIES_ID)} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(PROPERTIES_ID); } }}>
+            <div class={`sidebar__section-header${isSearchActive && !anyPropMatches ? " sidebar__section-header--dimmed" : ""}`} role="button" tabIndex={0} aria-expanded={propsExpanded} onClick={() => toggleExpanded(PROPERTIES_ID)} onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(PROPERTIES_ID); } }}>
               <svg class={`sidebar__chevron${propsExpanded ? " sidebar__chevron--open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
@@ -82,6 +90,8 @@ export function DataModelSection() {
                   const count = isAuthenticated.value ? feedbackCountForEntity(prop.id, "property") : 0;
                   const version = selectedVersion.value;
                   const isActive = route.value.entityKind === "property" && route.value.entityId === prop.id;
+                  const propMatches = isSearchActive && prop.label.toLowerCase().includes(q);
+                  const propDimmed = isSearchActive && !propMatches;
                   const handleNav = () => {
                     if (isActive) { (document.querySelector(".detail__title") as HTMLElement)?.focus({ preventScroll: true }); return; }
                     const pid = currentProjectId.value; if (version && pid) navigate(pid, version, "property", prop.id);
@@ -89,7 +99,7 @@ export function DataModelSection() {
                   return (
                     <div
                       key={prop.id}
-                      class={`data-model-item${isActive ? " data-model-item--active" : ""}`}
+                      class={`data-model-item${isActive ? " data-model-item--active" : ""}${propMatches ? " data-model-item--match" : ""}${propDimmed ? " data-model-item--dimmed" : ""}`}
                       role="button"
                       tabIndex={0}
                       onClick={handleNav}
