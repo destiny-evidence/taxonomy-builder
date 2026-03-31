@@ -1,5 +1,6 @@
 import { navigate, route } from "../../router";
 import { selectedVersion, currentProjectId } from "../../state/vocabulary";
+import { searchQuery } from "../../state/search";
 import { isAuthenticated } from "../../state/auth";
 import { feedbackCountForEntity } from "../../state/feedback";
 import { expandedIds, toggleExpanded } from "../../state/sidebar";
@@ -24,6 +25,9 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
   const hasChildren = node.children.length > 0;
   const isActive =
     route.value.entityKind === "concept" && route.value.entityId === node.id;
+  const isSearchActive = searchQuery.value.trim().length > 0;
+  const isMatch = node.matchStatus === "match";
+  const isDimmed = isSearchActive && node.matchStatus === "none";
 
   function handleClick() {
     if (isActive) {
@@ -49,7 +53,7 @@ function TreeNode({ node, schemeId }: ConceptTreeNodeProps) {
   return (
     <div>
       <div
-        class={`concept-tree__node${isActive ? " concept-tree__node--active" : ""}`}
+        class={`concept-tree__node${isActive ? " concept-tree__node--active" : ""}${isMatch ? " concept-tree__node--match" : ""}${isDimmed ? " concept-tree__node--dimmed" : ""}`}
         role="button"
         tabIndex={0}
         aria-expanded={hasChildren ? expanded : undefined}

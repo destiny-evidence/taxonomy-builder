@@ -31,12 +31,15 @@ export const projectName = computed(
   () => vocabulary.value?.project.name ?? ""
 );
 
+export type MatchStatus = "none" | "match" | "ancestor";
+
 /** Concept tree node for rendering the sidebar. */
 export interface ConceptTreeNode {
   id: string;
   label: string;
   children: ConceptTreeNode[];
   broaderCount: number;
+  matchStatus: MatchStatus;
 }
 
 /**
@@ -65,6 +68,7 @@ function buildConceptTree(scheme: VocabScheme): ConceptTreeNode[] {
       id,
       label: concept.pref_label,
       broaderCount: concept.broader.length,
+      matchStatus: "none",
       children: kids
         .map((childId) => {
           const child = concepts[childId];
