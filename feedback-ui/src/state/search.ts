@@ -1,9 +1,29 @@
 import { computed, signal } from "@preact/signals";
 import { vocabulary, conceptTrees, type ConceptTreeNode } from "./vocabulary";
 import { ownFeedback } from "./feedback";
-import { expandedIds } from "./sidebar";
+import { expandedIds, revealEntity } from "./sidebar";
+import { route } from "../router";
 
 export const searchQuery = signal("");
+
+/** Snapshot of expanded state before search began, so we can restore on clear. */
+let preSearchExpandedIds: Set<string> | null = null;
+
+/**
+ * Clear the search query and restore the sidebar to its pre-search expanded state.
+ */
+export function clearSearch(): void {
+  searchQuery.value = "";
+  if (preSearchExpandedIds !== null) {
+    expandedIds.value = preSearchExpandedIds;
+    preSearchExpandedIds = null;
+  }
+  // Ensure the currently selected entity remains visible in the tree.
+  const { entityKind, entityId } = route.value;
+  if (entityKind && entityId) {
+    revealEntity(entityKind, entityId);
+  }
+}
 
 /**
  * Check if a concept matches the search query.
@@ -32,6 +52,13 @@ export function expandMatchingPaths(query: string): void {
 
   const vocab = vocabulary.value;
   if (!vocab) return;
+
+  // Snapshot the pre-search state on first search, restore it on subsequent
+  // searches so we don't accumulate expansions across queries.
+  if (preSearchExpandedIds === null) {
+    preSearchExpandedIds = expandedIds.value;
+  }
+  const baseline = preSearchExpandedIds;
 
   const idsToExpand: string[] = [];
 
@@ -64,11 +91,9 @@ export function expandMatchingPaths(query: string): void {
     }
   }
 
-  if (idsToExpand.length > 0) {
-    const next = new Set(expandedIds.value);
-    for (const id of idsToExpand) next.add(id);
-    expandedIds.value = next;
-  }
+  const next = new Set(baseline);
+  for (const id of idsToExpand) next.add(id);
+  expandedIds.value = next;
 }
 
 export interface SearchResult {

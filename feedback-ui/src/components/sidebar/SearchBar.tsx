@@ -1,4 +1,4 @@
-import { searchQuery, expandMatchingPaths } from "../../state/search";
+import { searchQuery, expandMatchingPaths, clearSearch } from "../../state/search";
 import "./SearchBar.css";
 
 let debounceTimer: number;
@@ -18,12 +18,14 @@ export function SearchBar() {
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
-      searchQuery.value = "";
+      clearTimeout(debounceTimer);
+      clearSearch();
     }
   }
 
   function handleClear() {
-    searchQuery.value = "";
+    clearTimeout(debounceTimer);
+    clearSearch();
   }
 
   return (
