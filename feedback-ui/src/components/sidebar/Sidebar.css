@@ -198,36 +198,42 @@
 
 /* Search: match highlight */
 .concept-tree__node--match {
-  background: var(--color-warning-light);
+  background: var(--color-primary-light);
+  border-radius: 0;
+}
+
+.concept-tree__node--match.concept-tree__node--active {
+  border-radius: var(--radius-sm);
 }
 
 .concept-tree__node--match:hover {
-  background: var(--color-warning-light);
+  background: var(--color-primary-light);
 }
 
 /* Search: dimmed non-matches */
 .concept-tree__node--dimmed {
-  opacity: 0.4;
+  opacity: 0.55;
 }
 
 .sidebar__section-header--match {
-  background: var(--color-warning-light);
+  background: var(--color-primary-light);
 }
 
 .sidebar__section-header--dimmed {
-  opacity: 0.4;
+  opacity: 0.55;
 }
 
 .data-model-item--match {
-  background: var(--color-warning-light);
+  background: var(--color-primary-light);
+  border-radius: 0;
 }
 
 .data-model-item--match:hover {
-  background: var(--color-warning-light);
+  background: var(--color-primary-light);
 }
 
 .data-model-item--dimmed {
-  opacity: 0.4;
+  opacity: 0.55;
 }
 
 /* Feedback count badge */
