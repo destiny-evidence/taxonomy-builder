@@ -22,8 +22,9 @@ class EntityNotInSnapshotError(Exception):
     def __init__(self, entity_id: str, entity_type: str) -> None:
         self.entity_id = entity_id
         self.entity_type = entity_type
+        label = entity_type.replace("_", " ")
         super().__init__(
-            f"Entity '{entity_id}' of type '{entity_type}' not found in snapshot"
+            f"The specified {label} was not found in the published version"
         )
 
 

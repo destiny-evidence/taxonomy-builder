@@ -40,10 +40,10 @@ class ProjectNotFoundError(Exception):
 class SchemeReferencedByPropertyError(Exception):
     """Raised when attempting to delete a scheme that is referenced by properties."""
 
-    def __init__(self, scheme_id: UUID) -> None:
+    def __init__(self, scheme_id: UUID, scheme_title: str) -> None:
         self.scheme_id = scheme_id
         super().__init__(
-            f"Concept scheme '{scheme_id}' cannot be deleted because"
+            f"Cannot delete '{scheme_title}' because"
             " it is referenced by one or more properties"
         )
 
@@ -165,6 +165,7 @@ class ConceptSchemeService:
         """
         scheme = await self.get_scheme(scheme_id)
         project_id = scheme.project_id
+        scheme_title = scheme.title
 
         # Capture before state before deletion
         before_state = self._tracker.serialize_scheme(scheme)
@@ -185,4 +186,4 @@ class ConceptSchemeService:
             await self.db.flush()
         except IntegrityError:
             await self.db.rollback()
-            raise SchemeReferencedByPropertyError(scheme_id)
+            raise SchemeReferencedByPropertyError(scheme_id, scheme_title)
