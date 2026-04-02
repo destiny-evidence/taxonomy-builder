@@ -47,12 +47,15 @@ class InvalidRangeError(Exception):
 class SchemeNotInProjectError(Exception):
     """Raised when a scheme does not belong to the project."""
 
-    def __init__(self, scheme_id: UUID, project_id: UUID) -> None:
+    def __init__(self, scheme_id: UUID, project_id: UUID, scheme_title: str | None = None) -> None:
         self.scheme_id = scheme_id
         self.project_id = project_id
-        super().__init__(
-            f"Concept scheme '{scheme_id}' does not belong to project '{project_id}'"
-        )
+        if scheme_title:
+            super().__init__(
+                f"Concept scheme '{scheme_title}' does not belong to this project"
+            )
+        else:
+            super().__init__("The specified concept scheme was not found")
 
 
 class PropertyIdentifierExistsError(Exception):
@@ -141,7 +144,7 @@ class PropertyService:
             except SchemeNotFoundError:
                 raise SchemeNotInProjectError(range_scheme_id, project_id)
             if scheme.project_id != project_id:
-                raise SchemeNotInProjectError(range_scheme_id, project_id)
+                raise SchemeNotInProjectError(range_scheme_id, project_id, scheme.title)
 
     def _serialize_property(self, prop: Property) -> dict:
         """Serialize a property for change tracking.
