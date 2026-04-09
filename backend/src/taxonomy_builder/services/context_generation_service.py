@@ -2,7 +2,8 @@
 
 import logging
 
-from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
+from taxonomy_builder.models.class_restriction import RestrictionType
+from taxonomy_builder.schemas.snapshot import SnapshotClass, SnapshotVocabulary
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,17 @@ class ContextGenerationService:
             if prefix:
                 context[prefix] = namespace
 
+        # Build concept_type_uri → scheme_uri mapping for type-scoped contexts.
+        # When an OWL class has an allValuesFrom restriction whose value matches
+        # a concept type in a scheme, we emit a type-scoped prefix redefinition
+        # so that compact concept codes (e.g. esea:C00074) expand to scheme-
+        # scoped URIs (e.g. esea:EducationThemeScheme/C00074).
+        concept_type_to_scheme_uri: dict[str, str] = {}
+        for scheme in snapshot.concept_schemes:
+            for concept in scheme.concepts:
+                for type_uri in concept.concept_type_uris:
+                    concept_type_to_scheme_uri.setdefault(type_uri, scheme.uri)
+
         # 3. Class term mappings
         # Reserve prefix names so class/property local names can't overwrite them.
         used_terms: dict[str, str] = {prefix: prefix for prefix in prefixes}
@@ -51,6 +63,19 @@ class ContextGenerationService:
             if not local_name:
                 continue
             compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
+
+            # Check for allValuesFrom restriction → scheme-scoped prefix
+            term_value: str | dict = compact
+            scheme_uri = self._find_linked_scheme(snapshot_class, concept_type_to_scheme_uri)
+            if scheme_uri:
+                scheme_base = scheme_uri.rstrip("/") + "/"
+                scope_prefix = self._find_prefix_for_uri(scheme_base, namespace_to_prefix)
+                if scope_prefix:
+                    term_value = {
+                        "@id": compact,
+                        "@context": {scope_prefix: scheme_base},
+                    }
+
             if local_name in used_terms:
                 # Collision with existing term or prefix — use full URI as key
                 logger.warning(
@@ -59,10 +84,10 @@ class ContextGenerationService:
                     snapshot_class.uri,
                     local_name,
                 )
-                context[snapshot_class.uri] = compact
+                context[snapshot_class.uri] = term_value
             else:
                 used_terms[local_name] = snapshot_class.uri
-                context[local_name] = compact
+                context[local_name] = term_value
 
         # 4. Property term mappings
         for prop in snapshot.properties:
@@ -139,3 +164,28 @@ class ContextGenerationService:
             if uri.startswith(namespace):
                 return f"{prefix}:{uri[len(namespace) :]}"
         return uri
+
+    @staticmethod
+    def _find_linked_scheme(
+        snapshot_class: SnapshotClass,
+        concept_type_to_scheme_uri: dict[str, str],
+    ) -> str | None:
+        """Find a scheme URI linked via an allValuesFrom restriction.
+
+        If the class restricts a property to allValuesFrom a concept type
+        that appears in a scheme's concepts, return that scheme's URI.
+        """
+        for restriction in snapshot_class.restrictions:
+            if restriction.restriction_type == RestrictionType.ALL_VALUES_FROM:
+                scheme_uri = concept_type_to_scheme_uri.get(restriction.value_uri)
+                if scheme_uri:
+                    return scheme_uri
+        return None
+
+    @staticmethod
+    def _find_prefix_for_uri(uri: str, namespace_to_prefix: dict[str, str]) -> str | None:
+        """Find the prefix whose namespace contains the given URI."""
+        for namespace, prefix in namespace_to_prefix.items():
+            if uri.startswith(namespace) and prefix:
+                return prefix
+        return None

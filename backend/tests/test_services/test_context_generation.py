@@ -26,10 +26,30 @@ DEFAULT_PREFIXES = {
 }
 
 
+DEFAULT_SCHEME = {
+    "id": str(SCHEME_ID),
+    "title": "Education Level",
+    "uri": f"{PROJECT_NS}educationLevel",
+    "concepts": [
+        {
+            "id": "01965a00-0000-7000-8000-000000000099",
+            "pref_label": "Primary",
+            "identifier": "C00001",
+            "uri": f"{PROJECT_NS}C00001",
+            "broader_ids": [],
+            "related_ids": [],
+            "alt_labels": [],
+            "concept_type_uris": [],
+        }
+    ],
+}
+
+
 def _make_snapshot(
     *,
     classes=None,
     properties=None,
+    concept_schemes=None,
     namespace_prefixes=None,
     namespace=PROJECT_NS,
 ):
@@ -42,25 +62,7 @@ def _make_snapshot(
             "namespace": namespace,
             "namespace_prefixes": namespace_prefixes or DEFAULT_PREFIXES,
         },
-        "concept_schemes": [
-            {
-                "id": str(SCHEME_ID),
-                "title": "Education Level",
-                "uri": f"{PROJECT_NS}educationLevel",
-                "concepts": [
-                    {
-                        "id": "01965a00-0000-7000-8000-000000000099",
-                        "pref_label": "Primary",
-                        "identifier": "C00001",
-                        "uri": f"{PROJECT_NS}C00001",
-                        "broader_ids": [],
-                        "related_ids": [],
-                        "alt_labels": [],
-                        "concept_type_uris": [],
-                    }
-                ],
-            }
-        ],
+        "concept_schemes": concept_schemes if concept_schemes is not None else [DEFAULT_SCHEME],
         "classes": classes or [],
         "properties": properties or [],
     }
@@ -486,3 +488,144 @@ class TestRdfPropertyWithDatatype:
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert "dataSource" in ctx, "in-namespace rdf:Property with datatype should not be omitted"
         assert ctx["dataSource"] == {"@type": "xsd:string"}
+
+
+THEME_SCHEME_ID = UUID("01965a00-0000-7000-8000-000000000002")
+
+
+def _theme_scheme(*, concept_type_uris=None):
+    """Build an EducationThemeScheme with a concept that has concept_type_uris."""
+    return {
+        "id": str(THEME_SCHEME_ID),
+        "title": "Education Theme",
+        "uri": f"{PROJECT_NS}EducationThemeScheme",
+        "concepts": [
+            {
+                "id": "01965a00-0000-7000-8000-000000000098",
+                "pref_label": "Literacy and Reading Interventions",
+                "identifier": "C00074",
+                "uri": f"{PROJECT_NS}EducationThemeScheme/C00074",
+                "broader_ids": [],
+                "related_ids": [],
+                "alt_labels": [],
+                "concept_type_uris": concept_type_uris or [f"{PROJECT_NS}EducationThemeConcept"],
+            }
+        ],
+    }
+
+
+def _annotation_class(*, identifier="EducationThemeCodingAnnotation", value_uri=None):
+    """Build a CodingAnnotation class with an allValuesFrom restriction."""
+    return {
+        "id": str(CLASS_ID),
+        "identifier": identifier,
+        "label": identifier.replace("CodingAnnotation", " Coding Annotation"),
+        "uri": f"{PROJECT_NS}{identifier}",
+        "restrictions": [
+            {
+                "on_property_uri": f"{EXTERNAL_NS}codedValue",
+                "restriction_type": "allValuesFrom",
+                "value_uri": value_uri or f"{PROJECT_NS}EducationThemeConcept",
+            }
+        ],
+    }
+
+
+class TestTypeScopedPrefixRedefinition:
+    """Classes with allValuesFrom restrictions linking to a concept scheme
+    should get type-scoped prefix redefinitions in the context.
+
+    This enables pyld to expand esea:C00074 → esea:EducationThemeScheme/C00074
+    when the codedValue appears inside a typed annotation node.
+    """
+
+    def test_annotation_class_gets_scoped_prefix(self):
+        snapshot = _make_snapshot(
+            concept_schemes=[_theme_scheme()],
+            classes=[_annotation_class()],
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert ctx["EducationThemeCodingAnnotation"] == {
+            "@id": "esea:EducationThemeCodingAnnotation",
+            "@context": {"esea": f"{PROJECT_NS}EducationThemeScheme/"},
+        }
+
+    def test_class_without_restriction_stays_simple(self):
+        """A class with no restrictions should not get a scoped context."""
+        snapshot = _make_snapshot(
+            concept_schemes=[_theme_scheme()],
+            classes=[
+                {
+                    "id": str(CLASS_ID),
+                    "identifier": "Investigation",
+                    "label": "Investigation",
+                    "uri": f"{EXTERNAL_NS}Investigation",
+                }
+            ],
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert ctx["Investigation"] == "evrepo:Investigation"
+
+    def test_restriction_not_matching_any_scheme(self):
+        """allValuesFrom a type that doesn't appear in any scheme's concepts
+        should not produce a scoped context."""
+        snapshot = _make_snapshot(
+            concept_schemes=[_theme_scheme()],
+            classes=[
+                _annotation_class(value_uri=f"{PROJECT_NS}UnknownConcept"),
+            ],
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        # Falls back to simple mapping
+        assert ctx["EducationThemeCodingAnnotation"] == "esea:EducationThemeCodingAnnotation"
+
+    def test_multiple_annotation_types_each_get_own_scheme(self):
+        """Each annotation type should get a scoped prefix for its own scheme."""
+        doc_scheme_id = UUID("01965a00-0000-7000-8000-000000000003")
+        snapshot = _make_snapshot(
+            concept_schemes=[
+                _theme_scheme(),
+                {
+                    "id": str(doc_scheme_id),
+                    "title": "Document Type",
+                    "uri": f"{PROJECT_NS}DocumentTypeScheme",
+                    "concepts": [
+                        {
+                            "id": "01965a00-0000-7000-8000-000000000097",
+                            "pref_label": "RCT",
+                            "identifier": "C00008",
+                            "uri": f"{PROJECT_NS}DocumentTypeScheme/C00008",
+                            "broader_ids": [],
+                            "related_ids": [],
+                            "alt_labels": [],
+                            "concept_type_uris": [f"{PROJECT_NS}DocumentTypeConcept"],
+                        }
+                    ],
+                },
+            ],
+            classes=[
+                _annotation_class(),
+                {
+                    "id": str(EXT_CLASS_ID),
+                    "identifier": "DocumentTypeCodingAnnotation",
+                    "label": "Document Type Coding Annotation",
+                    "uri": f"{PROJECT_NS}DocumentTypeCodingAnnotation",
+                    "restrictions": [
+                        {
+                            "on_property_uri": f"{EXTERNAL_NS}codedValue",
+                            "restriction_type": "allValuesFrom",
+                            "value_uri": f"{PROJECT_NS}DocumentTypeConcept",
+                        }
+                    ],
+                },
+            ],
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        assert ctx["EducationThemeCodingAnnotation"] == {
+            "@id": "esea:EducationThemeCodingAnnotation",
+            "@context": {"esea": f"{PROJECT_NS}EducationThemeScheme/"},
+        }
+        assert ctx["DocumentTypeCodingAnnotation"] == {
+            "@id": "esea:DocumentTypeCodingAnnotation",
+            "@context": {"esea": f"{PROJECT_NS}DocumentTypeScheme/"},
+        }
