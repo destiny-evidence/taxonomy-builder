@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Published artifacts base URL (CDN/Caddy root for published content)
     published_base_url: str = "http://localhost:3001/published"
 
+    # MCP server
+    mcp_base_url: str = "http://localhost:8000"
+    mcp_auth: bool = True  # Keycloak auth for MCP over HTTP (stdio always unauthenticated)
+
     # CDN cache purge (Azure Front Door)
     cdn: CDNSettings | None = None
 

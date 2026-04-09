@@ -118,6 +118,44 @@ class ConceptService:
             raise SchemeNotFoundError(scheme_id)
         return scheme
 
+    async def search_concepts(
+        self,
+        query: str,
+        *,
+        scheme_id: UUID | None = None,
+        project_id: UUID | None = None,
+    ) -> list[Concept]:
+        """Search concepts by pref_label or definition text (case-insensitive).
+
+        Provide either scheme_id to search within a single scheme, or
+        project_id to search across all schemes in a project.
+        """
+        if scheme_id is None and project_id is None:
+            raise ValueError("Either scheme_id or project_id is required")
+
+        pattern = f"%{query}%"
+        stmt = (
+            select(Concept)
+            .where(or_(
+                Concept.pref_label.ilike(pattern),
+                Concept.definition.ilike(pattern),
+            ))
+            .options(
+                selectinload(Concept.broader),
+                selectinload(Concept.narrower),
+            )
+            .order_by(Concept.pref_label)
+        )
+
+        if scheme_id is not None:
+            await self.get_scheme(scheme_id)
+            stmt = stmt.where(Concept.scheme_id == scheme_id)
+        else:
+            stmt = stmt.join(ConceptScheme).where(ConceptScheme.project_id == project_id)
+
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_concepts_for_scheme(self, scheme_id: UUID) -> list[Concept]:
         """List all concepts for a scheme, ordered alphabetically by pref_label."""
         await self.get_scheme(scheme_id)
