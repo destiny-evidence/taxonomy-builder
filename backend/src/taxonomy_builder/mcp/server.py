@@ -1,7 +1,12 @@
 """MCP server for taxonomy builder — FastMCP setup and auth."""
 
 from fastmcp import FastMCP
-from fastmcp.server.auth import AccessToken, AuthProvider, RemoteAuthProvider, TokenVerifier
+from fastmcp.server.auth import (
+    AccessToken,
+    AuthProvider,
+    RemoteAuthProvider,
+    TokenVerifier,
+)
 from pydantic import AnyHttpUrl
 
 from taxonomy_builder.config import settings
@@ -10,7 +15,7 @@ from taxonomy_builder.services.auth_service import AuthService
 
 
 class KeycloakTokenVerifier(TokenVerifier):
-    """Verify Keycloak JWTs and resolve local users."""
+    """Verify Keycloak JWTs and return an AccessToken with full claims."""
 
     async def verify_token(self, token: str) -> AccessToken | None:
         async with db_manager.session() as session:
@@ -20,19 +25,20 @@ class KeycloakTokenVerifier(TokenVerifier):
             except Exception:
                 return None
 
-            user = await auth_service.get_or_create_user(claims)
-            org_claims = auth_service.extract_org_claims(claims)
-            roles = org_claims.get("roles", [])
-
-            if "vocabulary.manager" not in roles:
-                return None
-
             return AccessToken(
                 token=token,
-                client_id=str(user.id),
-                scopes=roles,
+                client_id=claims.get("azp", ""),
+                scopes=claims.get("scope", "").split(),
                 claims=claims,
             )
+
+
+def require_manager(ctx) -> bool:
+    """Auth check: require vocabulary.manager realm role."""
+    if ctx.token is None:
+        return False
+    roles = ctx.token.claims.get("realm_access", {}).get("roles", [])
+    return "vocabulary.manager" in roles
 
 
 def _build_auth() -> AuthProvider | None:

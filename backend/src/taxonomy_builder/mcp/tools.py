@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastmcp import Context
+from fastmcp.server.dependencies import get_access_token
 
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
@@ -13,47 +13,51 @@ from taxonomy_builder.mcp.formatters import (
     format_scheme,
     format_tree,
 )
-from taxonomy_builder.mcp.server import mcp
+from taxonomy_builder.mcp.server import mcp, require_manager
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
-from taxonomy_builder.schemas.concept_scheme import ConceptSchemeCreate, ConceptSchemeUpdate
+from taxonomy_builder.schemas.concept_scheme import (
+    ConceptSchemeCreate,
+    ConceptSchemeUpdate,
+)
 from taxonomy_builder.schemas.project import ProjectCreate
+from taxonomy_builder.services.auth_service import AuthService
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.history_service import HistoryService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.skos_export_service import SKOSExportService
 
+# When auth is enabled, apply the manager role check to all tools.
+_auth = require_manager if settings.mcp_auth else None
 
-def _get_user_id(ctx: Context) -> UUID | None:
-    """Extract user_id from MCP auth context.
 
-    When auth is enabled, the KeycloakTokenVerifier sets client_id to the
-    local user's UUID. When auth is disabled, returns None (no user attribution).
+async def _get_user_id() -> UUID | None:
+    """Resolve the local user from the MCP access token.
 
-    Raises if auth is enabled but no client_id is present — that means the
-    request somehow bypassed the auth middleware.
+    Uses the JWT claims to find or create the local user via AuthService.
+    Returns None when auth is disabled (stdio / local dev).
     """
-    client_id = ctx.client_id
-    if client_id is not None:
-        return UUID(client_id)
+    token = get_access_token()
+    if token is None:
+        return None
 
-    if settings.mcp_auth:
-        raise RuntimeError("MCP auth is enabled but no client_id in request context")
-
-    return None
+    async with db_manager.session() as session:
+        auth_service = AuthService(session)
+        user = await auth_service.get_or_create_user(token.claims)
+        return user.id
 
 
 # --- Exploring tools ---
 
 
-@mcp.tool()
-async def list_projects(ctx: Context) -> str:
+@mcp.tool(auth=_auth)
+async def list_projects() -> str:
     """List all taxonomy projects.
 
     Returns a list of all projects with their names, namespaces, and IDs.
     Use the project ID to explore its concept schemes.
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ProjectService(session, user_id=user_id)
         projects = await svc.list_projects()
@@ -62,9 +66,8 @@ async def list_projects(ctx: Context) -> str:
     return "\n\n".join(format_project(p) for p in projects)
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def create_project(
-    ctx: Context,
     name: str,
     namespace: str,
     identifier_prefix: str,
@@ -78,7 +81,7 @@ async def create_project(
         identifier_prefix: 1-4 uppercase letters used to prefix concept identifiers (e.g. "EVD")
         description: Optional project description
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ProjectService(session, user_id=user_id)
         project = await svc.create_project(
@@ -92,14 +95,14 @@ async def create_project(
     return f"Created project: {format_project(project)}"
 
 
-@mcp.tool()
-async def list_schemes(ctx: Context, project_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def list_schemes(project_id: str) -> str:
     """List all concept schemes in a project.
 
     Args:
         project_id: UUID of the project
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptSchemeService(session, user_id=user_id)
         schemes = await svc.list_schemes_for_project(UUID(project_id))
@@ -108,22 +111,22 @@ async def list_schemes(ctx: Context, project_id: str) -> str:
     return "\n\n".join(format_scheme(s) for s in schemes)
 
 
-@mcp.tool()
-async def get_scheme(ctx: Context, scheme_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def get_scheme(scheme_id: str) -> str:
     """Get details about a concept scheme including concept count.
 
     Args:
         scheme_id: UUID of the concept scheme
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptSchemeService(session, user_id=user_id)
         scheme = await svc.get_scheme(UUID(scheme_id))
     return format_scheme(scheme)
 
 
-@mcp.tool()
-async def get_concept_tree(ctx: Context, scheme_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def get_concept_tree(scheme_id: str) -> str:
     """Get the full concept hierarchy for a scheme as an indented tree.
 
     Shows all concepts organised by their broader/narrower relationships.
@@ -133,16 +136,15 @@ async def get_concept_tree(ctx: Context, scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         tree = await svc.get_tree(UUID(scheme_id))
     return format_tree(tree)
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def search_concepts(
-    ctx: Context,
     query: str,
     scheme_id: str | None = None,
     project_id: str | None = None,
@@ -160,7 +162,7 @@ async def search_concepts(
     """
     if not scheme_id and not project_id:
         return "Provide either scheme_id or project_id."
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         results = await svc.search_concepts(
@@ -176,8 +178,8 @@ async def search_concepts(
     return "\n".join(lines)
 
 
-@mcp.tool()
-async def get_concept(ctx: Context, concept_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def get_concept(concept_id: str) -> str:
     """Get full details of a concept including relationships.
 
     Returns the concept's label, definition, scope note, alt labels,
@@ -186,7 +188,7 @@ async def get_concept(ctx: Context, concept_id: str) -> str:
     Args:
         concept_id: UUID of the concept
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         concept = await svc.get_concept(UUID(concept_id))
@@ -196,9 +198,8 @@ async def get_concept(ctx: Context, concept_id: str) -> str:
 # --- Building tools ---
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def create_scheme(
-    ctx: Context,
     project_id: str,
     title: str,
     description: str | None = None,
@@ -212,7 +213,7 @@ async def create_scheme(
         description: Optional description
         uri: Optional base URI for concepts in this scheme
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptSchemeService(session, user_id=user_id)
         scheme = await svc.create_scheme(
@@ -222,9 +223,8 @@ async def create_scheme(
     return f"Created scheme: {format_scheme(scheme)}"
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def create_concept(
-    ctx: Context,
     scheme_id: str,
     pref_label: str,
     definition: str | None = None,
@@ -245,7 +245,7 @@ async def create_concept(
         alt_labels: Optional list of alternative labels
         broader_concept_id: Optional UUID of parent concept
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         concept_svc = ConceptService(session, user_id=user_id)
         scheme = await concept_svc.get_scheme(UUID(scheme_id))
@@ -272,9 +272,8 @@ async def create_concept(
     return f"Created: {format_concept(concept)}"
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def create_concepts_batch(
-    ctx: Context,
     scheme_id: str,
     concepts: list[dict],
 ) -> str:
@@ -296,7 +295,7 @@ async def create_concepts_batch(
         scheme_id: UUID of the concept scheme
         concepts: List of concept definitions
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     created = []
     async with db_manager.session() as session:
         concept_svc = ConceptService(session, user_id=user_id)
@@ -337,9 +336,8 @@ async def create_concepts_batch(
     return "\n".join(lines)
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def set_broader(
-    ctx: Context,
     concept_id: str,
     broader_concept_id: str,
     action: str = "add",
@@ -351,7 +349,7 @@ async def set_broader(
         broader_concept_id: UUID of the broader (parent) concept
         action: "add" or "remove"
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         if action == "add":
@@ -364,9 +362,8 @@ async def set_broader(
     return format_concept(concept)
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def move_concept(
-    ctx: Context,
     concept_id: str,
     new_parent_id: str | None = None,
     previous_parent_id: str | None = None,
@@ -381,7 +378,7 @@ async def move_concept(
         new_parent_id: UUID of the new parent concept (omit to move to root)
         previous_parent_id: UUID of the parent to replace (omit to add as additional parent)
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         concept = await svc.move_concept(
@@ -395,9 +392,8 @@ async def move_concept(
 # --- Refining tools ---
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def update_scheme(
-    ctx: Context,
     scheme_id: str,
     title: str | None = None,
     description: str | None = None,
@@ -413,7 +409,7 @@ async def update_scheme(
         description: New description
         uri: New base URI
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptSchemeService(session, user_id=user_id)
         scheme = await svc.update_scheme(
@@ -423,9 +419,8 @@ async def update_scheme(
     return f"Updated: {format_scheme(scheme)}"
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def update_concept(
-    ctx: Context,
     concept_id: str,
     pref_label: str | None = None,
     definition: str | None = None,
@@ -443,7 +438,7 @@ async def update_concept(
         scope_note: New scope note
         alt_labels: New list of alternative labels (empty list clears)
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         concept = await svc.update_concept(
@@ -458,8 +453,8 @@ async def update_concept(
     return f"Updated: {format_concept(concept)}"
 
 
-@mcp.tool()
-async def update_concepts_batch(ctx: Context, updates: list[dict]) -> str:
+@mcp.tool(auth=_auth)
+async def update_concepts_batch(updates: list[dict]) -> str:
     """Update multiple concepts in a single operation.
 
     Each update dict should have:
@@ -472,7 +467,7 @@ async def update_concepts_batch(ctx: Context, updates: list[dict]) -> str:
     Args:
         updates: List of update definitions
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     updated = []
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
@@ -494,9 +489,8 @@ async def update_concepts_batch(ctx: Context, updates: list[dict]) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def set_related(
-    ctx: Context,
     concept_id: str,
     related_concept_id: str,
     action: str = "add",
@@ -511,7 +505,7 @@ async def set_related(
         related_concept_id: UUID of the other concept
         action: "add" or "remove"
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         if action == "add":
@@ -527,8 +521,8 @@ async def set_related(
 # --- Quality & History tools ---
 
 
-@mcp.tool()
-async def check_quality(ctx: Context, scheme_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def check_quality(scheme_id: str) -> str:
     """Analyse a concept scheme for common quality issues.
 
     Checks for:
@@ -543,7 +537,7 @@ async def check_quality(ctx: Context, scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme to analyse
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         concepts = await svc.list_concepts_for_scheme(UUID(scheme_id))
@@ -565,7 +559,9 @@ async def check_quality(ctx: Context, scheme_id: str) -> str:
     missing_scope = [c for c in concepts if not c.scope_note]
     if missing_scope:
         labels = ", ".join(c.pref_label for c in missing_scope[:10])
-        suffix = f" (and {len(missing_scope) - 10} more)" if len(missing_scope) > 10 else ""
+        suffix = (
+            f" (and {len(missing_scope) - 10} more)" if len(missing_scope) > 10 else ""
+        )
         issues.append(f"Missing scope notes ({len(missing_scope)}): {labels}{suffix}")
 
     # Duplicate pref_labels
@@ -576,12 +572,14 @@ async def check_quality(ctx: Context, scheme_id: str) -> str:
     dupes = {k: v for k, v in label_counts.items() if len(v) > 1}
     if dupes:
         for label, instances in dupes.items():
-            issues.append(f"Duplicate label: '{instances[0]}' appears {len(instances)} times")
+            issues.append(
+                f"Duplicate label: '{instances[0]}' appears {len(instances)} times"
+            )
 
     # Alt label / pref label conflicts
     pref_labels_lower = {c.pref_label.lower(): c.pref_label for c in concepts}
     for c in concepts:
-        for alt in (c.alt_labels or []):
+        for alt in c.alt_labels or []:
             if alt.lower() in pref_labels_lower and alt.lower() != c.pref_label.lower():
                 issues.append(
                     f"Alt label '{alt}' on '{c.pref_label}' conflicts with "
@@ -612,8 +610,8 @@ async def check_quality(ctx: Context, scheme_id: str) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool()
-async def get_history(ctx: Context, scheme_id: str, limit: int = 20) -> str:
+@mcp.tool(auth=_auth)
+async def get_history(scheme_id: str, limit: int = 20) -> str:
     """Get recent change history for a concept scheme.
 
     Args:
@@ -636,15 +634,17 @@ async def get_history(ctx: Context, scheme_id: str, limit: int = 20) -> str:
             entity_label = f" '{event.after_state['pref_label']}'"
         elif event.before_state and "pref_label" in event.before_state:
             entity_label = f" '{event.before_state['pref_label']}'"
-        lines.append(f"  [{ts}] {user_name}: {event.action} {event.entity_type}{entity_label}")
+        lines.append(
+            f"  [{ts}] {user_name}: {event.action} {event.entity_type}{entity_label}"
+        )
     return "\n".join(lines)
 
 
 # --- Management tools ---
 
 
-@mcp.tool()
-async def delete_scheme(ctx: Context, scheme_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def delete_scheme(scheme_id: str) -> str:
     """Delete a concept scheme and all its concepts.
 
     This cannot be undone. Fails if the scheme is referenced by properties.
@@ -652,7 +652,7 @@ async def delete_scheme(ctx: Context, scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme to delete
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptSchemeService(session, user_id=user_id)
         scheme = await svc.get_scheme(UUID(scheme_id))
@@ -661,9 +661,8 @@ async def delete_scheme(ctx: Context, scheme_id: str) -> str:
     return f"Deleted scheme '{title}' ({scheme_id})."
 
 
-@mcp.tool()
+@mcp.tool(auth=_auth)
 async def export_scheme(
-    ctx: Context,
     scheme_id: str,
     format: str = "ttl",
 ) -> str:
@@ -678,8 +677,8 @@ async def export_scheme(
         return await svc.export_scheme(UUID(scheme_id), format)
 
 
-@mcp.tool()
-async def delete_concept(ctx: Context, concept_id: str) -> str:
+@mcp.tool(auth=_auth)
+async def delete_concept(concept_id: str) -> str:
     """Delete a concept and all its relationships.
 
     This removes the concept and any broader, narrower, and related relationships.
@@ -688,7 +687,7 @@ async def delete_concept(ctx: Context, concept_id: str) -> str:
     Args:
         concept_id: UUID of the concept to delete
     """
-    user_id = _get_user_id(ctx)
+    user_id = await _get_user_id()
     async with db_manager.session() as session:
         svc = ConceptService(session, user_id=user_id)
         concept = await svc.get_concept(UUID(concept_id))
