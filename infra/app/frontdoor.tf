@@ -279,6 +279,10 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
     azurerm_cdn_frontdoor_route.feedback_api.id,
     azurerm_cdn_frontdoor_route.feedback_published.id,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Cache rule set for feedback UI static assets — purged on deploy
@@ -420,6 +424,10 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # --- DNS (DNSimple) ---
