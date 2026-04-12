@@ -3,6 +3,8 @@
 from taxonomy_builder.mcp.formatters import (
     format_concept,
     format_concept_brief,
+    format_feedback,
+    format_feedback_brief,
     format_project,
     format_scheme,
     format_tree,
@@ -203,3 +205,67 @@ class TestFormatTree:
         # Grandchildren indented 4 spaces
         assert lines[2].startswith("    Poodles")
         assert lines[3].startswith("  Cats")
+
+
+class FakeFeedback:
+    def __init__(
+        self,
+        *,
+        id="019fb",
+        status="open",
+        entity_type="concept",
+        entity_label="Dogs",
+        feedback_type="unclear_definition",
+        content="The definition is vague",
+        author_name="Reviewer User",
+        created_at="2026-04-01",
+        response_content=None,
+        responded_by_name=None,
+    ):
+        self.id = id
+        self.status = status
+        self.entity_type = entity_type
+        self.entity_label = entity_label
+        self.feedback_type = feedback_type
+        self.content = content
+        self.author_name = author_name
+        self.created_at = created_at
+        self.response_content = response_content
+        self.responded_by_name = responded_by_name
+
+
+class TestFormatFeedback:
+    def test_basic(self):
+        fb = FakeFeedback()
+        result = format_feedback(fb)
+        assert "[open]" in result
+        assert "unclear_definition" in result
+        assert "Dogs" in result
+        assert "The definition is vague" in result
+        assert "Reviewer User" in result
+        assert "019fb" in result
+
+    def test_with_response(self):
+        fb = FakeFeedback(
+            status="responded",
+            response_content="We'll clarify this",
+            responded_by_name="Manager User",
+        )
+        result = format_feedback(fb)
+        assert "[responded]" in result
+        assert "We'll clarify this" in result
+
+    def test_no_response(self):
+        fb = FakeFeedback()
+        result = format_feedback(fb)
+        assert "(none)" in result
+
+
+class TestFormatFeedbackBrief:
+    def test_basic(self):
+        fb = FakeFeedback()
+        result = format_feedback_brief(fb)
+        assert "[open]" in result
+        assert "concept" in result
+        assert "Dogs" in result
+        assert "019fb" in result

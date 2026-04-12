@@ -4,11 +4,21 @@ import asyncio
 
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
+from taxonomy_builder.services.auth_service import AuthService
 
 
 async def _run():
     db_manager.init(settings.effective_database_url)
     try:
+        from taxonomy_builder.mcp import tools
+
+        async with db_manager.session() as session:
+            auth_service = AuthService(session)
+            user = await auth_service.get_any_user()
+            if user is None:
+                raise SystemExit("No users in database. Log in via the UI first.")
+            tools._current_user = user
+
         from taxonomy_builder.mcp.server import mcp
 
         await mcp.run_stdio_async()

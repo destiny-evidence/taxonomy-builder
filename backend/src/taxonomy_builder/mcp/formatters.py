@@ -87,6 +87,27 @@ def format_concept_brief(concept) -> str:
     return "".join(parts)
 
 
+def format_feedback(feedback) -> str:
+    lines = [
+        f"[{feedback.status}] \"{feedback.feedback_type}\" on"
+        f" {feedback.entity_type} '{feedback.entity_label}' (id: {feedback.id})",
+        f"  By: {feedback.author_name} ({feedback.created_at})",
+        f"  Content: {feedback.content}",
+    ]
+    if feedback.response_content:
+        lines.append(f"  Response: {feedback.response_content}")
+    else:
+        lines.append("  Response: (none)")
+    return "\n".join(lines)
+
+
+def format_feedback_brief(feedback) -> str:
+    return (
+        f"[{feedback.status}] {feedback.entity_type} '{feedback.entity_label}'"
+        f" — {feedback.feedback_type} (id: {feedback.id})"
+    )
+
+
 def format_tree(tree_nodes: list[dict], indent: int = 0) -> str:
     if not tree_nodes and indent == 0:
         return "(empty scheme)"

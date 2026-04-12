@@ -31,11 +31,11 @@ def _patch_db_manager(db_session: AsyncSession, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _patch_get_access_token(monkeypatch):
-    """Patch get_access_token to return None (no auth in tests)."""
+def _set_current_user(test_user: User, monkeypatch):
+    """Set the current user for all tools (simulates stdio CLI startup)."""
     import taxonomy_builder.mcp.tools as tools_mod
 
-    monkeypatch.setattr(tools_mod, "get_access_token", lambda: None)
+    monkeypatch.setattr(tools_mod, "_current_user", test_user)
 
 
 # --- Exploring tools ---
@@ -480,3 +480,129 @@ class TestExportScheme:
 
         result = await tools.export_scheme(str(scheme.id))
         assert "skos:" in result.lower() or "@prefix" in result.lower()
+
+
+# --- Feedback tools ---
+
+
+from taxonomy_builder.models.feedback import Feedback
+
+def _make_feedback(project, user, **overrides):
+    defaults = {
+        "project_id": project.id,
+        "snapshot_version": "1.0",
+        "entity_type": "concept",
+        "entity_id": "fake-entity-id",
+        "entity_label": "Test Concept",
+        "feedback_type": "unclear_definition",
+        "content": "The definition is unclear",
+        "user_id": user.id,
+        "author_name": user.display_name,
+        "author_email": user.email,
+    }
+    return Feedback(**(defaults | overrides))
+
+
+
+class TestGetFeedbackCounts:
+    async def test_no_feedback(self, project: Project):
+        result = await tools.get_feedback_counts()
+        assert "No open feedback" in result
+
+    async def test_with_feedback(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        db_session.add(_make_feedback(project, test_user))
+        await db_session.flush()
+
+        result = await tools.get_feedback_counts()
+        assert project.name in result
+
+
+
+class TestListFeedback:
+    async def test_empty(self, project: Project):
+        result = await tools.list_feedback(str(project.id))
+        assert "No feedback found" in result
+
+    async def test_with_feedback(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        db_session.add(_make_feedback(project, test_user))
+        await db_session.flush()
+
+        result = await tools.list_feedback(str(project.id))
+        assert "1 item" in result
+        assert "Test Concept" in result
+
+    async def test_filter_by_status(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        db_session.add(_make_feedback(project, test_user, status="open"))
+        db_session.add(_make_feedback(project, test_user, status="resolved"))
+        await db_session.flush()
+
+        result = await tools.list_feedback(str(project.id), status="open")
+        assert "1 item" in result
+
+
+
+class TestRespondToFeedback:
+    async def test_basic(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        fb = _make_feedback(project, test_user)
+        db_session.add(fb)
+        await db_session.flush()
+
+        result = await tools.respond_to_feedback(str(fb.id), "We'll fix this")
+        assert "Responded" in result
+        assert "We'll fix this" in result
+
+
+
+class TestResolveFeedback:
+    async def test_basic(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        fb = _make_feedback(project, test_user)
+        db_session.add(fb)
+        await db_session.flush()
+
+        result = await tools.resolve_feedback(str(fb.id))
+        assert "Resolved" in result
+        assert "[resolved]" in result
+
+    async def test_with_message(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        fb = _make_feedback(project, test_user)
+        db_session.add(fb)
+        await db_session.flush()
+
+        result = await tools.resolve_feedback(str(fb.id), "Fixed in v2")
+        assert "Fixed in v2" in result
+
+
+
+class TestDeclineFeedback:
+    async def test_basic(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        fb = _make_feedback(project, test_user)
+        db_session.add(fb)
+        await db_session.flush()
+
+        result = await tools.decline_feedback(str(fb.id))
+        assert "Declined" in result
+        assert "[declined]" in result
+
+    async def test_with_reason(
+        self, db_session: AsyncSession, project: Project, test_user: User
+    ):
+        fb = _make_feedback(project, test_user)
+        db_session.add(fb)
+        await db_session.flush()
+
+        result = await tools.decline_feedback(str(fb.id), "Out of scope")
+        assert "Out of scope" in result

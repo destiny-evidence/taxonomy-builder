@@ -1,19 +1,24 @@
 """MCP tools for taxonomy builder."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastmcp.server.dependencies import get_access_token
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 from taxonomy_builder.mcp.formatters import (
     format_concept,
     format_concept_brief,
+    format_feedback,
+    format_feedback_brief,
     format_project,
     format_scheme,
     format_tree,
 )
 from taxonomy_builder.mcp.server import mcp, require_manager
+from taxonomy_builder.models.user import User
 from taxonomy_builder.schemas.concept import ConceptCreate, ConceptUpdate
 from taxonomy_builder.schemas.concept_scheme import (
     ConceptSchemeCreate,
@@ -23,28 +28,36 @@ from taxonomy_builder.schemas.project import ProjectCreate
 from taxonomy_builder.services.auth_service import AuthService
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
 from taxonomy_builder.services.concept_service import ConceptService
+from taxonomy_builder.services.feedback_service import FeedbackService
 from taxonomy_builder.services.history_service import HistoryService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.skos_export_service import SKOSExportService
 
+from taxonomy_builder.config import settings
+
 # When auth is enabled, apply the manager role check to all tools.
 _auth = require_manager if settings.mcp_auth else None
 
+# Set by the stdio CLI at startup. HTTP tools resolve the user per-request instead.
+_current_user: User | None = None
 
-async def _get_user_id() -> UUID | None:
-    """Resolve the local user from the MCP access token.
 
-    Uses the JWT claims to find or create the local user via AuthService.
-    Returns None when auth is disabled (stdio / local dev).
+async def _get_user(session: AsyncSession) -> User:
+    """Get the current user.
+
+    For stdio: returns the pre-set _current_user (set by CLI at startup).
+    For HTTP: resolves from the access token on each request.
+    Raises RuntimeError if neither is available.
     """
+    if _current_user is not None:
+        return _current_user
+
     token = get_access_token()
     if token is None:
-        return None
+        raise RuntimeError("No authenticated user available")
 
-    async with db_manager.session() as session:
-        auth_service = AuthService(session)
-        user = await auth_service.get_or_create_user(token.claims)
-        return user.id
+    auth_service = AuthService(session)
+    return await auth_service.get_or_create_user(token.claims)
 
 
 # --- Exploring tools ---
@@ -57,9 +70,9 @@ async def list_projects() -> str:
     Returns a list of all projects with their names, namespaces, and IDs.
     Use the project ID to explore its concept schemes.
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ProjectService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ProjectService(session, user_id=user.id)
         projects = await svc.list_projects()
     if not projects:
         return "No projects found."
@@ -81,9 +94,9 @@ async def create_project(
         identifier_prefix: 1-4 uppercase letters used to prefix concept identifiers (e.g. "EVD")
         description: Optional project description
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ProjectService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ProjectService(session, user_id=user.id)
         project = await svc.create_project(
             ProjectCreate(
                 name=name,
@@ -102,9 +115,9 @@ async def list_schemes(project_id: str) -> str:
     Args:
         project_id: UUID of the project
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptSchemeService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptSchemeService(session, user_id=user.id)
         schemes = await svc.list_schemes_for_project(UUID(project_id))
     if not schemes:
         return "No schemes found in this project."
@@ -118,9 +131,9 @@ async def get_scheme(scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptSchemeService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptSchemeService(session, user_id=user.id)
         scheme = await svc.get_scheme(UUID(scheme_id))
     return format_scheme(scheme)
 
@@ -136,9 +149,9 @@ async def get_concept_tree(scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         tree = await svc.get_tree(UUID(scheme_id))
     return format_tree(tree)
 
@@ -162,9 +175,9 @@ async def search_concepts(
     """
     if not scheme_id and not project_id:
         return "Provide either scheme_id or project_id."
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         results = await svc.search_concepts(
             query,
             scheme_id=UUID(scheme_id) if scheme_id else None,
@@ -188,9 +201,9 @@ async def get_concept(concept_id: str) -> str:
     Args:
         concept_id: UUID of the concept
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         concept = await svc.get_concept(UUID(concept_id))
     return format_concept(concept)
 
@@ -213,9 +226,9 @@ async def create_scheme(
         description: Optional description
         uri: Optional base URI for concepts in this scheme
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptSchemeService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptSchemeService(session, user_id=user.id)
         scheme = await svc.create_scheme(
             UUID(project_id),
             ConceptSchemeCreate(title=title, description=description, uri=uri),
@@ -245,12 +258,12 @@ async def create_concept(
         alt_labels: Optional list of alternative labels
         broader_concept_id: Optional UUID of parent concept
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        concept_svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        concept_svc = ConceptService(session, user_id=user.id)
         scheme = await concept_svc.get_scheme(UUID(scheme_id))
 
-        project_svc = ProjectService(session, user_id=user_id)
+        project_svc = ProjectService(session, user_id=user.id)
         identifier = await project_svc.allocate_identifier(scheme.project_id)
 
         concept = await concept_svc.create_concept(
@@ -295,13 +308,13 @@ async def create_concepts_batch(
         scheme_id: UUID of the concept scheme
         concepts: List of concept definitions
     """
-    user_id = await _get_user_id()
     created = []
     async with db_manager.session() as session:
-        concept_svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        concept_svc = ConceptService(session, user_id=user.id)
         scheme = await concept_svc.get_scheme(UUID(scheme_id))
 
-        project_svc = ProjectService(session, user_id=user_id)
+        project_svc = ProjectService(session, user_id=user.id)
 
         for c in concepts:
             identifier = await project_svc.allocate_identifier(scheme.project_id)
@@ -319,7 +332,6 @@ async def create_concepts_batch(
 
             broader_ref = c.get("broader_concept_id")
             if broader_ref:
-                # Support "#N" syntax for referencing earlier batch items
                 if isinstance(broader_ref, str) and broader_ref.startswith("#"):
                     idx = int(broader_ref[1:])
                     broader_id = created[idx].id
@@ -349,9 +361,9 @@ async def set_broader(
         broader_concept_id: UUID of the broader (parent) concept
         action: "add" or "remove"
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         if action == "add":
             await svc.add_broader(UUID(concept_id), UUID(broader_concept_id))
         elif action == "remove":
@@ -378,9 +390,9 @@ async def move_concept(
         new_parent_id: UUID of the new parent concept (omit to move to root)
         previous_parent_id: UUID of the parent to replace (omit to add as additional parent)
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         concept = await svc.move_concept(
             UUID(concept_id),
             UUID(new_parent_id) if new_parent_id else None,
@@ -409,9 +421,9 @@ async def update_scheme(
         description: New description
         uri: New base URI
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptSchemeService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptSchemeService(session, user_id=user.id)
         scheme = await svc.update_scheme(
             UUID(scheme_id),
             ConceptSchemeUpdate(title=title, description=description, uri=uri),
@@ -438,9 +450,9 @@ async def update_concept(
         scope_note: New scope note
         alt_labels: New list of alternative labels (empty list clears)
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         concept = await svc.update_concept(
             UUID(concept_id),
             ConceptUpdate(
@@ -467,10 +479,10 @@ async def update_concepts_batch(updates: list[dict]) -> str:
     Args:
         updates: List of update definitions
     """
-    user_id = await _get_user_id()
     updated = []
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         for u in updates:
             concept = await svc.update_concept(
                 UUID(u["concept_id"]),
@@ -505,9 +517,9 @@ async def set_related(
         related_concept_id: UUID of the other concept
         action: "add" or "remove"
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         if action == "add":
             await svc.add_related(UUID(concept_id), UUID(related_concept_id))
         elif action == "remove":
@@ -537,9 +549,9 @@ async def check_quality(scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme to analyse
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         concepts = await svc.list_concepts_for_scheme(UUID(scheme_id))
         tree = await svc.get_tree(UUID(scheme_id))
 
@@ -548,14 +560,12 @@ async def check_quality(scheme_id: str) -> str:
 
     issues: list[str] = []
 
-    # Missing definitions
     missing_def = [c for c in concepts if not c.definition]
     if missing_def:
         labels = ", ".join(c.pref_label for c in missing_def[:10])
         suffix = f" (and {len(missing_def) - 10} more)" if len(missing_def) > 10 else ""
         issues.append(f"Missing definitions ({len(missing_def)}): {labels}{suffix}")
 
-    # Missing scope notes
     missing_scope = [c for c in concepts if not c.scope_note]
     if missing_scope:
         labels = ", ".join(c.pref_label for c in missing_scope[:10])
@@ -564,7 +574,6 @@ async def check_quality(scheme_id: str) -> str:
         )
         issues.append(f"Missing scope notes ({len(missing_scope)}): {labels}{suffix}")
 
-    # Duplicate pref_labels
     label_counts: dict[str, list[str]] = {}
     for c in concepts:
         label_lower = c.pref_label.lower()
@@ -576,7 +585,6 @@ async def check_quality(scheme_id: str) -> str:
                 f"Duplicate label: '{instances[0]}' appears {len(instances)} times"
             )
 
-    # Alt label / pref label conflicts
     pref_labels_lower = {c.pref_label.lower(): c.pref_label for c in concepts}
     for c in concepts:
         for alt in c.alt_labels or []:
@@ -586,7 +594,6 @@ async def check_quality(scheme_id: str) -> str:
                     f"pref label '{pref_labels_lower[alt.lower()]}'"
                 )
 
-    # Compute depth
     def max_depth(nodes: list[dict], depth: int = 0) -> int:
         if not nodes:
             return depth
@@ -595,7 +602,6 @@ async def check_quality(scheme_id: str) -> str:
     depth = max_depth(tree)
     top_count = len(tree)
 
-    # Build report
     lines = [f"Quality report for scheme ({len(concepts)} concepts):"]
     lines.append(f"  Top-level concepts: {top_count}")
     lines.append(f"  Max depth: {depth}")
@@ -652,9 +658,9 @@ async def delete_scheme(scheme_id: str) -> str:
     Args:
         scheme_id: UUID of the concept scheme to delete
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptSchemeService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptSchemeService(session, user_id=user.id)
         scheme = await svc.get_scheme(UUID(scheme_id))
         title = scheme.title
         await svc.delete_scheme(UUID(scheme_id))
@@ -687,10 +693,136 @@ async def delete_concept(concept_id: str) -> str:
     Args:
         concept_id: UUID of the concept to delete
     """
-    user_id = await _get_user_id()
     async with db_manager.session() as session:
-        svc = ConceptService(session, user_id=user_id)
+        user = await _get_user(session)
+        svc = ConceptService(session, user_id=user.id)
         concept = await svc.get_concept(UUID(concept_id))
         label = concept.pref_label
         await svc.delete_concept(UUID(concept_id))
     return f"Deleted concept '{label}' ({concept_id})."
+
+
+# --- Feedback tools ---
+
+
+@mcp.tool(auth=_auth)
+async def get_feedback_counts() -> str:
+    """Get open feedback counts for all projects.
+
+    Shows how many unresolved feedback items exist per project,
+    useful for prioritising triage work.
+    """
+    async with db_manager.session() as session:
+        user = await _get_user(session)
+        project_svc = ProjectService(session, user_id=user.id)
+        projects = await project_svc.list_projects()
+        if not projects:
+            return "No projects found."
+        feedback_svc = FeedbackService(
+            session, user_id=user.id,
+            user_display_name=user.display_name, user_email=user.email,
+        )
+        counts = await feedback_svc.get_open_counts([p.id for p in projects])
+
+    lines = ["Open feedback counts:"]
+    for p in projects:
+        count = counts.get(p.id, 0)
+        if count > 0:
+            lines.append(f"  {p.name}: {count}")
+    if len(lines) == 1:
+        return "No open feedback across any project."
+    return "\n".join(lines)
+
+
+@mcp.tool(auth=_auth)
+async def list_feedback(
+    project_id: str,
+    status: str | None = None,
+    entity_type: str | None = None,
+    feedback_type: str | None = None,
+    query: str | None = None,
+) -> str:
+    """List feedback for a project with optional filters.
+
+    Args:
+        project_id: UUID of the project
+        status: Filter by status — "open", "responded", "resolved", or "declined"
+        entity_type: Filter by entity type — "concept", "scheme", "ontology_class", or "property"
+        feedback_type: Filter by feedback type (e.g. "unclear_definition", "missing_term")
+        query: Search text across feedback content, entity labels, and author names
+    """
+    async with db_manager.session() as session:
+        user = await _get_user(session)
+        svc = FeedbackService(
+            session, user_id=user.id,
+            user_display_name=user.display_name, user_email=user.email,
+        )
+        items = await svc.list_all(
+            UUID(project_id),
+            status=status,
+            entity_type=entity_type,
+            feedback_type=feedback_type,
+            q=query,
+        )
+    if not items:
+        return "No feedback found."
+    lines = [f"Feedback ({len(items)} item(s)):"]
+    for fb in items:
+        lines.append(f"  {format_feedback_brief(fb)}")
+    return "\n".join(lines)
+
+
+@mcp.tool(auth=_auth)
+async def respond_to_feedback(feedback_id: str, content: str) -> str:
+    """Add or update a response to feedback.
+
+    Only works on feedback with status "open" or "responded".
+
+    Args:
+        feedback_id: UUID of the feedback item
+        content: Response text (1-10000 characters)
+    """
+    async with db_manager.session() as session:
+        user = await _get_user(session)
+        svc = FeedbackService(
+            session, user_id=user.id,
+            user_display_name=user.display_name, user_email=user.email,
+        )
+        fb = await svc.respond(UUID(feedback_id), content)
+    return f"Responded: {format_feedback(fb)}"
+
+
+@mcp.tool(auth=_auth)
+async def resolve_feedback(feedback_id: str, content: str | None = None) -> str:
+    """Resolve feedback (mark as addressed).
+
+    Args:
+        feedback_id: UUID of the feedback item
+        content: Optional response message
+    """
+    async with db_manager.session() as session:
+        user = await _get_user(session)
+        svc = FeedbackService(
+            session, user_id=user.id,
+            user_display_name=user.display_name, user_email=user.email,
+        )
+        fb = await svc.resolve(UUID(feedback_id), content)
+    return f"Resolved: {format_feedback(fb)}"
+
+
+@mcp.tool(auth=_auth)
+async def decline_feedback(feedback_id: str, content: str | None = None) -> str:
+    """Decline feedback (mark as not actionable).
+
+    Args:
+        feedback_id: UUID of the feedback item
+        content: Optional response message explaining why
+    """
+    async with db_manager.session() as session:
+        user = await _get_user(session)
+        svc = FeedbackService(
+            session, user_id=user.id,
+            user_display_name=user.display_name, user_email=user.email,
+        )
+        fb = await svc.decline(UUID(feedback_id), content)
+    return f"Declined: {format_feedback(fb)}"
