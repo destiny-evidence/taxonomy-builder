@@ -201,6 +201,10 @@ resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
     certificate_type    = "ManagedCertificate"
     minimum_tls_version = "TLS12"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Feedback UI SPA — catch-all route on the feedback subdomain
@@ -402,6 +406,10 @@ resource "azurerm_cdn_frontdoor_custom_domain" "this" {
   tls {
     certificate_type    = "ManagedCertificate"
     minimum_tls_version = "TLS12"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
