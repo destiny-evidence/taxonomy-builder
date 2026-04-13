@@ -481,6 +481,10 @@ resource "azurerm_cdn_frontdoor_custom_domain" "reader_redirect" {
     certificate_type    = "ManagedCertificate"
     minimum_tls_version = "TLS12"
   }
+
+  # Ensure the feedback domain has finished relocating off this name before
+  # we claim it for the redirect.
+  depends_on = [azurerm_cdn_frontdoor_custom_domain.feedback]
 }
 
 resource "azurerm_cdn_frontdoor_rule_set" "reader_redirect" {
@@ -535,6 +539,8 @@ resource "dnsimple_zone_record" "reader_redirect_cname" {
   type      = "CNAME"
   value     = azurerm_cdn_frontdoor_endpoint.this.host_name
   ttl       = 3600
+
+  depends_on = [dnsimple_zone_record.feedback_cname]
 }
 
 resource "dnsimple_zone_record" "reader_redirect_validation" {
@@ -544,4 +550,6 @@ resource "dnsimple_zone_record" "reader_redirect_validation" {
   type      = "TXT"
   value     = azurerm_cdn_frontdoor_custom_domain.reader_redirect[0].validation_token
   ttl       = 3600
+
+  depends_on = [dnsimple_zone_record.feedback_validation]
 }
