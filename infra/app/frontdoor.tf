@@ -201,6 +201,10 @@ resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
     certificate_type    = "ManagedCertificate"
     minimum_tls_version = "TLS12"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Feedback UI SPA — catch-all route on the feedback subdomain
@@ -275,6 +279,10 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
     azurerm_cdn_frontdoor_route.feedback_api.id,
     azurerm_cdn_frontdoor_route.feedback_published.id,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Cache rule set for feedback UI static assets — purged on deploy
@@ -403,6 +411,10 @@ resource "azurerm_cdn_frontdoor_custom_domain" "this" {
     certificate_type    = "ManagedCertificate"
     minimum_tls_version = "TLS12"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
@@ -412,6 +424,10 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # --- DNS (DNSimple) ---
@@ -447,5 +463,85 @@ resource "dnsimple_zone_record" "feedback_validation" {
   name      = "_dnsauth.${var.feedback_subdomain}"
   type      = "TXT"
   value     = azurerm_cdn_frontdoor_custom_domain.feedback.validation_token
+  ttl       = 3600
+}
+
+# --- Reader redirect (vocab-reader → vocab) ---
+locals {
+  reader_redirect_domain = var.reader_redirect_subdomain != null ? "${var.reader_redirect_subdomain}.${var.custom_domain}" : null
+}
+
+resource "azurerm_cdn_frontdoor_custom_domain" "reader_redirect" {
+  count                    = var.reader_redirect_subdomain != null ? 1 : 0
+  name                     = replace(local.reader_redirect_domain, ".", "-")
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
+  host_name                = local.reader_redirect_domain
+
+  tls {
+    certificate_type    = "ManagedCertificate"
+    minimum_tls_version = "TLS12"
+  }
+}
+
+resource "azurerm_cdn_frontdoor_rule_set" "reader_redirect" {
+  count                    = var.reader_redirect_subdomain != null ? 1 : 0
+  name                     = "readerredirect${replace(local.name, "-", "")}"
+  cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
+}
+
+resource "azurerm_cdn_frontdoor_rule" "reader_redirect" {
+  count                     = var.reader_redirect_subdomain != null ? 1 : 0
+  name                      = "RedirectToReader"
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.reader_redirect[0].id
+  order                     = 1
+  behavior_on_match         = "Stop"
+
+  actions {
+    url_redirect_action {
+      redirect_type        = "Found"
+      redirect_protocol    = "Https"
+      destination_hostname = local.feedback_custom_domain
+    }
+  }
+}
+
+resource "azurerm_cdn_frontdoor_route" "reader_redirect" {
+  count                         = var.reader_redirect_subdomain != null ? 1 : 0
+  name                          = "rt-reader-redirect-${local.name}"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.frontend.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = false
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.reader_redirect[0].id]
+  cdn_frontdoor_rule_set_ids      = [azurerm_cdn_frontdoor_rule_set.reader_redirect[0].id]
+}
+
+resource "azurerm_cdn_frontdoor_custom_domain_association" "reader_redirect" {
+  count                          = var.reader_redirect_subdomain != null ? 1 : 0
+  cdn_frontdoor_custom_domain_id = azurerm_cdn_frontdoor_custom_domain.reader_redirect[0].id
+  cdn_frontdoor_route_ids        = [azurerm_cdn_frontdoor_route.reader_redirect[0].id]
+}
+
+resource "dnsimple_zone_record" "reader_redirect_cname" {
+  count     = var.reader_redirect_subdomain != null ? 1 : 0
+  zone_name = var.custom_domain
+  name      = var.reader_redirect_subdomain
+  type      = "CNAME"
+  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  ttl       = 3600
+}
+
+resource "dnsimple_zone_record" "reader_redirect_validation" {
+  count     = var.reader_redirect_subdomain != null ? 1 : 0
+  zone_name = var.custom_domain
+  name      = "_dnsauth.${var.reader_redirect_subdomain}"
+  type      = "TXT"
+  value     = azurerm_cdn_frontdoor_custom_domain.reader_redirect[0].validation_token
   ttl       = 3600
 }

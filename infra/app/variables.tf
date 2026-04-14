@@ -158,6 +158,12 @@ variable "feedback_subdomain" {
   default     = "taxonomy-reader-beta"
 }
 
+variable "reader_redirect_subdomain" {
+  description = "Subdomain to redirect to the reader UI (e.g., vocab-reader.dev), null to disable"
+  type        = string
+  default     = null
+}
+
 variable "cache_feedback_ui_at_edge" {
   description = "Enable Front Door edge caching for the feedback UI (disable for testing)"
   type        = bool
