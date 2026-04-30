@@ -186,6 +186,11 @@ resource "azurerm_cdn_frontdoor_rule" "cache_published" {
       # In the future we may consider a TTL here for local caching.
       value = "no-cache"
     }
+    response_header_action {
+      header_action = "Overwrite"
+      header_name   = "Access-Control-Allow-Origin"
+      value         = "*"
+    }
   }
 }
 
