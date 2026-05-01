@@ -748,7 +748,7 @@ async def get_feedback_counts(
     projects = await project_svc.list_projects()
     if not projects:
         return "No projects found."
-    counts = await feedback_svc.get_open_counts([p.id for p in projects])
+    counts = await feedback_svc.get_unresolved_counts([p.id for p in projects])
 
     lines = ["Open feedback counts:"]
     for p in projects:
