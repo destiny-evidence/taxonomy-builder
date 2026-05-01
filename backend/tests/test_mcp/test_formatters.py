@@ -215,6 +215,7 @@ class FakeFeedback:
         id="019fb",
         status="open",
         entity_type="concept",
+        entity_id="019concept",
         entity_label="Dogs",
         feedback_type="unclear_definition",
         content="The definition is vague",
@@ -226,6 +227,7 @@ class FakeFeedback:
         self.id = id
         self.status = status
         self.entity_type = entity_type
+        self.entity_id = entity_id
         self.entity_label = entity_label
         self.feedback_type = feedback_type
         self.content = content
@@ -245,6 +247,7 @@ class TestFormatFeedback:
         assert "The definition is vague" in result
         assert "Reviewer User" in result
         assert "019fb" in result
+        assert "019concept" in result
 
     def test_with_response(self):
         fb = FakeFeedback(
@@ -270,3 +273,4 @@ class TestFormatFeedbackBrief:
         assert "concept" in result
         assert "Dogs" in result
         assert "019fb" in result
+        assert "019concept" in result
