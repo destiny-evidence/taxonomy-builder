@@ -86,7 +86,9 @@ def format_concept_brief(concept) -> str:
 def format_feedback(feedback) -> str:
     lines = [
         f"[{feedback.status}] \"{feedback.feedback_type}\" on"
-        f" {feedback.entity_type} '{feedback.entity_label}' (id: {feedback.id})",
+        f" {feedback.entity_type} '{feedback.entity_label}'"
+        f" ({feedback.entity_type}_id: {feedback.entity_id})"
+        f" (feedback_id: {feedback.id})",
         f"  By: {feedback.author_name} ({feedback.created_at})",
         f"  Content: {feedback.content}",
     ]
@@ -100,7 +102,8 @@ def format_feedback(feedback) -> str:
 def format_feedback_brief(feedback) -> str:
     return (
         f"[{feedback.status}] {feedback.entity_type} '{feedback.entity_label}'"
-        f" — {feedback.feedback_type} (id: {feedback.id})"
+        f" ({feedback.entity_type}_id: {feedback.entity_id})"
+        f" — {feedback.feedback_type} (feedback_id: {feedback.id})"
     )
 
 

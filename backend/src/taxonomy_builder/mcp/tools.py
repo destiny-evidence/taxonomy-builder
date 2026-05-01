@@ -31,7 +31,10 @@ from taxonomy_builder.schemas.concept_scheme import (
 from taxonomy_builder.schemas.project import ProjectCreate
 from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
 from taxonomy_builder.services.concept_service import ConceptService
-from taxonomy_builder.services.feedback_service import FeedbackService
+from taxonomy_builder.services.feedback_service import (
+    FeedbackNotFoundError,
+    FeedbackService,
+)
 from taxonomy_builder.services.history_service import HistoryService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.skos_export_service import SKOSExportService
@@ -758,6 +761,23 @@ async def get_feedback_counts(
     if len(lines) == 1:
         return "No open feedback across any project."
     return "\n".join(lines)
+
+
+@mcp.tool(auth=_auth)
+async def get_feedback(
+    feedback_id: str,
+    svc: FeedbackService = Depends(get_feedback_service),
+) -> str:
+    """Get full details of a single feedback item.
+
+    Args:
+        feedback_id: UUID of the feedback item
+    """
+    try:
+        fb = await svc.get(UUID(feedback_id))
+    except FeedbackNotFoundError:
+        return f"Feedback '{feedback_id}' not found."
+    return format_feedback(fb)
 
 
 @mcp.tool(auth=_auth)
