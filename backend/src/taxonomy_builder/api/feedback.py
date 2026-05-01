@@ -32,12 +32,12 @@ feedback_router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 @feedback_router.get(
     "/counts",
 )
-async def get_open_counts(
+async def get_unresolved_counts(
     project_ids: list[UUID] = Query(...),
     service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> dict[str, int]:
-    """Open + responded feedback counts per project for badge display."""
-    counts = await service.get_open_counts(project_ids)
+    """Unresolved (open + responded) feedback counts per project for badges."""
+    counts = await service.get_unresolved_counts(project_ids)
     return {str(k): v for k, v in counts.items()}
 
 
