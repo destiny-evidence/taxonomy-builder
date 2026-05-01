@@ -1,5 +1,7 @@
 """MCP server for taxonomy builder — FastMCP setup and auth."""
 
+import logging
+
 from fastmcp import FastMCP
 from fastmcp.server.auth import (
     AccessToken,
@@ -13,6 +15,8 @@ from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 from taxonomy_builder.services.auth_service import AuthService
 
+logger = logging.getLogger(__name__)
+
 
 class KeycloakTokenVerifier(TokenVerifier):
     """Verify Keycloak JWTs and return an AccessToken with full claims."""
@@ -22,7 +26,8 @@ class KeycloakTokenVerifier(TokenVerifier):
             auth_service = AuthService(session)
             try:
                 claims = await auth_service.validate_token(token)
-            except Exception:
+            except Exception as e:
+                logger.warning("MCP token validation failed: %s", e)
                 return None
 
             return AccessToken(
