@@ -4,7 +4,7 @@ import subprocess
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from sqlalchemy import text
 
 from taxonomy_builder.api.comments import comments_router, concept_comments_router
@@ -71,6 +71,19 @@ app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(publishing_router)
 app.include_router(feedback_router)
+
+# Internally rewrite bare /mcp to /mcp/ before routing so the mount matches
+# without issuing a client-visible 307. RFC 9728 advertises the resource as
+# /mcp (no trailing slash); rewriting on the server side avoids redirect
+# pitfalls with clients that don't follow 307s on POST or strip auth headers
+# across the redirect.
+@app.middleware("http")
+async def _normalize_mcp_path(request: Request, call_next):
+    if request.url.path == "/mcp":
+        request.scope["path"] = "/mcp/"
+        request.scope["raw_path"] = b"/mcp/"
+    return await call_next(request)
+
 
 app.mount("/mcp", mcp_app)
 
