@@ -4,7 +4,7 @@ import subprocess
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from sqlalchemy import text
 
 from taxonomy_builder.api.comments import comments_router, concept_comments_router
@@ -29,13 +29,22 @@ from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
 
 
+from taxonomy_builder.mcp.server import auth_provider, mcp as mcp_server
+
+mcp_app = mcp_server.http_app(path="/", transport="streamable-http")
+
+# Well-known routes must be at the app root for RFC 9728 discovery
+_well_known_routes = auth_provider.get_well_known_routes("/mcp") if auth_provider else []
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup application resources."""
     db_manager.init(settings.effective_database_url)
     init_blob_store(settings)
     init_cdn_purger(settings)
-    yield
+    async with mcp_app.lifespan(mcp_app):
+        yield
     await close_cdn_purger()
     await close_blob_store()
     await db_manager.close()
@@ -62,6 +71,25 @@ app.include_router(comments_router)
 app.include_router(history_router)
 app.include_router(publishing_router)
 app.include_router(feedback_router)
+
+# Internally rewrite bare /mcp to /mcp/ before routing so the mount matches
+# without issuing a client-visible 307. RFC 9728 advertises the resource as
+# /mcp (no trailing slash); rewriting on the server side avoids redirect
+# pitfalls with clients that don't follow 307s on POST or strip auth headers
+# across the redirect.
+@app.middleware("http")
+async def _normalize_mcp_path(request: Request, call_next):
+    if request.url.path == "/mcp":
+        request.scope["path"] = "/mcp/"
+        request.scope["raw_path"] = b"/mcp/"
+    return await call_next(request)
+
+
+app.mount("/mcp", mcp_app)
+
+# Mount OAuth protected resource metadata at app root (RFC 9728)
+for route in _well_known_routes:
+    app.routes.insert(0, route)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])

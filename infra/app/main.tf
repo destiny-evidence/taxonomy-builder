@@ -81,6 +81,10 @@ module "container_app_api" {
       value = "taxonomy-builder-api-${var.environment}"
     },
     {
+      name  = "TAXONOMY_MCP_BASE_URL"
+      value = "https://${local.builder_custom_domain}"
+    },
+    {
       name  = "AZURE_CLIENT_ID"
       value = azurerm_user_assigned_identity.api.client_id
     },

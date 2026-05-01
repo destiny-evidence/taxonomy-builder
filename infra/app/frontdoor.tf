@@ -139,6 +139,23 @@ resource "azurerm_cdn_frontdoor_route" "api" {
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
 }
 
+resource "azurerm_cdn_frontdoor_route" "mcp" {
+  name                          = "rt-mcp-${local.name}"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
+
+  supported_protocols    = ["Http", "Https"]
+  patterns_to_match      = ["/mcp", "/mcp/*", "/.well-known/*"]
+  forwarding_protocol    = "HttpsOnly"
+  link_to_default_domain = true
+  https_redirect_enabled = true
+
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+
+  depends_on = [azurerm_cdn_frontdoor_route.api]
+}
+
 resource "azurerm_cdn_frontdoor_route" "published" {
   name                          = "rt-published-${local.name}"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id

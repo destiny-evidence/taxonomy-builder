@@ -141,6 +141,13 @@
       ]
     }
   ],
+  "defaultDefaultClientScopes": [
+    "openid",
+    "profile",
+    "email",
+    "roles",
+    "groups"
+  ],
   "clients": [
     {
       "clientId": "taxonomy-builder-api-local",
@@ -213,5 +220,19 @@
       ],
       "groups": ["vocabulary_reviewers"]
     }
-  ]
+  ],
+  "components": {
+    "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
+      {
+        "name": "Trusted Hosts",
+        "providerId": "trusted-hosts",
+        "subType": "anonymous",
+        "config": {
+          "trusted-hosts": ["localhost", "127.0.0.1"],
+          "host-sending-registration-request-must-match": ["false"],
+          "client-uris-must-match": ["true"]
+        }
+      }
+    ]
+  }
 }

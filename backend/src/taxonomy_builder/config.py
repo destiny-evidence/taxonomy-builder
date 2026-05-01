@@ -2,7 +2,7 @@
 
 from urllib.parse import quote_plus
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings
 
 
@@ -17,6 +17,8 @@ class CDNSettings(BaseModel):
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+
+    environment: str = Field(default="local", validation_alias="ENV")
 
     # Database connection - either provide full URL or individual components
     database_url: str | None = None
@@ -43,10 +45,20 @@ class Settings(BaseSettings):
     # Published artifacts base URL (CDN/Caddy root for published content)
     published_base_url: str = "http://localhost:3001/published"
 
+    # MCP server
+    mcp_base_url: str = "http://localhost:8000"
+    mcp_auth: bool = True  # Keycloak auth for MCP over HTTP (stdio always unauthenticated)
+
     # CDN cache purge (Azure Front Door)
     cdn: CDNSettings | None = None
 
     model_config = {"env_prefix": "TAXONOMY_"}
+
+    @computed_field
+    @property
+    def mcp_resource_name(self) -> str:
+        """Display name shown in MCP connector UIs — surfaces the env to users."""
+        return f"Taxonomy Builder MCP ({self.environment})"
 
     @computed_field
     @property

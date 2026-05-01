@@ -20,6 +20,7 @@ dependencies = [
     "azure-identity>=1.17.0",
     "azure-mgmt-cdn>=13.0.0",
     "aiohttp>=3.13.3",
+    "fastmcp>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,7 @@ dev = [
 
 [project.scripts]
 seed-db = "taxonomy_builder.seed:main"
+taxonomy-mcp = "taxonomy_builder.mcp.cli:main"
 
 [build-system]
 requires = ["hatchling"]

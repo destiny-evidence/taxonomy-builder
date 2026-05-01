@@ -148,6 +148,18 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
+    async def get_any_user(self) -> User | None:
+        """Get any existing user. Only for local dev (stdio MCP CLI).
+
+        Raises RuntimeError if MCP auth is enabled (production).
+        """
+        from taxonomy_builder.config import settings
+
+        if settings.mcp_auth:
+            raise RuntimeError("get_any_user() is not allowed when MCP auth is enabled")
+        result = await self.db.execute(select(User).order_by(User.id).limit(1))
+        return result.scalar_one_or_none()
+
     def extract_org_claims(self, token_claims: dict) -> dict:
         """Extract organization claims from Keycloak token.
 
