@@ -274,7 +274,7 @@ class TestCreateConceptsBatch:
         assert "Dogs" in result
 
 
-class TestSetBroader:
+class TestAddBroader:
     async def test_add(
         self, db_session: AsyncSession, scheme: ConceptScheme,
         concept_svc: ConceptService,
@@ -288,12 +288,15 @@ class TestSetBroader:
         db_session.add_all([parent, child])
         await db_session.flush()
 
-        result = await tools.set_broader(
-            str(child.id), str(parent.id), "add", svc=concept_svc,
+        result = await tools.add_broader(
+            str(child.id), str(parent.id), svc=concept_svc,
         )
         assert "Dogs" in result
         assert "Animals" in result
+        assert "Added broader" in result
 
+
+class TestRemoveBroader:
     async def test_remove(
         self, db_session: AsyncSession, scheme: ConceptScheme,
         concept_svc: ConceptService,
@@ -313,22 +316,11 @@ class TestSetBroader:
         )
         await db_session.flush()
 
-        result = await tools.set_broader(
-            str(child.id), str(parent.id), "remove", svc=concept_svc,
+        result = await tools.remove_broader(
+            str(child.id), str(parent.id), svc=concept_svc,
         )
         assert "Dogs" in result
-
-    async def test_invalid_action(
-        self, db_session: AsyncSession, scheme: ConceptScheme,
-        concept_svc: ConceptService,
-    ):
-        c = Concept(scheme_id=scheme.id, pref_label="X", identifier="x1")
-        db_session.add(c)
-        await db_session.flush()
-        result = await tools.set_broader(
-            str(c.id), str(c.id), "invalid", svc=concept_svc,
-        )
-        assert "Invalid action" in result
+        assert "Removed broader" in result
 
 
 class TestMoveConcept:
@@ -438,7 +430,7 @@ class TestUpdateConceptsBatch:
         assert "Updated 2" in result
 
 
-class TestSetRelated:
+class TestAddRelated:
     async def test_add(
         self, db_session: AsyncSession, scheme: ConceptScheme,
         concept_svc: ConceptService,
@@ -448,11 +440,33 @@ class TestSetRelated:
         db_session.add_all([c1, c2])
         await db_session.flush()
 
-        result = await tools.set_related(
-            str(c1.id), str(c2.id), "add", svc=concept_svc,
+        result = await tools.add_related(
+            str(c1.id), str(c2.id), svc=concept_svc,
         )
         assert "Dogs" in result
         assert "Cats" in result
+        assert "Added related" in result
+
+
+class TestRemoveRelated:
+    async def test_remove(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        concept_svc: ConceptService,
+    ):
+        from taxonomy_builder.models.concept_related import ConceptRelated
+
+        c1 = Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="rr1")
+        c2 = Concept(scheme_id=scheme.id, pref_label="Cats", identifier="rr2")
+        db_session.add_all([c1, c2])
+        await db_session.flush()
+        small, large = sorted([c1.id, c2.id])
+        db_session.add(ConceptRelated(concept_id=small, related_concept_id=large))
+        await db_session.flush()
+
+        result = await tools.remove_related(
+            str(c1.id), str(c2.id), svc=concept_svc,
+        )
+        assert "Removed related" in result
 
 
 # --- Quality & History tools ---
@@ -524,18 +538,49 @@ class TestDeleteScheme:
         db_session.add(s)
         await db_session.flush()
 
-        result = await tools.delete_scheme(str(s.id), svc=scheme_svc)
+        result = await tools.delete_scheme(
+            str(s.id), confirm_title="To Delete", svc=scheme_svc,
+        )
         assert "Deleted" in result
         assert "To Delete" in result
+
+    async def test_aborts_on_title_mismatch(
+        self, db_session: AsyncSession, project: Project,
+        scheme_svc: ConceptSchemeService,
+    ):
+        from taxonomy_builder.models.concept_scheme import ConceptScheme as CS
+
+        s = CS(project_id=project.id, title="Real Title")
+        db_session.add(s)
+        await db_session.flush()
+
+        result = await tools.delete_scheme(
+            str(s.id), confirm_title="Wrong Title", svc=scheme_svc,
+        )
+        assert "Aborted" in result
+        assert "Real Title" in result
+        assert "Wrong Title" in result
 
 
 class TestDeleteConcept:
     async def test_basic(self, concept: Concept, concept_svc: ConceptService):
         label = concept.pref_label
         concept_id = str(concept.id)
-        result = await tools.delete_concept(concept_id, svc=concept_svc)
+        result = await tools.delete_concept(
+            concept_id, confirm_label=label, svc=concept_svc,
+        )
         assert "Deleted" in result
         assert label in result
+
+    async def test_aborts_on_label_mismatch(
+        self, concept: Concept, concept_svc: ConceptService,
+    ):
+        result = await tools.delete_concept(
+            str(concept.id), confirm_label="Not The Label", svc=concept_svc,
+        )
+        assert "Aborted" in result
+        assert concept.pref_label in result
+        assert "Not The Label" in result
 
 
 class TestExportScheme:

@@ -1,7 +1,5 @@
 """Dependency injection for MCP tool handlers."""
 
-from __future__ import annotations
-
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 

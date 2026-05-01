@@ -48,6 +48,10 @@ def format_concept(concept) -> str:
         f"  Identifier: {concept.identifier}",
         f"  URI: {concept.uri}",
     ]
+    scheme = _safe_get(concept, "scheme")
+    scheme_title = getattr(scheme, "title", None) if scheme else None
+    if scheme_title:
+        lines.append(f"  Scheme: {scheme_title} (id: {scheme.id})")
     if concept.definition:
         lines.append(f"  Definition: {concept.definition}")
     if concept.scope_note:

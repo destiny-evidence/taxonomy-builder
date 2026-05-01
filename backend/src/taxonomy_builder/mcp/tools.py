@@ -1,7 +1,5 @@
 """MCP tools for taxonomy builder."""
 
-from __future__ import annotations
-
 from uuid import UUID
 
 from fastmcp.dependencies import Depends
@@ -283,6 +281,33 @@ async def create_concepts_batch(
         scheme_id: UUID of the concept scheme
         concepts: List of concept definitions
     """
+    for i, c in enumerate(concepts):
+        if "pref_label" not in c:
+            return f"Invalid batch entry [{i}]: missing required field 'pref_label'."
+        broader_ref = c.get("broader_concept_id")
+        if broader_ref:
+            if isinstance(broader_ref, str) and broader_ref.startswith("#"):
+                try:
+                    idx = int(broader_ref[1:])
+                except ValueError:
+                    return (
+                        f"Invalid broader_concept_id {broader_ref!r} at [{i}]:"
+                        " batch references must be of the form '#N' where N is an integer."
+                    )
+                if idx < 0 or idx >= i:
+                    return (
+                        f"Invalid broader_concept_id {broader_ref!r} at [{i}]:"
+                        f" index out of range (must reference an earlier entry, 0..{i - 1})."
+                    )
+            else:
+                try:
+                    UUID(broader_ref)
+                except ValueError:
+                    return (
+                        f"Invalid broader_concept_id {broader_ref!r} at [{i}]:"
+                        " not a valid UUID or '#N' batch reference."
+                    )
+
     created = []
     scheme = await concept_svc.get_scheme(UUID(scheme_id))
 
@@ -303,8 +328,7 @@ async def create_concepts_batch(
         broader_ref = c.get("broader_concept_id")
         if broader_ref:
             if isinstance(broader_ref, str) and broader_ref.startswith("#"):
-                idx = int(broader_ref[1:])
-                broader_id = created[idx].id
+                broader_id = created[int(broader_ref[1:])].id
             else:
                 broader_id = UUID(broader_ref)
             await concept_svc.add_broader(concept.id, broader_id)
@@ -319,27 +343,40 @@ async def create_concepts_batch(
 
 
 @mcp.tool(auth=_auth)
-async def set_broader(
+async def add_broader(
     concept_id: str,
     broader_concept_id: str,
-    action: str = "add",
     svc: ConceptService = Depends(get_concept_service),
 ) -> str:
-    """Add or remove a broader (parent) relationship.
+    """Add a broader (parent) relationship between two concepts.
+
+    Both concepts must already exist in the same scheme. Polyhierarchy is
+    supported — a concept can have multiple broader concepts.
 
     Args:
         concept_id: UUID of the narrower (child) concept
         broader_concept_id: UUID of the broader (parent) concept
-        action: "add" or "remove"
     """
-    if action == "add":
-        await svc.add_broader(UUID(concept_id), UUID(broader_concept_id))
-    elif action == "remove":
-        await svc.remove_broader(UUID(concept_id), UUID(broader_concept_id))
-    else:
-        return f"Invalid action '{action}'. Use 'add' or 'remove'."
+    await svc.add_broader(UUID(concept_id), UUID(broader_concept_id))
     concept = await svc.get_concept(UUID(concept_id))
-    return format_concept(concept)
+    return f"Added broader relationship: {format_concept(concept)}"
+
+
+@mcp.tool(auth=_auth)
+async def remove_broader(
+    concept_id: str,
+    broader_concept_id: str,
+    svc: ConceptService = Depends(get_concept_service),
+) -> str:
+    """Remove a broader (parent) relationship between two concepts.
+
+    Args:
+        concept_id: UUID of the narrower (child) concept
+        broader_concept_id: UUID of the broader (parent) concept whose link should be removed
+    """
+    await svc.remove_broader(UUID(concept_id), UUID(broader_concept_id))
+    concept = await svc.get_concept(UUID(concept_id))
+    return f"Removed broader relationship: {format_concept(concept)}"
 
 
 @mcp.tool(auth=_auth)
@@ -444,6 +481,16 @@ async def update_concepts_batch(
     Args:
         updates: List of update definitions
     """
+    for i, u in enumerate(updates):
+        if "concept_id" not in u:
+            return f"Invalid update entry [{i}]: missing required field 'concept_id'."
+        try:
+            UUID(u["concept_id"])
+        except ValueError:
+            return (
+                f"Invalid concept_id {u['concept_id']!r} at [{i}]: not a valid UUID."
+            )
+
     updated = []
     for u in updates:
         concept = await svc.update_concept(
@@ -464,13 +511,12 @@ async def update_concepts_batch(
 
 
 @mcp.tool(auth=_auth)
-async def set_related(
+async def add_related(
     concept_id: str,
     related_concept_id: str,
-    action: str = "add",
     svc: ConceptService = Depends(get_concept_service),
 ) -> str:
-    """Add or remove a related (associative) relationship between concepts.
+    """Add a related (associative) relationship between two concepts.
 
     Related relationships are symmetric — if A is related to B, B is related to A.
     Both concepts must be in the same scheme.
@@ -478,16 +524,27 @@ async def set_related(
     Args:
         concept_id: UUID of one concept
         related_concept_id: UUID of the other concept
-        action: "add" or "remove"
     """
-    if action == "add":
-        await svc.add_related(UUID(concept_id), UUID(related_concept_id))
-    elif action == "remove":
-        await svc.remove_related(UUID(concept_id), UUID(related_concept_id))
-    else:
-        return f"Invalid action '{action}'. Use 'add' or 'remove'."
+    await svc.add_related(UUID(concept_id), UUID(related_concept_id))
     concept = await svc.get_concept(UUID(concept_id))
-    return format_concept(concept)
+    return f"Added related relationship: {format_concept(concept)}"
+
+
+@mcp.tool(auth=_auth)
+async def remove_related(
+    concept_id: str,
+    related_concept_id: str,
+    svc: ConceptService = Depends(get_concept_service),
+) -> str:
+    """Remove a related (associative) relationship between two concepts.
+
+    Args:
+        concept_id: UUID of one concept
+        related_concept_id: UUID of the other concept
+    """
+    await svc.remove_related(UUID(concept_id), UUID(related_concept_id))
+    concept = await svc.get_concept(UUID(concept_id))
+    return f"Removed related relationship: {format_concept(concept)}"
 
 
 # --- Quality & History tools ---
@@ -505,7 +562,6 @@ async def check_quality(
     - Concepts missing scope notes
     - Duplicate preferred labels
     - Alt labels that conflict with other concepts' preferred labels
-    - Orphan concepts (no broader, when other top-level concepts exist)
 
     Also reports statistics: total concepts, top-level count, max depth.
 
@@ -614,19 +670,30 @@ async def get_history(
 @mcp.tool(auth=_auth)
 async def delete_scheme(
     scheme_id: str,
+    confirm_title: str,
     svc: ConceptSchemeService = Depends(get_scheme_service),
 ) -> str:
     """Delete a concept scheme and all its concepts.
 
     This cannot be undone. Fails if the scheme is referenced by properties.
+    To prevent accidental deletion of the wrong scheme, you must pass the
+    exact current title of the scheme as confirm_title; the deletion is
+    aborted if it does not match.
 
     Args:
         scheme_id: UUID of the concept scheme to delete
+        confirm_title: Must exactly match the scheme's current title
     """
     scheme = await svc.get_scheme(UUID(scheme_id))
+    if scheme.title != confirm_title:
+        return (
+            f"Aborted: scheme {scheme_id} is titled '{scheme.title}', "
+            f"not '{confirm_title}'. No deletion performed."
+        )
     title = scheme.title
+    project_id = scheme.project_id
     await svc.delete_scheme(UUID(scheme_id))
-    return f"Deleted scheme '{title}' ({scheme_id})."
+    return f"Deleted scheme '{title}' ({scheme_id}) from project {project_id}."
 
 
 @mcp.tool(auth=_auth)
@@ -647,20 +714,30 @@ async def export_scheme(
 @mcp.tool(auth=_auth)
 async def delete_concept(
     concept_id: str,
+    confirm_label: str,
     svc: ConceptService = Depends(get_concept_service),
 ) -> str:
     """Delete a concept and all its relationships.
 
     This removes the concept and any broader, narrower, and related relationships.
-    This action cannot be undone.
+    This action cannot be undone. To prevent accidental deletion of the wrong
+    concept, you must pass the exact current pref_label of the concept as
+    confirm_label; the deletion is aborted if it does not match.
 
     Args:
         concept_id: UUID of the concept to delete
+        confirm_label: Must exactly match the concept's current pref_label
     """
     concept = await svc.get_concept(UUID(concept_id))
+    if concept.pref_label != confirm_label:
+        return (
+            f"Aborted: concept {concept_id} is labelled '{concept.pref_label}', "
+            f"not '{confirm_label}'. No deletion performed."
+        )
     label = concept.pref_label
+    scheme_title = concept.scheme.title
     await svc.delete_concept(UUID(concept_id))
-    return f"Deleted concept '{label}' ({concept_id})."
+    return f"Deleted concept '{label}' ({concept_id}) from scheme '{scheme_title}'."
 
 
 # --- Feedback tools ---

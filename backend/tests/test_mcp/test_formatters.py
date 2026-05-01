@@ -12,8 +12,10 @@ from taxonomy_builder.mcp.formatters import (
 
 
 class FakeScheme:
-    def __init__(self, uri="http://example.org/concepts"):
+    def __init__(self, uri="http://example.org/concepts", title="Test Scheme", id="019scheme"):
         self.uri = uri
+        self.title = title
+        self.id = id
 
 
 class FakeConcept:
