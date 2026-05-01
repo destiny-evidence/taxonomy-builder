@@ -152,6 +152,8 @@ resource "azurerm_cdn_frontdoor_route" "mcp" {
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
+
+  depends_on = [azurerm_cdn_frontdoor_route.api]
 }
 
 resource "azurerm_cdn_frontdoor_route" "published" {
