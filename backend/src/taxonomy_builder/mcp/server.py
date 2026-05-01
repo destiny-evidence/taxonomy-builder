@@ -51,7 +51,7 @@ def _build_auth() -> AuthProvider | None:
         token_verifier=KeycloakTokenVerifier(),
         authorization_servers=[AnyHttpUrl(keycloak_issuer)],
         base_url=AnyHttpUrl(settings.mcp_base_url),
-        resource_name="Taxonomy Builder MCP",
+        resource_name=settings.mcp_resource_name,
         scopes_supported=["openid", "profile", "email", "roles", "groups"],
     )
 
@@ -61,7 +61,8 @@ auth_provider = _build_auth()
 mcp = FastMCP(
     "taxonomy-builder",
     instructions=(
-        "You are a taxonomy building assistant. Use these tools to create, "
+        f"You are a taxonomy building assistant connected to the "
+        f"'{settings.environment}' environment. Use these tools to create, "
         "explore, and refine SKOS vocabularies. Start by listing projects, "
         "then explore schemes and their concept trees. Build taxonomies by "
         "creating concepts and organising them into hierarchies with broader/"

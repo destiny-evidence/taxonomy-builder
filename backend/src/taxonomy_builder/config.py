@@ -2,7 +2,7 @@
 
 from urllib.parse import quote_plus
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings
 
 
@@ -17,6 +17,8 @@ class CDNSettings(BaseModel):
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+
+    environment: str = Field(default="local", validation_alias="ENV")
 
     # Database connection - either provide full URL or individual components
     database_url: str | None = None
@@ -51,6 +53,12 @@ class Settings(BaseSettings):
     cdn: CDNSettings | None = None
 
     model_config = {"env_prefix": "TAXONOMY_"}
+
+    @computed_field
+    @property
+    def mcp_resource_name(self) -> str:
+        """Display name shown in MCP connector UIs — surfaces the env to users."""
+        return f"Taxonomy Builder MCP ({self.environment})"
 
     @computed_field
     @property
