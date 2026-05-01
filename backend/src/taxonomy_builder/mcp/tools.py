@@ -490,9 +490,7 @@ async def update_concepts_batch(
         try:
             UUID(u["concept_id"])
         except ValueError:
-            return (
-                f"Invalid concept_id {u['concept_id']!r} at [{i}]: not a valid UUID."
-            )
+            return f"Invalid concept_id {u['concept_id']!r} at [{i}]: not a valid UUID."
 
     updated = []
     for u in updates:
@@ -588,9 +586,7 @@ async def check_quality(
     missing_scope = [c for c in concepts if not c.scope_note]
     if missing_scope:
         labels = ", ".join(c.pref_label for c in missing_scope[:10])
-        suffix = (
-            f" (and {len(missing_scope) - 10} more)" if len(missing_scope) > 10 else ""
-        )
+        suffix = f" (and {len(missing_scope) - 10} more)" if len(missing_scope) > 10 else ""
         issues.append(f"Missing scope notes ({len(missing_scope)}): {labels}{suffix}")
 
     label_counts: dict[str, list[str]] = {}
@@ -600,9 +596,7 @@ async def check_quality(
     dupes = {k: v for k, v in label_counts.items() if len(v) > 1}
     if dupes:
         for label, instances in dupes.items():
-            issues.append(
-                f"Duplicate label: '{instances[0]}' appears {len(instances)} times"
-            )
+            issues.append(f"Duplicate label: '{instances[0]}' appears {len(instances)} times")
 
     pref_labels_lower = {c.pref_label.lower(): c.pref_label for c in concepts}
     for c in concepts:
@@ -661,9 +655,7 @@ async def get_history(
             entity_label = f" '{event.after_state['pref_label']}'"
         elif event.before_state and "pref_label" in event.before_state:
             entity_label = f" '{event.before_state['pref_label']}'"
-        lines.append(
-            f"  [{ts}] {user_name}: {event.action} {event.entity_type}{entity_label}"
-        )
+        lines.append(f"  [{ts}] {user_name}: {event.action} {event.entity_type}{entity_label}")
     return "\n".join(lines)
 
 
@@ -751,15 +743,15 @@ async def get_feedback_counts(
     project_svc: ProjectService = Depends(get_project_service),
     feedback_svc: FeedbackService = Depends(get_feedback_service),
 ) -> str:
-    """Get open feedback counts for all projects.
+    """Get unresolved feedback counts for all projects.
 
-    Shows how many unresolved feedback items exist per project,
+    Shows how many feedback items with status "open" or "responded" exist per project,
     useful for prioritising triage work.
     """
     projects = await project_svc.list_projects()
     if not projects:
         return "No projects found."
-    counts = await feedback_svc.get_open_counts([p.id for p in projects])
+    counts = await feedback_svc.get_unresolved_counts([p.id for p in projects])
 
     lines = ["Open feedback counts:"]
     for p in projects:

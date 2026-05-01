@@ -271,10 +271,15 @@ class FeedbackService:
     ) -> Feedback:
         return await self._triage(feedback_id, FeedbackStatus.declined, content)
 
-    async def get_open_counts(
+    async def get_unresolved_counts(
         self, project_ids: list[UUID]
     ) -> dict[UUID, int]:
-        """Open + responded counts per project for badge display."""
+        """Counts per project of feedback with status ``open`` or ``responded``.
+
+        Excludes ``resolved`` and ``declined``. Used for badge display and to
+        prioritise triage. Soft-deleted feedback (``deleted_at IS NOT NULL``)
+        is also excluded.
+        """
         result = await self.db.execute(
             select(Feedback.project_id, func.count())
             .where(
