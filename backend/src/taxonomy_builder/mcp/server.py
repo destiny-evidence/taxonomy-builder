@@ -52,7 +52,7 @@ def _build_auth() -> AuthProvider | None:
         authorization_servers=[AnyHttpUrl(keycloak_issuer)],
         base_url=AnyHttpUrl(settings.mcp_base_url),
         resource_name=settings.mcp_resource_name,
-        scopes_supported=["openid", "profile", "email", "roles", "groups"],
+        scopes_supported=["openid", "profile", "email", "roles", "mcp:tools"],
     )
 
 
