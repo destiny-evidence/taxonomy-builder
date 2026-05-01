@@ -647,7 +647,8 @@ class TestListFeedback:
         self, project: Project, feedback_svc: FeedbackService,
     ):
         result = await tools.list_feedback(str(project.id), svc=feedback_svc)
-        assert "No feedback found" in result
+        assert "No feedback found" in result.content[0].text
+        assert result.structured_content == {"feedback": []}
 
     async def test_with_feedback(
         self, db_session: AsyncSession, project: Project, test_user: User,
@@ -657,8 +658,15 @@ class TestListFeedback:
         await db_session.flush()
 
         result = await tools.list_feedback(str(project.id), svc=feedback_svc)
-        assert "1 item" in result
-        assert "Test Concept" in result
+        text = result.content[0].text
+        assert "1 item" in text
+        assert "Test Concept" in text
+        # structured_content is a JSON list of feedback dicts
+        assert result.structured_content is not None
+        items = result.structured_content["feedback"]
+        assert len(items) == 1
+        assert items[0]["entity_label"] == "Test Concept"
+        assert items[0]["entity_id"] == "fake-entity-id"
 
     async def test_filter_by_status(
         self, db_session: AsyncSession, project: Project, test_user: User,
@@ -671,7 +679,8 @@ class TestListFeedback:
         result = await tools.list_feedback(
             str(project.id), status="open", svc=feedback_svc,
         )
-        assert "1 item" in result
+        assert "1 item" in result.content[0].text
+        assert len(result.structured_content["feedback"]) == 1
 
 
 class TestGetFeedback:
@@ -695,6 +704,45 @@ class TestGetFeedback:
             "00000000-0000-0000-0000-000000000000", svc=feedback_svc,
         )
         assert "not found" in result.lower()
+
+
+class TestExportFeedback:
+    async def test_empty(
+        self, project: Project, feedback_svc: FeedbackService,
+    ):
+        result = await tools.export_feedback(str(project.id), svc=feedback_svc)
+        assert result.structured_content == {"feedback": []}
+        assert result.content[0].text == "0 feedback item(s) exported."
+
+    async def test_exports_full_details(
+        self, db_session: AsyncSession, project: Project, test_user: User,
+        feedback_svc: FeedbackService,
+    ):
+        db_session.add(_make_feedback(project, test_user, content="First issue"))
+        db_session.add(_make_feedback(project, test_user, content="Second issue"))
+        await db_session.flush()
+
+        result = await tools.export_feedback(str(project.id), svc=feedback_svc)
+        assert result.content[0].text == "2 feedback item(s) exported."
+        items = result.structured_content["feedback"]
+        assert len(items) == 2
+        # Full detail fields present
+        assert "content" in items[0]
+        assert "entity_id" in items[0]
+        assert "author_name" in items[0]
+
+    async def test_filter_by_status(
+        self, db_session: AsyncSession, project: Project, test_user: User,
+        feedback_svc: FeedbackService,
+    ):
+        db_session.add(_make_feedback(project, test_user, status="open"))
+        db_session.add(_make_feedback(project, test_user, status="resolved"))
+        await db_session.flush()
+
+        result = await tools.export_feedback(
+            str(project.id), status="open", svc=feedback_svc,
+        )
+        assert len(result.structured_content["feedback"]) == 1
 
 
 class TestRespondToFeedback:

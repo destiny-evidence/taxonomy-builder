@@ -3,6 +3,8 @@
 from uuid import UUID
 
 from fastmcp.dependencies import Depends
+from fastmcp.tools import ToolResult
+from mcp.types import TextContent
 
 from taxonomy_builder.config import settings
 from taxonomy_builder.mcp.dependencies import (
@@ -788,7 +790,7 @@ async def list_feedback(
     feedback_type: str | None = None,
     query: str | None = None,
     svc: FeedbackService = Depends(get_feedback_service),
-) -> str:
+) -> ToolResult:
     """List feedback for a project with optional filters.
 
     Args:
@@ -806,11 +808,51 @@ async def list_feedback(
         q=query,
     )
     if not items:
-        return "No feedback found."
+        return ToolResult(
+            content=[TextContent(type="text", text="No feedback found.")],
+            structured_content={"feedback": []},
+        )
     lines = [f"Feedback ({len(items)} item(s)):"]
     for fb in items:
         lines.append(f"  {format_feedback_brief(fb)}")
-    return "\n".join(lines)
+    return ToolResult(
+        content=[TextContent(type="text", text="\n".join(lines))],
+        structured_content={"feedback": [fb.to_manager_dict() for fb in items]},
+    )
+
+
+@mcp.tool(auth=_auth)
+async def export_feedback(
+    project_id: str,
+    status: str | None = None,
+    entity_type: str | None = None,
+    feedback_type: str | None = None,
+    svc: FeedbackService = Depends(get_feedback_service),
+) -> ToolResult:
+    """Export all feedback for a project as structured JSON.
+
+    Returns full details of every matching feedback item in
+    structuredContent, avoiding the need for individual get_feedback calls.
+
+    Args:
+        project_id: UUID of the project
+        status: Filter by status — "open", "responded", "resolved", or "declined"
+        entity_type: Filter by entity type — "concept", "scheme", "ontology_class", or "property"
+        feedback_type: Filter by feedback type (e.g. "unclear_definition", "missing_term")
+    """
+    items = await svc.list_all(
+        UUID(project_id),
+        status=status,
+        entity_type=entity_type,
+        feedback_type=feedback_type,
+    )
+    return ToolResult(
+        content=[TextContent(
+            type="text",
+            text=f"{len(items)} feedback item(s) exported.",
+        )],
+        structured_content={"feedback": [fb.to_manager_dict() for fb in items]},
+    )
 
 
 @mcp.tool(auth=_auth)
