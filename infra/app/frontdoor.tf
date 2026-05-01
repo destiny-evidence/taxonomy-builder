@@ -131,7 +131,7 @@ resource "azurerm_cdn_frontdoor_route" "api" {
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
 
   supported_protocols    = ["Http", "Https"]
-  patterns_to_match      = ["/api/*", "/mcp/*", "/.well-known/*"]
+  patterns_to_match      = ["/api/*", "/mcp", "/mcp/*", "/.well-known/*"]
   forwarding_protocol    = "HttpsOnly"
   link_to_default_domain = true
   https_redirect_enabled = true
