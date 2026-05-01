@@ -142,11 +142,12 @@ async def search_concepts(
     project_id: str | None = None,
     svc: ConceptService = Depends(get_concept_service),
 ) -> str:
-    """Search for concepts by label or definition text.
+    """Search for concepts by label, definition, or alternative labels.
 
-    Searches pref_label and definition fields using case-insensitive matching.
-    Provide scheme_id to search within one scheme, or project_id to search
-    across all schemes in a project. At least one must be given.
+    Searches pref_label, definition, and alt_labels fields using
+    case-insensitive substring matching. Provide scheme_id to search
+    within one scheme, or project_id to search across all schemes in a
+    project. At least one must be given.
 
     Args:
         query: Search text to match against labels and definitions

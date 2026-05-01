@@ -49,6 +49,26 @@ async def test_search_by_definition(db_session: AsyncSession, scheme: ConceptSch
     assert len(results) == 2
 
 
+async def test_search_by_alt_labels(db_session: AsyncSession, scheme: ConceptScheme):
+    """Search should match alt_labels case-insensitively."""
+    db_session.add(
+        Concept(
+            scheme_id=scheme.id,
+            pref_label="Dogs",
+            identifier="c1",
+            alt_labels=["Canines", "Hounds"],
+        )
+    )
+    db_session.add(Concept(scheme_id=scheme.id, pref_label="Cats", identifier="c2"))
+    await db_session.flush()
+
+    svc = ConceptService(db_session)
+    results = await svc.search_concepts("canine", scheme_id=scheme.id)
+    labels = [c.pref_label for c in results]
+    assert "Dogs" in labels
+    assert "Cats" not in labels
+
+
 async def test_search_no_results(db_session: AsyncSession, scheme: ConceptScheme):
     """Search with no matches returns empty list."""
     db_session.add(Concept(scheme_id=scheme.id, pref_label="Dogs", identifier="c1"))

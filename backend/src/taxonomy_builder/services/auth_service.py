@@ -157,7 +157,7 @@ class AuthService:
 
         if settings.mcp_auth:
             raise RuntimeError("get_any_user() is not allowed when MCP auth is enabled")
-        result = await self.db.execute(select(User).limit(1))
+        result = await self.db.execute(select(User).order_by(User.id).limit(1))
         return result.scalar_one_or_none()
 
     def extract_org_claims(self, token_claims: dict) -> dict:

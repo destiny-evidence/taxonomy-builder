@@ -39,8 +39,7 @@ class FakeConcept:
         self.alt_labels = alt_labels or []
         self.broader = broader or []
         self.narrower = narrower or []
-        self._related_as_subject = related or []
-        self._related_as_object = []
+        self.related = related or []
         self.scheme = scheme or FakeScheme()
 
     @property

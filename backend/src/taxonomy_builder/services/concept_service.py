@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -125,7 +125,7 @@ class ConceptService:
         scheme_id: UUID | None = None,
         project_id: UUID | None = None,
     ) -> list[Concept]:
-        """Search concepts by pref_label or definition text (case-insensitive).
+        """Search concepts by pref_label, definition, or alt_labels (case-insensitive).
 
         Provide either scheme_id to search within a single scheme, or
         project_id to search across all schemes in a project.
@@ -139,6 +139,7 @@ class ConceptService:
             .where(or_(
                 Concept.pref_label.ilike(pattern),
                 Concept.definition.ilike(pattern),
+                func.array_to_string(Concept.alt_labels, " ").ilike(pattern),
             ))
             .options(
                 selectinload(Concept.broader),

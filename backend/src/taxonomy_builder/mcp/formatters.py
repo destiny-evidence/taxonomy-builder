@@ -62,16 +62,8 @@ def format_concept(concept) -> str:
     if narrower:
         labels = [f"{c.pref_label} (id: {c.id})" for c in narrower]
         lines.append(f"  Narrower: {', '.join(labels)}")
-    related = _safe_get(concept, "_related_as_subject") or []
-    related += _safe_get(concept, "_related_as_object") or []
-    if related:
-        seen = set()
-        unique = []
-        for c in related:
-            if c.id not in seen:
-                seen.add(c.id)
-                unique.append(c)
-        labels = [f"{c.pref_label} (id: {c.id})" for c in unique]
+    if concept.related:
+        labels = [f"{c.pref_label} (id: {c.id})" for c in concept.related]
         lines.append(f"  Related: {', '.join(labels)}")
     return "\n".join(lines)
 
