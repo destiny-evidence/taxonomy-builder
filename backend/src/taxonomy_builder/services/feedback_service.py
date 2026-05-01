@@ -106,7 +106,7 @@ class FeedbackService:
             raise VersionNotFoundError(project_id, version)
         return pv
 
-    async def _get_feedback(self, feedback_id: UUID) -> Feedback:
+    async def get(self, feedback_id: UUID) -> Feedback:
         """Load a non-deleted feedback by ID or raise."""
         result = await self.db.execute(
             select(Feedback).where(
@@ -240,7 +240,7 @@ class FeedbackService:
 
     async def respond(self, feedback_id: UUID, content: str) -> Feedback:
         """Add response. Allowed when open/responded. 409 if resolved/declined."""
-        fb = await self._get_feedback(feedback_id)
+        fb = await self.get(feedback_id)
         if fb.status in (FeedbackStatus.resolved.value, FeedbackStatus.declined.value):
             raise FeedbackStatusConflictError(feedback_id, fb.status, "respond to")
         self._set_response(fb, content)
@@ -252,7 +252,7 @@ class FeedbackService:
         self, feedback_id: UUID, new_status: FeedbackStatus, content: str | None,
     ) -> Feedback:
         """Set status to resolved/declined, optionally attaching a response."""
-        fb = await self._get_feedback(feedback_id)
+        fb = await self.get(feedback_id)
         fb.status = new_status.value
         fb.status_changed_at = datetime.now()
         fb.status_changed_by = self.user_id

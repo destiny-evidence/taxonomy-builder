@@ -674,6 +674,29 @@ class TestListFeedback:
         assert "1 item" in result
 
 
+class TestGetFeedback:
+    async def test_basic(
+        self, db_session: AsyncSession, project: Project, test_user: User,
+        feedback_svc: FeedbackService,
+    ):
+        fb = _make_feedback(project, test_user)
+        db_session.add(fb)
+        await db_session.flush()
+
+        result = await tools.get_feedback(str(fb.id), svc=feedback_svc)
+        assert "Test Concept" in result
+        assert "The definition is unclear" in result
+        assert str(fb.id) in result
+
+    async def test_not_found(
+        self, feedback_svc: FeedbackService,
+    ):
+        result = await tools.get_feedback(
+            "00000000-0000-0000-0000-000000000000", svc=feedback_svc,
+        )
+        assert "not found" in result.lower()
+
+
 class TestRespondToFeedback:
     async def test_basic(
         self, db_session: AsyncSession, project: Project, test_user: User,
