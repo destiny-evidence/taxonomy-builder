@@ -139,24 +139,6 @@
           "protocolMapper": "oidc-audience-resolve-mapper"
         }
       ]
-    },
-    {
-      "name": "mcp:tools",
-      "description": "MCP tool invocation access",
-      "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
-    },
-    {
-      "name": "mcp:prompts",
-      "description": "MCP prompt access",
-      "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
-    },
-    {
-      "name": "mcp:resources",
-      "description": "MCP resource access",
-      "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
     }
   ],
   "defaultDefaultClientScopes": [
@@ -166,47 +148,6 @@
     "roles",
     "groups"
   ],
-  "clientRegistrationPolicies": {
-    "anonymous": [
-      {
-        "name": "Allowed Client Scopes",
-        "providerId": "allowed-client-templates",
-        "subType": "anonymous",
-        "config": {
-          "allow-default-scopes": ["true"],
-          "allowed-client-scopes": [
-            "openid",
-            "profile",
-            "email",
-            "roles",
-            "groups",
-            "mcp:tools",
-            "mcp:prompts",
-            "mcp:resources",
-            "vocabulary.manager.all"
-          ]
-        }
-      },
-      {
-        "name": "Max Clients Limit",
-        "providerId": "max-clients",
-        "subType": "anonymous",
-        "config": {
-          "max-clients": ["200"]
-        }
-      }
-    ],
-    "authenticated": [
-      {
-        "name": "Allowed Client Scopes",
-        "providerId": "allowed-client-templates",
-        "subType": "authenticated",
-        "config": {
-          "allow-default-scopes": ["true"]
-        }
-      }
-    ]
-  },
   "clients": [
     {
       "clientId": "taxonomy-builder-api-local",
@@ -279,5 +220,19 @@
       ],
       "groups": ["vocabulary_reviewers"]
     }
-  ]
+  ],
+  "components": {
+    "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
+      {
+        "name": "Trusted Hosts",
+        "providerId": "trusted-hosts",
+        "subType": "anonymous",
+        "config": {
+          "trusted-hosts": ["localhost", "127.0.0.1"],
+          "host-sending-registration-request-must-match": ["false"],
+          "client-uris-must-match": ["true"]
+        }
+      }
+    ]
+  }
 }
