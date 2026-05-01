@@ -3,6 +3,8 @@
 from uuid import UUID
 
 from fastmcp.dependencies import Depends
+from fastmcp.tools import ToolResult
+from mcp.types import TextContent
 
 from taxonomy_builder.config import settings
 from taxonomy_builder.mcp.dependencies import (
@@ -796,7 +798,7 @@ async def list_feedback(
     feedback_type: str | None = None,
     query: str | None = None,
     svc: FeedbackService = Depends(get_feedback_service),
-) -> str:
+) -> ToolResult:
     """List feedback for a project with optional filters.
 
     Args:
@@ -814,11 +816,17 @@ async def list_feedback(
         q=query,
     )
     if not items:
-        return "No feedback found."
+        return ToolResult(
+            content=[TextContent(type="text", text="No feedback found.")],
+            structured_content={"feedback": []},
+        )
     lines = [f"Feedback ({len(items)} item(s)):"]
     for fb in items:
         lines.append(f"  {format_feedback_brief(fb)}")
-    return "\n".join(lines)
+    return ToolResult(
+        content=[TextContent(type="text", text="\n".join(lines))],
+        structured_content={"feedback": [fb.to_manager_dict() for fb in items]},
+    )
 
 
 @mcp.tool(auth=_auth)
