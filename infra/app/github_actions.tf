@@ -223,7 +223,11 @@ resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
   value         = "taxonomy-reader-ui-${var.environment}"
 }
 
+# Skipped when empty: GitHub's API rejects empty env-var values, and an
+# absent variable is read by the workflow as "" — which the app's
+# initMatomo() already treats as the no-op signal.
 resource "github_actions_environment_variable" "matomo_container_url" {
+  count         = var.matomo_frontend_container_url != "" ? 1 : 0
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "MATOMO_CONTAINER_URL"
@@ -231,6 +235,7 @@ resource "github_actions_environment_variable" "matomo_container_url" {
 }
 
 resource "github_actions_environment_variable" "matomo_feedback_container_url" {
+  count         = var.matomo_feedback_container_url != "" ? 1 : 0
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "MATOMO_FEEDBACK_CONTAINER_URL"
