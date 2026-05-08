@@ -223,6 +223,20 @@ resource "github_actions_environment_variable" "keycloak_feedback_client_id" {
   value         = "taxonomy-reader-ui-${var.environment}"
 }
 
+resource "github_actions_environment_variable" "matomo_container_url" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "MATOMO_CONTAINER_URL"
+  value         = var.matomo_frontend_container_url
+}
+
+resource "github_actions_environment_variable" "matomo_feedback_container_url" {
+  repository    = github_repository_environment.environment.repository
+  environment   = github_repository_environment.environment.environment
+  variable_name = "MATOMO_FEEDBACK_CONTAINER_URL"
+  value         = var.matomo_feedback_container_url
+}
+
 # Feedback UI deployment variables
 
 resource "github_actions_environment_variable" "feedback_storage_account_name" {
