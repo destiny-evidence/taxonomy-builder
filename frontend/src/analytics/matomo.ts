@@ -6,18 +6,13 @@ declare global {
 
 export function initMatomo(containerUrl: string | undefined): void {
   if (!containerUrl) return;
-  if (document.querySelector(`script[src="${containerUrl}"]`)) return;
 
-  window._mtm = window._mtm || [];
-  window._mtm.push({ "mtm.startTime": Date.now(), event: "mtm.Start" });
+  const _mtm = (window._mtm = window._mtm || []);
+  _mtm.push({ "mtm.startTime": new Date().getTime(), event: "mtm.Start" });
 
-  const script = document.createElement("script");
-  script.async = true;
-  script.src = containerUrl;
-  const firstScript = document.getElementsByTagName("script")[0];
-  if (firstScript?.parentNode) {
-    firstScript.parentNode.insertBefore(script, firstScript);
-  } else {
-    document.head.appendChild(script);
-  }
+  const g = document.createElement("script");
+  const s = document.getElementsByTagName("script")[0];
+  g.async = true;
+  g.src = containerUrl;
+  s.parentNode!.insertBefore(g, s);
 }
