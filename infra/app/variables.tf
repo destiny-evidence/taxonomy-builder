@@ -181,3 +181,16 @@ variable "dnsimple_account_id" {
   description = "DNSimple account ID"
   type        = string
 }
+
+# Matomo Tag Manager container URLs (per environment, per app)
+variable "matomo_frontend_container_url" {
+  description = "Matomo Tag Manager container URL for the frontend; empty disables analytics"
+  type        = string
+  default     = ""
+}
+
+variable "matomo_feedback_container_url" {
+  description = "Matomo Tag Manager container URL for the feedback UI; empty disables analytics"
+  type        = string
+  default     = ""
+}
