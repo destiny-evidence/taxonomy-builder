@@ -47,6 +47,16 @@ export function login(): void {
 }
 
 /**
+ * Redirect to Keycloak self-registration page.
+ *
+ * The default login page hides its register link (see destiny-shared-infra),
+ * so apps that allow self-signup must link to the registration form directly.
+ */
+export function register(): void {
+  keycloak.register();
+}
+
+/**
  * Log out the current user.
  */
 export function logout(): void {

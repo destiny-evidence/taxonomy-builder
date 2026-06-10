@@ -2,7 +2,7 @@ import { useSignal } from "@preact/signals";
 import { isAuthenticated } from "../../state/auth";
 import { currentEntityFeedback } from "../../state/feedback";
 import { selectedVersion } from "../../state/vocabulary";
-import { login } from "../../api/auth";
+import { login, register } from "../../api/auth";
 import { FeedbackCard } from "./FeedbackCard";
 import { FeedbackForm } from "./FeedbackForm";
 import "./FeedbackSection.css";
@@ -32,6 +32,13 @@ export function FeedbackSection({
             onClick={login}
           >
             Sign in
+          </span>{" "}
+          or{" "}
+          <span
+            class="feedback-section__sign-in-link"
+            onClick={register}
+          >
+            create an account
           </span>{" "}
           to provide feedback
         </div>
