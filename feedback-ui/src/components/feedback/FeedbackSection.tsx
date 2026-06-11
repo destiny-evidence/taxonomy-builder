@@ -29,14 +29,20 @@ export function FeedbackSection({
         <div class="feedback-section__sign-in">
           <span
             class="feedback-section__sign-in-link"
+            role="link"
+            tabIndex={0}
             onClick={login}
+            onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") login(); }}
           >
             Sign in
           </span>{" "}
           or{" "}
           <span
             class="feedback-section__sign-in-link"
+            role="link"
+            tabIndex={0}
             onClick={register}
+            onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") register(); }}
           >
             create an account
           </span>{" "}
