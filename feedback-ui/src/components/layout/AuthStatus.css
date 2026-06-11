@@ -24,3 +24,17 @@
   border-color: var(--color-text-secondary);
   color: var(--color-text);
 }
+
+.auth-status__link {
+  background: none;
+  border: none;
+  padding: var(--spacing-xs) 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.auth-status__link:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}

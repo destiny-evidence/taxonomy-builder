@@ -2,7 +2,7 @@ import { useSignal } from "@preact/signals";
 import { isAuthenticated } from "../../state/auth";
 import { currentEntityFeedback } from "../../state/feedback";
 import { selectedVersion } from "../../state/vocabulary";
-import { login } from "../../api/auth";
+import { login, register } from "../../api/auth";
 import { FeedbackCard } from "./FeedbackCard";
 import { FeedbackForm } from "./FeedbackForm";
 import "./FeedbackSection.css";
@@ -29,9 +29,22 @@ export function FeedbackSection({
         <div class="feedback-section__sign-in">
           <span
             class="feedback-section__sign-in-link"
+            role="link"
+            tabIndex={0}
             onClick={login}
+            onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") login(); }}
           >
             Sign in
+          </span>{" "}
+          or{" "}
+          <span
+            class="feedback-section__sign-in-link"
+            role="link"
+            tabIndex={0}
+            onClick={register}
+            onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter") register(); }}
+          >
+            create an account
           </span>{" "}
           to provide feedback
         </div>

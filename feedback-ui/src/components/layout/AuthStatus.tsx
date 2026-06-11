@@ -1,5 +1,5 @@
 import { isAuthenticated, userDisplayName } from "../../state/auth";
-import { login, logout } from "../../api/auth";
+import { login, logout, register } from "../../api/auth";
 import "./AuthStatus.css";
 
 export function AuthStatus() {
@@ -15,8 +15,13 @@ export function AuthStatus() {
   }
 
   return (
-    <button class="auth-status__btn" onClick={login}>
-      Sign in
-    </button>
+    <div class="auth-status">
+      <button class="auth-status__btn" onClick={login}>
+        Sign in
+      </button>
+      <button class="auth-status__link" onClick={register}>
+        Create account
+      </button>
+    </div>
   );
 }
