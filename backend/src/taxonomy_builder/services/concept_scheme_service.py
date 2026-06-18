@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,14 +64,15 @@ class ConceptSchemeService:
         return project
 
     async def list_schemes_for_project(self, project_id: UUID) -> list[ConceptScheme]:
-        """List all concept schemes for a project, ordered by title."""
+        """List all concept schemes for a project, ordered by display position."""
         # Verify project exists
         await self._get_project(project_id)
 
         result = await self.db.execute(
             select(ConceptScheme)
             .where(ConceptScheme.project_id == project_id)
-            .order_by(ConceptScheme.title)
+            # title is a stable tiebreaker for any equal positions (e.g. legacy rows)
+            .order_by(ConceptScheme.position, ConceptScheme.title)
         )
         return list(result.scalars().all())
 
@@ -82,11 +83,20 @@ class ConceptSchemeService:
         # Verify project exists
         await self._get_project(project_id)
 
+        # Append to the end of the project's display order.
+        max_position = await self.db.scalar(
+            select(func.max(ConceptScheme.position)).where(
+                ConceptScheme.project_id == project_id
+            )
+        )
+        next_position = 0 if max_position is None else max_position + 1
+
         scheme = ConceptScheme(
             project_id=project_id,
             title=scheme_in.title,
             description=scheme_in.description,
             uri=scheme_in.uri,
+            position=next_position,
         )
         self.db.add(scheme)
         try:
@@ -166,6 +176,7 @@ class ConceptSchemeService:
         scheme = await self.get_scheme(scheme_id)
         project_id = scheme.project_id
         scheme_title = scheme.title
+        deleted_position = scheme.position
 
         # Capture before state before deletion
         before_state = self._tracker.serialize_scheme(scheme)
@@ -187,3 +198,61 @@ class ConceptSchemeService:
         except IntegrityError:
             await self.db.rollback()
             raise SchemeReferencedByPropertyError(scheme_id, scheme_title)
+
+        # Close the gap left in the project's display order.
+        await self.db.execute(
+            update(ConceptScheme)
+            .where(
+                ConceptScheme.project_id == project_id,
+                ConceptScheme.position > deleted_position,
+            )
+            .values(position=ConceptScheme.position - 1)
+        )
+
+    async def reorder_scheme(self, scheme_id: UUID, new_position: int) -> ConceptScheme:
+        """Move a scheme to a new display position within its project.
+
+        Positions are kept as a gapless 0..n-1 sequence: only the schemes
+        between the old and new position are shifted by one. The target index
+        is clamped to the valid range.
+        """
+        scheme = await self.get_scheme(scheme_id)
+        project_id = scheme.project_id
+        old_position = scheme.position
+
+        count = await self.db.scalar(
+            select(func.count())
+            .select_from(ConceptScheme)
+            .where(ConceptScheme.project_id == project_id)
+        )
+        target = max(0, min(new_position, (count or 1) - 1))
+        if target == old_position:
+            return scheme
+
+        if target > old_position:
+            # Moving down: shift the schemes in (old, target] up by one.
+            await self.db.execute(
+                update(ConceptScheme)
+                .where(
+                    ConceptScheme.project_id == project_id,
+                    ConceptScheme.position > old_position,
+                    ConceptScheme.position <= target,
+                )
+                .values(position=ConceptScheme.position - 1)
+            )
+        else:
+            # Moving up: shift the schemes in [target, old) down by one.
+            await self.db.execute(
+                update(ConceptScheme)
+                .where(
+                    ConceptScheme.project_id == project_id,
+                    ConceptScheme.position >= target,
+                    ConceptScheme.position < old_position,
+                )
+                .values(position=ConceptScheme.position + 1)
+            )
+
+        scheme.position = target
+        await self.db.flush()
+        await self.db.refresh(scheme)
+        return scheme
