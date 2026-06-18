@@ -40,6 +40,7 @@ export interface ConceptScheme {
   title: string;
   description: string | null;
   uri: string | null;
+  position: number;
   created_at: string;
   updated_at: string;
 }
