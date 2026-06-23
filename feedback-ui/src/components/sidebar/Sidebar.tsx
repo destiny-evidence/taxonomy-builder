@@ -26,6 +26,11 @@ export function Sidebar() {
   }
 
   const hasSchemes = vocab.schemes.length > 0;
+  // Display in user-defined order. Stable sort keeps array order for legacy
+  // artifacts where position is absent (all default to 0).
+  const schemes = [...vocab.schemes].sort(
+    (a, b) => (a.position ?? 0) - (b.position ?? 0)
+  );
 
   return (
     <nav class="sidebar" aria-label="Vocabulary navigation">
@@ -34,7 +39,7 @@ export function Sidebar() {
         <div class="sidebar__group">
           <div class="sidebar__group-header">Concept Schemes</div>
           <div class="sidebar__group-body">
-            {vocab.schemes.map((scheme) => (
+            {schemes.map((scheme) => (
               <SchemeSection key={scheme.id} scheme={scheme} />
             ))}
           </div>

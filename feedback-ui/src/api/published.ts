@@ -64,6 +64,9 @@ export interface VocabScheme {
   title: string;
   description: string | null;
   uri: string;
+  // Zero-based display order within the project. Optional for artifacts
+  // published before scheme ordering was introduced.
+  position?: number;
   top_concepts: string[];
   concepts: Record<string, VocabConcept>;
 }
