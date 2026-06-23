@@ -32,7 +32,10 @@ class ReaderFileService:
         """Render a vocabulary.json from a PublishedVersion."""
         snapshot = version.snapshot_vocabulary
         schemes = []
-        for scheme in snapshot.concept_schemes:
+        # Emit in user-defined display order. Snapshots captured before ordering
+        # existed all share position 0; sorted() is stable so their array order
+        # is preserved.
+        for scheme in sorted(snapshot.concept_schemes, key=lambda s: s.position):
             concepts_dict = {}
             top_concepts: list[str] = []
             for concept in scheme.concepts:
@@ -57,6 +60,7 @@ class ReaderFileService:
                     "title": scheme.title,
                     "description": scheme.description,
                     "uri": scheme.uri,
+                    "position": scheme.position,
                     "top_concepts": top_concepts,
                     "concepts": concepts_dict,
                 }

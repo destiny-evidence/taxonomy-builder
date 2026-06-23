@@ -6,7 +6,7 @@ from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import SKOS
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.class_restriction import ClassRestriction
@@ -642,6 +642,14 @@ class SKOSImportService:
         total_concepts = 0
         total_relationships = 0
 
+        # Append imported schemes after any existing ones in display order.
+        max_position = await self.db.scalar(
+            select(func.max(ConceptScheme.position)).where(
+                ConceptScheme.project_id == project_id
+            )
+        )
+        next_position = 0 if max_position is None else max_position + 1
+
         for scheme_uri in schemes:
             if str(scheme_uri) in scheme_uri_to_id:
                 continue
@@ -656,7 +664,9 @@ class SKOSImportService:
                 title=title,
                 description=description,
                 uri=str(scheme_uri),
+                position=next_position,
             )
+            next_position += 1
             self.db.add(scheme)
             await self.db.flush()
             await self.db.refresh(scheme)

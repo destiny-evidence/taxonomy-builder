@@ -18,7 +18,19 @@ class ConceptScheme(Base):
     """A SKOS concept scheme within a project."""
 
     __tablename__ = "concept_schemes"
-    __table_args__ = (UniqueConstraint("project_id", "title", name="uq_scheme_title_per_project"),)
+    __table_args__ = (
+        UniqueConstraint("project_id", "title", name="uq_scheme_title_per_project"),
+        # Deferred so reorder's row-shuffling UPDATEs (which transiently produce
+        # duplicate positions) are only validated at COMMIT, when the sequence is
+        # gapless again. Guarantees no two schemes in a project share a position.
+        UniqueConstraint(
+            "project_id",
+            "position",
+            name="uq_scheme_position_per_project",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))

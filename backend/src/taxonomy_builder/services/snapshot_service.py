@@ -363,7 +363,8 @@ def compute_diff(
                 changes=changes,
             )
             for prev_scheme, curr_scheme, _, _ in modified_schemes
-            if (changes := _field_changes(prev_scheme, curr_scheme, {"id", "concepts"}))
+            # position is display-ordering metadata; reordering shouldn't flag schemes as modified
+            if (changes := _field_changes(prev_scheme, curr_scheme, {"id", "concepts", "position"}))
         ]
         # Modified concepts in existing schemes
         + [

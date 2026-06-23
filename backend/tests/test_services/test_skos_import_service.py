@@ -389,6 +389,48 @@ async def test_execute_multiple_schemes(
     ).scalars().all()
     assert len(schemes) == 2
 
+
+@pytest.mark.asyncio
+async def test_execute_assigns_sequential_positions(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Imported schemes get distinct, sequential positions (no duplicate zeros)."""
+    await import_service.execute(project.id, MULTI_SCHEME_TTL, "test.ttl")
+
+    schemes = (
+        await db_session.execute(
+            select(ConceptScheme).where(ConceptScheme.project_id == project.id)
+        )
+    ).scalars().all()
+    positions = sorted(s.position for s in schemes)
+    assert positions == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_execute_appends_positions_after_existing(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """Imported schemes are appended after existing schemes in display order."""
+    existing = ConceptScheme(
+        project_id=project.id,
+        title="Existing",
+        uri="http://example.org/existing",
+        position=0,
+    )
+    db_session.add(existing)
+    await db_session.flush()
+
+    await import_service.execute(project.id, MULTI_SCHEME_TTL, "test.ttl")
+
+    schemes = (
+        await db_session.execute(
+            select(ConceptScheme).where(ConceptScheme.project_id == project.id)
+        )
+    ).scalars().all()
+    positions = sorted(s.position for s in schemes)
+    assert positions == [0, 1, 2]
+
+
 @pytest.mark.asyncio
 async def test_execute_scheme_title_conflict_auto_rename(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project

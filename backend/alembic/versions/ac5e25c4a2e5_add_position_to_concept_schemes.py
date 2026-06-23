@@ -38,8 +38,23 @@ def upgrade() -> None:
         WHERE cs.id = sub.id
         """
     )
+    # Guarantee positions are unique within a project. Deferred so reorder's
+    # row-shuffling UPDATEs (which transiently duplicate positions) are only
+    # validated at COMMIT, when the sequence is gapless again. The backfill
+    # above is gapless, so this is safe to add immediately.
+    op.create_unique_constraint(
+        "uq_scheme_position_per_project",
+        "concept_schemes",
+        ["project_id", "position"],
+        deferrable=True,
+        initially="DEFERRED",
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    # The constraint is dropped automatically with the column, but be explicit.
+    op.drop_constraint(
+        "uq_scheme_position_per_project", "concept_schemes", type_="unique"
+    )
     op.drop_column("concept_schemes", "position")

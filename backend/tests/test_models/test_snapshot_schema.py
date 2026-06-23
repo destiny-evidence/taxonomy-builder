@@ -78,6 +78,15 @@ class TestSnapshotScheme:
         assert len(s.concepts) == 1
         assert s.concepts[0].pref_label == "Concept One"
 
+    def test_position_captured(self) -> None:
+        s = SnapshotScheme(**_scheme(position=3, concepts=[_concept()]))
+        assert s.position == 3
+
+    def test_position_defaults_for_legacy_snapshots(self) -> None:
+        """Snapshots stored before ordering existed have no position; default to 0."""
+        s = SnapshotScheme(**_scheme(concepts=[_concept()]))  # no position key
+        assert s.position == 0
+
 
 class TestSnapshotProperty:
     def test_with_range_scheme(self) -> None:
