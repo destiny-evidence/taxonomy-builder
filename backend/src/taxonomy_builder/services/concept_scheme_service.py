@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,16 @@ class SchemeTitleExistsError(Exception):
         self.title = title
         self.project_id = project_id
         super().__init__(f"Concept scheme with title '{title}' already exists in project")
+
+
+class SchemePositionConflictError(Exception):
+    """Raised when a concurrent reorder collides on a scheme position."""
+
+    def __init__(self, scheme_id: UUID) -> None:
+        self.scheme_id = scheme_id
+        super().__init__(
+            "Scheme order changed during reordering; please retry"
+        )
 
 
 class ProjectNotFoundError(Exception):
@@ -254,6 +264,21 @@ class ConceptSchemeService:
             )
 
         scheme.position = target
-        await self.db.flush()
+        constraint = "uq_scheme_position_per_project"
+        try:
+            await self.db.flush()
+            # The sequence is gapless and unique again at this point. Force the
+            # deferred uniqueness check now so a concurrent reorder that landed
+            # a colliding position surfaces here (catchable) rather than at the
+            # COMMIT that happens outside the request handler.
+            await self.db.execute(text(f"SET CONSTRAINTS {constraint} IMMEDIATE"))
+        except IntegrityError:
+            await self.db.rollback()
+            raise SchemePositionConflictError(scheme_id)
+
+        # Restore deferred checking so any later work in this transaction (e.g.
+        # a second reorder, whose shuffle transiently duplicates positions) is
+        # validated at COMMIT rather than mid-statement.
+        await self.db.execute(text(f"SET CONSTRAINTS {constraint} DEFERRED"))
         await self.db.refresh(scheme)
         return scheme

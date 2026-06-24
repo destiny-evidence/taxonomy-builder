@@ -413,6 +413,12 @@ async def test_reorder_scheme_is_project_scoped(
         f"/api/schemes/{b['id']}/position", json={"position": 0}
     )
 
+    # The reorder took effect within its own project: B moved ahead of A.
+    own_data = (
+        await authenticated_client.get(f"/api/projects/{project.id}/schemes")
+    ).json()
+    assert [s["title"] for s in own_data] == ["B", "A"]
+
     # Other project's scheme keeps its position.
     other_data = (
         await authenticated_client.get(f"/api/projects/{other.id}/schemes")

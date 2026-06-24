@@ -18,6 +18,7 @@ from taxonomy_builder.services.concept_scheme_service import (
     ConceptSchemeService,
     ProjectNotFoundError,
     SchemeNotFoundError,
+    SchemePositionConflictError,
     SchemeReferencedByPropertyError,
     SchemeTitleExistsError,
 )
@@ -106,6 +107,8 @@ async def reorder_scheme(
         return await service.reorder_scheme(scheme_id, position_in.position)
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except SchemePositionConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @schemes_router.delete("/{scheme_id}", status_code=status.HTTP_204_NO_CONTENT)

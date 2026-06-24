@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.concept_scheme import ConceptScheme
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.schemas.concept_scheme import ConceptSchemeCreate
-from taxonomy_builder.services.concept_scheme_service import ConceptSchemeService
+from taxonomy_builder.services.concept_scheme_service import (
+    ConceptSchemeService,
+    SchemePositionConflictError,
+)
 
 
 @pytest.fixture
@@ -82,3 +85,43 @@ async def test_duplicate_positions_rejected_at_check(
         await db_session.execute(
             text("SET CONSTRAINTS uq_scheme_position_per_project IMMEDIATE")
         )
+
+
+@pytest.mark.asyncio
+async def test_reorder_surfaces_position_conflict(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """A reorder whose result collides on a position raises a catchable conflict.
+
+    This mimics a concurrent reorder: the table starts with a duplicated
+    position (tolerated under deferral, as the racing transaction's shuffle
+    would leave it), and a reorder that preserves the collision must surface
+    ``SchemePositionConflictError`` rather than escaping as a 500 at COMMIT.
+    """
+    db_session.add_all(
+        [
+            ConceptScheme(
+                project_id=project.id, title="A", uri="http://example.org/a", position=0
+            ),
+            ConceptScheme(
+                project_id=project.id, title="B", uri="http://example.org/b", position=1
+            ),
+            ConceptScheme(
+                project_id=project.id, title="C", uri="http://example.org/c", position=1
+            ),
+        ]
+    )
+    await db_session.flush()  # deferred: the duplicate is tolerated here
+    a = (
+        await db_session.execute(
+            select(ConceptScheme).where(
+                ConceptScheme.project_id == project.id, ConceptScheme.title == "A"
+            )
+        )
+    ).scalar_one()
+
+    service = ConceptSchemeService(db_session)
+    with pytest.raises(SchemePositionConflictError):
+        # Moving A to the end shifts B and C onto the same position, leaving a
+        # collision the immediate check rejects.
+        await service.reorder_scheme(a.id, 2)
