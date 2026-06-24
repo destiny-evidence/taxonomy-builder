@@ -225,7 +225,8 @@ class ConceptSchemeService:
             .select_from(ConceptScheme)
             .where(ConceptScheme.project_id == project_id)
         )
-        target = max(0, min(new_position, (count or 1) - 1))
+        # The scheme exists, so the project has at least one scheme (count >= 1).
+        target = max(0, min(new_position, count - 1))
         if target == old_position:
             return scheme
 
