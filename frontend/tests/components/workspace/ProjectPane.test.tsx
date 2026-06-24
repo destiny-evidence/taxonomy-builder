@@ -198,12 +198,5 @@ describe("ProjectPane", () => {
       renderPane();
       expect(screen.getAllByTitle("Drag to reorder")).toHaveLength(2);
     });
-
-    it("hides drag handles in read-only mode but still lists schemes", () => {
-      renderPane({ readOnly: true });
-      expect(screen.queryByTitle("Drag to reorder")).toBeNull();
-      expect(screen.getByText("Countries")).toBeInTheDocument();
-      expect(screen.getByText("Languages")).toBeInTheDocument();
-    });
   });
 });

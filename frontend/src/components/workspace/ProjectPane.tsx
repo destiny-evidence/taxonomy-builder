@@ -9,7 +9,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "../common/Button";
 import { currentProject } from "../../state/projects";
-import { schemes, reorderSchemes } from "../../state/schemes";
+import { schemes, schemesError, reorderSchemes } from "../../state/schemes";
+import { ApiError } from "../../api/client";
 import { ontologyClasses, selectedClassUri } from "../../state/classes";
 import { selectionMode } from "../../state/workspace";
 import { feedbackManagerApi } from "../../api/feedback";
@@ -71,7 +72,6 @@ interface ProjectPaneProps {
   onImport: () => void;
   onPublish: () => void;
   onVersions: () => void;
-  readOnly?: boolean;
 }
 
 export function ProjectPane({
@@ -84,7 +84,6 @@ export function ProjectPane({
   onImport,
   onPublish,
   onVersions,
-  readOnly = false,
 }: ProjectPaneProps) {
   const projectSchemes = schemes.value.filter(
     (s) => s.project_id === projectId,
@@ -122,6 +121,22 @@ export function ProjectPane({
     try {
       await schemesApi.setPosition(String(active.id), result.newIndex);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // Another user reordered concurrently. Replace our stale view with the
+        // server's authoritative order rather than rolling back to a guess.
+        try {
+          const latest = await schemesApi.listForProject(projectId);
+          schemes.value = [
+            ...schemes.value.filter((s) => s.project_id !== projectId),
+            ...latest,
+          ];
+        } catch {
+          schemes.value = previous; // rollback if the refetch also fails
+        }
+        schemesError.value =
+          "The scheme order changed — your move wasn't applied. Showing the latest order.";
+        return;
+      }
       console.error("Failed to reorder scheme:", error);
       schemes.value = previous; // rollback
     }
@@ -194,18 +209,6 @@ export function ProjectPane({
           <h3 class="project-pane__section-title">Schemes</h3>
           {projectSchemes.length === 0 ? (
             <div class="project-pane__empty">No schemes in this project</div>
-          ) : readOnly ? (
-            <div class="project-pane__list">
-              {projectSchemes.map((scheme) => (
-                <button
-                  key={scheme.id}
-                  class={`project-pane__item ${isSchemeSelected(scheme.id) ? "project-pane__item--selected" : ""}`}
-                  onClick={() => onSchemeSelect(scheme.id)}
-                >
-                  {scheme.title}
-                </button>
-              ))}
-            </div>
           ) : (
             <DndContext onDragEnd={handleSchemeDragEnd}>
               <SortableContext
