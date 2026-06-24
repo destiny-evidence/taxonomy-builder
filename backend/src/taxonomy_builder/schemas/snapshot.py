@@ -77,6 +77,8 @@ class SnapshotScheme(BaseModel):
     title: str
     description: str | None = None
     uri: str
+    # Default 0 so snapshots stored before ordering was introduced still deserialize.
+    position: int = 0
     concepts: list[SnapshotConcept] = Field(default_factory=list)
 
     @field_validator("uri", mode="before")
@@ -122,6 +124,7 @@ class SnapshotScheme(BaseModel):
             title=scheme.title,
             description=scheme.description,
             uri=scheme.uri,
+            position=scheme.position,
             concepts=[SnapshotConcept.from_concept(c) for c in scheme.concepts],
         )
 

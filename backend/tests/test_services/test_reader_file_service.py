@@ -322,6 +322,46 @@ class TestRenderVocabulary:
         assert scheme["description"] == "Color vocab."
         assert scheme["uri"] == "http://example.org/colors"
 
+    def test_scheme_position_emitted(self):
+        version = _make_version()
+        result = json.loads(ReaderFileService.render_vocabulary(version))
+        # Default helper snapshot omits position; SnapshotScheme defaults it to 0.
+        assert result["schemes"][0]["position"] == 0
+
+    def test_schemes_rendered_in_position_order(self):
+        snap = _make_snapshot()
+        # Add a second scheme that sorts first by position.
+        snap["concept_schemes"][0]["position"] = 1
+        snap["concept_schemes"].append(
+            {
+                "id": str(UUID("01965a00-0000-7000-8000-000000000099")),
+                "title": "Shapes",
+                "description": None,
+                "uri": "http://example.org/shapes",
+                "position": 0,
+                "concepts": [
+                    {
+                        "id": str(UUID("01965a00-0000-7000-8000-0000000000aa")),
+                        "pref_label": "Circle",
+                        "identifier": "circle",
+                        "uri": "http://example.org/shapes/circle",
+                        "definition": None,
+                        "scope_note": None,
+                        "alt_labels": [],
+                        "broader_ids": [],
+                        "related_ids": [],
+                        "concept_type_uris": [],
+                    }
+                ],
+            }
+        )
+        version = _make_version(snapshot=snap)
+        result = json.loads(ReaderFileService.render_vocabulary(version))
+        titles = [s["title"] for s in result["schemes"]]
+        positions = [s["position"] for s in result["schemes"]]
+        assert titles == ["Shapes", "Colors"]
+        assert positions == [0, 1]
+
 
 # ===================================================================
 # render_project_index

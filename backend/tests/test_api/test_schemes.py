@@ -1,6 +1,6 @@
 """Tests for ConceptScheme API endpoints."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -250,6 +250,182 @@ async def test_delete_scheme_not_found(authenticated_client: AsyncClient) -> Non
     """Test deleting a non-existent scheme."""
     response = await authenticated_client.delete(f"/api/schemes/{uuid4()}")
     assert response.status_code == 404
+
+
+# Ordering / position tests
+
+
+async def _create_scheme(client: AsyncClient, project_id: UUID, title: str) -> dict:
+    """Create a scheme via the API and return its JSON body."""
+    response = await client.post(
+        f"/api/projects/{project_id}/schemes",
+        json={"title": title},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+@pytest.mark.asyncio
+async def test_create_scheme_appends_position(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """New schemes get sequential positions, appended to the end."""
+    a = await _create_scheme(authenticated_client, project.id, "A")
+    b = await _create_scheme(authenticated_client, project.id, "B")
+    c = await _create_scheme(authenticated_client, project.id, "C")
+
+    assert a["position"] == 0
+    assert b["position"] == 1
+    assert c["position"] == 2
+
+
+@pytest.mark.asyncio
+async def test_list_schemes_ordered_by_position(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """Listing returns schemes in position order, not alphabetical."""
+    # Create out of alphabetical order to prove position drives ordering.
+    await _create_scheme(authenticated_client, project.id, "Zebra")
+    await _create_scheme(authenticated_client, project.id, "Apple")
+
+    response = await authenticated_client.get(f"/api/projects/{project.id}/schemes")
+    assert response.status_code == 200
+    data = response.json()
+    assert [s["title"] for s in data] == ["Zebra", "Apple"]
+    assert [s["position"] for s in data] == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_reorder_scheme_move_down(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """Moving a scheme to a higher index shifts the in-between schemes up."""
+    a = await _create_scheme(authenticated_client, project.id, "A")
+    await _create_scheme(authenticated_client, project.id, "B")
+    await _create_scheme(authenticated_client, project.id, "C")
+
+    response = await authenticated_client.put(
+        f"/api/schemes/{a['id']}/position", json={"position": 2}
+    )
+    assert response.status_code == 200
+    assert response.json()["position"] == 2
+
+    data = (await authenticated_client.get(f"/api/projects/{project.id}/schemes")).json()
+    assert [s["title"] for s in data] == ["B", "C", "A"]
+    assert [s["position"] for s in data] == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_reorder_scheme_move_up(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """Moving a scheme to a lower index shifts the in-between schemes down."""
+    await _create_scheme(authenticated_client, project.id, "A")
+    await _create_scheme(authenticated_client, project.id, "B")
+    c = await _create_scheme(authenticated_client, project.id, "C")
+
+    response = await authenticated_client.put(
+        f"/api/schemes/{c['id']}/position", json={"position": 0}
+    )
+    assert response.status_code == 200
+    assert response.json()["position"] == 0
+
+    data = (await authenticated_client.get(f"/api/projects/{project.id}/schemes")).json()
+    assert [s["title"] for s in data] == ["C", "A", "B"]
+    assert [s["position"] for s in data] == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_reorder_scheme_clamps_out_of_range(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """An out-of-range target index clamps to the last position without gaps."""
+    a = await _create_scheme(authenticated_client, project.id, "A")
+    await _create_scheme(authenticated_client, project.id, "B")
+    await _create_scheme(authenticated_client, project.id, "C")
+
+    response = await authenticated_client.put(
+        f"/api/schemes/{a['id']}/position", json={"position": 99}
+    )
+    assert response.status_code == 200
+
+    data = (await authenticated_client.get(f"/api/projects/{project.id}/schemes")).json()
+    assert [s["title"] for s in data] == ["B", "C", "A"]
+    assert [s["position"] for s in data] == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_delete_scheme_closes_position_gap(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """Deleting a scheme re-closes the position sequence."""
+    await _create_scheme(authenticated_client, project.id, "A")
+    b = await _create_scheme(authenticated_client, project.id, "B")
+    await _create_scheme(authenticated_client, project.id, "C")
+
+    response = await authenticated_client.delete(f"/api/schemes/{b['id']}")
+    assert response.status_code == 204
+
+    data = (await authenticated_client.get(f"/api/projects/{project.id}/schemes")).json()
+    assert [s["title"] for s in data] == ["A", "C"]
+    assert [s["position"] for s in data] == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_reorder_scheme_not_found(authenticated_client: AsyncClient) -> None:
+    """Reordering a non-existent scheme returns 404."""
+    response = await authenticated_client.put(
+        f"/api/schemes/{uuid4()}/position", json={"position": 0}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reorder_scheme_negative_position(
+    authenticated_client: AsyncClient, project: Project
+) -> None:
+    """A negative target index is rejected."""
+    a = await _create_scheme(authenticated_client, project.id, "A")
+    response = await authenticated_client.put(
+        f"/api/schemes/{a['id']}/position", json={"position": -1}
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_reorder_scheme_is_project_scoped(
+    authenticated_client: AsyncClient, db_session: AsyncSession, project: Project
+) -> None:
+    """Reordering within one project does not affect another project's schemes."""
+    other = Project(
+        name="Other Project",
+        namespace="https://example.org/other/",
+        identifier_prefix="OTH",
+    )
+    db_session.add(other)
+    await db_session.flush()
+
+    await _create_scheme(authenticated_client, project.id, "A")
+    b = await _create_scheme(authenticated_client, project.id, "B")
+    other_x = await _create_scheme(authenticated_client, other.id, "X")
+
+    await authenticated_client.put(
+        f"/api/schemes/{b['id']}/position", json={"position": 0}
+    )
+
+    # The reorder took effect within its own project: B moved ahead of A.
+    own_data = (
+        await authenticated_client.get(f"/api/projects/{project.id}/schemes")
+    ).json()
+    assert [s["title"] for s in own_data] == ["B", "A"]
+
+    # Other project's scheme keeps its position.
+    other_data = (
+        await authenticated_client.get(f"/api/projects/{other.id}/schemes")
+    ).json()
+    assert [s["title"] for s in other_data] == ["X"]
+    assert other_data[0]["position"] == 0
+    assert other_x["position"] == 0
 
 
 @pytest.mark.asyncio

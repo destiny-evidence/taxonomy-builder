@@ -80,7 +80,7 @@
       "description": "Concept schemes with their concepts. Each scheme owns a flat concept map keyed by UUID.",
       "items": {
         "type": "object",
-        "required": ["id", "title", "uri", "top_concepts", "concepts"],
+        "required": ["id", "title", "uri", "position", "top_concepts", "concepts"],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -100,6 +100,11 @@
             "type": "string",
             "format": "uri",
             "description": "SKOS ConceptScheme URI."
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Zero-based display order of this scheme within the project. Readers should sort schemes by this value."
           },
           "top_concepts": {
             "type": "array",

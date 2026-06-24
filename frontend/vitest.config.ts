@@ -13,6 +13,10 @@ export default defineConfig({
       "react/jsx-runtime": resolve(__dirname, "node_modules/preact/jsx-runtime"),
       // Mock @dnd-kit in tests to avoid React compatibility issues
       "@dnd-kit/core": resolve(__dirname, "tests/__mocks__/@dnd-kit/core.tsx"),
+      "@dnd-kit/sortable": resolve(
+        __dirname,
+        "tests/__mocks__/@dnd-kit/sortable.tsx",
+      ),
     },
     dedupe: ["preact"],
   },
