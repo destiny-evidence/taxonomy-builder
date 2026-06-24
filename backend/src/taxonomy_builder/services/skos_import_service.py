@@ -650,10 +650,13 @@ class SKOSImportService:
         )
         next_position = 0 if max_position is None else max_position + 1
 
-        for scheme_uri in schemes:
-            if str(scheme_uri) in scheme_uri_to_id:
-                continue
+        new_scheme_uris = [
+            scheme_uri
+            for scheme_uri in schemes
+            if str(scheme_uri) not in scheme_uri_to_id
+        ]
 
+        for position, scheme_uri in enumerate(new_scheme_uris, start=next_position):
             concepts = concepts_by_scheme[scheme_uri]
             base_title = get_scheme_title(g, scheme_uri)
             title = await self._get_unique_title(project_id, base_title)
@@ -664,9 +667,8 @@ class SKOSImportService:
                 title=title,
                 description=description,
                 uri=str(scheme_uri),
-                position=next_position,
+                position=position,
             )
-            next_position += 1
             self.db.add(scheme)
             await self.db.flush()
             await self.db.refresh(scheme)
