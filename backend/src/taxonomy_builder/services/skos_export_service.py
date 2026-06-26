@@ -62,6 +62,19 @@ class SchemeNotFoundError(Exception):
 DEFAULT_BASE_URI = "http://example.org/schemes"
 
 
+def _allow_multiple_predicate_for_property(property_uri: str) -> URIRef:
+    """Build the allowMultiple predicate in the property's own namespace.
+
+    Splits the property URI at its last '#' or '/' so the annotation is
+    vocabulary-local (e.g. evrepo:hasFinding -> evrepo:allowMultiple), rather
+    than forcing the project namespace onto a foreign-namespace property.
+    """
+    split_at = max(property_uri.rfind("#"), property_uri.rfind("/"))
+    if split_at == -1:
+        return URIRef(f"{property_uri}/allowMultiple")
+    return URIRef(f"{property_uri[: split_at + 1]}allowMultiple")
+
+
 class SKOSExportService:
     """Service for exporting concept schemes as SKOS RDF."""
 
@@ -282,6 +295,10 @@ class SKOSExportService:
 
         if snapshot_property.description:
             g.add((prop_uri, DCTERMS.description, Literal(snapshot_property.description)))
+
+        if snapshot_property.cardinality == "multiple":
+            predicate = _allow_multiple_predicate_for_property(snapshot_property.uri)
+            g.add((prop_uri, predicate, Literal(True)))
 
     def _add_class_to_graph(self, g: Graph, snapshot_class: SnapshotClass) -> None:
         """Add an OWL class to an RDF graph."""

@@ -5,9 +5,11 @@ from datetime import datetime
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.property import Property
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
@@ -165,3 +167,74 @@ async def test_round_trip_restrictions_and_dual_typing(
     # Concept metadata survived
     assert (primary, SKOS.prefLabel, Literal("Primary")) in g
     assert (primary, SKOS.definition, Literal("Primary education level")) in g
+
+
+CARDINALITY_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:allowMultiple a owl:AnnotationProperty .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" .
+
+ex:hasAppliedConcept a owl:DatatypeProperty ;
+    rdfs:label "has applied concept" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:string ;
+    ex:allowMultiple true .
+"""
+
+
+@pytest.mark.asyncio
+async def test_round_trip_preserves_multiple_cardinality(
+    db_session: AsyncSession,
+    project: Project,
+):
+    """import (allowMultiple) → export → re-import keeps a property's cardinality 'multiple'."""
+    # 1. Import into project A
+    import_service = SKOSImportService(db_session, project_service=ProjectService(db_session))
+    await import_service.execute(project.id, CARDINALITY_TTL, "test.ttl")
+
+    # 2. Snapshot + export project A
+    db_session.expunge_all()
+    project_service = ProjectService(db_session)
+    concept_service = ConceptService(db_session)
+    snapshot_service = SnapshotService(db_session, project_service, concept_service)
+    snapshot = await snapshot_service.build_snapshot(project.id)
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+    export_service = SKOSExportService(db_session)
+    turtle_output = await export_service.export_published_version(pv, "turtle")
+
+    # 3. Re-import the exported TTL into a fresh project B
+    project_b = Project(
+        name="Round Trip B",
+        namespace="http://example.org/b/",
+        identifier_prefix="TSU",
+    )
+    db_session.add(project_b)
+    await db_session.flush()
+    await db_session.refresh(project_b)
+    reimport_service = SKOSImportService(db_session, project_service=ProjectService(db_session))
+    await reimport_service.execute(project_b.id, turtle_output.encode(), "reimport.ttl")
+
+    # 4. The re-imported property must still be 'multiple'
+    props = {
+        p.identifier: p
+        for p in (
+            await db_session.execute(select(Property).where(Property.project_id == project_b.id))
+        )
+        .scalars()
+        .all()
+    }
+    assert props["hasAppliedConcept"].cardinality == "multiple"

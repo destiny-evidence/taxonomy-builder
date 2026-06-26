@@ -1006,13 +1006,14 @@ def _make_published_snapshot(
     project: Project,
     properties: list[SnapshotProperty],
     classes: list[SnapshotClass] | None = None,
+    namespace: str = "http://example.org/",
 ) -> SnapshotVocabulary:
     """Helper: build a minimal SnapshotVocabulary with given properties."""
     return SnapshotVocabulary.model_construct(
         project=SnapshotProjectMetadata.model_construct(
             id=project.id,
             name="Test",
-            namespace="http://example.org/",
+            namespace=namespace,
         ),
         concept_schemes=[
             SnapshotScheme.model_construct(
@@ -1139,6 +1140,199 @@ async def test_export_multi_domain_union(
         "http://example.org/Finding",
         "http://example.org/Study",
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("cardinality", "expect_triple"),
+    [("multiple", True), ("single", False)],
+)
+async def test_export_property_cardinality_emits_allow_multiple(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+    cardinality: str,
+    expect_triple: bool,
+) -> None:
+    """Multiple-cardinality emits an allowMultiple triple; single emits none."""
+    from rdflib import Literal, URIRef
+
+    snap = _make_published_snapshot(
+        project,
+        [
+            SnapshotProperty.model_construct(
+                id=uuid4(),
+                identifier="hasAppliedConcept",
+                label="Has Applied Concept",
+                uri="http://example.org/hasAppliedConcept",
+                domain_class_uris=["http://example.org/Finding"],
+                range_datatype="xsd:string",
+                property_type="datatype",
+                cardinality=cardinality,
+                required=False,
+            ),
+        ],
+    )
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/hasAppliedConcept")
+    # Predicate is derived from the property's own namespace (here equal to the project namespace)
+    allow_multiple = URIRef("http://example.org/allowMultiple")
+
+    assert ((prop_uri, allow_multiple, Literal(True)) in g) is expect_triple
+    if not expect_triple:
+        # No allowMultiple annotation in any namespace when single
+        assert not any(str(p).endswith("allowMultiple") for p in g.predicates(prop_uri))
+
+
+@pytest.mark.asyncio
+async def test_export_cardinality_predicate_uses_property_namespace(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """allowMultiple lives in the property's own namespace, not the project's."""
+    from rdflib import Literal, URIRef
+
+    snap = _make_published_snapshot(
+        project,
+        [
+            SnapshotProperty.model_construct(
+                id=uuid4(),
+                identifier="hasFinding",
+                label="Has Finding",
+                uri="http://example.org/evrepo/hasFinding",
+                domain_class_uris=["http://example.org/evrepo/Finding"],
+                range_datatype="xsd:string",
+                property_type="datatype",
+                cardinality="multiple",
+                required=False,
+            ),
+        ],
+        namespace="http://example.org/esea/",
+    )
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/evrepo/hasFinding")
+    # Predicate is derived from the property's namespace (evrepo), not the project's (esea)
+    assert (prop_uri, URIRef("http://example.org/evrepo/allowMultiple"), Literal(True)) in g
+    assert (prop_uri, URIRef("http://example.org/esea/allowMultiple"), Literal(True)) not in g
+
+
+@pytest.mark.asyncio
+async def test_export_cardinality_predicate_hash_namespace(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """A '#'-fragment property namespace yields '<ns>#allowMultiple', not '<ns>#/allowMultiple'."""
+    from rdflib import Literal, URIRef
+
+    snap = _make_published_snapshot(
+        project,
+        [
+            SnapshotProperty.model_construct(
+                id=uuid4(),
+                identifier="studyDesign",
+                label="Study Design",
+                uri="http://example.org/vocab#studyDesign",
+                domain_class_uris=["http://example.org/vocab#Study"],
+                range_datatype="xsd:string",
+                property_type="datatype",
+                cardinality="multiple",
+                required=False,
+            ),
+        ],
+        namespace="http://example.org/vocab#",
+    )
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("http://example.org/vocab#studyDesign")
+    assert (prop_uri, URIRef("http://example.org/vocab#allowMultiple"), Literal(True)) in g
+    assert (
+        prop_uri,
+        URIRef("http://example.org/vocab#/allowMultiple"),
+        Literal(True),
+    ) not in g
+
+
+@pytest.mark.asyncio
+async def test_export_cardinality_predicate_separatorless_uri(
+    db_session: AsyncSession,
+    export_service: SKOSExportService,
+    project: Project,
+) -> None:
+    """A property URI with no '/' or '#' falls back to '<uri>/allowMultiple'."""
+    from rdflib import Literal, URIRef
+
+    snap = _make_published_snapshot(
+        project,
+        [
+            SnapshotProperty.model_construct(
+                id=uuid4(),
+                identifier="studyDesign",
+                label="Study Design",
+                uri="urn:studyDesign",
+                domain_class_uris=["urn:Study"],
+                range_datatype="xsd:string",
+                property_type="datatype",
+                cardinality="multiple",
+                required=False,
+            ),
+        ],
+    )
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snap.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+
+    result = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=result, format="turtle")
+
+    prop_uri = URIRef("urn:studyDesign")
+    assert (prop_uri, URIRef("urn:studyDesign/allowMultiple"), Literal(True)) in g
 
 
 @pytest.mark.asyncio
