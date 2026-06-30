@@ -26,6 +26,7 @@ const mockSchemes: ConceptScheme[] = [
     title: "Countries",
     description: null,
     uri: "http://example.org/countries",
+    position: 0,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -35,6 +36,7 @@ const mockSchemes: ConceptScheme[] = [
     title: "Languages",
     description: null,
     uri: "http://example.org/languages",
+    position: 1,
     created_at: "2024-01-02T00:00:00Z",
     updated_at: "2024-01-02T00:00:00Z",
   },
@@ -72,7 +74,9 @@ function renderPane(overrides: Partial<Parameters<typeof ProjectPane>[0]> = {}) 
 
 describe("ProjectPane", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    // clearAllMocks (not resetAllMocks) so the @dnd-kit mock implementations
+    // that the sortable scheme list depends on survive between tests.
+    vi.clearAllMocks();
     currentProject.value = mockProject;
     schemes.value = mockSchemes;
     selectionMode.value = null;
@@ -177,6 +181,22 @@ describe("ProjectPane", () => {
       const { props } = renderPane();
       fireEvent.click(screen.getByText("Import"));
       expect(props.onImport).toHaveBeenCalled();
+    });
+
+    it("renders schemes in their array (position) order", () => {
+      renderPane();
+      const items = screen
+        .getAllByRole("button")
+        .filter((b) => ["Countries", "Languages"].includes(b.textContent ?? ""));
+      expect(items.map((b) => b.textContent)).toEqual([
+        "Countries",
+        "Languages",
+      ]);
+    });
+
+    it("shows a drag handle per scheme for reordering", () => {
+      renderPane();
+      expect(screen.getAllByTitle("Drag to reorder")).toHaveLength(2);
     });
   });
 });

@@ -104,6 +104,7 @@ class TestConceptSchemeRead:
             title="Test Scheme",
             description="A description",
             uri="http://example.org/schemes/test",
+            position=0,
             created_at=now,
             updated_at=now,
         )
@@ -129,6 +130,7 @@ class TestConceptSchemeRead:
             title="Minimal",
             description=None,
             uri=None,
+            position=0,
             created_at=now,
             updated_at=now,
         )

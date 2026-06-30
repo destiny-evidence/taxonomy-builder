@@ -54,7 +54,11 @@ class Project(Base):
     )
 
     schemes: Mapped[list[ConceptScheme]] = relationship(
-        back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        # Keep schemes in user-defined display order; title is a tiebreaker for legacy rows.
+        order_by="ConceptScheme.position, ConceptScheme.title",
     )
     properties: Mapped[list[Property]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"

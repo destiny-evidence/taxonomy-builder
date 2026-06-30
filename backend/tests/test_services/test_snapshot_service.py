@@ -415,6 +415,29 @@ async def test_full_integration(db_session: AsyncSession, project: Project) -> N
 
 
 @pytest.mark.asyncio
+async def test_schemes_ordered_by_position(db_session: AsyncSession, project: Project) -> None:
+    """Snapshot schemes are captured in user-defined position order, not insertion order."""
+    # Insert out of order: position 2, then 0, then 1.
+    third = ConceptScheme(
+        project_id=project.id, title="Third", uri="http://example.org/3", position=2
+    )
+    first = ConceptScheme(
+        project_id=project.id, title="First", uri="http://example.org/1", position=0
+    )
+    second = ConceptScheme(
+        project_id=project.id, title="Second", uri="http://example.org/2", position=1
+    )
+    db_session.add_all([third, first, second])
+    await db_session.flush()
+
+    snapshot = await service(db_session).build_snapshot(project.id)
+
+    titles = [s.title for s in snapshot.concept_schemes]
+    assert titles == ["First", "Second", "Third"]
+    assert [s.position for s in snapshot.concept_schemes] == [0, 1, 2]
+
+
+@pytest.mark.asyncio
 async def test_snapshot_class_superclass_uris(
     db_session: AsyncSession, project: Project
 ) -> None:

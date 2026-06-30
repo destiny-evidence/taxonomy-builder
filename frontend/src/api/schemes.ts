@@ -92,6 +92,9 @@ export const schemesApi = {
   update: (id: string, data: ConceptSchemeUpdate) =>
     api.put<ConceptScheme>(`/schemes/${id}`, data),
 
+  setPosition: (id: string, position: number) =>
+    api.put<ConceptScheme>(`/schemes/${id}/position`, { position }),
+
   delete: (id: string) => api.delete(`/schemes/${id}`),
 
   exportScheme: (schemeId: string, format: ExportFormat) =>

@@ -46,5 +46,12 @@ class ConceptSchemeRead(BaseModel):
     title: str
     description: str | None
     uri: str | None
+    position: int
     created_at: datetime
     updated_at: datetime
+
+
+class SchemePositionUpdate(BaseModel):
+    """Request body for moving a scheme to a new display position."""
+
+    position: int = Field(..., ge=0, description="Target index within the project (0-based).")

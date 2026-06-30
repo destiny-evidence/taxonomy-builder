@@ -18,13 +18,27 @@ class ConceptScheme(Base):
     """A SKOS concept scheme within a project."""
 
     __tablename__ = "concept_schemes"
-    __table_args__ = (UniqueConstraint("project_id", "title", name="uq_scheme_title_per_project"),)
+    __table_args__ = (
+        UniqueConstraint("project_id", "title", name="uq_scheme_title_per_project"),
+        # Deferred so reorder's row-shuffling UPDATEs (which transiently produce
+        # duplicate positions) are only validated at COMMIT, when the sequence is
+        # gapless again. Guarantees no two schemes in a project share a position.
+        UniqueConstraint(
+            "project_id",
+            "position",
+            name="uq_scheme_position_per_project",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     uri: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    # Display order within the project, maintained as a gapless 0..n-1 sequence.
+    position: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 

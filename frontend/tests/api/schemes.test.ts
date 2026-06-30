@@ -48,6 +48,36 @@ describe("schemesApi.exportScheme", () => {
   });
 });
 
+describe("schemesApi.setPosition", () => {
+  const mockFetch = vi.fn();
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    global.fetch = mockFetch;
+    vi.mocked(getToken).mockResolvedValue("test-token");
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
+  it("PUTs the new position to the scheme position endpoint", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: "scheme-1", position: 2 }),
+    });
+
+    await schemesApi.setPosition("scheme-1", 2);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toBe("/api/schemes/scheme-1/position");
+    expect(options.method).toBe("PUT");
+    expect(JSON.parse(options.body)).toEqual({ position: 2 });
+  });
+});
+
 describe("schemesApi.previewImport", () => {
   const mockFetch = vi.fn();
   const originalFetch = global.fetch;

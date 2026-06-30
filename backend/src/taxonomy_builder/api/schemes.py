@@ -12,11 +12,13 @@ from taxonomy_builder.schemas.concept_scheme import (
     ConceptSchemeCreate,
     ConceptSchemeRead,
     ConceptSchemeUpdate,
+    SchemePositionUpdate,
 )
 from taxonomy_builder.services.concept_scheme_service import (
     ConceptSchemeService,
     ProjectNotFoundError,
     SchemeNotFoundError,
+    SchemePositionConflictError,
     SchemeReferencedByPropertyError,
     SchemeTitleExistsError,
 )
@@ -91,6 +93,21 @@ async def update_scheme(
     except SchemeNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except SchemeTitleExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@schemes_router.put("/{scheme_id}/position", response_model=ConceptSchemeRead)
+async def reorder_scheme(
+    scheme_id: UUID,
+    position_in: SchemePositionUpdate,
+    service: ConceptSchemeService = Depends(get_scheme_service),
+) -> ConceptScheme:
+    """Move a concept scheme to a new display position within its project."""
+    try:
+        return await service.reorder_scheme(scheme_id, position_in.position)
+    except SchemeNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except SchemePositionConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
