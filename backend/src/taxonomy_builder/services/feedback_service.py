@@ -5,8 +5,14 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from taxonomy_builder.models.feedback import EntityType, Feedback, FeedbackStatus
+from taxonomy_builder.models.feedback import (
+    EntityType,
+    Feedback,
+    FeedbackResponse,
+    FeedbackStatus,
+)
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.schemas.feedback import FeedbackCreate
 
@@ -109,10 +115,12 @@ class FeedbackService:
     async def get(self, feedback_id: UUID) -> Feedback:
         """Load a non-deleted feedback by ID or raise."""
         result = await self.db.execute(
-            select(Feedback).where(
+            select(Feedback)
+            .where(
                 Feedback.id == feedback_id,
                 Feedback.deleted_at.is_(None),
             )
+            .options(selectinload(Feedback.responses))
         )
         fb = result.scalar_one_or_none()
         if fb is None:
@@ -148,7 +156,7 @@ class FeedbackService:
         )
         self.db.add(feedback)
         await self.db.flush()
-        await self.db.refresh(feedback)
+        await self.db.refresh(feedback, attribute_names=["responses"])
         return feedback
 
     async def list_own(
@@ -165,6 +173,7 @@ class FeedbackService:
                 Feedback.deleted_at.is_(None),
             )
             .order_by(Feedback.created_at.desc())
+            .options(selectinload(Feedback.responses))
         )
         if version is not None:
             query = query.where(Feedback.snapshot_version == version)
@@ -209,6 +218,7 @@ class FeedbackService:
             )
             .order_by(Feedback.created_at.desc())
             .limit(limit)
+            .options(selectinload(Feedback.responses))
         )
         for col, val in [
             (Feedback.status, status),
@@ -224,26 +234,30 @@ class FeedbackService:
                     Feedback.content.ilike(pattern),
                     Feedback.entity_label.ilike(pattern),
                     Feedback.author_name.ilike(pattern),
-                    Feedback.response_content.ilike(pattern),
+                    Feedback.responses.any(FeedbackResponse.content.ilike(pattern)),
                 )
             )
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    def _set_response(self, fb: Feedback, content: str) -> None:
-        """Stamp response fields with current user and time."""
-        fb.response_content = content
-        fb.responded_by = self.user_id
-        fb.responded_by_name = self.user_display_name
-        fb.responded_at = datetime.now()
+    def _add_response(self, fb: Feedback, content: str) -> None:
+        """Append a response stamped with the current user and time."""
+        fb.responses.append(
+            FeedbackResponse(
+                content=content,
+                responded_by=self.user_id,
+                responded_by_name=self.user_display_name,
+                created_at=datetime.now(),
+            )
+        )
 
     async def respond(self, feedback_id: UUID, content: str) -> Feedback:
         """Add response. Allowed when open/responded. 409 if resolved/declined."""
         fb = await self.get(feedback_id)
         if fb.status in (FeedbackStatus.resolved.value, FeedbackStatus.declined.value):
             raise FeedbackStatusConflictError(feedback_id, fb.status, "respond to")
-        self._set_response(fb, content)
+        self._add_response(fb, content)
         fb.status = FeedbackStatus.responded.value
         await self.db.flush()
         return fb
@@ -257,7 +271,7 @@ class FeedbackService:
         fb.status_changed_at = datetime.now()
         fb.status_changed_by = self.user_id
         if content:
-            self._set_response(fb, content)
+            self._add_response(fb, content)
         await self.db.flush()
         return fb
 

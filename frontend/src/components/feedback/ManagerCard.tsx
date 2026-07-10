@@ -148,16 +148,16 @@ export function ManagerCard({ item, projectId }: ManagerCardProps) {
             Filed against <span class="manager-card__version-tag">v{item.snapshot_version}</span>
           </div>
 
-          {item.response && (
-            <div class="manager-card__response">
+          {item.responses.map((response, i) => (
+            <div class="manager-card__response" key={i}>
               <div class="manager-card__response-meta">
                 Responded on{" "}
-                {new Date(item.response.created_at).toLocaleDateString(undefined, DATE_FORMAT)}
-                {item.responded_by_name && ` by ${item.responded_by_name}`}
+                {new Date(response.created_at).toLocaleDateString(undefined, DATE_FORMAT)}
+                {response.responded_by_name && ` by ${response.responded_by_name}`}
               </div>
-              <div class="manager-card__response-content">{item.response.content}</div>
+              <div class="manager-card__response-content">{response.content}</div>
             </div>
-          )}
+          ))}
 
           {error.value && <div class="manager-card__error">{error.value}</div>}
 

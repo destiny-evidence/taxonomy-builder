@@ -795,20 +795,21 @@ async def test_respond(
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "responded"
-    assert data["response"]["content"] == "Here's help"
-    assert "created_at" in data["response"]
-    assert data["responded_by_name"] == user.display_name
+    assert len(data["responses"]) == 1
+    assert data["responses"][0]["content"] == "Here's help"
+    assert "created_at" in data["responses"][0]
+    assert data["responses"][0]["responded_by_name"] == user.display_name
     assert data["author_name"] == other_user.display_name
 
 
 @pytest.mark.asyncio
-async def test_respond_overwrites(
+async def test_respond_appends(
     manager_client: AsyncClient,
     project: Project,
     other_user: User,
     db_session: AsyncSession,
 ) -> None:
-    """Responding again overwrites previous response."""
+    """Responding again appends a new response, preserving the first."""
     fb = _make_feedback(other_user, project_id=project.id, content="Question")
     db_session.add(fb)
     await db_session.flush()
@@ -817,10 +818,11 @@ async def test_respond_overwrites(
         f"/api/feedback/{fb.id}/respond", json={"content": "First answer"}
     )
     response = await manager_client.post(
-        f"/api/feedback/{fb.id}/respond", json={"content": "Updated answer"}
+        f"/api/feedback/{fb.id}/respond", json={"content": "Second answer"}
     )
     assert response.status_code == 200
-    assert response.json()["response"]["content"] == "Updated answer"
+    contents = [r["content"] for r in response.json()["responses"]]
+    assert contents == ["First answer", "Second answer"]
 
 
 @pytest.mark.asyncio
@@ -914,8 +916,34 @@ async def test_triage_with_content(
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == expected_status
-    assert data["response"]["content"] == "Manager note"
-    assert data["responded_by_name"] == user.display_name
+    assert len(data["responses"]) == 1
+    assert data["responses"][0]["content"] == "Manager note"
+    assert data["responses"][0]["responded_by_name"] == user.display_name
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["resolve", "decline"])
+async def test_triage_with_content_appends(
+    manager_client: AsyncClient,
+    project: Project,
+    other_user: User,
+    db_session: AsyncSession,
+    action: str,
+) -> None:
+    """Resolving/declining with content appends, preserving earlier responses."""
+    fb = _make_feedback(other_user, project_id=project.id, content="Question")
+    db_session.add(fb)
+    await db_session.flush()
+
+    await manager_client.post(
+        f"/api/feedback/{fb.id}/respond", json={"content": "First answer"}
+    )
+    response = await manager_client.post(
+        f"/api/feedback/{fb.id}/{action}", json={"content": "Closing note"}
+    )
+    assert response.status_code == 200
+    contents = [r["content"] for r in response.json()["responses"]]
+    assert contents == ["First answer", "Closing note"]
 
 
 @pytest.mark.asyncio
@@ -1117,11 +1145,11 @@ async def test_reader_response_hides_manager_name(
     data = list_resp.json()
     assert len(data) == 1
     item = data[0]
-    assert item["response"] is not None
-    assert item["response"]["content"] == "Here's the fix"
-    assert item["response"]["author"] == "Vocabulary manager"
-    assert "created_at" in item["response"]
+    assert len(item["responses"]) == 1
+    resp0 = item["responses"][0]
+    assert resp0["content"] == "Here's the fix"
+    assert resp0["author"] == "Vocabulary manager"
+    assert "created_at" in resp0
     # Manager identity must NOT leak to reader
-    assert "responded_by" not in item["response"]
-    assert "responded_by_name" not in item["response"]
-    assert "responded_by_name" not in item
+    assert "responded_by" not in resp0
+    assert "responded_by_name" not in resp0

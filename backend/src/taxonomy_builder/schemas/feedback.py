@@ -43,11 +43,19 @@ class FeedbackCreate(BaseModel):
 
 
 class FeedbackResponse(BaseModel):
-    """Nested response info shown to readers (no manager identity)."""
+    """A single response shown to readers (no manager identity)."""
 
     author: str
     content: str
     created_at: datetime
+
+
+class FeedbackManagerResponse(BaseModel):
+    """A single response shown to managers (includes responder identity)."""
+
+    content: str
+    created_at: datetime
+    responded_by_name: str | None = None
 
 
 class FeedbackRead(BaseModel):
@@ -62,7 +70,7 @@ class FeedbackRead(BaseModel):
     feedback_type: str
     content: str
     status: FeedbackStatus
-    response: FeedbackResponse | None = None
+    responses: list[FeedbackResponse] = []
     created_at: datetime
     can_delete: bool = False
 
@@ -70,8 +78,8 @@ class FeedbackRead(BaseModel):
 class FeedbackManagerRead(FeedbackRead):
     """Schema for reading feedback (manager-facing, includes author info)."""
 
+    responses: list[FeedbackManagerResponse] = []
     author_name: str
-    responded_by_name: str | None = None
 
 
 class RespondRequest(BaseModel):

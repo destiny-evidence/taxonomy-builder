@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID, uuid7
 
 from sqlalchemy import ForeignKey, Index, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from taxonomy_builder.database import Base
 
@@ -76,12 +76,6 @@ class Feedback(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=FeedbackStatus.open.value
     )
-    response_content: Mapped[str | None] = mapped_column(Text, nullable=True)
-    responded_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    responded_by_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    responded_at: Mapped[datetime | None] = mapped_column(nullable=True)
     # Status change tracking
     status_changed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     status_changed_by: Mapped[UUID | None] = mapped_column(
@@ -90,15 +84,14 @@ class Feedback(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
+    responses: Mapped[list[FeedbackResponse]] = relationship(
+        back_populates="feedback",
+        cascade="all, delete-orphan",
+        order_by="FeedbackResponse.created_at, FeedbackResponse.id",
+    )
+
     def to_read_dict(self, *, can_delete: bool) -> dict:
         """Reader-facing response dict (no manager identity)."""
-        response_dict = None
-        if self.response_content:
-            response_dict = {
-                "author": "Vocabulary manager",
-                "content": self.response_content,
-                "created_at": self.responded_at,
-            }
         return {
             "id": self.id,
             "project_id": self.project_id,
@@ -109,7 +102,14 @@ class Feedback(Base):
             "feedback_type": self.feedback_type,
             "content": self.content,
             "status": self.status,
-            "response": response_dict,
+            "responses": [
+                {
+                    "author": "Vocabulary manager",
+                    "content": r.content,
+                    "created_at": r.created_at,
+                }
+                for r in self.responses
+            ],
             "created_at": self.created_at,
             "can_delete": can_delete,
         }
@@ -118,7 +118,14 @@ class Feedback(Base):
         """Manager-facing response dict (includes author info)."""
         base = self.to_read_dict(can_delete=False)
         base["author_name"] = self.author_name
-        base["responded_by_name"] = self.responded_by_name
+        base["responses"] = [
+            {
+                "content": r.content,
+                "created_at": r.created_at,
+                "responded_by_name": r.responded_by_name,
+            }
+            for r in self.responses
+        ]
         return base
 
     __table_args__ = (
@@ -129,3 +136,27 @@ class Feedback(Base):
             project_id, deleted_at, status, created_at,
         ),
     )
+
+
+class FeedbackResponse(Base):
+    """A single manager response on a feedback item.
+
+    Responses form a thread — appended, never overwritten — so the full
+    history is preserved. ``responded_by_name`` is snapshotted at write time
+    (like ``Feedback.author_name``) so it survives the responder's deletion.
+    """
+
+    __tablename__ = "feedback_response"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
+    feedback_id: Mapped[UUID] = mapped_column(
+        ForeignKey("feedback.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    responded_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    responded_by_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+
+    feedback: Mapped[Feedback] = relationship(back_populates="responses")
