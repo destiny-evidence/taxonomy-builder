@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.api.dependencies import AuthenticatedUser, get_current_user
 from taxonomy_builder.main import app
-from taxonomy_builder.models.feedback import Feedback
+from taxonomy_builder.models.feedback import Feedback, FeedbackResponse
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.published_version import PublishedVersion
 from taxonomy_builder.models.user import User
@@ -722,6 +722,26 @@ async def test_list_all_search(
     data = response.json()
     assert len(data) == 1
     assert data[0]["content"] == "The definition is vague"
+
+
+@pytest.mark.asyncio
+async def test_list_all_search_matches_response_content(
+    manager_client: AsyncClient,
+    project: Project,
+    user: User,
+    db_session: AsyncSession,
+) -> None:
+    """?q also matches text inside a feedback's responses."""
+    fb1 = _make_feedback(user, project_id=project.id, content="Question one")
+    fb1.responses.append(FeedbackResponse(content="We fixed the widget"))
+    fb2 = _make_feedback(user, project_id=project.id, content="Question two")
+    db_session.add_all([fb1, fb2])
+    await db_session.flush()
+
+    response = await manager_client.get(f"/api/feedback/{project.id}/all?q=WIDGET")
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "Question one"
 
 
 @pytest.mark.asyncio
