@@ -208,6 +208,13 @@ class TestFormatTree:
         assert lines[3].startswith("  Cats")
 
 
+class FakeResponse:
+    def __init__(self, content, responded_by_name=None, created_at="2026-04-02"):
+        self.content = content
+        self.responded_by_name = responded_by_name
+        self.created_at = created_at
+
+
 class FakeFeedback:
     def __init__(
         self,
@@ -221,8 +228,7 @@ class FakeFeedback:
         content="The definition is vague",
         author_name="Reviewer User",
         created_at="2026-04-01",
-        response_content=None,
-        responded_by_name=None,
+        responses=None,
     ):
         self.id = id
         self.status = status
@@ -233,8 +239,7 @@ class FakeFeedback:
         self.content = content
         self.author_name = author_name
         self.created_at = created_at
-        self.response_content = response_content
-        self.responded_by_name = responded_by_name
+        self.responses = responses or []
 
 
 class TestFormatFeedback:
@@ -252,12 +257,26 @@ class TestFormatFeedback:
     def test_with_response(self):
         fb = FakeFeedback(
             status="responded",
-            response_content="We'll clarify this",
-            responded_by_name="Manager User",
+            responses=[
+                FakeResponse("We'll clarify this", responded_by_name="Manager User"),
+            ],
         )
         result = format_feedback(fb)
         assert "[responded]" in result
         assert "We'll clarify this" in result
+        assert "Manager User" in result
+
+    def test_with_multiple_responses(self):
+        fb = FakeFeedback(
+            status="responded",
+            responses=[
+                FakeResponse("First reply"),
+                FakeResponse("Second reply"),
+            ],
+        )
+        result = format_feedback(fb)
+        assert "First reply" in result
+        assert "Second reply" in result
 
     def test_no_response(self):
         fb = FakeFeedback()

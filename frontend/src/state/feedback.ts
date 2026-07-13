@@ -35,7 +35,7 @@ export const filteredFeedback = computed(() => {
         fb.content.toLowerCase().includes(q) ||
         fb.entity_label.toLowerCase().includes(q) ||
         fb.author_name.toLowerCase().includes(q) ||
-        (fb.response?.content.toLowerCase().includes(q) ?? false),
+        fb.responses.some((r) => r.content.toLowerCase().includes(q)),
     );
   }
 

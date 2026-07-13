@@ -46,16 +46,16 @@ export function FeedbackCard({ feedback }: FeedbackCardProps) {
       </div>
       <div class="feedback-card__content">{feedback.content}</div>
 
-      {feedback.response && (
-        <div class="feedback-card__response">
+      {feedback.responses.map((response, i) => (
+        <div class="feedback-card__response" key={i}>
           <div class="feedback-card__response-author">
-            {feedback.response.author} responded
+            {response.author} responded
           </div>
           <div class="feedback-card__response-content">
-            {feedback.response.content}
+            {response.content}
           </div>
         </div>
-      )}
+      ))}
 
       {feedback.can_delete && (
         <div class="feedback-card__actions">

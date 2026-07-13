@@ -137,7 +137,7 @@ async def respond_to_feedback(
     body: RespondRequest,
     service: FeedbackService = Depends(get_manager_feedback_service),
 ) -> dict:
-    """Add or overwrite a response on feedback."""
+    """Append a response to feedback."""
     try:
         fb = await service.respond(feedback_id, body.content)
         return fb.to_manager_dict()

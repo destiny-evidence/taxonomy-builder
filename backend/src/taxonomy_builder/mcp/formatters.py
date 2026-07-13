@@ -92,8 +92,10 @@ def format_feedback(feedback) -> str:
         f"  By: {feedback.author_name} ({feedback.created_at})",
         f"  Content: {feedback.content}",
     ]
-    if feedback.response_content:
-        lines.append(f"  Response: {feedback.response_content}")
+    if feedback.responses:
+        for r in feedback.responses:
+            who = f" by {r.responded_by_name}" if r.responded_by_name else ""
+            lines.append(f"  Response ({r.created_at}{who}): {r.content}")
     else:
         lines.append("  Response: (none)")
     return "\n".join(lines)

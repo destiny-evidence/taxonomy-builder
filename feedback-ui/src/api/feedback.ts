@@ -19,7 +19,7 @@ export interface FeedbackRead {
   feedback_type: string;
   content: string;
   status: "open" | "responded" | "resolved" | "declined";
-  response: { author: string; content: string; created_at: string } | null;
+  responses: { author: string; content: string; created_at: string }[];
   created_at: string;
   can_delete: boolean;
 }

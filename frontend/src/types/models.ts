@@ -251,6 +251,7 @@ export type FeedbackStatus = "open" | "responded" | "resolved" | "declined";
 export interface FeedbackResponse {
   content: string;
   created_at: string;
+  responded_by_name: string | null;
 }
 
 export interface FeedbackManagerRead {
@@ -263,11 +264,10 @@ export interface FeedbackManagerRead {
   feedback_type: string;
   content: string;
   status: FeedbackStatus;
-  response: FeedbackResponse | null;
+  responses: FeedbackResponse[];
   created_at: string;
   can_delete: boolean;
   author_name: string;
-  responded_by_name: string | null;
 }
 
 // ============ Ontology Classes ============
