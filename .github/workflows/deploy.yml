@@ -304,6 +304,48 @@ jobs:
               --content-paths "/*" \
               --no-wait
 
+  verify-deployment:
+    runs-on: ubuntu-latest
+    needs: deploy-api
+    environment: ${{ inputs.environment || 'staging' }}
+    steps:
+      - name: "Az CLI login"
+        uses: azure/login@v2.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # The deploy job returns once Azure accepts the new revision, not once it
+      # is serving, so a replica that never starts would otherwise report green.
+      - name: Wait for latest revision to be running
+        uses: Azure/cli@v2.0.0
+        with:
+          inlineScript: |
+            APP="${{ vars.CONTAINER_APP_NAME }}"
+
+            APP_ID=$(az containerapp show --name "$APP" \
+              --resource-group ${{vars.RESOURCE_GROUP}} --query id --output tsv)
+            REVISION=$(az containerapp show --name "$APP" \
+              --resource-group ${{vars.RESOURCE_GROUP}} \
+              --query properties.latestRevisionName --output tsv)
+
+            echo "Waiting for $APP revision $REVISION"
+            az resource wait \
+              --ids "$APP_ID/revisions/$REVISION" \
+              --custom "properties.runningState=='Running'" \
+              --interval 10 \
+              --timeout 300
+
+      - name: Show replica state on failure
+        if: failure()
+        uses: Azure/cli@v2.0.0
+        with:
+          inlineScript: |
+            az containerapp replica list \
+              --name "${{ vars.CONTAINER_APP_NAME }}" \
+              --resource-group ${{vars.RESOURCE_GROUP}}
+
   migrate-database:
     runs-on: ubuntu-latest
     needs: [deploy-api, build-api]
@@ -348,6 +390,7 @@ jobs:
       - deploy-frontend
       - deploy-feedback-ui
       - purge-feedback-cache
+      - verify-deployment
       - migrate-database
     environment: ${{ inputs.environment }}
     env:
@@ -357,10 +400,12 @@ jobs:
         || '✅ Deployed' }}
       # Falls back to the commit under deploy so a failed build still links somewhere.
       IMAGE_TAG: ${{ needs.build-api.outputs.image_tag || inputs.image_tag || github.sha }}
+      # deploy-feedback-ui reports 'skipped' both when the UI was unchanged and
+      # when its build failed, so read build-feedback-ui to tell those apart.
       FEEDBACK_UI: >-
         ${{ (needs.deploy-feedback-ui.result == 'success' && 'deployed')
-        || (needs.deploy-feedback-ui.result == 'skipped' && 'unchanged, not redeployed')
-        || needs.deploy-feedback-ui.result }}
+        || (needs.build-feedback-ui.result == 'skipped' && 'unchanged, not redeployed')
+        || format('build {0}, deploy {1}', needs.build-feedback-ui.result, needs.deploy-feedback-ui.result) }}
     steps:
       - name: Notify Slack of deploy result
         uses: slackapi/slack-github-action@v4.0.0
