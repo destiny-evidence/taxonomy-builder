@@ -194,3 +194,9 @@ variable "matomo_feedback_container_url" {
   type        = string
   default     = ""
 }
+
+variable "ci_slack_webhook_url" {
+  description = "Slack webhook URL for deploy notifications"
+  type        = string
+  sensitive   = true
+}

@@ -34,39 +34,12 @@ on:
         type: string
         description: Existing API image tag to deploy (skips build when provided)
         required: false
-      force_feedback_ui:
-        type: boolean
-        description: Deploy feedback UI even if unchanged
-        default: false
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  detect-feedback-ui-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.check.outputs.changed }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check for feedback-ui changes
-        id: check
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            DIFF_BASE="HEAD~1"
-          else
-            DIFF_BASE="origin/main"
-          fi
-          if git diff --name-only "$DIFF_BASE"...HEAD | grep -q '^feedback-ui/'; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
   build-api:
     # When image_tag is provided (e.g. promote-to-production), skip the build
     # and pass through the existing tag. The image was already pushed to ACR
@@ -164,9 +137,8 @@ jobs:
 
   build-feedback-ui:
     # Same as build-frontend: Vite env vars require a fresh build per environment.
-    # Detect changes so we don't purge the cached application if it hasn't changed
-    needs: detect-feedback-ui-changes
-    if: needs.detect-feedback-ui-changes.outputs.changed == 'true' || inputs.force_feedback_ui == true
+    # Always builds. Change detection used to gate this, but its HEAD~1 baseline
+    # is wrong for a promote, which silently left production on a stale UI.
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'staging' }}
     steps:
@@ -304,6 +276,48 @@ jobs:
               --content-paths "/*" \
               --no-wait
 
+  verify-deployment:
+    runs-on: ubuntu-latest
+    needs: deploy-api
+    environment: ${{ inputs.environment || 'staging' }}
+    steps:
+      - name: "Az CLI login"
+        uses: azure/login@v2.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # The deploy job returns once Azure accepts the new revision, not once it
+      # is serving, so a replica that never starts would otherwise report green.
+      - name: Wait for latest revision to be running
+        uses: Azure/cli@v2.0.0
+        with:
+          inlineScript: |
+            APP="${{ vars.CONTAINER_APP_NAME }}"
+
+            APP_ID=$(az containerapp show --name "$APP" \
+              --resource-group ${{vars.RESOURCE_GROUP}} --query id --output tsv)
+            REVISION=$(az containerapp show --name "$APP" \
+              --resource-group ${{vars.RESOURCE_GROUP}} \
+              --query properties.latestRevisionName --output tsv)
+
+            echo "Waiting for $APP revision $REVISION"
+            az resource wait \
+              --ids "$APP_ID/revisions/$REVISION" \
+              --custom "properties.runningState=='Running'" \
+              --interval 10 \
+              --timeout 300
+
+      - name: Show replica state on failure
+        if: failure()
+        uses: Azure/cli@v2.0.0
+        with:
+          inlineScript: |
+            az containerapp replica list \
+              --name "${{ vars.CONTAINER_APP_NAME }}" \
+              --resource-group ${{vars.RESOURCE_GROUP}}
+
   migrate-database:
     runs-on: ubuntu-latest
     needs: [deploy-api, build-api]
@@ -333,3 +347,58 @@ jobs:
             az containerapp job start \
               --name "db-migrator-${{ vars.ENVIRONMENT_NAME }}" \
               --resource-group ${{vars.RESOURCE_GROUP}}
+
+  notify:
+    # Production only: staging deploys on every push to main, so announcing
+    # them would drown the channel.
+    if: ${{ always() && inputs.environment == 'production' }}
+    runs-on: ubuntu-latest
+    needs:
+      - build-api
+      - build-frontend
+      - build-feedback-ui
+      - deploy-api
+      - deploy-frontend
+      - deploy-feedback-ui
+      - purge-feedback-cache
+      - verify-deployment
+      - migrate-database
+    environment: ${{ inputs.environment }}
+    env:
+      STATUS: >-
+        ${{ (contains(needs.*.result, 'failure') && '🚨 DEPLOY FAILED')
+        || (contains(needs.*.result, 'cancelled') && '⚠️ Deploy cancelled')
+        || '✅ Deployed' }}
+      # Falls back to the commit under deploy so a failed build still links somewhere.
+      IMAGE_TAG: ${{ needs.build-api.outputs.image_tag || inputs.image_tag || github.sha }}
+      FEEDBACK_UI: >-
+        ${{ (needs.deploy-feedback-ui.result == 'success' && 'deployed')
+        || format('build {0}, deploy {1}', needs.build-feedback-ui.result, needs.deploy-feedback-ui.result) }}
+    steps:
+      - name: Notify Slack of deploy result
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.CI_SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          # The action swallows delivery errors by default; fail loudly instead.
+          errors: true
+          # github.workflow names the calling trigger, e.g. Promote to Production.
+          payload: |
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  emoji: true
+                  text: "${{ env.STATUS }} - ${{ vars.APP_NAME }} (${{ inputs.environment }})"
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*Image tag:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ env.IMAGE_TAG }}|${{ env.IMAGE_TAG }}>"
+                  - type: mrkdwn
+                    text: "*Triggered by:*\n${{ github.triggering_actor }}"
+                  - type: mrkdwn
+                    text: "*Feedback UI:*\n${{ env.FEEDBACK_UI }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "${{ github.workflow }} · <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
