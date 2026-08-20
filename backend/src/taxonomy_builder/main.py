@@ -27,11 +27,10 @@ from taxonomy_builder.blob_store import (
 )
 from taxonomy_builder.config import settings
 from taxonomy_builder.database import db_manager
+from taxonomy_builder.mcp.server import auth_provider
+from taxonomy_builder.mcp.server import mcp as mcp_server
 
-
-from taxonomy_builder.mcp.server import auth_provider, mcp as mcp_server
-
-mcp_app = mcp_server.http_app(path="/", transport="streamable-http")
+mcp_app = mcp_server.http_app(path="/", transport="streamable-http", stateless_http=True)
 
 # Well-known routes must be at the app root for RFC 9728 discovery
 _well_known_routes = auth_provider.get_well_known_routes("/mcp") if auth_provider else []
