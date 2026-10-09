@@ -293,6 +293,27 @@ class TestAzureFrontDoorPurger:
         ]
 
 
+    async def test_purge_scopes_to_domains(
+        self, mock_cdn_cls: MagicMock, mock_cred: MagicMock
+    ) -> None:
+        mock_cdn_cls.return_value.afd_endpoints.begin_purge_content = AsyncMock()
+        purger = AzureFrontDoorPurger(
+            subscription_id="sub-123",
+            resource_group="rg-test",
+            profile_name="fd-test",
+            endpoint_name="fde-test",
+            domains=["vocab.example.org", "vocab-builder.example.org"],
+        )
+        await purger.purge(["/index.json"])
+
+        contents = (
+            mock_cdn_cls.return_value.afd_endpoints.begin_purge_content.call_args.kwargs[
+                "contents"
+            ]
+        )
+        assert contents.domains == ["vocab.example.org", "vocab-builder.example.org"]
+
+
 class TestNoOpPurger:
     async def test_purge_does_nothing(self) -> None:
         purger = NoOpPurger()
@@ -315,6 +336,8 @@ class TestCreateCdnPurger:
                 resource_group="rg-test",
                 profile_name="fd-test",
                 endpoint_name="fde-test",
+                domains=["vocab.example.org"],
             )
         )
         assert isinstance(purger, AzureFrontDoorPurger)
+        assert purger._domains == ["vocab.example.org"]
