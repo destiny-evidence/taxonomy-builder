@@ -10,7 +10,7 @@ output "api_container_app_fqdn" {
 
 output "frontdoor_endpoint_hostname" {
   description = "Hostname of the Front Door endpoint"
-  value       = azurerm_cdn_frontdoor_endpoint.this.host_name
+  value       = local.frontdoor_endpoint.host_name
 }
 
 output "postgresql_server_fqdn" {
