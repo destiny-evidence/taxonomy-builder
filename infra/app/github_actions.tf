@@ -277,5 +277,5 @@ resource "github_actions_environment_variable" "frontdoor_endpoint_name" {
   repository    = github_repository_environment.environment.repository
   environment   = github_repository_environment.environment.environment
   variable_name = "FRONTDOOR_ENDPOINT_NAME"
-  value         = azurerm_cdn_frontdoor_endpoint.this.name
+  value         = local.frontdoor_endpoint.name
 }

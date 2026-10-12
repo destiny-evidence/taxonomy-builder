@@ -110,7 +110,8 @@ module "container_app_api" {
         subscription_id = data.azurerm_subscription.current.subscription_id
         resource_group  = var.shared_resource_group_name
         profile_name    = data.azurerm_cdn_frontdoor_profile.shared.name
-        endpoint_name   = azurerm_cdn_frontdoor_endpoint.this.name
+        endpoint_name   = local.frontdoor_endpoint.name
+        domains         = [local.builder_custom_domain, local.feedback_custom_domain]
       })
     },
     {

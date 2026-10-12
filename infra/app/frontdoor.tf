@@ -5,7 +5,16 @@ data "azurerm_cdn_frontdoor_profile" "shared" {
   resource_group_name = var.shared_resource_group_name
 }
 
+# Dev and staging share one endpoint per environment (created in destiny-shared-infra)
+data "azurerm_cdn_frontdoor_endpoint" "shared" {
+  count               = local.is_production ? 0 : 1
+  name                = "fde-${var.environment}"
+  profile_name        = var.shared_frontdoor_profile_name
+  resource_group_name = var.shared_resource_group_name
+}
+
 resource "azurerm_cdn_frontdoor_endpoint" "this" {
+  count                    = local.is_production ? 1 : 0
   name                     = "fde-${local.name}"
   cdn_frontdoor_profile_id = data.azurerm_cdn_frontdoor_profile.shared.id
 
@@ -111,14 +120,14 @@ resource "azurerm_cdn_frontdoor_origin" "feedback" {
 # Routes
 resource "azurerm_cdn_frontdoor_route" "frontend" {
   name                          = "rt-frontend-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.frontend.id]
 
   supported_protocols    = ["Http", "Https"]
   patterns_to_match      = ["/*"]
   forwarding_protocol    = "HttpsOnly"
-  link_to_default_domain = true
+  link_to_default_domain = local.is_production
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
@@ -126,14 +135,14 @@ resource "azurerm_cdn_frontdoor_route" "frontend" {
 
 resource "azurerm_cdn_frontdoor_route" "api" {
   name                          = "rt-api-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
 
   supported_protocols    = ["Http", "Https"]
   patterns_to_match      = ["/api/*"]
   forwarding_protocol    = "HttpsOnly"
-  link_to_default_domain = true
+  link_to_default_domain = local.is_production
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
@@ -141,14 +150,14 @@ resource "azurerm_cdn_frontdoor_route" "api" {
 
 resource "azurerm_cdn_frontdoor_route" "mcp" {
   name                          = "rt-mcp-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
 
   supported_protocols    = ["Http", "Https"]
   patterns_to_match      = ["/mcp", "/mcp/*", "/.well-known/*"]
   forwarding_protocol    = "HttpsOnly"
-  link_to_default_domain = true
+  link_to_default_domain = local.is_production
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
@@ -158,14 +167,14 @@ resource "azurerm_cdn_frontdoor_route" "mcp" {
 
 resource "azurerm_cdn_frontdoor_route" "published" {
   name                          = "rt-published-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.published.id]
 
   supported_protocols    = ["Http", "Https"]
   patterns_to_match      = ["/${azurerm_storage_container.published.name}/*"]
   forwarding_protocol    = "HttpsOnly"
-  link_to_default_domain = true
+  link_to_default_domain = local.is_production
   https_redirect_enabled = true
 
   cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.this.id]
@@ -232,7 +241,7 @@ resource "azurerm_cdn_frontdoor_custom_domain" "feedback" {
 # Feedback UI SPA — catch-all route on the feedback subdomain
 resource "azurerm_cdn_frontdoor_route" "feedback" {
   name                          = "rt-feedback-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.feedback.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.feedback.id]
 
@@ -258,7 +267,7 @@ resource "azurerm_cdn_frontdoor_route" "feedback" {
 # API proxy on the feedback subdomain — avoids CORS by keeping requests same-origin
 resource "azurerm_cdn_frontdoor_route" "feedback_api" {
   name                          = "rt-feedback-api-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api.id]
 
@@ -274,7 +283,7 @@ resource "azurerm_cdn_frontdoor_route" "feedback_api" {
 # Published data on the feedback subdomain
 resource "azurerm_cdn_frontdoor_route" "feedback_published" {
   name                          = "rt-feedback-published-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.published.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.published.id]
 
@@ -301,10 +310,6 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "feedback" {
     azurerm_cdn_frontdoor_route.feedback_api.id,
     azurerm_cdn_frontdoor_route.feedback_published.id,
   ]
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # Cache rule set for feedback UI static assets — purged on deploy
@@ -446,10 +451,6 @@ resource "azurerm_cdn_frontdoor_custom_domain_association" "this" {
     azurerm_cdn_frontdoor_route.api.id,
     azurerm_cdn_frontdoor_route.published.id,
   ]
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # --- DNS (DNSimple) ---
@@ -459,7 +460,7 @@ resource "dnsimple_zone_record" "builder_cname" {
   zone_name = var.custom_domain
   name      = var.builder_subdomain
   type      = "CNAME"
-  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  value     = local.frontdoor_endpoint.host_name
   ttl       = 3600
 }
 
@@ -476,7 +477,7 @@ resource "dnsimple_zone_record" "feedback_cname" {
   zone_name = var.custom_domain
   name      = var.feedback_subdomain
   type      = "CNAME"
-  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  value     = local.frontdoor_endpoint.host_name
   ttl       = 3600
 }
 
@@ -530,7 +531,7 @@ resource "azurerm_cdn_frontdoor_rule" "reader_redirect" {
 resource "azurerm_cdn_frontdoor_route" "reader_redirect" {
   count                         = var.reader_redirect_subdomain != null ? 1 : 0
   name                          = "rt-reader-redirect-${local.name}"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_endpoint_id     = local.frontdoor_endpoint.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.frontend.id]
 
@@ -555,7 +556,7 @@ resource "dnsimple_zone_record" "reader_redirect_cname" {
   zone_name = var.custom_domain
   name      = var.reader_redirect_subdomain
   type      = "CNAME"
-  value     = azurerm_cdn_frontdoor_endpoint.this.host_name
+  value     = local.frontdoor_endpoint.host_name
   ttl       = 3600
 }
 

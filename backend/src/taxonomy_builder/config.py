@@ -13,6 +13,7 @@ class CDNSettings(BaseModel):
     resource_group: str
     profile_name: str
     endpoint_name: str
+    domains: list[str] | None = None
 
 
 class Settings(BaseSettings):

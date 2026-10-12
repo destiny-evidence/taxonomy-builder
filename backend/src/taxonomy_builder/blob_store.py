@@ -178,6 +178,7 @@ class AzureFrontDoorPurger(CdnPurger):
         profile_name: str,
         endpoint_name: str,
         path_prefix: str = "",
+        domains: list[str] | None = None,
     ) -> None:
         self._credential = DefaultAzureCredential()
         self._client = CdnManagementClient(self._credential, subscription_id)
@@ -185,6 +186,7 @@ class AzureFrontDoorPurger(CdnPurger):
         self._profile_name = profile_name
         self._endpoint_name = endpoint_name
         self._path_prefix = path_prefix
+        self._domains = domains
 
     async def purge(self, paths: list[str]) -> None:
         prefixed = [f"{self._path_prefix}{p}" for p in paths]
@@ -193,7 +195,7 @@ class AzureFrontDoorPurger(CdnPurger):
                 resource_group_name=self._resource_group,
                 profile_name=self._profile_name,
                 endpoint_name=self._endpoint_name,
-                contents=AfdPurgeParameters(content_paths=prefixed),
+                contents=AfdPurgeParameters(content_paths=prefixed, domains=self._domains),
             )
         except Exception:
             logger.exception("CDN purge failed for paths: %s", prefixed)
@@ -279,5 +281,6 @@ def create_cdn_purger(cdn: CDNSettings | None, *, path_prefix: str = "") -> CdnP
             profile_name=cdn.profile_name,
             endpoint_name=cdn.endpoint_name,
             path_prefix=path_prefix,
+            domains=cdn.domains,
         )
     return NoOpPurger()
