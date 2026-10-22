@@ -22,6 +22,7 @@ The vocabulary is split across two namespaces, layered so that sector-specific e
 
 - Namespace: `https://vocab.destiny-evidence.org/`
 - `geonames-location.ttl` — Place mentions resolved to GeoNames features, for the geoparsing robot. Repeats the new evrepo-core span/score properties because projects hold their own copy of the core.
+- `geonames-location-standalone.ttl` — The same terms plus the minimal evrepo-core subset they need, for trying the shape in an empty scratch project.
 
 A health or climate domain would add a sibling directory (e.g. `health/`) that imports `evrepo-core/` and defines its own concept schemes.
 

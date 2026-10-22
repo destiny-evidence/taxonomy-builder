@@ -17,7 +17,9 @@
 # One annotation per mention; mentions of the same place share the feature.
 #
 # Requires evrepo:Investigation and evrepo:CodingAnnotation to exist in the
-# project — the import is blocked otherwise.
+# project. If they don't, the import still goes ahead but drops the domain and
+# superclass links to them — check the preview for "doesn't match any class"
+# and "Superclass ... not found" warnings.
 #
 # gn:name is deliberately omitted: taxonomy-builder keys properties by local
 # name, so it would collide with evrepo:name and be silently skipped.

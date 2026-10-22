@@ -10,7 +10,8 @@ import json
 from pathlib import Path
 
 import pytest
-from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib import BNode, Graph, Literal, Namespace, URIRef
+from rdflib.compare import isomorphic
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +25,7 @@ from taxonomy_builder.services.snapshot_service import SnapshotService
 _VOCAB_ROOT = Path(__file__).resolve().parents[2] / "vocab"
 _CORE_TTL = _VOCAB_ROOT / "evrepo-core" / "evrepo-core.ttl"
 _GEONAMES_TTL = _VOCAB_ROOT / "destiny" / "geonames-location.ttl"
+_STANDALONE_TTL = _VOCAB_ROOT / "destiny" / "geonames-location-standalone.ttl"
 
 EVREPO = Namespace("https://vocab.evidence-repository.org/")
 DSNY = Namespace("https://vocab.destiny-evidence.org/")
@@ -52,6 +54,20 @@ async def project(db_session: AsyncSession) -> Project:
         name="DESTINY",
         namespace="https://vocab.destiny-evidence.org/",
         identifier_prefix="DSNY",
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest.fixture
+async def test_project(db_session: AsyncSession) -> Project:
+    """A scratch project, as used for trying the standalone file in staging."""
+    project = Project(
+        name="GeoNames test",
+        namespace="https://vocab.evidence-repository.org/geonames-test",
+        identifier_prefix="GNT",
     )
     db_session.add(project)
     await db_session.flush()
@@ -135,6 +151,10 @@ async def test_robot_payload_expands_through_generated_context(
     db_session: AsyncSession, project: Project
 ) -> None:
     await _import_core_then_geonames(db_session, project)
+    await _assert_robot_payload_expands(db_session, project)
+
+
+async def _assert_robot_payload_expands(db_session: AsyncSession, project: Project) -> None:
     db_session.expunge_all()
     snapshot = await SnapshotService(
         db_session,
@@ -185,3 +205,115 @@ async def test_robot_payload_expands_through_generated_context(
     assert g.value(annotation, EVREPO.startChar).toPython() == 35
     assert g.value(annotation, EVREPO.endChar).toPython() == 40
     assert float(g.value(annotation, EVREPO.codingScore).toPython()) == pytest.approx(0.97)
+
+
+STANDALONE_CORE_SUBSET = {
+    EVREPO.Investigation,
+    EVREPO.CodingAnnotation,
+    EVREPO.CodingStatus,
+    EVREPO.coded,
+    EVREPO.notApplicable,
+    EVREPO.notReported,
+    EVREPO.codedValue,
+    EVREPO.supportingText,
+    EVREPO.codedBy,
+    EVREPO.status,
+}
+# Narrowed to CodingAnnotation in the standalone file, because the core's union
+# domain names ObservedResult and EffectEstimate, which the subset leaves out.
+NARROWED_DOMAIN = {EVREPO.supportingText, EVREPO.codedBy}
+
+
+def _named_subjects(g: Graph) -> set[URIRef]:
+    return {s for s in g.subjects() if isinstance(s, URIRef)}
+
+
+def _description_of(g: Graph, subjects: set[URIRef]) -> Graph:
+    """Triples about *subjects*, following blank nodes (e.g. OWL restrictions)."""
+    out = Graph()
+    todo: list = list(subjects)
+    seen: set = set()
+    while todo:
+        node = todo.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        for p, o in g.predicate_objects(node):
+            out.add((node, p, o))
+            if isinstance(o, BNode):
+                todo.append(o)
+    return out
+
+
+def test_standalone_repeats_the_destiny_import_verbatim() -> None:
+    standalone = Graph()
+    standalone.parse(_STANDALONE_TTL, format="turtle")
+    destiny = Graph()
+    destiny.parse(_GEONAMES_TTL, format="turtle")
+
+    repeated = _description_of(standalone, _named_subjects(destiny))
+    assert isomorphic(repeated, destiny)
+
+
+def test_standalone_core_subset_matches_core() -> None:
+    standalone = Graph()
+    standalone.parse(_STANDALONE_TTL, format="turtle")
+    core = Graph()
+    core.parse(_CORE_TTL, format="turtle")
+
+    core_terms = {s for s in _named_subjects(standalone) if str(s).startswith(str(EVREPO))}
+    assert core_terms == STANDALONE_CORE_SUBSET | NEW_CORE_PROPERTIES
+
+    for term in STANDALONE_CORE_SUBSET - NARROWED_DOMAIN - {EVREPO.CodingStatus}:
+        assert set(standalone.predicate_objects(term)) == set(core.predicate_objects(term)), term
+    for term in NARROWED_DOMAIN:
+        assert (term, RDFS.domain, EVREPO.CodingAnnotation) in standalone
+        assert {
+            (p, o) for p, o in standalone.predicate_objects(term) if p != RDFS.domain
+        } == {(p, o) for p, o in core.predicate_objects(term) if p != RDFS.domain}
+
+
+@pytest.mark.asyncio
+async def test_standalone_imports_cleanly_into_empty_project(
+    db_session: AsyncSession, test_project: Project
+) -> None:
+    result = await _import_service(db_session).execute(
+        test_project.id, _STANDALONE_TTL.read_bytes(), "geonames-location-standalone.ttl"
+    )
+
+    assert result.warnings == []
+    assert [v for v in result.validation_issues if v.severity != "info"] == []
+    assert {c.uri for c in result.classes_created} == {
+        str(EVREPO.Investigation),
+        str(EVREPO.CodingAnnotation),
+        str(EVREPO.CodingStatus),
+        str(GN.Feature),
+        str(GN.GeonamesFeature),
+        str(GN.Class),
+        str(GN.Code),
+        str(DSNY.LocationCodingAnnotation),
+    }
+    assert {p.identifier for p in result.properties_created} == {
+        "codedValue",
+        "supportingText",
+        "codedBy",
+        "status",
+        "mentionText",
+        "startChar",
+        "endChar",
+        "codingScore",
+        "countryCode",
+        "featureClass",
+        "featureCode",
+        "mentionedPlace",
+    }
+
+
+@pytest.mark.asyncio
+async def test_robot_payload_expands_in_standalone_project(
+    db_session: AsyncSession, test_project: Project
+) -> None:
+    await _import_service(db_session).execute(
+        test_project.id, _STANDALONE_TTL.read_bytes(), "geonames-location-standalone.ttl"
+    )
+    await _assert_robot_payload_expands(db_session, test_project)
