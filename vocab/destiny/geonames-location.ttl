@@ -1,6 +1,7 @@
 @prefix evrepo: <https://vocab.evidence-repository.org/> .
 @prefix dsny:   <https://vocab.destiny-evidence.org/> .
 @prefix gn:     <http://www.geonames.org/ontology#> .
+@prefix geo:    <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl:    <http://www.w3.org/2002/07/owl#> .
@@ -56,7 +57,12 @@ evrepo:codingScore a owl:DatatypeProperty ;
 
 
 # --- GeoNames terms (subset of http://www.geonames.org/ontology) ---
-# GeoNames' own cardinality restrictions on GeonamesFeature are not restated.
+# GeoNames requires exactly one geonamesID, name, geo:lat, geo:long and
+# featureClass on a GeonamesFeature, and at most one featureCode and
+# countryCode. taxonomy-builder drops cardinality restrictions on import, so
+# they are not restated here; producers should still emit all of them.
+# gn:name is not declared (identifier clash with evrepo:name, see
+# taxonomy-builder#268) but should be emitted as the compact IRI "gn:name".
 
 gn:Feature a owl:Class ;
     rdfs:label "Feature"@en ;
@@ -64,8 +70,8 @@ gn:Feature a owl:Class ;
 
 gn:GeonamesFeature a owl:Class ;
     rdfs:subClassOf gn:Feature ;
-    rdfs:label "GeoNames Feature"@en ;
-    rdfs:comment "A feature in the GeoNames database, identified by its GeoNames URI (http://sws.geonames.org/{geonameid}/)."@en .
+    rdfs:label "Geonames Feature"@en ;
+    rdfs:comment "A feature described in geonames database, uniquely defined by its geonames identifier"@en .
 
 gn:Class a owl:Class ;
     rdfs:label "Feature Class"@en ;
@@ -98,6 +104,25 @@ gn:featureCode a owl:ObjectProperty ;
     rdfs:domain gn:Feature ;
     rdfs:range gn:Code ;
     rdfs:comment "The GeoNames feature code of the feature."@en .
+
+
+# --- W3C Basic Geo terms (http://www.w3.org/2003/01/geo/wgs84_pos#) ---
+# Declared with W3C's domain (SpatialThing) and no range, rather than narrowed
+# to gn:Feature, so we don't assert more about these terms than W3C does.
+
+geo:SpatialThing a owl:Class ;
+    rdfs:label "Spatial Thing"@en ;
+    rdfs:comment "Anything with spatial extent, i.e. size, shape, or position (W3C Basic Geo)."@en .
+
+geo:lat a owl:DatatypeProperty ;
+    rdfs:label "latitude"@en ;
+    rdfs:domain geo:SpatialThing ;
+    rdfs:comment "WGS84 latitude in decimal degrees."@en .
+
+geo:long a owl:DatatypeProperty ;
+    rdfs:label "longitude"@en ;
+    rdfs:domain geo:SpatialThing ;
+    rdfs:comment "WGS84 longitude in decimal degrees."@en .
 
 
 # --- DESTINY terms ---

@@ -30,6 +30,7 @@ _STANDALONE_TTL = _VOCAB_ROOT / "destiny" / "geonames-location-standalone.ttl"
 EVREPO = Namespace("https://vocab.evidence-repository.org/")
 DSNY = Namespace("https://vocab.destiny-evidence.org/")
 GN = Namespace("http://www.geonames.org/ontology#")
+GEO = Namespace("http://www.w3.org/2003/01/geo/wgs84_pos#")
 
 NEW_CORE_PROPERTIES = {
     EVREPO.mentionText,
@@ -119,6 +120,7 @@ async def test_imports_cleanly_on_top_of_core(
     assert [v for v in result.validation_issues if v.severity != "info"] == []
     assert {c.uri for c in result.classes_created} == {
         str(GN.Feature),
+        str(GEO.SpatialThing),
         str(GN.GeonamesFeature),
         str(GN.Class),
         str(GN.Code),
@@ -131,6 +133,8 @@ async def test_imports_cleanly_on_top_of_core(
         "codingScore",
         "countryCode",
         "geonamesID",
+        "lat",
+        "long",
         "featureClass",
         "featureCode",
         "mentionedPlace",
@@ -180,6 +184,8 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
                     "@type": "gn:GeonamesFeature",
                     "countryCode": "IN",
                     "geonamesID": "1269750",
+                    "lat": 22.0,
+                    "long": 79.0,
                     "featureClass": {"@id": "gn:A"},
                     "featureCode": {"@id": "gn:A.PCLI"},
                 },
@@ -202,6 +208,8 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
     assert (india, RDF.type, GN.GeonamesFeature) in g
     assert (india, GN.countryCode, Literal("IN", datatype=XSD.string)) in g
     assert (india, GN.geonamesID, Literal("1269750", datatype=XSD.string)) in g
+    assert g.value(india, GEO.lat).toPython() == pytest.approx(22.0)
+    assert g.value(india, GEO.long).toPython() == pytest.approx(79.0)
     assert (india, GN.featureClass, GN.A) in g
     assert (india, GN.featureCode, URIRef(str(GN) + "A.PCLI")) in g
     assert g.value(annotation, EVREPO.mentionText).toPython() == "India"
@@ -291,6 +299,7 @@ async def test_standalone_imports_cleanly_into_empty_project(
         str(EVREPO.CodingAnnotation),
         str(EVREPO.CodingStatus),
         str(GN.Feature),
+        str(GEO.SpatialThing),
         str(GN.GeonamesFeature),
         str(GN.Class),
         str(GN.Code),
@@ -307,6 +316,8 @@ async def test_standalone_imports_cleanly_into_empty_project(
         "codingScore",
         "countryCode",
         "geonamesID",
+        "lat",
+        "long",
         "featureClass",
         "featureCode",
         "mentionedPlace",
@@ -321,3 +332,19 @@ async def test_robot_payload_expands_in_standalone_project(
         test_project.id, _STANDALONE_TTL.read_bytes(), "geonames-location-standalone.ttl"
     )
     await _assert_robot_payload_expands(db_session, test_project)
+
+
+def test_geonames_feature_restates_geonames_wording() -> None:
+    for path in (_GEONAMES_TTL, _STANDALONE_TTL):
+        g = Graph()
+        g.parse(path, format="turtle")
+        assert (GN.GeonamesFeature, RDFS.label, Literal("Geonames Feature", lang="en")) in g
+        assert (
+            GN.GeonamesFeature,
+            RDFS.comment,
+            Literal(
+                "A feature described in geonames database, uniquely defined by its "
+                "geonames identifier",
+                lang="en",
+            ),
+        ) in g
