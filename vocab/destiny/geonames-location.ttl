@@ -1,0 +1,112 @@
+@prefix evrepo: <https://vocab.evidence-repository.org/> .
+@prefix dsny:   <https://vocab.destiny-evidence.org/> .
+@prefix gn:     <http://www.geonames.org/ontology#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+# =============================================================================
+# DESTINY — GeoNames place mentions
+#
+# Import into the DESTINY project (which already holds evrepo-core) so the
+# geoparsing robot can emit place mentions as LinkedDataEnhancements.
+#
+# Shape: Investigation -mentionedPlace-> LocationCodingAnnotation
+#        -codedValue-> gn:GeonamesFeature (http://sws.geonames.org/{id}/)
+# One annotation per mention; mentions of the same place share the feature.
+#
+# Requires evrepo:Investigation and evrepo:CodingAnnotation to exist in the
+# project — the import is blocked otherwise.
+#
+# gn:name is deliberately omitted: taxonomy-builder keys properties by local
+# name, so it would collide with evrepo:name and be silently skipped.
+# =============================================================================
+
+
+# --- evrepo-core additions ---
+# Projects hold their own copy of the core, so the new core terms are repeated
+# here verbatim from evrepo-core.ttl (a test keeps the two in step).
+
+evrepo:mentionText a owl:DatatypeProperty ;
+    rdfs:label "mention text"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The exact span of source text that was coded (e.g. the place name as written). supportingText carries the surrounding context."@en .
+
+evrepo:startChar a owl:DatatypeProperty ;
+    rdfs:label "start character"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "0-based Unicode code point offset where mentionText starts in the source text."@en .
+
+evrepo:endChar a owl:DatatypeProperty ;
+    rdfs:label "end character"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Exclusive 0-based Unicode code point offset where mentionText ends in the source text."@en .
+
+evrepo:codingScore a owl:DatatypeProperty ;
+    rdfs:label "coding score"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Score the coder (see codedBy) assigned to this coding. Scale and meaning depend on the coder; not a calibrated probability unless the coder documents it as one."@en .
+
+
+# --- GeoNames terms (subset of http://www.geonames.org/ontology) ---
+# GeoNames' own cardinality restrictions on GeonamesFeature are not restated.
+
+gn:Feature a owl:Class ;
+    rdfs:label "Feature"@en ;
+    rdfs:comment "A geographical feature, as defined by the GeoNames ontology."@en .
+
+gn:GeonamesFeature a owl:Class ;
+    rdfs:subClassOf gn:Feature ;
+    rdfs:label "GeoNames Feature"@en ;
+    rdfs:comment "A feature in the GeoNames database, identified by its GeoNames URI (http://sws.geonames.org/{geonameid}/)."@en .
+
+gn:Class a owl:Class ;
+    rdfs:label "Feature Class"@en ;
+    rdfs:comment "GeoNames feature class (gn:A country/region, gn:H water, gn:L area, gn:P populated place, gn:R road, gn:S spot, gn:T terrain, gn:U undersea, gn:V vegetation)."@en .
+
+gn:Code a owl:Class ;
+    rdfs:label "Feature Code"@en ;
+    rdfs:comment "GeoNames feature code, e.g. gn:A.PCLI (independent political entity) or gn:P.PPL (populated place)."@en .
+
+gn:countryCode a owl:DatatypeProperty ;
+    rdfs:label "country code"@en ;
+    rdfs:domain gn:Feature ;
+    rdfs:range xsd:string ;
+    rdfs:comment "ISO 3166-1 alpha-2 country code of the feature (e.g. IN). Not alpha-3."@en .
+
+gn:featureClass a owl:ObjectProperty ;
+    rdfs:label "feature class"@en ;
+    rdfs:domain gn:Feature ;
+    rdfs:range gn:Class ;
+    rdfs:comment "The GeoNames feature class of the feature."@en .
+
+gn:featureCode a owl:ObjectProperty ;
+    rdfs:label "feature code"@en ;
+    rdfs:domain gn:Feature ;
+    rdfs:range gn:Code ;
+    rdfs:comment "The GeoNames feature code of the feature."@en .
+
+
+# --- DESTINY terms ---
+
+dsny:LocationCodingAnnotation a owl:Class ;
+    rdfs:subClassOf evrepo:CodingAnnotation ;
+    rdfs:label "Location Coding Annotation"@en ;
+    rdfs:comment "A single mention of a place in the source text, resolved to a GeoNames feature. Provenance (supportingText, mentionText, startChar, endChar, codingScore, codedBy) is per mention."@en ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty evrepo:codedValue ;
+        owl:allValuesFrom gn:GeonamesFeature
+    ] .
+
+dsny:mentionedPlace a owl:ObjectProperty ;
+    rdfs:label "mentioned place"@en ;
+    rdfs:domain evrepo:Investigation ;
+    rdfs:range dsny:LocationCodingAnnotation ;
+    rdfs:comment "A place mentioned in the reference's text. A mention is not necessarily where the study was conducted."@en ;
+    dsny:allowMultiple true .

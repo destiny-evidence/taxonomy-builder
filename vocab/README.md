@@ -18,6 +18,11 @@ The vocabulary is split across two namespaces, layered so that sector-specific e
 - `esea-context.jsonld` — JSON-LD @context for serialising evidence data
 - `example-finding.jsonld` — Worked example: a cluster RCT with per-arm data
 
+**[`destiny/`](destiny/)** — Additions for the DESTINY project, imported on top of its existing vocabulary.
+
+- Namespace: `https://vocab.destiny-evidence.org/`
+- `geonames-location.ttl` — Place mentions resolved to GeoNames features, for the geoparsing robot. Repeats the new evrepo-core span/score properties because projects hold their own copy of the core.
+
 A health or climate domain would add a sibling directory (e.g. `health/`) that imports `evrepo-core/` and defines its own concept schemes.
 
 ## Usage

@@ -209,6 +209,35 @@ evrepo:sourceLocation a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:comment "Location in the source document where the data was found (e.g. table number, page reference)."@en .
 
+# --- Span and score provenance ---
+# Optional, for coders that work from a known source text (e.g. a robot reading
+# the abstract). Offsets are 0-based Unicode code points (Python str indexing),
+# endChar exclusive, into the text the coder read — not UTF-16 code units.
+
+evrepo:mentionText a owl:DatatypeProperty ;
+    rdfs:label "mention text"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The exact span of source text that was coded (e.g. the place name as written). supportingText carries the surrounding context."@en .
+
+evrepo:startChar a owl:DatatypeProperty ;
+    rdfs:label "start character"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "0-based Unicode code point offset where mentionText starts in the source text."@en .
+
+evrepo:endChar a owl:DatatypeProperty ;
+    rdfs:label "end character"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Exclusive 0-based Unicode code point offset where mentionText ends in the source text."@en .
+
+evrepo:codingScore a owl:DatatypeProperty ;
+    rdfs:label "coding score"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Score the coder (see codedBy) assigned to this coding. Scale and meaning depend on the coder; not a calibrated probability unless the coder documents it as one."@en .
+
 # --- Coding Status Enumeration ---
 # A closed set of named individuals representing workflow states of a
 # CodingAnnotation. The fourth state — "not yet coded" — is represented by
