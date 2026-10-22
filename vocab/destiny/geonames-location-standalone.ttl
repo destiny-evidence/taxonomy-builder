@@ -128,6 +128,12 @@ gn:countryCode a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:comment "ISO 3166-1 alpha-2 country code of the feature (e.g. IN). Not alpha-3."@en .
 
+gn:geonamesID a owl:DatatypeProperty ;
+    rdfs:label "GeoNames ID"@en ;
+    rdfs:domain gn:Feature ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The GeoNames identifier (geonameid) of the feature, e.g. 1269750. Duplicates the last path segment of the feature URI so it can be matched without parsing the URI."@en .
+
 gn:featureClass a owl:ObjectProperty ;
     rdfs:label "feature class"@en ;
     rdfs:domain gn:Feature ;

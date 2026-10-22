@@ -130,6 +130,7 @@ async def test_imports_cleanly_on_top_of_core(
         "endChar",
         "codingScore",
         "countryCode",
+        "geonamesID",
         "featureClass",
         "featureCode",
         "mentionedPlace",
@@ -178,6 +179,7 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
                     "@id": str(india),
                     "@type": "gn:GeonamesFeature",
                     "countryCode": "IN",
+                    "geonamesID": "1269750",
                     "featureClass": {"@id": "gn:A"},
                     "featureCode": {"@id": "gn:A.PCLI"},
                 },
@@ -199,6 +201,7 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
     assert (annotation, EVREPO.codedValue, india) in g
     assert (india, RDF.type, GN.GeonamesFeature) in g
     assert (india, GN.countryCode, Literal("IN", datatype=XSD.string)) in g
+    assert (india, GN.geonamesID, Literal("1269750", datatype=XSD.string)) in g
     assert (india, GN.featureClass, GN.A) in g
     assert (india, GN.featureCode, URIRef(str(GN) + "A.PCLI")) in g
     assert g.value(annotation, EVREPO.mentionText).toPython() == "India"
@@ -303,6 +306,7 @@ async def test_standalone_imports_cleanly_into_empty_project(
         "endChar",
         "codingScore",
         "countryCode",
+        "geonamesID",
         "featureClass",
         "featureCode",
         "mentionedPlace",
