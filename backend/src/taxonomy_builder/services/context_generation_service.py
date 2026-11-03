@@ -49,8 +49,7 @@ class ContextGenerationService:
         used_terms: dict[str, str] = {prefix: prefix for prefix in prefixes}
 
         def precedence(term) -> tuple[int, UUID]:
-            # Bare names go to project terms, then priority vocabularies, then
-            # the oldest remaining term, so a new import can't take a published key.
+            # Oldest wins within a tier so a later import can't take an existing bare name.
             if term.uri.startswith(project_namespace):
                 tier = 0
             elif term.uri.startswith(PRIORITY_CONTEXT_NAMESPACES):
@@ -65,7 +64,8 @@ class ContextGenerationService:
                 continue
             compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
             if local_name in used_terms:
-                # Keyed by CURIE: a full-URI key pointing at a CURIE loops rdflib
+                # Not by full URI: a full-URI key whose value is a CURIE sends
+                # rdflib's JSON-LD parser into infinite recursion.
                 logger.warning(
                     "Context term collision: class %s not given bare name %r",
                     snapshot_class.uri,
@@ -118,8 +118,7 @@ class ContextGenerationService:
                     local_name,
                 )
 
-            # Prefixed key so producers can name external terms explicitly and
-            # keep their @type/@container; a bare CURIE would expand untyped.
+            # A CURIE key only picks up @type/@container from its own entry.
             compact = entry.get("@id")
             if compact and compact != prop.uri and value is entry:
                 context[compact] = entry

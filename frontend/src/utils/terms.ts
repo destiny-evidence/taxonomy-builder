@@ -3,7 +3,6 @@ import type { Project } from "../types/models";
 type ProjectNamespaces = Pick<Project, "namespace" | "namespace_prefixes">;
 
 function isProjectTerm(uri: string, project: ProjectNamespaces): boolean {
-  // Mirrors the backend's namespace normalisation in context generation.
   return uri.startsWith(project.namespace.replace(/\/+$/, "") + "/");
 }
 

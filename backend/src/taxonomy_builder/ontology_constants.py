@@ -19,6 +19,6 @@ WELL_KNOWN_SUPERCLASS_URIREFS: frozenset[URIRef] = frozenset({
     RDFS.Resource,
 })
 
-# Namespaces whose terms outrank other external vocabularies for bare JSON-LD
-# context names. Projects extend evrepo-core and its data uses bare names.
+# Vocabularies whose terms take bare JSON-LD context names ahead of other
+# external terms.
 PRIORITY_CONTEXT_NAMESPACES: tuple[str, ...] = ("https://vocab.evidence-repository.org/",)

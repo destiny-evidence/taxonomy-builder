@@ -735,7 +735,6 @@ async def test_execute_allow_multiple_sets_cardinality(
 
 # --- Shared local name tests ---
 
-# Terms from different vocabularies that share a local name (#268).
 SHARED_LOCAL_NAME_TTL = b"""
 @prefix gn:     <http://www.geonames.org/ontology#> .
 @prefix evrepo: <https://vocab.evidence-repository.org/> .

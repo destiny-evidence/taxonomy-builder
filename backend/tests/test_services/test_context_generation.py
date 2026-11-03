@@ -285,8 +285,6 @@ class TestCollisions:
             ]
         )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
-        # Project-namespace class takes the short name; the external one is
-        # listed under its CURIE. A full-URI key would loop rdflib's parser.
         assert ctx["Outcome"] == "esea:Outcome"
         assert ctx["evrepo:Outcome"] == "evrepo:Outcome"
         assert f"{EXTERNAL_NS}Outcome" not in ctx
@@ -531,7 +529,7 @@ def _context_both_orders(props: list[dict], namespace: str) -> list[dict]:
 
 
 class TestSharedLocalNames:
-    """Terms from different vocabularies sharing a local name (#268)."""
+    """Terms from different vocabularies sharing a local name."""
 
     def test_project_term_keeps_bare_name(self):
         props = [_string_prop(1, f"{EXTERNAL_NS}name"), _string_prop(2, f"{GN_NS}name")]
@@ -583,8 +581,6 @@ class TestSharedLocalNames:
         }
 
     def test_context_with_clashes_parses_with_rdflib(self):
-        """rdflib, used by destiny-repository projection, recursed forever on
-        full-URI keys pointing at CURIEs."""
         snapshot = _make_snapshot(
             classes=[
                 {"id": str(CLASS_ID), "identifier": "Outcome", "label": "Outcome",
