@@ -256,6 +256,32 @@ describe("ClassDetailPane", () => {
       expect(screen.getByText("Countries")).toBeInTheDocument();
     });
 
+    it("shows no-range label for properties without a range", () => {
+      properties.value = [
+        {
+          ...mockProperties[0],
+          id: "prop-lat",
+          identifier: "lat",
+          label: "Latitude",
+          range_datatype: null,
+          uri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat",
+        },
+      ];
+
+      render(
+        <ClassDetailPane
+          classUri="http://example.org/Person"
+          projectId="proj-1"
+          onPropertySelect={mockOnPropertySelect}
+          onSchemeNavigate={mockOnSchemeNavigate}
+          onRefresh={mockOnRefresh}
+          onClassDeleted={mockOnClassDeleted}
+        />
+      );
+
+      expect(screen.getByText("Any (no range declared)")).toBeInTheDocument();
+    });
+
     it("shows empty state when no properties", () => {
       render(
         <ClassDetailPane

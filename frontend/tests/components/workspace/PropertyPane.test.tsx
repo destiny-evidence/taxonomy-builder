@@ -143,4 +143,21 @@ describe("PropertyPane", () => {
 
     expect(document.querySelector(".property-pane__values")).not.toBeInTheDocument();
   });
+
+  it("shows no-range label for a property without a range", () => {
+    properties.value = [{ ...mockProperty, range_datatype: null }];
+    selectedPropertyId.value = "prop-1";
+
+    render(
+      <PropertyPane
+        onDelete={mockOnDelete}
+        onRefresh={mockOnRefresh}
+        onSchemeNavigate={mockOnSchemeNavigate}
+      />
+    );
+
+    expect(document.querySelector(".property-pane__values")).toHaveTextContent(
+      "Any (no range declared)"
+    );
+  });
 });

@@ -245,6 +245,8 @@ export function datatypeLabel(xsdType: string): string {
   return DATATYPE_LABELS[xsdType] ?? xsdType;
 }
 
+export const NO_RANGE_LABEL = "Any (no range declared)";
+
 // ============ Feedback (Manager) ============
 export type FeedbackStatus = "open" | "responded" | "resolved" | "declined";
 

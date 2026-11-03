@@ -10,7 +10,7 @@ import { properties, selectedPropertyId, creatingProperty } from "../../state/pr
 import type { Property } from "../../types/models";
 import { extractLocalName } from "../../utils/strings";
 import { historyVersion } from "../../state/history";
-import { datatypeLabel } from "../../types/models";
+import { datatypeLabel, NO_RANGE_LABEL } from "../../types/models";
 import "../common/WorkspaceDetail.css";
 import "./ClassDetailPane.css";
 
@@ -157,7 +157,7 @@ export function ClassDetailPane({
             </span>
           ) : (
             <span class="class-detail-pane__datatype">
-              {prop.range_datatype ? datatypeLabel(prop.range_datatype) : null}
+              {prop.range_datatype ? datatypeLabel(prop.range_datatype) : NO_RANGE_LABEL}
             </span>
           )}
         </span>
