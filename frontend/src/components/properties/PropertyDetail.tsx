@@ -7,12 +7,12 @@ import { propertiesApi } from "../../api/properties";
 import { ApiError } from "../../api/client";
 import { ontologyClasses } from "../../state/classes";
 import { schemes } from "../../state/schemes";
+import { currentProject } from "../../state/projects";
 import { DATATYPE_LABELS } from "../../types/models";
 import type { Property, PropertyCreate } from "../../types/models";
-import { toCamelCase, validateIdentifier, extractLocalName } from "../../utils/strings";
+import { toCamelCase, validateIdentifier, extractLocalName, isInNamespace } from "../../utils/strings";
 import { TermPrefix } from "../common/TermPrefix";
 import { prefixedLabel } from "../../utils/terms";
-import { currentProject } from "../../state/projects";
 import { formatDatetime } from "../../utils/dates";
 import "../common/WorkspaceDetail.css";
 import "./PropertyDetail.css";
@@ -267,6 +267,8 @@ export function PropertyDetail(props: PropertyDetailProps) {
   }
 
   const title = isCreateMode ? "New Property" : isEditing ? "Edit Property" : property!.label;
+  const isExternal =
+    !!property && !!currentProject.value && !isInNamespace(property.uri, currentProject.value.namespace);
 
   return (
     <div class="workspace-detail">
@@ -274,14 +276,18 @@ export function PropertyDetail(props: PropertyDetailProps) {
         <h3 class="workspace-detail__title">{title}</h3>
         {!isCreateMode && !isEditing && (
           <div class="workspace-detail__header-actions">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleEditClick}
-              disabled={property!.domain_class_uris.length > 1}
-            >
-              Edit
-            </Button>
+            {isExternal ? (
+              <span class="workspace-detail__external">External Property</span>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleEditClick}
+                disabled={property!.domain_class_uris.length > 1}
+              >
+                Edit
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
