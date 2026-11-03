@@ -23,9 +23,6 @@ class OntologyClass(Base):
 
     __tablename__ = "ontology_classes"
     __table_args__ = (
-        UniqueConstraint(
-            "project_id", "identifier", name="uq_ontology_class_identifier_per_project"
-        ),
         UniqueConstraint("project_id", "uri", name="uq_ontology_classes_project_uri"),
     )
 

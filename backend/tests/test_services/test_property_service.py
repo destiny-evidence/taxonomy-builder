@@ -15,7 +15,6 @@ from taxonomy_builder.services.project_service import ProjectNotFoundError, Proj
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
-    PropertyIdentifierExistsError,
     PropertyService,
     PropertyURIExistsError,
     SchemeNotInProjectError,
@@ -295,7 +294,7 @@ class TestCreateProperty:
             range_datatype="xsd:integer",
             cardinality="single",
         )
-        with pytest.raises(PropertyIdentifierExistsError):
+        with pytest.raises(PropertyURIExistsError):
             await service.create_property(project.id, prop_in2)
 
     @pytest.mark.asyncio

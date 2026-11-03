@@ -218,6 +218,25 @@ class TestCreateProperty:
             },
         )
         assert response.status_code == 409
+        assert "uri" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_create_property_same_identifier_external_uri(
+        self, authenticated_client: AsyncClient, project: Project, property_obj: Property
+    ) -> None:
+        """A term from another vocabulary may share a local name with ours."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "sampleSize",
+                "label": "Sample Size",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
+                "range_datatype": "xsd:integer",
+                "cardinality": "single",
+                "uri": "http://www.geonames.org/ontology#sampleSize",
+            },
+        )
+        assert response.status_code == 201
 
     @pytest.mark.asyncio
     async def test_create_property_project_not_found(
