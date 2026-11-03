@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.blob_store import FilesystemBlobStore
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.property import Property
 
 
 @pytest.fixture
@@ -74,6 +76,52 @@ class TestPreview:
         assert resp.status_code == 200
         data = resp.json()
         assert data["validation"]["valid"] is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("property_uri", "expected_valid"),
+        [
+            ("http://www.w3.org/2003/01/geo/wgs84_pos#lat", True),
+            ("http://example.org/vocab/lat", False),
+        ],
+    )
+    async def test_preview_rangeless_datatype_property(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        publishable_project: Project,
+        property_uri: str,
+        expected_valid: bool,
+    ) -> None:
+        domain = OntologyClass(
+            project_id=publishable_project.id,
+            identifier="SpatialThing",
+            label="SpatialThing",
+            uri="http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing",
+        )
+        db_session.add(domain)
+        await db_session.flush()
+        prop = Property(
+            project_id=publishable_project.id,
+            identifier="lat",
+            label="latitude",
+            uri=property_uri,
+            property_type="datatype",
+            cardinality="single",
+        )
+        prop.domain_classes = [domain]
+        db_session.add(prop)
+        await db_session.flush()
+        db_session.expunge_all()
+
+        resp = await authenticated_client.get(
+            f"/api/projects/{publishable_project.id}/publish/preview"
+        )
+        assert resp.status_code == 200
+        validation = resp.json()["validation"]
+        assert validation["valid"] is expected_valid
+        if not expected_valid:
+            assert [e["code"] for e in validation["errors"]] == ["property_invalid_range"]
 
     @pytest.mark.asyncio
     async def test_preview_includes_diff_after_publish(

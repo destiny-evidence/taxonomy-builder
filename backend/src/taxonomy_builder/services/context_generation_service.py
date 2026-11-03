@@ -20,7 +20,7 @@ class ContextGenerationService:
 
     def generate(self, snapshot: SnapshotVocabulary) -> dict:
         """Build a JSON-LD @context from a vocabulary snapshot."""
-        project_namespace = snapshot.project.namespace.rstrip("/") + "/"
+        project_namespace = snapshot.project.normalized_namespace
         prefixes = dict(snapshot.project.namespace_prefixes)
 
         # Build reverse lookup: namespace URL → prefix name (longest namespace
@@ -83,7 +83,7 @@ class ContextGenerationService:
             if not local_name:
                 continue
 
-            in_project_namespace = prop.uri.startswith(project_namespace)
+            in_project_namespace = snapshot.project.in_namespace(prop.uri)
             entry: dict[str, str] = {}
 
             # @id — only needed for properties outside the project namespace
