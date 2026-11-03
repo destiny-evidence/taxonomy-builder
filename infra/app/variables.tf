@@ -77,6 +77,11 @@ variable "shared_keycloak_url" {
   type        = string
 }
 
+variable "evrepo_namespace" {
+  description = "Namespace of the evrepo vocabulary, whose terms take bare names in generated JSON-LD contexts"
+  type        = string
+}
+
 variable "keycloak_realm_name" {
   description = "Name of the Keycloak realm"
   type        = string

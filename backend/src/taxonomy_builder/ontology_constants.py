@@ -18,7 +18,3 @@ WELL_KNOWN_SUPERCLASS_URIREFS: frozenset[URIRef] = frozenset({
     OWL.Thing,
     RDFS.Resource,
 })
-
-# Vocabularies whose terms take bare JSON-LD context names ahead of other
-# external terms.
-PRIORITY_CONTEXT_NAMESPACES: tuple[str, ...] = ("https://vocab.evidence-repository.org/",)

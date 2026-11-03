@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from taxonomy_builder.ontology_constants import PRIORITY_CONTEXT_NAMESPACES
+from taxonomy_builder.config import settings
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class ContextGenerationService:
             # Oldest wins within a tier so a later import can't take an existing bare name.
             if term.uri.startswith(project_namespace):
                 tier = 0
-            elif term.uri.startswith(PRIORITY_CONTEXT_NAMESPACES):
+            elif term.uri.startswith(settings.evrepo_namespace):
                 tier = 1
             else:
                 tier = 2

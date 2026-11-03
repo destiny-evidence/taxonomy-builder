@@ -6,6 +6,7 @@ from uuid import UUID
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
 
+from taxonomy_builder.config import settings
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.context_generation_service import ContextGenerationService
 
@@ -610,3 +611,11 @@ class TestSharedLocalNames:
             URIRef(f"{EXTERNAL_NS}Outcome"),
         }
         assert (subject, URIRef(f"{GN_NS}name"), Literal("b", datatype=XSD.string)) in g
+
+    def test_evrepo_namespace_is_configurable(self, monkeypatch):
+        monkeypatch.setattr(settings, "evrepo_namespace", GN_NS)
+        props = [_string_prop(1, f"{EXTERNAL_NS}name"), _string_prop(2, f"{GN_NS}name")]
+        first, second = _context_both_orders(props, namespace=DESTINY_NS)
+
+        assert first == second
+        assert first["name"] == {"@id": "gn:name", "@type": "xsd:string"}
