@@ -104,8 +104,12 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
               >
                 {rangeClass.label}
               </span>
+            ) : prop.range_datatype ? (
+              prop.range_datatype
+            ) : prop.range_scheme_id || prop.range_class ? (
+              "—"
             ) : (
-              prop.range_datatype ?? "—"
+              "Any (no range declared)"
             )}
           </div>
 
