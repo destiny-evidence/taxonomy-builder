@@ -38,6 +38,7 @@ class PropertyPreviewResponse(BaseModel):
     """Preview information for a property to be imported."""
 
     identifier: str
+    uri: str
     label: str
     property_type: str  # "object" or "datatype"
     domain_class_uris: list[str] = Field(default_factory=list)
@@ -83,6 +84,7 @@ class PropertyCreatedResponse(BaseModel):
 
     id: UUID
     identifier: str
+    uri: str
     label: str
     range_scheme_id: UUID | None
     range_datatype: str | None
