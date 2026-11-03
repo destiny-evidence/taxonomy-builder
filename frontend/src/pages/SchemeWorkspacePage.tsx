@@ -296,6 +296,8 @@ export function SchemeWorkspacePage({
   async function handleImportSuccess() {
     if (projectId) {
       await Promise.all([
+        // Import merges the file's namespace prefixes into the project
+        loadProject(projectId),
         loadSchemes(projectId),
         loadClasses(projectId),
         loadProperties(projectId),
