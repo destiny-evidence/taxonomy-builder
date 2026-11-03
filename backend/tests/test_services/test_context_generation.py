@@ -1,6 +1,10 @@
 """Tests for JSON-LD @context generation from vocabulary snapshots."""
 
+import json
 from uuid import UUID
+
+from rdflib import Graph, Literal, URIRef
+from rdflib.namespace import XSD
 
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.context_generation_service import ContextGenerationService
@@ -486,3 +490,93 @@ class TestRdfPropertyWithDatatype:
         ctx = ContextGenerationService().generate(snapshot)["@context"]
         assert "dataSource" in ctx, "in-namespace rdf:Property with datatype should not be omitted"
         assert ctx["dataSource"] == {"@type": "xsd:string"}
+
+
+GN_NS = "http://www.geonames.org/ontology#"
+DCT_NS = "http://purl.org/dc/terms/"
+DESTINY_NS = "https://vocab.destiny-evidence.org/"
+SHARED_PREFIXES = {
+    **DEFAULT_PREFIXES,
+    "gn": GN_NS,
+    "dct": DCT_NS,
+    "dsny": DESTINY_NS,
+}
+
+
+def _string_prop(prop_id: int, uri: str, property_type: str = "datatype") -> dict:
+    return {
+        "id": f"01965a00-0000-7000-8000-c0000000000{prop_id}",
+        "identifier": uri.rsplit("#", 1)[-1].rsplit("/", 1)[-1],
+        "label": "x",
+        "uri": uri,
+        "property_type": property_type,
+        "range_datatype": "xsd:string" if property_type == "datatype" else None,
+        "cardinality": "single",
+        "required": False,
+    }
+
+
+def _context_both_orders(props: list[dict], namespace: str) -> list[dict]:
+    return [
+        ContextGenerationService().generate(
+            _make_snapshot(
+                properties=ordering,
+                namespace=namespace,
+                namespace_prefixes=SHARED_PREFIXES,
+            )
+        )["@context"]
+        for ordering in (props, list(reversed(props)))
+    ]
+
+
+class TestSharedLocalNames:
+    """Terms from different vocabularies sharing a local name (#268)."""
+
+    def test_project_term_keeps_bare_name(self):
+        props = [_string_prop(1, f"{EXTERNAL_NS}name"), _string_prop(2, f"{GN_NS}name")]
+        first, second = _context_both_orders(props, namespace=EXTERNAL_NS)
+
+        assert first == second
+        assert first["name"] == {"@type": "xsd:string"}
+        assert first["gn:name"] == {"@id": "gn:name", "@type": "xsd:string"}
+
+    def test_priority_namespace_beats_other_external(self):
+        # gn:name is older, but evrepo outranks other external vocabularies.
+        props = [_string_prop(1, f"{GN_NS}name"), _string_prop(2, f"{EXTERNAL_NS}name")]
+        first, second = _context_both_orders(props, namespace=DESTINY_NS)
+
+        assert first == second
+        assert first["name"] == {"@id": "evrepo:name", "@type": "xsd:string"}
+        assert first["evrepo:name"] == {"@id": "evrepo:name", "@type": "xsd:string"}
+        assert first["gn:name"] == {"@id": "gn:name", "@type": "xsd:string"}
+
+    def test_oldest_external_term_wins_tie(self):
+        props = [_string_prop(1, f"{DCT_NS}title"), _string_prop(2, f"{GN_NS}title")]
+        first, second = _context_both_orders(props, namespace=DESTINY_NS)
+
+        assert first == second
+        assert first["title"] == {"@id": "dct:title", "@type": "xsd:string"}
+        assert first["gn:title"] == {"@id": "gn:title", "@type": "xsd:string"}
+
+    def test_untyped_project_term_still_reserves_bare_name(self):
+        """A project term resolved via @vocab must not be shadowed by an external one."""
+        props = [
+            _string_prop(1, f"{DESTINY_NS}label", property_type="rdf"),
+            _string_prop(2, f"{GN_NS}label"),
+        ]
+        first, second = _context_both_orders(props, namespace=DESTINY_NS)
+
+        assert first == second
+        assert "label" not in first
+        assert first["gn:label"] == {"@id": "gn:label", "@type": "xsd:string"}
+
+    def test_payload_expands_through_generated_context(self):
+        props = [_string_prop(1, f"{EXTERNAL_NS}name"), _string_prop(2, f"{GN_NS}name")]
+        ctx = _context_both_orders(props, namespace=DESTINY_NS)[0]
+        doc = {"@context": ctx, "@id": "http://example.org/x", "name": "a", "gn:name": "b"}
+
+        g = Graph().parse(data=json.dumps(doc), format="json-ld")
+        assert set(g.predicate_objects(URIRef("http://example.org/x"))) == {
+            (URIRef(f"{EXTERNAL_NS}name"), Literal("a", datatype=XSD.string)),
+            (URIRef(f"{GN_NS}name"), Literal("b", datatype=XSD.string)),
+        }
