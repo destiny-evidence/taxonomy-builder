@@ -137,10 +137,8 @@ class TestPropertyUpdate:
         """Test updating only some fields."""
         prop = PropertyUpdate(label="New Label")
         assert prop.label == "New Label"
-        assert prop.identifier is None
         assert prop.cardinality is None
 
-    def test_identifier_validation_on_update(self) -> None:
-        """Test that identifier validation applies on update."""
+    def test_identifier_cannot_be_updated(self) -> None:
         with pytest.raises(ValidationError):
-            PropertyUpdate(identifier="invalid identifier")
+            PropertyUpdate(identifier="renamed")

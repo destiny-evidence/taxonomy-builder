@@ -1,6 +1,7 @@
 """Tests for OntologyClassService URI behavior."""
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
@@ -82,23 +83,9 @@ class TestCreateOntologyClassURI:
             await ontology_class_service.create_ontology_class(project.id, cls_in2)
 
 
-class TestUpdateOntologyClassURI:
-    """Tests for URI immutability on update."""
+class TestUpdateOntologyClassIdentifier:
+    """Identifiers are immutable after create."""
 
-    @pytest.mark.asyncio
-    async def test_update_identifier_does_not_change_uri(
-        self, project: Project, ontology_class_service: OntologyClassService
-    ) -> None:
-        """URI is immutable — updating identifier does not change URI."""
-        cls_in = OntologyClassCreate(
-            identifier="Finding", label="Finding"
-        )
-        cls = await ontology_class_service.create_ontology_class(project.id, cls_in)
-        original_uri = cls.uri
-
-        update = OntologyClassUpdate(identifier="UpdatedFinding")
-        updated = await ontology_class_service.update_ontology_class(cls.id, update)
-
-        assert updated is not None
-        assert updated.identifier == "UpdatedFinding"
-        assert updated.uri == original_uri
+    def test_identifier_cannot_be_updated(self) -> None:
+        with pytest.raises(ValidationError):
+            OntologyClassUpdate(identifier="UpdatedFinding")

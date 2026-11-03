@@ -82,7 +82,8 @@ class PropertyCreate(BaseModel):
 class PropertyUpdate(BaseModel):
     """Schema for updating an existing property."""
 
-    identifier: str | None = Field(default=None, min_length=1, max_length=255)
+    model_config = ConfigDict(extra="forbid")
+
     label: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     domain_class_uris: list[str] | None = Field(default=None, min_length=1)
@@ -91,12 +92,6 @@ class PropertyUpdate(BaseModel):
     range_class: str | None = Field(default=None, min_length=1)
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
-
-    @field_validator("identifier")
-    @classmethod
-    def check_identifier(cls, v: str | None) -> str | None:
-        """Validate identifier is URI-safe if provided."""
-        return validate_identifier(v)
 
     @field_validator("label")
     @classmethod

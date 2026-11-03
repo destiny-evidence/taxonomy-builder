@@ -40,16 +40,11 @@ class OntologyClassCreate(BaseModel):
 class OntologyClassUpdate(BaseModel):
     """Schema for updating an existing ontology class."""
 
-    identifier: str | None = Field(default=None, min_length=1, max_length=255)
+    model_config = ConfigDict(extra="forbid")
+
     label: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     scope_note: str | None = None
-
-    @field_validator("identifier")
-    @classmethod
-    def check_identifier(cls, v: str | None) -> str | None:
-        """Validate identifier is URI-safe if provided."""
-        return validate_identifier(v)
 
     @field_validator("label")
     @classmethod

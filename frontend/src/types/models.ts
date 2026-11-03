@@ -220,7 +220,6 @@ export interface PropertyCreate {
 }
 
 export interface PropertyUpdate {
-  identifier?: string;
   label?: string;
   description?: string | null;
   domain_class_uris?: string[];
@@ -301,7 +300,6 @@ export interface OntologyClassCreate {
 }
 
 export interface OntologyClassUpdate {
-  identifier?: string;
   label?: string;
   description?: string | null;
   scope_note?: string | null;
