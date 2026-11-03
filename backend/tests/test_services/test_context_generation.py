@@ -4,7 +4,7 @@ import json
 from uuid import UUID
 
 from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import XSD
+from rdflib.namespace import RDF, XSD
 
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
 from taxonomy_builder.services.context_generation_service import ContextGenerationService
@@ -285,10 +285,11 @@ class TestCollisions:
             ]
         )
         ctx = ContextGenerationService().generate(snapshot)["@context"]
-        # Project-namespace class takes the short name.
-        # External class gets the full URI as key since "Outcome" is taken.
+        # Project-namespace class takes the short name; the external one is
+        # listed under its CURIE. A full-URI key would loop rdflib's parser.
         assert ctx["Outcome"] == "esea:Outcome"
-        assert ctx[f"{EXTERNAL_NS}Outcome"] == "evrepo:Outcome"
+        assert ctx["evrepo:Outcome"] == "evrepo:Outcome"
+        assert f"{EXTERNAL_NS}Outcome" not in ctx
 
 
 class TestLongestMatchPrefix:
@@ -580,3 +581,36 @@ class TestSharedLocalNames:
             (URIRef(f"{EXTERNAL_NS}name"), Literal("a", datatype=XSD.string)),
             (URIRef(f"{GN_NS}name"), Literal("b", datatype=XSD.string)),
         }
+
+    def test_context_with_clashes_parses_with_rdflib(self):
+        """rdflib, used by destiny-repository projection, recursed forever on
+        full-URI keys pointing at CURIEs."""
+        snapshot = _make_snapshot(
+            classes=[
+                {"id": str(CLASS_ID), "identifier": "Outcome", "label": "Outcome",
+                 "uri": f"{PROJECT_NS}Outcome"},
+                {"id": str(EXT_CLASS_ID), "identifier": "Outcome", "label": "Outcome",
+                 "uri": f"{EXTERNAL_NS}Outcome"},
+                {"id": "01965a00-0000-7000-8000-b00000000003", "identifier": "Outcome",
+                 "label": "Outcome", "uri": "http://unbound.example/Outcome"},
+            ],
+            properties=[_string_prop(1, f"{EXTERNAL_NS}name"), _string_prop(2, f"{GN_NS}name"),
+                        _string_prop(3, "http://unbound.example/name")],
+            namespace_prefixes=SHARED_PREFIXES,
+        )
+        ctx = ContextGenerationService().generate(snapshot)["@context"]
+        doc = {
+            "@context": ctx,
+            "@id": "http://example.org/x",
+            "@type": ["Outcome", "evrepo:Outcome"],
+            "name": "a",
+            "gn:name": "b",
+        }
+
+        g = Graph().parse(data=json.dumps(doc), format="json-ld")
+        subject = URIRef("http://example.org/x")
+        assert set(g.objects(subject, RDF.type)) == {
+            URIRef(f"{PROJECT_NS}Outcome"),
+            URIRef(f"{EXTERNAL_NS}Outcome"),
+        }
+        assert (subject, URIRef(f"{GN_NS}name"), Literal("b", datatype=XSD.string)) in g

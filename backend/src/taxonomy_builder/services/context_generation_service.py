@@ -65,14 +65,13 @@ class ContextGenerationService:
                 continue
             compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
             if local_name in used_terms:
-                # Collision with existing term or prefix — use full URI as key
+                # Keyed by CURIE: a full-URI key pointing at a CURIE loops rdflib
                 logger.warning(
-                    "Context term collision: class %s mapped to full URI "
-                    "(local name %r already used)",
+                    "Context term collision: class %s not given bare name %r",
                     snapshot_class.uri,
                     local_name,
                 )
-                context[snapshot_class.uri] = compact
+                context[compact] = compact
             else:
                 used_terms[local_name] = snapshot_class.uri
                 context[local_name] = compact
