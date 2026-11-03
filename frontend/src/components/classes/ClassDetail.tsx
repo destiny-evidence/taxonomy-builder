@@ -3,8 +3,9 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { classesApi } from "../../api/classes";
+import { currentProject } from "../../state/projects";
 import type { OntologyClass, OntologyClassCreate } from "../../types/models";
-import { toCamelCase, validateIdentifier } from "../../utils/strings";
+import { toCamelCase, validateIdentifier, isInNamespace } from "../../utils/strings";
 import { TermPrefix } from "../common/TermPrefix";
 import { formatDatetime } from "../../utils/dates";
 import "../common/WorkspaceDetail.css";
@@ -196,6 +197,8 @@ export function ClassDetail(props: ClassDetailProps) {
   }
 
   const title = isCreateMode ? "New Class" : isEditing ? "Edit Class" : ontologyClass!.label;
+  const isExternal =
+    !!ontologyClass && !!currentProject.value && !isInNamespace(ontologyClass.uri, currentProject.value.namespace);
 
   return (
     <div class="workspace-detail">
@@ -203,9 +206,13 @@ export function ClassDetail(props: ClassDetailProps) {
         <h3 class="workspace-detail__title">{title}</h3>
         {!isCreateMode && !isEditing && (
           <div class="workspace-detail__header-actions">
-            <Button variant="ghost" size="sm" onClick={handleEditClick}>
-              Edit
-            </Button>
+            {isExternal ? (
+              <span class="workspace-detail__external">External Class</span>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={handleEditClick}>
+                Edit
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
