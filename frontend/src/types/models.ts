@@ -4,6 +4,7 @@ export interface Project {
   name: string;
   description: string | null;
   namespace: string;
+  namespace_prefixes: Record<string, string>;
   identifier_prefix: string;
   identifier_counter: number;
   prefix_locked: boolean;

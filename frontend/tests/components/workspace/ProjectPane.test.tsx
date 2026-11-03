@@ -15,6 +15,7 @@ const mockProject: Project = {
   identifier_prefix: "TST",
   identifier_counter: 0,
   prefix_locked: false,
+  namespace_prefixes: { gn: "http://www.geonames.org/ontology#" },
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -49,8 +50,9 @@ vi.mock("../../../src/state/classes", async () => {
     ...actual,
     ontologyClasses: {
       value: [
-        { id: "cls-1", project_id: "proj-1", identifier: "Investigation", uri: "http://example.org/Investigation", label: "Investigation", description: "A research effort", scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-        { id: "cls-2", project_id: "proj-1", identifier: "Finding", uri: "http://example.org/Finding", label: "Finding", description: "A specific result", scope_note: null, created_at: "2024-01-02T00:00:00Z", updated_at: "2024-01-02T00:00:00Z" },
+        { id: "cls-1", project_id: "proj-1", identifier: "Investigation", uri: "https://example.org/vocab/Investigation", label: "Investigation", description: "A research effort", scope_note: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+        { id: "cls-2", project_id: "proj-1", identifier: "Finding", uri: "https://example.org/vocab/Finding", label: "Finding", description: "A specific result", scope_note: null, created_at: "2024-01-02T00:00:00Z", updated_at: "2024-01-02T00:00:00Z" },
+        { id: "cls-3", project_id: "proj-1", identifier: "Feature", uri: "http://www.geonames.org/ontology#Feature", label: "Feature", description: null, scope_note: null, created_at: "2024-01-03T00:00:00Z", updated_at: "2024-01-03T00:00:00Z" },
       ],
     },
   };
@@ -126,7 +128,7 @@ describe("ProjectPane", () => {
     it("calls onClassSelect when class is clicked", () => {
       const { props } = renderPane();
       fireEvent.click(screen.getByText("Investigation"));
-      expect(props.onClassSelect).toHaveBeenCalledWith("http://example.org/Investigation");
+      expect(props.onClassSelect).toHaveBeenCalledWith("https://example.org/vocab/Investigation");
     });
 
     it("calls onNewClass when New Class button clicked", () => {
@@ -135,8 +137,14 @@ describe("ProjectPane", () => {
       expect(props.onNewClass).toHaveBeenCalled();
     });
 
+    it("prefixes classes from other vocabularies", () => {
+      renderPane();
+      expect(screen.getByRole("button", { name: "gn Feature" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Finding" })).toBeInTheDocument();
+    });
+
     it("highlights selected class", () => {
-      selectedClassUri.value = "http://example.org/Investigation";
+      selectedClassUri.value = "https://example.org/vocab/Investigation";
       selectionMode.value = "class";
 
       renderPane();

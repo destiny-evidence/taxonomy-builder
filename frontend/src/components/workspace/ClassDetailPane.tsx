@@ -1,6 +1,7 @@
 import { Fragment } from "preact";
 import { useState } from "preact/hooks";
 import { Button } from "../common/Button";
+import { TermPrefix } from "../common/TermPrefix";
 import { ClassDetail } from "../classes/ClassDetail";
 import { HistoryPanel } from "../history/HistoryPanel";
 import { useResizeHandle } from "../../hooks/useResizeHandle";
@@ -132,6 +133,7 @@ export function ClassDetailPane({
           class="class-detail-pane__property-name"
           onClick={() => onPropertySelect(prop.id)}
         >
+          <TermPrefix uri={prop.uri} />
           {prop.label}
           {prop.required && (
             <span class="class-detail-pane__required">*</span>

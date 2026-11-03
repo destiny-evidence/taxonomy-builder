@@ -1,0 +1,5 @@
+.term-prefix {
+  font-style: italic;
+  color: var(--color-text-muted);
+  margin-right: 0.35em;
+}

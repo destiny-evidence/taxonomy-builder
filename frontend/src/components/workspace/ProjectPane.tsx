@@ -8,6 +8,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "../common/Button";
+import { TermPrefix } from "../common/TermPrefix";
 import { currentProject } from "../../state/projects";
 import { schemes, schemesError, reorderSchemes } from "../../state/schemes";
 import { ApiError } from "../../api/client";
@@ -194,6 +195,7 @@ export function ProjectPane({
                   onClick={() => onClassSelect(cls.uri)}
                   title={cls.description ?? undefined}
                 >
+                  <TermPrefix uri={cls.uri} />
                   {cls.label}
                 </button>
               ))}
