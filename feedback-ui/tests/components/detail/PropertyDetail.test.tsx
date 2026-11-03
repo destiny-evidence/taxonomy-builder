@@ -38,10 +38,10 @@ describe("PropertyDetail range", () => {
     vocabulary.value = null;
   });
 
-  it("shows no-range label when the property has no range", () => {
+  it("shows Any when the property has no range", () => {
     vocabulary.value = makeVocabulary({ properties: [makeProperty()] });
     render(<PropertyDetail propertyId="prop-1" />);
-    expect(rangeText()).toBe("Range: Any (no range declared)");
+    expect(rangeText()).toBe("Range: Any");
   });
 
   it("shows the datatype when one is set", () => {

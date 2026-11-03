@@ -109,7 +109,7 @@ export function PropertyDetail({ propertyId }: PropertyDetailProps) {
             ) : prop.range_scheme_id || prop.range_class ? (
               "—"
             ) : (
-              "Any (no range declared)"
+              "Any"
             )}
           </div>
 
