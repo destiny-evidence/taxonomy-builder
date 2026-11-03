@@ -26,3 +26,9 @@ export function externalPrefix(uri: string, project: ProjectNamespaces | null): 
   if (bound) return bound[0];
   return uri.slice(0, Math.max(uri.lastIndexOf("#"), uri.lastIndexOf("/")) + 1);
 }
+
+/** Label with its external prefix, for plain-text contexts such as <option>. */
+export function prefixedLabel(uri: string, label: string, project: ProjectNamespaces | null): string {
+  const prefix = externalPrefix(uri, project);
+  return prefix ? `${prefix} ${label}` : label;
+}

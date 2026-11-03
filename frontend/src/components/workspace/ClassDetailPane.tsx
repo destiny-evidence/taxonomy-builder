@@ -152,6 +152,7 @@ export function ClassDetailPane({
             </button>
           ) : prop.range_class ? (
             <span class="class-detail-pane__datatype">
+              <TermPrefix uri={prop.range_class} />
               {ontologyClasses.value.find((c) => c.uri === prop.range_class)?.label ?? prop.range_class}
             </span>
           ) : (
@@ -201,10 +202,14 @@ export function ClassDetailPane({
                             selectedClassUri.value = uri;
                           }}
                         >
+                          <TermPrefix uri={uri} />
                           {cls.label}
                         </button>
                       ) : (
-                        <span class="class-detail-pane__class-external">{extractLocalName(uri)}</span>
+                        <span class="class-detail-pane__class-external">
+                          <TermPrefix uri={uri} />
+                          {extractLocalName(uri)}
+                        </span>
                       )}
                     </Fragment>
                   );
@@ -227,10 +232,14 @@ export function ClassDetailPane({
                             selectedClassUri.value = uri;
                           }}
                         >
+                          <TermPrefix uri={uri} />
                           {cls.label}
                         </button>
                       ) : (
-                        <span class="class-detail-pane__class-external">{extractLocalName(uri)}</span>
+                        <span class="class-detail-pane__class-external">
+                          <TermPrefix uri={uri} />
+                          {extractLocalName(uri)}
+                        </span>
                       )}
                     </Fragment>
                   );
@@ -255,11 +264,17 @@ export function ClassDetailPane({
 
               return (
                 <div key={`${r.on_property_uri}-${r.restriction_type}-${r.value_uri}`} class="class-detail-pane__restriction-row">
-                  <span class="class-detail-pane__restriction-prop">{propLabel}</span>
+                  <span class="class-detail-pane__restriction-prop">
+                    <TermPrefix uri={r.on_property_uri} />
+                    {propLabel}
+                  </span>
                   {" "}
                   <span class="class-detail-pane__restriction-type">{r.restriction_type}</span>
                   {" "}
-                  <span class="class-detail-pane__restriction-value">{valueLabel}</span>
+                  <span class="class-detail-pane__restriction-value">
+                    <TermPrefix uri={r.value_uri} />
+                    {valueLabel}
+                  </span>
                 </div>
               );
             })}
@@ -302,6 +317,7 @@ export function ClassDetailPane({
                     selectedClassUri.value = group.ancestorUri;
                   }}
                 >
+                  <TermPrefix uri={group.ancestorUri} />
                   {group.label}
                 </button>
               </div>
@@ -324,9 +340,11 @@ export function ClassDetailPane({
                     class="class-detail-pane__property-name"
                     onClick={() => onPropertySelect(prop.id)}
                   >
+                    <TermPrefix uri={prop.uri} />
                     {prop.label}
                   </button>
                   <span class="class-detail-pane__datatype">
+                    <TermPrefix uri={prop.domain_class_uris[0]} />
                     {ontologyClasses.value.find((c) => c.uri === prop.domain_class_uris[0])?.label ?? prop.domain_class_uris[0]}
                   </span>
                 </li>
