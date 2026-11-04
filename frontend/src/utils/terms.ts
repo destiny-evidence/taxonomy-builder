@@ -1,10 +1,7 @@
 import type { Project } from "../types/models";
+import { isInNamespace } from "./strings";
 
 type ProjectNamespaces = Pick<Project, "namespace" | "namespace_prefixes">;
-
-function isProjectTerm(uri: string, project: ProjectNamespaces): boolean {
-  return uri.startsWith(project.namespace.replace(/\/+$/, "") + "/");
-}
 
 function boundPrefix(uri: string, project: ProjectNamespaces): [string, string] | null {
   let best: [string, string] | null = null;
@@ -21,7 +18,7 @@ function boundPrefix(uri: string, project: ProjectNamespaces): [string, string] 
  * (e.g. "gn"), or its namespace when none is bound. Null for project terms.
  */
 export function externalPrefix(uri: string, project: ProjectNamespaces | null): string | null {
-  if (!project || isProjectTerm(uri, project)) return null;
+  if (!project || isInNamespace(uri, project.namespace)) return null;
   const bound = boundPrefix(uri, project);
   if (bound) return bound[0];
   return uri.slice(0, Math.max(uri.lastIndexOf("#"), uri.lastIndexOf("/")) + 1);
