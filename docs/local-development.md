@@ -154,7 +154,7 @@ The seed command also publishes each project as v1.0 and writes reader JSON file
 | `TAXONOMY_KEYCLOAK_REALM`        | Keycloak realm                         | `taxonomy-builder`                                                       |
 | `TAXONOMY_KEYCLOAK_CLIENT_ID`    | Keycloak client ID                     | `taxonomy-builder-api`                                                   |
 | `TAXONOMY_BLOB_FILESYSTEM_ROOT`  | Directory for published reader files   | `./.blob-storage`                                                        |
-| `TAXONOMY_EVREPO_NAMESPACE`      | Namespace given bare context names     | `https://vocab.evidence-repository.org/`                                 |
+| `TAXONOMY_EVREPO_NAMESPACE`      | Namespace whose terms are unprefixed   | `https://vocab.evidence-repository.org/`                                 |
 
 ### Frontend
 

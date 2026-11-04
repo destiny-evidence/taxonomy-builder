@@ -14,7 +14,7 @@ class ContextGenerationService:
     """Service for generating JSON-LD @context documents from vocabulary snapshots.
 
     The generated context enables consumers to expand compact URIs
-    (e.g. ``esea:C00008``) and bare type terms (e.g. ``Investigation``)
+    (e.g. ``esea:C00008``) and unprefixed terms (e.g. ``Investigation``)
     back to their full URIs.
     """
 
@@ -35,7 +35,7 @@ class ContextGenerationService:
 
         context: dict[str, object] = {}
 
-        # 1. @vocab — bare terms resolve to the project namespace
+        # 1. @vocab — unprefixed terms resolve to the project namespace
         context["@vocab"] = project_namespace
 
         # 2. Namespace prefix mappings
@@ -50,7 +50,7 @@ class ContextGenerationService:
         used_terms: dict[str, str] = {prefix: prefix for prefix in prefixes}
 
         def precedence(term) -> tuple[int, UUID]:
-            # Oldest wins within a tier so a later import can't take an existing bare name.
+            # Oldest wins within a tier so a later import can't take an existing unprefixed term.
             if term.uri.startswith(project_namespace):
                 tier = 0
             elif term.uri.startswith(settings.evrepo_namespace):
@@ -68,7 +68,7 @@ class ContextGenerationService:
                 # Not by full URI: a full-URI key whose value is a CURIE sends
                 # rdflib's JSON-LD parser into infinite recursion.
                 logger.warning(
-                    "Context term collision: class %s not given bare name %r",
+                    "Context term collision: class %s not given unprefixed term %r",
                     snapshot_class.uri,
                     local_name,
                 )
@@ -102,7 +102,7 @@ class ContextGenerationService:
             if prop.cardinality == "multiple":
                 entry["@container"] = "@set"
 
-            owns_bare_name = used_terms.setdefault(local_name, prop.uri) == prop.uri
+            owns_unprefixed_term = used_terms.setdefault(local_name, prop.uri) == prop.uri
 
             if not entry:
                 # In project namespace with no annotations — resolved via @vocab
@@ -110,11 +110,11 @@ class ContextGenerationService:
 
             # Simplify: if only @id, emit as string instead of object
             value = entry["@id"] if set(entry) == {"@id"} else entry
-            if owns_bare_name:
+            if owns_unprefixed_term:
                 context[local_name] = value
             else:
                 logger.warning(
-                    "Context term collision: property %s not given bare name %r",
+                    "Context term collision: property %s not given unprefixed term %r",
                     prop.uri,
                     local_name,
                 )
@@ -123,7 +123,7 @@ class ContextGenerationService:
             compact = entry.get("@id")
             if compact and compact != prop.uri and value is entry:
                 context[compact] = entry
-            elif not owns_bare_name:
+            elif not owns_unprefixed_term:
                 context[prop.uri] = value
 
         # 5. Named individual aliases (e.g., CodingStatus values)

@@ -78,7 +78,7 @@ variable "shared_keycloak_url" {
 }
 
 variable "evrepo_namespace" {
-  description = "Namespace of the evrepo vocabulary, whose terms take bare names in generated JSON-LD contexts"
+  description = "Namespace of the evrepo vocabulary, whose terms are unprefixed in generated JSON-LD contexts"
   type        = string
   default     = "https://vocab.evidence-repository.org/"
 }

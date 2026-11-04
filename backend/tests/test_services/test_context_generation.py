@@ -386,7 +386,7 @@ class TestInNamespaceClassesExplicit:
     """Classes in the project namespace should still get explicit context entries.
 
     Even when @vocab covers the project namespace, consumers need explicit
-    class terms so JSON-LD processors can resolve bare type names like
+    class terms so JSON-LD processors can resolve unprefixed type names like
     "EducationLevelCodingAnnotation" without relying on @vocab — particularly
     when the consuming context uses a different @vocab.
     """
@@ -532,7 +532,7 @@ def _context_both_orders(props: list[dict], namespace: str) -> list[dict]:
 class TestSharedLocalNames:
     """Terms from different vocabularies sharing a local name."""
 
-    def test_project_term_keeps_bare_name(self):
+    def test_project_term_keeps_unprefixed_term(self):
         props = [_string_prop(1, f"{EXTERNAL_NS}name"), _string_prop(2, f"{GN_NS}name")]
         first, second = _context_both_orders(props, namespace=EXTERNAL_NS)
 
@@ -558,7 +558,7 @@ class TestSharedLocalNames:
         assert first["title"] == {"@id": "dct:title", "@type": "xsd:string"}
         assert first["gn:title"] == {"@id": "gn:title", "@type": "xsd:string"}
 
-    def test_untyped_project_term_still_reserves_bare_name(self):
+    def test_untyped_project_term_still_reserves_unprefixed_term(self):
         """A project term resolved via @vocab must not be shadowed by an external one."""
         props = [
             _string_prop(1, f"{DESTINY_NS}label", property_type="rdf"),
