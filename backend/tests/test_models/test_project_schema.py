@@ -100,15 +100,10 @@ class TestProjectUpdate:
         assert project.name is None
         assert project.description == "New Description"
 
-    def test_project_update_rejects_null_namespace(self) -> None:
-        """Test that ProjectUpdate rejects explicitly setting namespace to null."""
-        with pytest.raises(ValidationError):
-            ProjectUpdate(namespace=None)
-
-    def test_project_update_rejects_namespace_ending_in_hash(self) -> None:
-        """Test that ProjectUpdate rejects a namespace ending in '#'."""
-        with pytest.raises(ValidationError, match="namespace cannot end with '#'"):
-            ProjectUpdate(namespace="https://example.org/vocab#")
+    def test_project_update_rejects_namespace(self) -> None:
+        """Test that ProjectUpdate rejects any namespace field."""
+        with pytest.raises(ValidationError, match="namespace"):
+            ProjectUpdate(namespace="https://example.org/vocab")
 
     def test_project_update_rejects_null_prefix(self) -> None:
         """Test that ProjectUpdate rejects explicitly setting identifier_prefix to null."""

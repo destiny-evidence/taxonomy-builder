@@ -22,7 +22,6 @@ export interface ProjectCreate {
 export interface ProjectUpdate {
   name?: string;
   description?: string | null;
-  namespace?: string;
   identifier_prefix?: string;
 }
 

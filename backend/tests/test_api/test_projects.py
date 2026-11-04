@@ -455,11 +455,11 @@ async def test_create_project_with_http_namespace(authenticated_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_update_project_change_namespace_to_new_value(
+async def test_update_project_namespace_rejected(
     authenticated_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    """Test updating a project's namespace to a new value."""
+    """Test that changing a project's namespace is rejected."""
     project = Project(
         name="Has Namespace",
         namespace="https://example.org/old-vocab",
@@ -473,81 +473,10 @@ async def test_update_project_change_namespace_to_new_value(
         f"/api/projects/{project.id}",
         json={"namespace": "https://example.org/new-vocab"},
     )
-    assert response.status_code == 200
-    assert response.json()["namespace"] == "https://example.org/new-vocab"
-    assert response.json()["name"] == "Has Namespace"  # Name unchanged
-
-
-@pytest.mark.asyncio
-async def test_update_project_change_namespace(
-    authenticated_client: AsyncClient,
-    db_session: AsyncSession,
-) -> None:
-    """Test changing a project's namespace."""
-    # Create project with namespace
-    project = Project(
-        name="With Namespace",
-        namespace="https://old.example.org/vocab",
-        identifier_prefix="TST",
-    )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-
-    # Change namespace via update
-    response = await authenticated_client.put(
-        f"/api/projects/{project.id}",
-        json={"namespace": "https://new.example.org/vocab"},
-    )
-    assert response.status_code == 200
-    assert response.json()["namespace"] == "https://new.example.org/vocab"
-
-
-@pytest.mark.asyncio
-async def test_update_project_invalid_namespace(
-    authenticated_client: AsyncClient,
-    db_session: AsyncSession,
-) -> None:
-    """Test that updating to an invalid namespace fails."""
-    # Create project
-    project = Project(
-        name="Test Project",
-        namespace="https://example.org/vocab",
-        identifier_prefix="TST",
-    )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-
-    # Try to update with invalid namespace
-    response = await authenticated_client.put(
-        f"/api/projects/{project.id}",
-        json={"namespace": "not-a-valid-uri"},
-    )
     assert response.status_code == 422
 
-
-@pytest.mark.asyncio
-async def test_update_project_clear_namespace_rejected(
-    authenticated_client: AsyncClient,
-    db_session: AsyncSession,
-) -> None:
-    """Test that clearing a namespace is rejected."""
-    project = Project(
-        name="Has Namespace",
-        namespace="https://example.org/vocab",
-        identifier_prefix="TST",
-    )
-    db_session.add(project)
-    await db_session.flush()
-    await db_session.refresh(project)
-
-    # Attempt to clear namespace by setting to null
-    response = await authenticated_client.put(
-        f"/api/projects/{project.id}",
-        json={"namespace": None},
-    )
-    assert response.status_code == 422
+    get_response = await authenticated_client.get(f"/api/projects/{project.id}")
+    assert get_response.json()["namespace"] == "https://example.org/old-vocab"
 
 
 # Version export tests

@@ -22,7 +22,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
   const [error, setError] = useState<string | null>(null);
 
   const prefixLocked = !!project && project.prefix_locked;
-  const namespaceError = namespace.trim().endsWith("#") ? "Namespace cannot end with '#'" : undefined;
+  const namespaceError = !project && namespace.trim().endsWith("#") ? "Namespace cannot end with '#'" : undefined;
 
   // Sync form state when project prop changes (for edit vs create)
   useEffect(() => {
@@ -47,7 +47,6 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         await projectsApi.update(project.id, {
           name,
           description: description || null,
-          namespace,
           identifier_prefix: identifierPrefix,
         });
       } else {
@@ -92,16 +91,28 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         onChange={setDescription}
       />
 
-      <Input
-        label="Namespace"
-        name="namespace"
-        type="url"
-        value={namespace}
-        placeholder="https://example.org/vocab"
-        required
-        error={namespaceError}
-        onChange={setNamespace}
-      />
+      {project ? (
+        <div class="project-form__field">
+          <label class="project-form__label">Namespace</label>
+          <code class="project-form__prefix-badge">{namespace}</code>
+        </div>
+      ) : (
+        <div class="project-form__field">
+          <Input
+            label="Namespace"
+            name="namespace"
+            type="url"
+            value={namespace}
+            placeholder="https://example.org/vocab"
+            required
+            error={namespaceError}
+            onChange={setNamespace}
+          />
+          <span class="project-form__help">
+            Cannot be changed after the project is created.
+          </span>
+        </div>
+      )}
 
       {prefixLocked ? (
         <div class="project-form__field">

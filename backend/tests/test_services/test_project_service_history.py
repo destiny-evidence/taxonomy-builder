@@ -63,31 +63,6 @@ async def test_update_project_records_before_and_after(db_session: AsyncSession)
 
 
 @pytest.mark.asyncio
-async def test_update_namespace_records_change(db_session: AsyncSession) -> None:
-    """Updating just the namespace records the change."""
-    service = ProjectService(db_session)
-
-    project = await service.create_project(
-        ProjectCreate(
-            name="NS Project",
-            namespace="http://old.example.org/",
-            identifier_prefix="TST",
-        )
-    )
-
-    await service.update_project(
-        project.id,
-        ProjectUpdate(namespace="http://new.example.org/"),
-    )
-
-    events = await HistoryService(db_session).get_project_history(project.id)
-    event = next(e for e in events if e.action == "update")
-
-    assert event.before_state["namespace"] == "http://old.example.org/"
-    assert event.after_state["namespace"] == "http://new.example.org/"
-
-
-@pytest.mark.asyncio
 async def test_delete_project_records_change_event(db_session: AsyncSession) -> None:
     """Deleting a project records a 'delete' event with before state."""
     service = ProjectService(db_session)
