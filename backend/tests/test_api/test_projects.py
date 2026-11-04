@@ -424,6 +424,22 @@ async def test_create_project_with_malformed_namespace(authenticated_client: Asy
 
 
 @pytest.mark.asyncio
+async def test_create_project_with_namespace_ending_in_hash(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Test that creating a project with a namespace ending in '#' fails."""
+    response = await authenticated_client.post(
+        "/api/projects",
+        json={
+            "name": "Hash Namespace Project",
+            "namespace": "https://example.org/vocab#",
+            "identifier_prefix": "TST",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_create_project_with_http_namespace(authenticated_client: AsyncClient) -> None:
     """Test that http:// namespaces are accepted (not just https://)."""
     response = await authenticated_client.post(

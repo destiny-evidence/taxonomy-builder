@@ -21,6 +21,14 @@ class ProjectCreate(BaseModel):
         """Strip whitespace from name."""
         return v.strip()
 
+    @field_validator("namespace")
+    @classmethod
+    def reject_trailing_hash(cls, v: HttpUrl) -> HttpUrl:
+        """Reject namespaces ending in '#'."""
+        if str(v).endswith("#"):
+            raise ValueError("namespace cannot end with '#'")
+        return v
+
 
 class ProjectUpdate(BaseModel):
     """Schema for updating an existing project."""
@@ -36,6 +44,14 @@ class ProjectUpdate(BaseModel):
         """Strip whitespace from name if provided."""
         if v is not None:
             return v.strip()
+        return v
+
+    @field_validator("namespace")
+    @classmethod
+    def reject_trailing_hash(cls, v: HttpUrl | None) -> HttpUrl | None:
+        """Reject namespaces ending in '#'."""
+        if v is not None and str(v).endswith("#"):
+            raise ValueError("namespace cannot end with '#'")
         return v
 
     @model_validator(mode="after")

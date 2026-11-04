@@ -89,6 +89,22 @@ describe("ProjectForm", () => {
       expect(submitButton).toBeDisabled();
     });
 
+    it("shows error and disables submit when namespace ends with '#'", () => {
+      render(<ProjectForm {...defaultProps} />);
+
+      const nameInput = screen.getByPlaceholderText("Enter project name");
+      fireEvent.input(nameInput, { target: { value: "New Project" } });
+
+      const namespaceInput = screen.getByPlaceholderText("https://example.org/vocab");
+      fireEvent.input(namespaceInput, { target: { value: "https://example.org/vocab#" } });
+
+      const prefixInput = screen.getByLabelText(/Identifier Prefix/);
+      fireEvent.input(prefixInput, { target: { value: "EVD" } });
+
+      expect(screen.getByText("Namespace cannot end with '#'")).toBeInTheDocument();
+      expect(screen.getByText("Create Project")).toBeDisabled();
+    });
+
     it("disables submit when name is only whitespace", () => {
       render(<ProjectForm {...defaultProps} />);
 

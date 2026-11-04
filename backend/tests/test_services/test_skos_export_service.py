@@ -1244,12 +1244,12 @@ async def test_export_cardinality_predicate_uses_property_namespace(
 
 
 @pytest.mark.asyncio
-async def test_export_cardinality_predicate_hash_namespace(
+async def test_export_cardinality_predicate_external_hash_namespace(
     db_session: AsyncSession,
     export_service: SKOSExportService,
     project: Project,
 ) -> None:
-    """A '#'-fragment property namespace yields '<ns>#allowMultiple', not '<ns>#/allowMultiple'."""
+    """An external '#'-namespace property yields '<ns>#allowMultiple', not '<ns>#/allowMultiple'."""
     from rdflib import Literal, URIRef
 
     snap = _make_published_snapshot(
@@ -1259,15 +1259,15 @@ async def test_export_cardinality_predicate_hash_namespace(
                 id=uuid4(),
                 identifier="studyDesign",
                 label="Study Design",
-                uri="http://example.org/vocab#studyDesign",
-                domain_class_uris=["http://example.org/vocab#Study"],
+                uri="http://example.org/external#studyDesign",
+                domain_class_uris=["http://example.org/external#Study"],
                 range_datatype="xsd:string",
                 property_type="datatype",
                 cardinality="multiple",
                 required=False,
             ),
         ],
-        namespace="http://example.org/vocab#",
+        namespace="http://example.org/esea/",
     )
     pv = PublishedVersion(
         project_id=project.id,
@@ -1283,11 +1283,11 @@ async def test_export_cardinality_predicate_hash_namespace(
     g = Graph()
     g.parse(data=result, format="turtle")
 
-    prop_uri = URIRef("http://example.org/vocab#studyDesign")
-    assert (prop_uri, URIRef("http://example.org/vocab#allowMultiple"), Literal(True)) in g
+    prop_uri = URIRef("http://example.org/external#studyDesign")
+    assert (prop_uri, URIRef("http://example.org/external#allowMultiple"), Literal(True)) in g
     assert (
         prop_uri,
-        URIRef("http://example.org/vocab#/allowMultiple"),
+        URIRef("http://example.org/external#/allowMultiple"),
         Literal(True),
     ) not in g
 

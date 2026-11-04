@@ -22,6 +22,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
   const [error, setError] = useState<string | null>(null);
 
   const prefixLocked = !!project && project.prefix_locked;
+  const namespaceError = namespace.trim().endsWith("#") ? "Namespace cannot end with '#'" : undefined;
 
   // Sync form state when project prop changes (for edit vs create)
   useEffect(() => {
@@ -98,6 +99,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         value={namespace}
         placeholder="https://example.org/vocab"
         required
+        error={namespaceError}
         onChange={setNamespace}
       />
 
@@ -132,7 +134,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading || !name.trim() || !namespace.trim() || (!prefixLocked && !identifierPrefix.trim())}>
+        <Button type="submit" disabled={loading || !name.trim() || !namespace.trim() || !!namespaceError || (!prefixLocked && !identifierPrefix.trim())}>
           {loading ? "Saving..." : project ? "Save Changes" : "Create Project"}
         </Button>
       </div>

@@ -69,6 +69,15 @@ class TestProjectCreate:
         )
         assert project.name == "Spaced Name"
 
+    def test_project_create_rejects_namespace_ending_in_hash(self) -> None:
+        """Test that ProjectCreate rejects a namespace ending in '#'."""
+        with pytest.raises(ValidationError, match="namespace cannot end with '#'"):
+            ProjectCreate(
+                name="Test",
+                namespace="https://example.org/vocab#",
+                identifier_prefix="TST",
+            )
+
 
 class TestProjectUpdate:
     """Tests for ProjectUpdate schema."""
@@ -95,6 +104,11 @@ class TestProjectUpdate:
         """Test that ProjectUpdate rejects explicitly setting namespace to null."""
         with pytest.raises(ValidationError):
             ProjectUpdate(namespace=None)
+
+    def test_project_update_rejects_namespace_ending_in_hash(self) -> None:
+        """Test that ProjectUpdate rejects a namespace ending in '#'."""
+        with pytest.raises(ValidationError, match="namespace cannot end with '#'"):
+            ProjectUpdate(namespace="https://example.org/vocab#")
 
     def test_project_update_rejects_null_prefix(self) -> None:
         """Test that ProjectUpdate rejects explicitly setting identifier_prefix to null."""
