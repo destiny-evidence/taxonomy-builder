@@ -11,7 +11,6 @@ from taxonomy_builder.schemas.ontology_class import (
     OntologyClassUpdate,
 )
 from taxonomy_builder.services.ontology_class_service import (
-    OntologyClassIdentifierExistsError,
     OntologyClassReferencedByPropertyError,
     OntologyClassService,
     OntologyClassURIExistsError,
@@ -53,8 +52,6 @@ async def create_ontology_class(
         return OntologyClassRead.from_orm_model(obj)
     except ProjectNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except OntologyClassIdentifierExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except OntologyClassURIExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
@@ -81,16 +78,13 @@ async def update_ontology_class(
     service: OntologyClassService = Depends(get_ontology_class_service),
 ) -> OntologyClassRead:
     """Update an existing ontology class."""
-    try:
-        ontology_class = await service.update_ontology_class(class_id, ontology_class_in)
-        if ontology_class is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Ontology class with id '{class_id}' not found",
-            )
-        return OntologyClassRead.from_orm_model(ontology_class)
-    except OntologyClassIdentifierExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    ontology_class = await service.update_ontology_class(class_id, ontology_class_in)
+    if ontology_class is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ontology class with id '{class_id}' not found",
+        )
+    return OntologyClassRead.from_orm_model(ontology_class)
 
 
 @ontology_classes_router.delete("/{class_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -46,6 +46,28 @@ class TestPropertyCreate:
         assert prop.range_scheme_id is None
         assert prop.range_datatype == "xsd:integer"
 
+    def test_uri_must_end_with_identifier(self) -> None:
+        with pytest.raises(ValidationError, match="must match"):
+            PropertyCreate(
+                identifier="foo",
+                label="Foo",
+                domain_class_uris=["https://example.org/vocab/Finding"],
+                range_datatype="xsd:string",
+                cardinality="single",
+                uri="https://example.org/vocab/bar",
+            )
+
+    def test_external_uri_matching_identifier_accepted(self) -> None:
+        prop = PropertyCreate(
+            identifier="name",
+            label="Name",
+            domain_class_uris=["https://example.org/vocab/Finding"],
+            range_datatype="xsd:string",
+            cardinality="single",
+            uri="http://www.geonames.org/ontology#name",
+        )
+        assert prop.uri == "http://www.geonames.org/ontology#name"
+
     def test_identifier_strips_whitespace(self) -> None:
         """Test that identifier has whitespace stripped."""
         prop = PropertyCreate(
@@ -137,10 +159,8 @@ class TestPropertyUpdate:
         """Test updating only some fields."""
         prop = PropertyUpdate(label="New Label")
         assert prop.label == "New Label"
-        assert prop.identifier is None
         assert prop.cardinality is None
 
-    def test_identifier_validation_on_update(self) -> None:
-        """Test that identifier validation applies on update."""
+    def test_identifier_cannot_be_updated(self) -> None:
         with pytest.raises(ValidationError):
-            PropertyUpdate(identifier="invalid identifier")
+            PropertyUpdate(identifier="renamed")

@@ -236,6 +236,7 @@ async def test_get_project(authenticated_client: AsyncClient, db_session: AsyncS
         description="For getting",
         namespace="https://example.org/vocab",
         identifier_prefix="TST",
+        namespace_prefixes={"gn": "http://www.geonames.org/ontology#"},
     )
     db_session.add(project)
     await db_session.flush()
@@ -248,6 +249,7 @@ async def test_get_project(authenticated_client: AsyncClient, db_session: AsyncS
     assert data["id"] == str(project.id)
     assert data["name"] == "Get Test"
     assert data["description"] == "For getting"
+    assert data["namespace_prefixes"] == {"gn": "http://www.geonames.org/ontology#"}
 
 
 @pytest.mark.asyncio

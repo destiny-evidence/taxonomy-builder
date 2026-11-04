@@ -81,6 +81,10 @@ module "container_app_api" {
       value = "taxonomy-builder-api-${var.environment}"
     },
     {
+      name  = "TAXONOMY_EVREPO_NAMESPACE"
+      value = var.evrepo_namespace
+    },
+    {
       name  = "TAXONOMY_MCP_BASE_URL"
       value = "https://${local.builder_custom_domain}"
     },

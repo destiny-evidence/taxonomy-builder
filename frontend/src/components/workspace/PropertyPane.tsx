@@ -3,6 +3,7 @@ import { SchemePreview } from "../properties/SchemePreview";
 import { selectedProperty, selectedPropertyId, creatingProperty } from "../../state/properties";
 import { ontologyClasses } from "../../state/classes";
 import { datatypeLabel } from "../../types/models";
+import { TermPrefix } from "../common/TermPrefix";
 import "./PropertyPane.css";
 
 interface PropertyPaneProps {
@@ -82,6 +83,7 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate,
           </>
         ) : property.range_class ? (
           <span class="property-pane__scheme-name">
+            <TermPrefix uri={property.range_class} />
             {ontologyClasses.value.find((c) => c.uri === property.range_class)?.label ?? property.range_class}
           </span>
         ) : null}

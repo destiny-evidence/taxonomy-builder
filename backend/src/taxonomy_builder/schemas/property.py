@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from taxonomy_builder.schemas.validators import validate_identifier
+from taxonomy_builder.schemas.validators import check_uri_matches_identifier, validate_identifier
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.property import Property
@@ -78,11 +78,17 @@ class PropertyCreate(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def check_uri(self) -> "PropertyCreate":  # noqa: UP037
+        check_uri_matches_identifier(self.identifier, self.uri)
+        return self
+
 
 class PropertyUpdate(BaseModel):
     """Schema for updating an existing property."""
 
-    identifier: str | None = Field(default=None, min_length=1, max_length=255)
+    model_config = ConfigDict(extra="forbid")
+
     label: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     domain_class_uris: list[str] | None = Field(default=None, min_length=1)
@@ -91,12 +97,6 @@ class PropertyUpdate(BaseModel):
     range_class: str | None = Field(default=None, min_length=1)
     cardinality: Literal["single", "multiple"] | None = None
     required: bool | None = None
-
-    @field_validator("identifier")
-    @classmethod
-    def check_identifier(cls, v: str | None) -> str | None:
-        """Validate identifier is URI-safe if provided."""
-        return validate_identifier(v)
 
     @field_validator("label")
     @classmethod

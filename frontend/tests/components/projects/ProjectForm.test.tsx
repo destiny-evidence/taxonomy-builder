@@ -24,6 +24,7 @@ describe("ProjectForm", () => {
         identifier_prefix: "EVD",
         identifier_counter: 0,
         prefix_locked: false,
+        namespace_prefixes: {},
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -42,6 +43,7 @@ describe("ProjectForm", () => {
         identifier_prefix: "EVD",
         identifier_counter: 0,
         prefix_locked: false,
+        namespace_prefixes: {},
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -122,6 +124,7 @@ describe("ProjectForm", () => {
         identifier_prefix: "EVD",
         identifier_counter: 0,
         prefix_locked: false,
+        namespace_prefixes: {},
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };
@@ -142,6 +145,7 @@ describe("ProjectForm", () => {
         identifier_prefix: "EVD",
         identifier_counter: 5,
         prefix_locked: true,
+        namespace_prefixes: {},
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
       };

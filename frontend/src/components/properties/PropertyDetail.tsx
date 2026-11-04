@@ -10,6 +10,9 @@ import { schemes } from "../../state/schemes";
 import { DATATYPE_LABELS } from "../../types/models";
 import type { Property, PropertyCreate } from "../../types/models";
 import { toCamelCase, validateIdentifier, extractLocalName } from "../../utils/strings";
+import { TermPrefix } from "../common/TermPrefix";
+import { prefixedLabel } from "../../utils/terms";
+import { currentProject } from "../../state/projects";
 import { formatDatetime } from "../../utils/dates";
 import "../common/WorkspaceDetail.css";
 import "./PropertyDetail.css";
@@ -327,6 +330,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
               <div class="workspace-detail__field">
                 <label class="workspace-detail__label">Identifier</label>
                 <div class="workspace-detail__value workspace-detail__value--mono">
+                  <TermPrefix uri={property!.uri} />
                   {property!.identifier}
                 </div>
               </div>
@@ -343,6 +347,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
             <div class="workspace-detail__field">
               <label class="workspace-detail__label">Class</label>
               <div class="workspace-detail__value">
+                <TermPrefix uri={editDraft.domain_class_uri} />
                 {classes.find((c) => c.uri === editDraft.domain_class_uri)?.label ?? extractLocalName(editDraft.domain_class_uri)}
               </div>
             </div>
@@ -415,7 +420,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
                     <option value="">Select a class...</option>
                     {classes.map((cls) => (
                       <option key={cls.uri} value={cls.uri}>
-                        {cls.label}
+                        {prefixedLabel(cls.uri, cls.label, currentProject.value)}
                       </option>
                     ))}
                   </select>
@@ -484,6 +489,7 @@ export function PropertyDetail(props: PropertyDetailProps) {
             <div class="workspace-detail__field">
               <label class="workspace-detail__label">Identifier</label>
               <div class="workspace-detail__value workspace-detail__value--mono">
+                <TermPrefix uri={property.uri} />
                 {property.identifier}
               </div>
             </div>
@@ -515,10 +521,11 @@ export function PropertyDetail(props: PropertyDetailProps) {
                           class="workspace-detail__link"
                           onClick={() => onClassSelect(uri)}
                         >
+                          <TermPrefix uri={uri} />
                           {cls.label}
                         </button>
                       ) : (
-                        <span>{cls?.label ?? extractLocalName(uri)}</span>
+                        <span><TermPrefix uri={uri} />{cls?.label ?? extractLocalName(uri)}</span>
                       )}
                     </Fragment>
                   );

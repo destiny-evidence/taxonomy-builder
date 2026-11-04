@@ -139,6 +139,25 @@ class TestCreateOntologyClass:
             },
         )
         assert response.status_code == 409
+        assert "uri" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_create_ontology_class_same_identifier_external_uri(
+        self,
+        authenticated_client: AsyncClient,
+        project: Project,
+        ontology_class_obj: OntologyClass,
+    ) -> None:
+        """A class from another vocabulary may share a local name with ours."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/classes",
+            json={
+                "identifier": "Reference",
+                "label": "Reference",
+                "uri": "http://www.geonames.org/ontology#Reference",
+            },
+        )
+        assert response.status_code == 201
 
     @pytest.mark.asyncio
     async def test_create_ontology_class_project_not_found(
@@ -211,6 +230,16 @@ class TestUpdateOntologyClass:
         data = response.json()
         assert data["label"] == "Updated Reference"
         assert data["identifier"] == "Reference"  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_update_ontology_class_identifier_rejected(
+        self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
+    ) -> None:
+        response = await authenticated_client.put(
+            f"/api/classes/{ontology_class_obj.id}",
+            json={"identifier": "Renamed"},
+        )
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_update_ontology_class_description(

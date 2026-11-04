@@ -26,17 +26,6 @@ class OntologyClassNotFoundError(Exception):
         super().__init__(f"Ontology class '{ontology_class_id}' not found")
 
 
-class OntologyClassIdentifierExistsError(Exception):
-    """Raised when an ontology class identifier already exists in the project."""
-
-    def __init__(self, identifier: str, project_id: UUID) -> None:
-        self.identifier = identifier
-        self.project_id = project_id
-        super().__init__(
-            f"Ontology class with identifier '{identifier}' already exists in project"
-        )
-
-
 class OntologyClassURIExistsError(Exception):
     """Raised when an ontology class URI already exists in the project."""
 
@@ -97,7 +86,7 @@ class OntologyClassService:
 
         Raises:
             ProjectNotFoundError: If the project doesn't exist
-            OntologyClassIdentifierExistsError: If the identifier already exists
+            OntologyClassURIExistsError: If the URI already exists
         """
         project = await self._project_service.get_project(project_id)
 
@@ -125,10 +114,6 @@ class OntologyClassService:
             constraint = get_constraint_name(e)
             if "uq_ontology_classes_project_uri" in constraint:
                 raise OntologyClassURIExistsError(uri, project_id)
-            if "uq_ontology_class_identifier_per_project" in constraint:
-                raise OntologyClassIdentifierExistsError(
-                    ontology_class_in.identifier, project_id
-                )
             raise
 
         await self._tracker.record(
@@ -198,9 +183,6 @@ class OntologyClassService:
 
         Returns:
             The updated ontology class or None if not found
-
-        Raises:
-            OntologyClassIdentifierExistsError: If the new identifier already exists
         """
         ontology_class = await self.get_ontology_class(ontology_class_id)
         if ontology_class is None:
@@ -221,11 +203,6 @@ class OntologyClassService:
             if "uq_ontology_classes_project_uri" in constraint:
                 raise OntologyClassURIExistsError(
                     ontology_class.uri, ontology_class.project_id
-                )
-            if "uq_ontology_class_identifier_per_project" in constraint:
-                identifier = update_data.get("identifier", ontology_class.identifier)
-                raise OntologyClassIdentifierExistsError(
-                    identifier, ontology_class.project_id
                 )
             raise
 

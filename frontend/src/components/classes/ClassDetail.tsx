@@ -5,6 +5,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { classesApi } from "../../api/classes";
 import type { OntologyClass, OntologyClassCreate } from "../../types/models";
 import { toCamelCase, validateIdentifier } from "../../utils/strings";
+import { TermPrefix } from "../common/TermPrefix";
 import { formatDatetime } from "../../utils/dates";
 import "../common/WorkspaceDetail.css";
 
@@ -246,6 +247,7 @@ export function ClassDetail(props: ClassDetailProps) {
               <div class="workspace-detail__field">
                 <label class="workspace-detail__label">Identifier</label>
                 <div class="workspace-detail__value workspace-detail__value--mono">
+                  <TermPrefix uri={ontologyClass!.uri} />
                   {ontologyClass!.identifier}
                 </div>
               </div>
@@ -272,6 +274,7 @@ export function ClassDetail(props: ClassDetailProps) {
             <div class="workspace-detail__field">
               <label class="workspace-detail__label">Identifier</label>
               <div class="workspace-detail__value workspace-detail__value--mono">
+                <TermPrefix uri={ontologyClass.uri} />
                 {ontologyClass.identifier}
               </div>
             </div>

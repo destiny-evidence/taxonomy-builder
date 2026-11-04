@@ -4,6 +4,7 @@ export interface Project {
   name: string;
   description: string | null;
   namespace: string;
+  namespace_prefixes: Record<string, string>;
   identifier_prefix: string;
   identifier_counter: number;
   prefix_locked: boolean;
@@ -220,7 +221,6 @@ export interface PropertyCreate {
 }
 
 export interface PropertyUpdate {
-  identifier?: string;
   label?: string;
   description?: string | null;
   domain_class_uris?: string[];
@@ -301,7 +301,6 @@ export interface OntologyClassCreate {
 }
 
 export interface OntologyClassUpdate {
-  identifier?: string;
   label?: string;
   description?: string | null;
   scope_note?: string | null;
