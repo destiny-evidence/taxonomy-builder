@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from taxonomy_builder.schemas.validators import validate_identifier
+from taxonomy_builder.schemas.validators import check_uri_matches_identifier, validate_identifier
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.property import Property
@@ -76,6 +76,11 @@ class PropertyCreate(BaseModel):
                 "Exactly one of range_scheme_id, range_datatype, or range_class "
                 "must be provided"
             )
+        return self
+
+    @model_validator(mode="after")
+    def check_uri(self) -> "PropertyCreate":  # noqa: UP037
+        check_uri_matches_identifier(self.identifier, self.uri)
         return self
 
 

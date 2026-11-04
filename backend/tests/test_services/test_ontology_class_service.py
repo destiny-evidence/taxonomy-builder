@@ -75,7 +75,7 @@ class TestCreateOntologyClassURI:
         await ontology_class_service.create_ontology_class(project.id, cls_in1)
 
         cls_in2 = OntologyClassCreate(
-            identifier="Finding2",
+            identifier="Finding",
             label="Finding 2",
             uri="https://example.org/test/Finding",
         )
@@ -83,8 +83,13 @@ class TestCreateOntologyClassURI:
             await ontology_class_service.create_ontology_class(project.id, cls_in2)
 
 
-class TestUpdateOntologyClassIdentifier:
-    """Identifiers are immutable after create."""
+class TestOntologyClassIdentifier:
+
+    def test_uri_must_end_with_identifier(self) -> None:
+        with pytest.raises(ValidationError, match="must match"):
+            OntologyClassCreate(
+                identifier="Finding", label="Finding", uri="https://example.org/vocab/Outcome"
+            )
 
     def test_identifier_cannot_be_updated(self) -> None:
         with pytest.raises(ValidationError):

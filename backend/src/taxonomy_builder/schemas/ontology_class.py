@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from taxonomy_builder.models.class_restriction import RestrictionType
-from taxonomy_builder.schemas.validators import validate_identifier
+from taxonomy_builder.schemas.validators import check_uri_matches_identifier, validate_identifier
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.ontology_class import OntologyClass
@@ -35,6 +35,11 @@ class OntologyClassCreate(BaseModel):
     def strip_label(cls, v: str) -> str:
         """Strip whitespace from label."""
         return v.strip()
+
+    @model_validator(mode="after")
+    def check_uri(self) -> "OntologyClassCreate":  # noqa: UP037
+        check_uri_matches_identifier(self.identifier, self.uri)
+        return self
 
 
 class OntologyClassUpdate(BaseModel):

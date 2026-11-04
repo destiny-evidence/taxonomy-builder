@@ -766,12 +766,11 @@ class TestURICollision:
     """Tests for URI collision handling."""
 
     @pytest.mark.asyncio
-    async def test_duplicate_uri_different_identifier_raises_uri_error(
+    async def test_duplicate_explicit_uri_raises_uri_error(
         self, project: Project, property_service: PropertyService
     ) -> None:
-        """Two properties with different identifiers but same URI raises PropertyURIExistsError."""
         prop_in1 = PropertyCreate(
-            identifier="prop1",
+            identifier="sharedUri",
             label="Property 1",
             domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
@@ -781,7 +780,7 @@ class TestURICollision:
         await property_service.create_property(project.id, prop_in1)
 
         prop_in2 = PropertyCreate(
-            identifier="prop2",
+            identifier="sharedUri",
             label="Property 2",
             domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:integer",

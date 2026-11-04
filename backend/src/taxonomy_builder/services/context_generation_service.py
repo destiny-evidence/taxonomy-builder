@@ -5,6 +5,7 @@ from uuid import UUID
 
 from taxonomy_builder.config import settings
 from taxonomy_builder.schemas.snapshot import SnapshotVocabulary
+from taxonomy_builder.schemas.validators import uri_local_name
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class ContextGenerationService:
             return tier, term.id
 
         for snapshot_class in sorted(snapshot.classes, key=precedence):
-            local_name = self._local_name(snapshot_class.uri)
+            local_name = uri_local_name(snapshot_class.uri)
             if not local_name:
                 continue
             compact = self._compact_uri(snapshot_class.uri, namespace_to_prefix)
@@ -78,7 +79,7 @@ class ContextGenerationService:
 
         # 4. Property term mappings
         for prop in sorted(snapshot.properties, key=precedence):
-            local_name = self._local_name(prop.uri)
+            local_name = uri_local_name(prop.uri)
             if not local_name:
                 continue
 
@@ -127,7 +128,7 @@ class ContextGenerationService:
 
         # 5. Named individual aliases (e.g., CodingStatus values)
         for individual in snapshot.named_individuals:
-            local_name = self._local_name(individual.uri)
+            local_name = uri_local_name(individual.uri)
             if not local_name or local_name in used_terms:
                 continue
             compact = self._compact_uri(individual.uri, namespace_to_prefix)
@@ -135,15 +136,6 @@ class ContextGenerationService:
             context[local_name] = compact
 
         return {"@context": context}
-
-    @staticmethod
-    def _local_name(uri: str) -> str:
-        """Extract the local name from a URI (part after last ``/`` or ``#``)."""
-        for sep in ("#", "/"):
-            idx = uri.rfind(sep)
-            if idx >= 0:
-                return uri[idx + 1 :]
-        return uri
 
     @staticmethod
     def _compact_uri(uri: str, namespace_to_prefix: dict[str, str]) -> str:

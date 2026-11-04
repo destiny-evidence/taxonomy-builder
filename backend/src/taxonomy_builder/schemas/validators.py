@@ -27,3 +27,25 @@ def validate_identifier(v: str | None) -> str | None:
             "identifier must be URI-safe: alphanumeric, underscores, and hyphens only"
         )
     return v
+
+
+def uri_local_name(uri: str) -> str:
+    """The part of a URI after its last ``#``, or after its last ``/`` if it has no ``#``."""
+    for sep in ("#", "/"):
+        idx = uri.rfind(sep)
+        if idx >= 0:
+            return uri[idx + 1 :]
+    return uri
+
+
+def check_uri_matches_identifier(identifier: str, uri: str | None) -> None:
+    """Keep an explicit URI's local name and the identifier interchangeable.
+
+    Raises:
+        ValueError: If the URI's local name differs from the identifier.
+    """
+    if uri is not None and uri_local_name(uri) != identifier:
+        raise ValueError(
+            f"identifier '{identifier}' must match the URI's local name "
+            f"'{uri_local_name(uri)}'"
+        )
