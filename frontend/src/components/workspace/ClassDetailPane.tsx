@@ -10,7 +10,8 @@ import { properties, selectedPropertyId, creatingProperty } from "../../state/pr
 import type { Property } from "../../types/models";
 import { extractLocalName } from "../../utils/strings";
 import { historyVersion } from "../../state/history";
-import { datatypeLabel, NO_RANGE_LABEL } from "../../types/models";
+import { currentProject } from "../../state/projects";
+import { datatypeLabel, isRangeOptional, MISSING_RANGE_LABEL, NO_RANGE_LABEL } from "../../types/models";
 import "../common/WorkspaceDetail.css";
 import "./ClassDetailPane.css";
 
@@ -155,9 +156,13 @@ export function ClassDetailPane({
               <TermPrefix uri={prop.range_class} />
               {ontologyClasses.value.find((c) => c.uri === prop.range_class)?.label ?? prop.range_class}
             </span>
+          ) : prop.range_datatype ? (
+            <span class="class-detail-pane__datatype">{datatypeLabel(prop.range_datatype)}</span>
+          ) : isRangeOptional(prop, currentProject.value?.namespace) ? (
+            <span class="class-detail-pane__datatype">{NO_RANGE_LABEL}</span>
           ) : (
-            <span class="class-detail-pane__datatype">
-              {prop.range_datatype ? datatypeLabel(prop.range_datatype) : NO_RANGE_LABEL}
+            <span class="class-detail-pane__datatype class-detail-pane__datatype--missing">
+              {MISSING_RANGE_LABEL}
             </span>
           )}
         </span>

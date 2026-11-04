@@ -2,7 +2,8 @@ import { PropertyDetail } from "../properties/PropertyDetail";
 import { SchemePreview } from "../properties/SchemePreview";
 import { selectedProperty, selectedPropertyId, creatingProperty } from "../../state/properties";
 import { ontologyClasses } from "../../state/classes";
-import { datatypeLabel, NO_RANGE_LABEL } from "../../types/models";
+import { currentProject } from "../../state/projects";
+import { datatypeLabel, isRangeOptional, MISSING_RANGE_LABEL, NO_RANGE_LABEL } from "../../types/models";
 import { TermPrefix } from "../common/TermPrefix";
 import "./PropertyPane.css";
 
@@ -86,8 +87,10 @@ export function PropertyPane({ onDelete: _onDelete, onRefresh, onSchemeNavigate,
             <TermPrefix uri={property.range_class} />
             {ontologyClasses.value.find((c) => c.uri === property.range_class)?.label ?? property.range_class}
           </span>
-        ) : (
+        ) : isRangeOptional(property, currentProject.value?.namespace) ? (
           <span class="property-pane__datatype">{NO_RANGE_LABEL}</span>
+        ) : (
+          <span class="property-pane__datatype property-pane__datatype--missing">{MISSING_RANGE_LABEL}</span>
         )}
       </div>
     </div>

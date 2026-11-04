@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { ClassDetailPane } from "../../../src/components/workspace/ClassDetailPane";
 import { properties, selectedPropertyId, creatingProperty } from "../../../src/state/properties";
+import { currentProject } from "../../../src/state/projects";
 import type { Property, OntologyClass } from "../../../src/types/models";
 import * as historyApi from "../../../src/api/history";
 
@@ -256,30 +257,77 @@ describe("ClassDetailPane", () => {
       expect(screen.getByText("Countries")).toBeInTheDocument();
     });
 
-    it("shows no-range label for properties without a range", () => {
-      properties.value = [
-        {
-          ...mockProperties[0],
-          id: "prop-lat",
-          identifier: "lat",
-          label: "Latitude",
-          range_datatype: null,
-          uri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat",
-        },
-      ];
+    describe("property without a range", () => {
+      beforeEach(() => {
+        currentProject.value = {
+          id: "proj-1",
+          name: "Example",
+          description: null,
+          namespace: "http://example.org/",
+          namespace_prefixes: {},
+          identifier_prefix: "EX",
+          identifier_counter: 0,
+          prefix_locked: false,
+          created_at: "2024-01-01T00:00:00Z",
+          updated_at: "2024-01-01T00:00:00Z",
+        };
+      });
 
-      render(
-        <ClassDetailPane
-          classUri="http://example.org/Person"
-          projectId="proj-1"
-          onPropertySelect={mockOnPropertySelect}
-          onSchemeNavigate={mockOnSchemeNavigate}
-          onRefresh={mockOnRefresh}
-          onClassDeleted={mockOnClassDeleted}
-        />
-      );
+      afterEach(() => {
+        currentProject.value = null;
+      });
 
-      expect(screen.getByText("Any (no range declared)")).toBeInTheDocument();
+      function renderPane() {
+        render(
+          <ClassDetailPane
+            classUri="http://example.org/Person"
+            projectId="proj-1"
+            onPropertySelect={mockOnPropertySelect}
+            onSchemeNavigate={mockOnSchemeNavigate}
+            onRefresh={mockOnRefresh}
+            onClassDeleted={mockOnClassDeleted}
+          />
+        );
+      }
+
+      it("shows no-range label for an external property", () => {
+        properties.value = [
+          {
+            ...mockProperties[0],
+            id: "prop-lat",
+            identifier: "lat",
+            label: "Latitude",
+            range_datatype: null,
+            uri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat",
+          },
+        ];
+        renderPane();
+
+        expect(screen.getByText("Any (no range declared)")).toBeInTheDocument();
+      });
+
+      it("shows no-range label for an in-namespace rdf:Property", () => {
+        properties.value = [
+          {
+            ...mockProperties[0],
+            range_datatype: null,
+            property_type: "rdf",
+            uri: "http://example.org/birthDate",
+          },
+        ];
+        renderPane();
+
+        expect(screen.getByText("Any (no range declared)")).toBeInTheDocument();
+      });
+
+      it("shows missing-range label for an in-namespace datatype property", () => {
+        properties.value = [
+          { ...mockProperties[0], range_datatype: null, uri: "http://example.org/birthDate" },
+        ];
+        renderPane();
+
+        expect(screen.getByText("No range set")).toHaveClass("class-detail-pane__datatype--missing");
+      });
     });
 
     it("shows empty state when no properties", () => {
