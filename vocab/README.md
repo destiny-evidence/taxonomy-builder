@@ -21,7 +21,7 @@ The vocabulary is split across two namespaces, layered so that sector-specific e
 **[`destiny/`](destiny/)** — Additions for the DESTINY project, imported on top of its existing vocabulary.
 
 - Namespace: `https://vocab.destiny-evidence.org/`
-- `geonames-location.ttl` — Place mentions resolved to GeoNames features, for the geoparsing robot. Carries the evrepo-core terms the shape needs (Investigation, the CodingAnnotation pattern, and the new span/score properties), because projects hold their own copy of the core and DESTINY lacks some of it.
+- `geonames-location.ttl` — Place mentions resolved to GeoNames features, for the geoparsing robot. Carries the evrepo-core CodingAnnotation pattern and the new span/score properties, because projects hold their own copy of the core and DESTINY lacks them. Relies on DESTINY's existing evrepo:Investigation.
 - `geonames-location-standalone.ttl` — The same terms for an empty scratch project, with supportingText/codedBy narrowed to CodingAnnotation to avoid domain warnings.
 
 A health or climate domain would add a sibling directory (e.g. `health/`) that imports `evrepo-core/` and defines its own concept schemes.

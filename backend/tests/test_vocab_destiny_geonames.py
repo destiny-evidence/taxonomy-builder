@@ -1,8 +1,9 @@
 """Tests for the DESTINY GeoNames location import file.
 
-DESTINY holds only part of evrepo-core (no CodingAnnotation pattern), so the
-import file carries the core terms the mention shape needs. These tests check it
-imports into a project with none of the core and into one with all of it, and
+DESTINY holds only part of evrepo-core: Investigation but no CodingAnnotation
+pattern. The import file carries the CodingAnnotation terms the mention shape
+needs and relies on the project's Investigation. These tests check it imports
+into a project shaped like DESTINY and into one with the full core, and
 that a geoparse payload shaped the way the geoparsing robot will emit it expands
 to the intended triples via the generated JSON-LD context.
 """
@@ -43,8 +44,10 @@ NEW_CORE_PROPERTIES = {
 }
 
 
+# Core terms the DESTINY file carries. Investigation is left out: DESTINY has it,
+# and declaring it again could add a second "Investigation" class if DESTINY's
+# URI differs.
 CORE_SUBSET = {
-    EVREPO.Investigation,
     EVREPO.CodingAnnotation,
     EVREPO.CodingStatus,
     EVREPO.coded,
@@ -81,6 +84,20 @@ async def project(db_session: AsyncSession) -> Project:
     db_session.add(project)
     await db_session.flush()
     await db_session.refresh(project)
+    return project
+
+
+@pytest.fixture
+async def destiny_like_project(db_session: AsyncSession, project: Project) -> Project:
+    """DESTINY today: Investigation, but none of the CodingAnnotation pattern."""
+    await _import_service(db_session).execute(
+        project.id,
+        b"""@prefix evrepo: <https://vocab.evidence-repository.org/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+evrepo:Investigation a owl:Class .
+""",
+        "investigation.ttl",
+    )
     return project
 
 
@@ -141,7 +158,6 @@ async def _domain_uris(db_session: AsyncSession, project: Project, uri: URIRef) 
 
 
 EXPECTED_DESTINY_CLASSES = {
-    str(EVREPO.Investigation),
     str(EVREPO.CodingAnnotation),
     str(EVREPO.CodingStatus),
     str(GN.Feature),
@@ -173,9 +189,9 @@ EXPECTED_DESTINY_PROPERTIES = {
 
 @pytest.mark.asyncio
 async def test_imports_into_project_without_coding_annotation(
-    db_session: AsyncSession, project: Project
+    db_session: AsyncSession, destiny_like_project: Project
 ) -> None:
-    """DESTINY today: none of the CodingAnnotation pattern is present."""
+    project = destiny_like_project
     result = await _import_service(db_session).execute(
         project.id, _GEONAMES_TTL.read_bytes(), "geonames-location.ttl"
     )
@@ -216,12 +232,29 @@ async def test_keeps_existing_core_domains(db_session: AsyncSession, project: Pr
 
 @pytest.mark.asyncio
 async def test_robot_payload_expands_in_project_without_coding_annotation(
-    db_session: AsyncSession, project: Project
+    db_session: AsyncSession, destiny_like_project: Project
 ) -> None:
     await _import_service(db_session).execute(
+        destiny_like_project.id, _GEONAMES_TTL.read_bytes(), "geonames-location.ttl"
+    )
+    await _assert_robot_payload_expands(db_session, destiny_like_project)
+
+
+@pytest.mark.asyncio
+async def test_without_investigation_the_missing_domain_is_visible(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """If DESTINY's Investigation has another URI, the preview must say so."""
+    preview = await _import_service(db_session).preview(
         project.id, _GEONAMES_TTL.read_bytes(), "geonames-location.ttl"
     )
-    await _assert_robot_payload_expands(db_session, project)
+
+    assert str(EVREPO.Investigation) not in {c.uri for c in preview.classes}
+    assert any(
+        "mentionedPlace" in v.message and str(EVREPO.Investigation) in v.message
+        for v in preview.validation_issues
+        if v.severity == "warning"
+    )
 
 
 @pytest.mark.asyncio
@@ -373,9 +406,9 @@ def test_standalone_core_subset_matches_core() -> None:
     core.parse(_CORE_TTL, format="turtle")
 
     core_terms = {s for s in _named_subjects(standalone) if str(s).startswith(str(EVREPO))}
-    assert core_terms == CORE_SUBSET | NEW_CORE_PROPERTIES
+    assert core_terms == CORE_SUBSET | NEW_CORE_PROPERTIES | {EVREPO.Investigation}
 
-    for term in CORE_SUBSET - NARROWED_DOMAIN - {EVREPO.CodingStatus}:
+    for term in (CORE_SUBSET | {EVREPO.Investigation}) - NARROWED_DOMAIN - {EVREPO.CodingStatus}:
         assert set(standalone.predicate_objects(term)) == set(core.predicate_objects(term)), term
     for term in NARROWED_DOMAIN:
         assert (term, RDFS.domain, EVREPO.CodingAnnotation) in standalone

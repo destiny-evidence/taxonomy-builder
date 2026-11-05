@@ -21,6 +21,11 @@
 # file carries the core terms the mention shape needs. Terms the project already
 # has (same URI) are skipped on import.
 #
+# evrepo:Investigation is NOT declared here: DESTINY already has it. If the
+# preview warns that mentionedPlace's domain '.../Investigation' doesn't match
+# any class, DESTINY's Investigation has a different URI — stop and point
+# mentionedPlace at that class instead of importing a second Investigation.
+#
 # Expected preview warnings when ObservedResult/EffectEstimate are absent:
 # supportingText and codedBy keep the core's union domain (CodingAnnotation,
 # ObservedResult, EffectEstimate), and the import links only the classes that
@@ -30,10 +35,6 @@
 
 
 # --- evrepo-core terms (verbatim from evrepo-core.ttl; a test keeps them in step) ---
-
-evrepo:Investigation a owl:Class ;
-    rdfs:label "Investigation"@en ;
-    rdfs:comment "A study reported within a Reference. An Investigation produces one or more Findings."@en .
 
 evrepo:CodingAnnotation a owl:Class ;
     rdfs:label "Coding Annotation"@en ;
