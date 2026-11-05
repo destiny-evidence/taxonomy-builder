@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractLocalName } from "../../src/utils/strings";
+import { extractLocalName, isInNamespace } from "../../src/utils/strings";
 
 describe("extractLocalName", () => {
   it("extracts local name from slash-separated URI", () => {
@@ -34,5 +34,27 @@ describe("extractLocalName", () => {
   it("handles W3C XSD namespace URIs", () => {
     expect(extractLocalName("http://www.w3.org/2001/XMLSchema#string")).toBe("string");
     expect(extractLocalName("http://www.w3.org/2001/XMLSchema#decimal")).toBe("decimal");
+  });
+});
+
+describe("isInNamespace", () => {
+  it("matches a URI under a namespace with a trailing slash", () => {
+    expect(isInNamespace("https://example.org/vocab/Finding", "https://example.org/vocab/")).toBe(true);
+  });
+
+  it("matches a URI under a namespace without a trailing slash", () => {
+    expect(isInNamespace("https://example.org/vocab/Finding", "https://example.org/vocab")).toBe(true);
+  });
+
+  it("rejects a URI in another namespace", () => {
+    expect(isInNamespace("http://www.w3.org/2003/01/geo/wgs84_pos#lat", "https://example.org/vocab/")).toBe(false);
+  });
+
+  it("rejects a URI that only shares a string prefix with the namespace", () => {
+    expect(isInNamespace("https://example.org/vocabulary/Finding", "https://example.org/vocab")).toBe(false);
+  });
+
+  it("treats a null URI as in the namespace", () => {
+    expect(isInNamespace(null, "https://example.org/vocab/")).toBe(true);
   });
 });

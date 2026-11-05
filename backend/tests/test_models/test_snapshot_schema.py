@@ -127,11 +127,11 @@ class TestSnapshotProperty:
                 )
             )
 
-    def test_no_range_field_raises(self) -> None:
-        with pytest.raises(ValidationError):
-            SnapshotProperty(
-                **_property(range_scheme_id=None, range_datatype=None)
-            )
+    def test_no_range_field_allowed(self) -> None:
+        p = SnapshotProperty(**_property(range_scheme_id=None, range_datatype=None))
+        assert p.range_scheme_id is None
+        assert p.range_datatype is None
+        assert p.range_class is None
 
     def test_range_scheme_id_without_uri_raises(self) -> None:
         with pytest.raises(ValidationError):

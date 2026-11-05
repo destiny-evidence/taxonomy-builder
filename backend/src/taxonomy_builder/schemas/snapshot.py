@@ -153,33 +153,17 @@ class SnapshotProperty(BaseModel):
         has_class = self.range_class is not None
         count = sum((has_scheme, has_datatype, has_class))
 
-        if self.property_type == "rdf":
-            # rdf:Property allows 0 or 1 range
-            if count > 1:
-                raise PydanticCustomError(
-                    "property_invalid_range",
-                    "Property '{label}' (rdf:Property) may have at most one range.",
-                    {
-                        "label": self.label,
-                        "entity_type": "property",
-                        "entity_id": str(self.id),
-                        "entity_label": self.label,
-                    },
-                )
-        else:
-            # object/datatype require exactly one range
-            if count != 1:
-                raise PydanticCustomError(
-                    "property_invalid_range",
-                    "Property '{label}' must have exactly one of"
-                    " range scheme, range datatype, or range class.",
-                    {
-                        "label": self.label,
-                        "entity_type": "property",
-                        "entity_id": str(self.id),
-                        "entity_label": self.label,
-                    },
-                )
+        if count > 1:
+            raise PydanticCustomError(
+                "property_invalid_range",
+                "Property '{label}' may have at most one range.",
+                {
+                    "label": self.label,
+                    "entity_type": "property",
+                    "entity_id": str(self.id),
+                    "entity_label": self.label,
+                },
+            )
 
         if has_scheme and self.range_scheme_uri is None:
             raise PydanticCustomError(
@@ -292,6 +276,15 @@ class SnapshotProjectMetadata(BaseModel):
             namespace=project.namespace,
             namespace_prefixes=dict(project.namespace_prefixes or {}),
         )
+
+    @property
+    def normalized_namespace(self) -> str:
+        """Project namespace with exactly one trailing slash."""
+        return self.namespace.rstrip("/") + "/"
+
+    def in_namespace(self, uri: str) -> bool:
+        """Whether a URI belongs to the project namespace."""
+        return uri.startswith(self.normalized_namespace)
 
 
 class SnapshotNamedIndividual(BaseModel):

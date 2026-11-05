@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { ClassDetail } from "../../../src/components/classes/ClassDetail";
 import { classesApi } from "../../../src/api/classes";
+import { currentProject } from "../../../src/state/projects";
 import type { OntologyClass } from "../../../src/types/models";
 
 vi.mock("../../../src/api/classes");
@@ -66,6 +67,22 @@ function renderCreate() {
 describe("ClassDetail", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    currentProject.value = {
+      id: "proj-1",
+      name: "Example",
+      description: null,
+      namespace: "http://example.org/",
+      namespace_prefixes: {},
+      identifier_prefix: "EX",
+      identifier_counter: 0,
+      prefix_locked: false,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    };
+  });
+
+  afterEach(() => {
+    currentProject.value = null;
   });
 
   describe("view mode", () => {
@@ -103,6 +120,24 @@ describe("ClassDetail", () => {
     it("shows Edit button", () => {
       renderView();
       expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+    });
+
+    it("shows Edit and no External Class label for a class in the project namespace", () => {
+      renderView();
+      expect(screen.getByRole("button", { name: /edit/i })).toBeEnabled();
+      expect(screen.queryByText("External Class")).not.toBeInTheDocument();
+    });
+
+    it("replaces Edit with an External Class label for a class from an external vocabulary", () => {
+      renderView({
+        ...mockClass,
+        identifier: "SpatialThing",
+        label: "SpatialThing",
+        uri: "http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing",
+      });
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
+      expect(screen.getByText("External Class")).toBeVisible();
+      expect(screen.getByRole("button", { name: /delete/i })).toBeEnabled();
     });
 
     it("shows Delete button", () => {

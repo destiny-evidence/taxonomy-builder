@@ -15,7 +15,7 @@ from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.skos_import_service import SKOSImportService
-from taxonomy_builder.services.snapshot_service import SnapshotService
+from taxonomy_builder.services.snapshot_service import SnapshotService, validate_snapshot
 
 ROUND_TRIP_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -238,3 +238,86 @@ async def test_round_trip_preserves_multiple_cardinality(
         .all()
     }
     assert props["hasAppliedConcept"].cardinality == "multiple"
+
+
+GEO_LAT = "http://www.w3.org/2003/01/geo/wgs84_pos#lat"
+
+RANGELESS_EXTERNAL_TTL = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+
+geo:SpatialThing a owl:Class ;
+    rdfs:label "SpatialThing" .
+
+geo:lat a owl:DatatypeProperty ;
+    rdfs:label "latitude" ;
+    rdfs:domain geo:SpatialThing .
+"""
+
+
+def _no_import_warnings(result) -> bool:
+    return result.warnings == [] and not [
+        i for i in result.validation_issues if i.severity in ("error", "warning")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_round_trip_rangeless_external_property(
+    db_session: AsyncSession,
+    project: Project,
+):
+    """import → publish validation → export → re-import keeps an external property rangeless."""
+    # 1. Import into project A
+    import_service = SKOSImportService(db_session, project_service=ProjectService(db_session))
+    result = await import_service.execute(project.id, RANGELESS_EXTERNAL_TTL, "test.ttl")
+    assert _no_import_warnings(result)
+
+    # 2. Snapshot passes publish validation
+    db_session.expunge_all()
+    project_service = ProjectService(db_session)
+    concept_service = ConceptService(db_session)
+    snapshot_service = SnapshotService(db_session, project_service, concept_service)
+    snapshot = await snapshot_service.build_snapshot(project.id)
+    validation = validate_snapshot(snapshot)
+    assert validation.valid, validation.errors
+
+    # 3. Export has no rdfs:range for the property
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+    export_service = SKOSExportService(db_session)
+    turtle_output = await export_service.export_published_version(pv, "turtle")
+    g = Graph()
+    g.parse(data=turtle_output, format="turtle")
+    assert (URIRef(GEO_LAT), RDF.type, OWL.DatatypeProperty) in g
+    assert list(g.objects(URIRef(GEO_LAT), RDFS.range)) == []
+
+    # 4. Re-import into a fresh project B, without warnings or an added range
+    project_b = Project(
+        name="Round Trip B",
+        namespace="http://example.org/b/",
+        identifier_prefix="TSU",
+    )
+    db_session.add(project_b)
+    await db_session.flush()
+    await db_session.refresh(project_b)
+    reimport_service = SKOSImportService(db_session, project_service=ProjectService(db_session))
+    reimport = await reimport_service.execute(project_b.id, turtle_output.encode(), "reimport.ttl")
+    assert _no_import_warnings(reimport)
+
+    prop = (
+        await db_session.execute(
+            select(Property).where(Property.project_id == project_b.id, Property.uri == GEO_LAT)
+        )
+    ).scalar_one()
+    assert prop.property_type == "datatype"
+    assert prop.range_scheme_id is None
+    assert prop.range_datatype is None
+    assert prop.range_class is None

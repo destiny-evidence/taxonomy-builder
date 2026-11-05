@@ -267,6 +267,45 @@ class TestPropertyTerms:
         assert ctx["codedValue"] == "evrepo:codedValue"
 
 
+GEO_NS = "http://www.w3.org/2003/01/geo/wgs84_pos#"
+
+
+class TestRangelessExternalDatatypeProperty:
+    @staticmethod
+    def _snapshot():
+        return _make_snapshot(
+            namespace_prefixes=DEFAULT_PREFIXES | {"geo": GEO_NS},
+            properties=[
+                {
+                    "id": "01965a00-0000-7000-8000-a00000000006",
+                    "identifier": "lat",
+                    "label": "Latitude",
+                    "uri": f"{GEO_NS}lat",
+                    "property_type": "datatype",
+                    "range_scheme_id": None,
+                    "range_scheme_uri": None,
+                    "range_datatype": None,
+                    "range_class": None,
+                    "cardinality": "single",
+                    "required": False,
+                }
+            ],
+        )
+
+    def test_has_id_and_no_type(self):
+        ctx = ContextGenerationService().generate(self._snapshot())["@context"]
+        assert ctx["lat"] == "geo:lat"
+
+    def test_json_number_parses_as_double(self):
+        ctx = ContextGenerationService().generate(self._snapshot())
+        payload = {"@context": ctx["@context"], "@id": "https://example.org/place/1", "lat": 24.5}
+        g = Graph().parse(data=json.dumps(payload), format="json-ld")
+        values = list(g.objects(URIRef("https://example.org/place/1"), URIRef(f"{GEO_NS}lat")))
+        assert len(values) == 1
+        assert values[0].datatype == XSD.double
+        assert values[0].toPython() == 24.5
+
+
 class TestCollisions:
     def test_class_collision_project_ns_wins(self):
         snapshot = _make_snapshot(

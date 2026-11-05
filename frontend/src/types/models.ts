@@ -1,3 +1,5 @@
+import { isInNamespace } from "../utils/strings";
+
 // ============ Projects ============
 export interface Project {
   id: string;
@@ -243,6 +245,15 @@ export const DATATYPE_LABELS: Record<string, string> = {
 
 export function datatypeLabel(xsdType: string): string {
   return DATATYPE_LABELS[xsdType] ?? xsdType;
+}
+
+export const NO_RANGE_LABEL = "Any (no range declared)";
+export const MISSING_RANGE_LABEL = "No range set";
+
+/** Whether a property may be published without a range, matching backend snapshot validation. */
+export function isRangeOptional(property: Property, namespace: string | undefined): boolean {
+  if (property.property_type === "rdf") return true;
+  return namespace !== undefined && !isInNamespace(property.uri, namespace);
 }
 
 // ============ Feedback (Manager) ============
