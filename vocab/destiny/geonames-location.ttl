@@ -10,23 +10,80 @@
 # =============================================================================
 # DESTINY — GeoNames place mentions
 #
-# Import into the DESTINY project (which already holds evrepo-core) so the
-# geoparsing robot can emit place mentions as LinkedDataEnhancements.
+# Import into the DESTINY project so the geoparsing robot can emit place
+# mentions as LinkedDataEnhancements.
 #
 # Shape: Investigation -mentionedPlace-> LocationCodingAnnotation
 #        -codedValue-> gn:GeonamesFeature (http://sws.geonames.org/{id}/)
 # One annotation per mention; mentions of the same place share the feature.
 #
-# Requires evrepo:Investigation and evrepo:CodingAnnotation to exist in the
-# project. If they don't, the import still goes ahead but drops the domain and
-# superclass links to them — check the preview for "doesn't match any class"
-# and "Superclass ... not found" warnings.
+# DESTINY does not hold the CodingAnnotation pattern from evrepo-core, so this
+# file carries the core terms the mention shape needs. Terms the project already
+# has (same URI) are skipped on import.
+#
+# Expected preview warnings when ObservedResult/EffectEstimate are absent:
+# supportingText and codedBy keep the core's union domain (CodingAnnotation,
+# ObservedResult, EffectEstimate), and the import links only the classes that
+# exist. The union is kept because re-import replaces a property's domains, so a
+# narrowed copy would strip those links from a project that has them.
 # =============================================================================
 
 
-# --- evrepo-core additions ---
-# Projects hold their own copy of the core, so the new core terms are repeated
-# here verbatim from evrepo-core.ttl (a test keeps the two in step).
+# --- evrepo-core terms (verbatim from evrepo-core.ttl; a test keeps them in step) ---
+
+evrepo:Investigation a owl:Class ;
+    rdfs:label "Investigation"@en ;
+    rdfs:comment "A study reported within a Reference. An Investigation produces one or more Findings."@en .
+
+evrepo:CodingAnnotation a owl:Class ;
+    rdfs:label "Coding Annotation"@en ;
+    rdfs:comment "A coded value with provenance from source material. Wraps each coded property value with supporting text, coder identity, and coding status."@en .
+
+evrepo:codedValue a rdf:Property ;
+    rdfs:label "coded value"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:comment "The extracted value. Type varies by CodingAnnotation subclass."@en .
+
+evrepo:supportingText a rdf:Property ;
+    rdfs:label "supporting text"@en ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( evrepo:CodingAnnotation evrepo:ObservedResult evrepo:EffectEstimate )
+    ] ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Verbatim or near-verbatim text from the source material that supports the coded value."@en .
+
+evrepo:codedBy a rdf:Property ;
+    rdfs:label "coded by"@en ;
+    rdfs:domain [ a owl:Class ;
+        owl:unionOf ( evrepo:CodingAnnotation evrepo:ObservedResult evrepo:EffectEstimate )
+    ] ;
+    rdfs:comment "The agent (human coder or LLM) who performed the coding."@en .
+
+evrepo:CodingStatus a owl:Class ;
+    rdfs:label "Coding Status"@en ;
+    rdfs:comment "The lifecycle state of a coding annotation."@en ;
+    owl:oneOf ( evrepo:coded evrepo:notApplicable evrepo:notReported ) .
+
+evrepo:coded a owl:NamedIndividual , evrepo:CodingStatus ;
+    rdfs:label "Coded"@en ;
+    rdfs:comment "A codedValue is present — the field has been coded from the source."@en .
+
+evrepo:notApplicable a owl:NamedIndividual , evrepo:CodingStatus ;
+    rdfs:label "Not Applicable"@en ;
+    rdfs:comment "The coder determined the field is irrelevant to this finding (e.g. effect size for a qualitative study). No codedValue is expected."@en .
+
+evrepo:notReported a owl:NamedIndividual , evrepo:CodingStatus ;
+    rdfs:label "Not Reported"@en ;
+    rdfs:comment "The required information is not disclosed in the source material. No codedValue is expected."@en .
+
+evrepo:status a owl:ObjectProperty ;
+    rdfs:label "status"@en ;
+    rdfs:domain evrepo:CodingAnnotation ;
+    rdfs:range evrepo:CodingStatus ;
+    rdfs:comment "The lifecycle state of this coding annotation."@en .
+
+
+# --- evrepo-core additions (new) ---
 
 evrepo:mentionText a owl:DatatypeProperty ;
     rdfs:label "mention text"@en ;

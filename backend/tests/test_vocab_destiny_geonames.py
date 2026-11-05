@@ -1,9 +1,10 @@
 """Tests for the DESTINY GeoNames location import file.
 
-The file is imported into a project that already holds evrepo-core, so these
-tests check it imports cleanly on top of the core, and that a geoparse payload
-shaped the way the geoparsing robot will emit it expands to the intended triples
-via the generated JSON-LD context.
+DESTINY holds only part of evrepo-core (no CodingAnnotation pattern), so the
+import file carries the core terms the mention shape needs. These tests check it
+imports into a project with none of the core and into one with all of it, and
+that a geoparse payload shaped the way the geoparsing robot will emit it expands
+to the intended triples via the generated JSON-LD context.
 """
 
 import json
@@ -13,9 +14,11 @@ import pytest
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import OWL, RDF, RDFS, XSD
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.models.project import Project
+from taxonomy_builder.models.property import Property
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.context_generation_service import ContextGenerationService
 from taxonomy_builder.services.project_service import ProjectService
@@ -38,6 +41,25 @@ NEW_CORE_PROPERTIES = {
     EVREPO.endChar,
     EVREPO.codingScore,
 }
+
+
+CORE_SUBSET = {
+    EVREPO.Investigation,
+    EVREPO.CodingAnnotation,
+    EVREPO.CodingStatus,
+    EVREPO.coded,
+    EVREPO.notApplicable,
+    EVREPO.notReported,
+    EVREPO.codedValue,
+    EVREPO.supportingText,
+    EVREPO.codedBy,
+    EVREPO.status,
+}
+# The core gives these a union domain (CodingAnnotation, ObservedResult,
+# EffectEstimate). The DESTINY file keeps it, because re-import replaces an
+# existing property's domains. The standalone file narrows it to
+# CodingAnnotation, because a scratch project has neither of the other classes.
+NARROWED_DOMAIN = {EVREPO.supportingText, EVREPO.codedBy}
 
 
 def _core_without_new_properties() -> bytes:
@@ -98,16 +120,108 @@ def test_core_defines_span_and_score_properties() -> None:
 
 
 def test_core_terms_in_import_file_match_core() -> None:
-    """The import file repeats the new core terms; they must not drift."""
+    """The import file repeats core terms verbatim; they must not drift."""
     core = Graph()
     core.parse(_CORE_TTL, format="turtle")
     geonames = Graph()
     geonames.parse(_GEONAMES_TTL, format="turtle")
 
-    repeated = {s for s in geonames.subjects() if str(s).startswith(str(EVREPO))}
-    assert repeated == NEW_CORE_PROPERTIES
-    for prop in repeated:
-        assert set(geonames.predicate_objects(prop)) == set(core.predicate_objects(prop))
+    repeated = {s for s in _named_subjects(geonames) if str(s).startswith(str(EVREPO))}
+    assert repeated == CORE_SUBSET | NEW_CORE_PROPERTIES
+    assert isomorphic(_description_of(geonames, repeated), _description_of(core, repeated))
+
+
+async def _domain_uris(db_session: AsyncSession, project: Project, uri: URIRef) -> set[str]:
+    db_session.expunge_all()
+    prop = await db_session.scalar(
+        select(Property).where(Property.project_id == project.id, Property.uri == str(uri))
+    )
+    assert prop is not None, uri
+    return {c.uri for c in prop.domain_classes}
+
+
+EXPECTED_DESTINY_CLASSES = {
+    str(EVREPO.Investigation),
+    str(EVREPO.CodingAnnotation),
+    str(EVREPO.CodingStatus),
+    str(GN.Feature),
+    str(GEO.SpatialThing),
+    str(GN.GeonamesFeature),
+    str(GN.Class),
+    str(GN.Code),
+    str(DSNY.LocationCodingAnnotation),
+}
+EXPECTED_DESTINY_PROPERTIES = {
+    "codedValue",
+    "supportingText",
+    "codedBy",
+    "status",
+    "mentionText",
+    "startChar",
+    "endChar",
+    "codingScore",
+    "countryCode",
+    "name",
+    "geonamesID",
+    "lat",
+    "long",
+    "featureClass",
+    "featureCode",
+    "mentionedPlace",
+}
+
+
+@pytest.mark.asyncio
+async def test_imports_into_project_without_coding_annotation(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """DESTINY today: none of the CodingAnnotation pattern is present."""
+    result = await _import_service(db_session).execute(
+        project.id, _GEONAMES_TTL.read_bytes(), "geonames-location.ttl"
+    )
+
+    assert result.warnings == []
+    assert {c.uri for c in result.classes_created} == EXPECTED_DESTINY_CLASSES
+    assert {p.identifier for p in result.properties_created} == EXPECTED_DESTINY_PROPERTIES
+    # Only expected warnings: the union domain names classes DESTINY lacks.
+    unexpected = [
+        v.message
+        for v in result.validation_issues
+        if v.severity != "info"
+        and not (
+            ("supportingText" in v.message or "codedBy" in v.message)
+            and ("ObservedResult" in v.message or "EffectEstimate" in v.message)
+        )
+    ]
+    assert unexpected == []
+    for prop in NARROWED_DOMAIN:
+        assert await _domain_uris(db_session, project, prop) == {str(EVREPO.CodingAnnotation)}
+    assert await _domain_uris(db_session, project, DSNY.mentionedPlace) == {
+        str(EVREPO.Investigation)
+    }
+
+
+@pytest.mark.asyncio
+async def test_keeps_existing_core_domains(db_session: AsyncSession, project: Project) -> None:
+    """Re-import replaces domains, so the file must not narrow the core's."""
+    await _import_core_then_geonames(db_session, project)
+
+    for prop in NARROWED_DOMAIN:
+        assert await _domain_uris(db_session, project, prop) == {
+            str(EVREPO.CodingAnnotation),
+            str(EVREPO.ObservedResult),
+            str(EVREPO.EffectEstimate),
+        }
+
+
+@pytest.mark.asyncio
+async def test_robot_payload_expands_in_project_without_coding_annotation(
+    db_session: AsyncSession, project: Project
+) -> None:
+    await _import_service(db_session).execute(
+        project.id, _GEONAMES_TTL.read_bytes(), "geonames-location.ttl"
+    )
+    await _assert_robot_payload_expands(db_session, project)
 
 
 @pytest.mark.asyncio
@@ -221,23 +335,6 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
     assert float(g.value(annotation, EVREPO.codingScore).toPython()) == pytest.approx(0.97)
 
 
-STANDALONE_CORE_SUBSET = {
-    EVREPO.Investigation,
-    EVREPO.CodingAnnotation,
-    EVREPO.CodingStatus,
-    EVREPO.coded,
-    EVREPO.notApplicable,
-    EVREPO.notReported,
-    EVREPO.codedValue,
-    EVREPO.supportingText,
-    EVREPO.codedBy,
-    EVREPO.status,
-}
-# Narrowed to CodingAnnotation in the standalone file, because the core's union
-# domain names ObservedResult and EffectEstimate, which the subset leaves out.
-NARROWED_DOMAIN = {EVREPO.supportingText, EVREPO.codedBy}
-
-
 def _named_subjects(g: Graph) -> set[URIRef]:
     return {s for s in g.subjects() if isinstance(s, URIRef)}
 
@@ -265,8 +362,8 @@ def test_standalone_repeats_the_destiny_import_verbatim() -> None:
     destiny = Graph()
     destiny.parse(_GEONAMES_TTL, format="turtle")
 
-    repeated = _description_of(standalone, _named_subjects(destiny))
-    assert isomorphic(repeated, destiny)
+    subjects = _named_subjects(destiny) - NARROWED_DOMAIN
+    assert isomorphic(_description_of(standalone, subjects), _description_of(destiny, subjects))
 
 
 def test_standalone_core_subset_matches_core() -> None:
@@ -276,9 +373,9 @@ def test_standalone_core_subset_matches_core() -> None:
     core.parse(_CORE_TTL, format="turtle")
 
     core_terms = {s for s in _named_subjects(standalone) if str(s).startswith(str(EVREPO))}
-    assert core_terms == STANDALONE_CORE_SUBSET | NEW_CORE_PROPERTIES
+    assert core_terms == CORE_SUBSET | NEW_CORE_PROPERTIES
 
-    for term in STANDALONE_CORE_SUBSET - NARROWED_DOMAIN - {EVREPO.CodingStatus}:
+    for term in CORE_SUBSET - NARROWED_DOMAIN - {EVREPO.CodingStatus}:
         assert set(standalone.predicate_objects(term)) == set(core.predicate_objects(term)), term
     for term in NARROWED_DOMAIN:
         assert (term, RDFS.domain, EVREPO.CodingAnnotation) in standalone
