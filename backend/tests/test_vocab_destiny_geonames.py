@@ -17,7 +17,10 @@ from rdflib.compare import isomorphic
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
+from taxonomy_builder.models.class_superclass import ClassSuperclass
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.services.concept_service import ConceptService
@@ -490,3 +493,40 @@ def test_geonames_terms_restate_geonames_wording() -> None:
                 lang="en",
             ),
         ) in g
+
+
+async def _superclass_uris(db_session: AsyncSession, project: Project, uri: URIRef) -> set[str]:
+    child = aliased(OntologyClass)
+    parent = aliased(OntologyClass)
+    rows = await db_session.scalars(
+        select(parent.uri)
+        .join(ClassSuperclass, ClassSuperclass.superclass_id == parent.id)
+        .join(child, ClassSuperclass.class_id == child.id)
+        .where(child.project_id == project.id, child.uri == str(uri))
+    )
+    return set(rows)
+
+
+@pytest.mark.asyncio
+async def test_feature_is_a_spatial_thing_in_destiny(
+    db_session: AsyncSession, destiny_like_project: Project
+) -> None:
+    """GeoNames makes Feature a SpatialThing, which lat/long are defined on."""
+    await _import_service(db_session).execute(
+        destiny_like_project.id, _GEONAMES_TTL.read_bytes(), "geonames-location.ttl"
+    )
+    assert await _superclass_uris(db_session, destiny_like_project, GN.Feature) == {
+        str(GEO.SpatialThing)
+    }
+
+
+@pytest.mark.asyncio
+async def test_feature_is_a_spatial_thing_in_standalone(
+    db_session: AsyncSession, test_project: Project
+) -> None:
+    await _import_service(db_session).execute(
+        test_project.id, _STANDALONE_TTL.read_bytes(), "geonames-location-standalone.ttl"
+    )
+    assert await _superclass_uris(db_session, test_project, GN.Feature) == {
+        str(GEO.SpatialThing)
+    }
