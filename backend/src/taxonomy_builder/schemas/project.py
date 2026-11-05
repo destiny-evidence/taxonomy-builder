@@ -21,13 +21,22 @@ class ProjectCreate(BaseModel):
         """Strip whitespace from name."""
         return v.strip()
 
+    @field_validator("namespace")
+    @classmethod
+    def reject_trailing_hash(cls, v: HttpUrl) -> HttpUrl:
+        """Reject namespaces ending in '#'."""
+        if str(v).endswith("#"):
+            raise ValueError("namespace cannot end with '#'")
+        return v
+
 
 class ProjectUpdate(BaseModel):
     """Schema for updating an existing project."""
 
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
-    namespace: HttpUrl | None = None
     identifier_prefix: str | None = Field(default=None, max_length=4, pattern=r"^[A-Z]{1,4}$")
 
     @field_validator("name")
@@ -37,13 +46,6 @@ class ProjectUpdate(BaseModel):
         if v is not None:
             return v.strip()
         return v
-
-    @model_validator(mode="after")
-    def prevent_null_namespace(self) -> Self:
-        """Reject explicitly setting namespace to null."""
-        if "namespace" in self.model_fields_set and self.namespace is None:
-            raise ValueError("namespace cannot be set to null")
-        return self
 
     @model_validator(mode="after")
     def prevent_null_prefix(self) -> Self:

@@ -228,8 +228,6 @@ class ProjectService:
             project.name = project_in.name
         if "description" in project_in.model_fields_set:
             project.description = project_in.description
-        if "namespace" in project_in.model_fields_set:
-            project.namespace = project_in.namespace
         if "identifier_prefix" in project_in.model_fields_set:
             if project_in.identifier_prefix != project.identifier_prefix:
                 await self._check_prefix_mutable(project_id, project.identifier_prefix)
@@ -238,10 +236,8 @@ class ProjectService:
         try:
             await self.db.flush()
             await self.db.refresh(project)
-        except IntegrityError as e:
+        except IntegrityError:
             await self.db.rollback()
-            if "namespace" in str(e.orig):
-                raise ProjectNamespaceExistsError(str(project_in.namespace or ""))
             raise ProjectNameExistsError(project_in.name or "")
 
         await self._tracker.record(
