@@ -485,6 +485,9 @@ def test_geonames_terms_restate_geonames_wording() -> None:
                 lang="en",
             ),
         ) in g
+        assert (GN.Feature, RDFS.label, Literal("Feature", lang="en")) in g
+        assert (GN.Feature, RDFS.comment, Literal("A geographical feature", lang="en")) in g
+        assert (GN.Feature, RDFS.subClassOf, GEO.SpatialThing) in g
         assert (
             GN.name,
             RDFS.comment,

@@ -120,7 +120,7 @@ evrepo:codingScore a owl:DatatypeProperty ;
 gn:Feature a owl:Class ;
     rdfs:subClassOf geo:SpatialThing ;
     rdfs:label "Feature"@en ;
-    rdfs:comment "A geographical feature, as defined by the GeoNames ontology."@en .
+    rdfs:comment "A geographical feature"@en .
 
 gn:GeonamesFeature a owl:Class ;
     rdfs:subClassOf gn:Feature ;
