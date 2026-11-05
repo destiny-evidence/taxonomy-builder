@@ -132,6 +132,7 @@ async def test_imports_cleanly_on_top_of_core(
         "endChar",
         "codingScore",
         "countryCode",
+        "name",
         "geonamesID",
         "lat",
         "long",
@@ -183,6 +184,7 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
                     "@id": str(india),
                     "@type": "gn:GeonamesFeature",
                     "countryCode": "IN",
+                    "gn:name": "India",
                     "geonamesID": "1269750",
                     "lat": 22.0,
                     "long": 79.0,
@@ -207,6 +209,7 @@ async def _assert_robot_payload_expands(db_session: AsyncSession, project: Proje
     assert (annotation, EVREPO.codedValue, india) in g
     assert (india, RDF.type, GN.GeonamesFeature) in g
     assert (india, GN.countryCode, Literal("IN", datatype=XSD.string)) in g
+    assert (india, GN.name, Literal("India", datatype=XSD.string)) in g
     assert (india, GN.geonamesID, Literal("1269750", datatype=XSD.string)) in g
     assert g.value(india, GEO.lat).toPython() == pytest.approx(22.0)
     assert g.value(india, GEO.long).toPython() == pytest.approx(79.0)
@@ -315,6 +318,7 @@ async def test_standalone_imports_cleanly_into_empty_project(
         "endChar",
         "codingScore",
         "countryCode",
+        "name",
         "geonamesID",
         "lat",
         "long",
@@ -334,7 +338,7 @@ async def test_robot_payload_expands_in_standalone_project(
     await _assert_robot_payload_expands(db_session, test_project)
 
 
-def test_geonames_feature_restates_geonames_wording() -> None:
+def test_geonames_terms_restate_geonames_wording() -> None:
     for path in (_GEONAMES_TTL, _STANDALONE_TTL):
         g = Graph()
         g.parse(path, format="turtle")
@@ -345,6 +349,14 @@ def test_geonames_feature_restates_geonames_wording() -> None:
             Literal(
                 "A feature described in geonames database, uniquely defined by its "
                 "geonames identifier",
+                lang="en",
+            ),
+        ) in g
+        assert (
+            GN.name,
+            RDFS.comment,
+            Literal(
+                "The main international name of a feature. The value has no xml:lang tag.",
                 lang="en",
             ),
         ) in g

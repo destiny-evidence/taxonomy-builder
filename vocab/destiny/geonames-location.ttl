@@ -21,9 +21,6 @@
 # project. If they don't, the import still goes ahead but drops the domain and
 # superclass links to them — check the preview for "doesn't match any class"
 # and "Superclass ... not found" warnings.
-#
-# gn:name is deliberately omitted: taxonomy-builder keys properties by local
-# name, so it would collide with evrepo:name and be silently skipped.
 # =============================================================================
 
 
@@ -61,8 +58,6 @@ evrepo:codingScore a owl:DatatypeProperty ;
 # featureClass on a GeonamesFeature, and at most one featureCode and
 # countryCode. taxonomy-builder drops cardinality restrictions on import, so
 # they are not restated here; producers should still emit all of them.
-# gn:name is not declared (identifier clash with evrepo:name, see
-# taxonomy-builder#268) but should be emitted as the compact IRI "gn:name".
 
 gn:Feature a owl:Class ;
     rdfs:label "Feature"@en ;
@@ -86,6 +81,12 @@ gn:countryCode a owl:DatatypeProperty ;
     rdfs:domain gn:Feature ;
     rdfs:range xsd:string ;
     rdfs:comment "ISO 3166-1 alpha-2 country code of the feature (e.g. IN). Not alpha-3."@en .
+
+gn:name a owl:DatatypeProperty ;
+    rdfs:label "name"@en ;
+    rdfs:domain gn:Feature ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The main international name of a feature. The value has no xml:lang tag."@en .
 
 gn:geonamesID a owl:DatatypeProperty ;
     rdfs:label "GeoNames ID"@en ;
