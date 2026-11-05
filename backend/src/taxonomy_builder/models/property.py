@@ -24,7 +24,6 @@ class Property(Base):
 
     __tablename__ = "properties"
     __table_args__ = (
-        UniqueConstraint("project_id", "identifier", name="uq_property_identifier_per_project"),
         UniqueConstraint("project_id", "uri", name="uq_properties_project_uri"),
     )
 

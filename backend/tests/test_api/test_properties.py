@@ -218,6 +218,25 @@ class TestCreateProperty:
             },
         )
         assert response.status_code == 409
+        assert "uri" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_create_property_same_identifier_external_uri(
+        self, authenticated_client: AsyncClient, project: Project, property_obj: Property
+    ) -> None:
+        """A term from another vocabulary may share a local name with ours."""
+        response = await authenticated_client.post(
+            f"/api/projects/{project.id}/properties",
+            json={
+                "identifier": "sampleSize",
+                "label": "Sample Size",
+                "domain_class_uris": ["https://example.org/vocab/Finding"],
+                "range_datatype": "xsd:integer",
+                "cardinality": "single",
+                "uri": "http://www.geonames.org/ontology#sampleSize",
+            },
+        )
+        assert response.status_code == 201
 
     @pytest.mark.asyncio
     async def test_create_property_project_not_found(
@@ -314,29 +333,14 @@ class TestUpdateProperty:
         assert "domain class" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_update_property_duplicate_identifier(
-        self, authenticated_client: AsyncClient, project: Project,
-        property_obj: Property,
+    async def test_update_property_identifier_rejected(
+        self, authenticated_client: AsyncClient, property_obj: Property,
     ) -> None:
-        """Renaming to an existing identifier returns 409."""
-        # Create a second property
-        await authenticated_client.post(
-            f"/api/projects/{project.id}/properties",
-            json={
-                "identifier": "otherProp",
-                "label": "Other",
-                "domain_class_uris": ["https://example.org/vocab/Finding"],
-                "range_datatype": "xsd:string",
-                "cardinality": "single",
-            },
-        )
-        # Try to rename property_obj to the same identifier
         response = await authenticated_client.put(
             f"/api/properties/{property_obj.id}",
             json={"identifier": "otherProp"},
         )
-        assert response.status_code == 409
-        assert "already exists" in response.json()["detail"].lower()
+        assert response.status_code == 422
 
 
 @pytest.mark.usefixtures("ontology_class")

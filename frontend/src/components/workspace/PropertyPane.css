@@ -33,6 +33,10 @@
   color: var(--color-text-muted);
 }
 
+.property-pane__datatype--missing {
+  color: var(--color-danger);
+}
+
 .property-pane__scheme-header {
   display: flex;
   align-items: center;

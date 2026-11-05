@@ -27,7 +27,7 @@ resource "azuread_group_member" "api_to_db_crud" {
 # API Container App
 module "container_app_api" {
   source                          = "app.terraform.io/destiny-evidence/container-app/azure"
-  version                         = "1.9.1"
+  version                         = "2.0.1"
   app_name                        = var.app_name
   cpu                             = var.api_cpu
   environment                     = var.environment
@@ -79,6 +79,10 @@ module "container_app_api" {
     {
       name  = "TAXONOMY_KEYCLOAK_CLIENT_ID"
       value = "taxonomy-builder-api-${var.environment}"
+    },
+    {
+      name  = "TAXONOMY_EVREPO_NAMESPACE"
+      value = var.evrepo_namespace
     },
     {
       name  = "TAXONOMY_MCP_BASE_URL"

@@ -733,59 +733,103 @@ async def test_execute_allow_multiple_sets_cardinality(
     assert props["multiProp"].cardinality == "multiple"
     assert props["defaultProp"].cardinality == "single"
 
-# --- Duplicate property identifier tests ---
+# --- Shared local name tests ---
 
-DUPLICATE_PROPERTY_ID_TTL = b"""
-@prefix owl: <http://www.w3.org/2002/07/owl#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix ns1: <http://example.org/ns1/> .
-@prefix ns2: <http://example.org/ns2/> .
+SHARED_LOCAL_NAME_TTL = b"""
+@prefix gn:     <http://www.geonames.org/ontology#> .
+@prefix evrepo: <https://vocab.evidence-repository.org/> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
 
-ns1:Finding a owl:Class ;
-    rdfs:label "Finding" .
-
-ns1:title a owl:DatatypeProperty ;
-    rdfs:label "Title (ns1)" ;
-    rdfs:domain ns1:Finding ;
-    rdfs:range xsd:string .
-
-ns2:title a owl:DatatypeProperty ;
-    rdfs:label "Title (ns2)" ;
-    rdfs:domain ns1:Finding ;
-    rdfs:range xsd:integer .
+evrepo:Feature a owl:Class .
+gn:Feature a owl:Class .
+evrepo:name a owl:DatatypeProperty ; rdfs:domain evrepo:Feature ; rdfs:range xsd:string .
+gn:name     a owl:DatatypeProperty ; rdfs:domain gn:Feature     ; rdfs:range xsd:string .
 """
 
+SHARED_URIS = {
+    "classes": {
+        "https://vocab.evidence-repository.org/Feature",
+        "http://www.geonames.org/ontology#Feature",
+    },
+    "properties": {
+        "https://vocab.evidence-repository.org/name",
+        "http://www.geonames.org/ontology#name",
+    },
+}
+
+
 @pytest.mark.asyncio
-async def test_execute_duplicate_property_identifier_skipped(
+async def test_execute_shared_local_name_imports_both(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:
-    """Two properties with different URIs but same identifier: second is skipped."""
+    result = await import_service.execute(project.id, SHARED_LOCAL_NAME_TTL, "test.ttl")
 
-    result = await import_service.execute(
-        project.id, DUPLICATE_PROPERTY_ID_TTL, "test.ttl"
-    )
-
-    # Only one property created (first one wins)
-    assert len(result.properties_created) == 1
+    assert {c.uri for c in result.classes_created} == SHARED_URIS["classes"]
+    assert {p.uri for p in result.properties_created} == SHARED_URIS["properties"]
+    assert result.warnings == []
 
     props = (
-        await db_session.execute(
-            select(Property).where(Property.project_id == project.id)
-        )
+        await db_session.execute(select(Property).where(Property.project_id == project.id))
     ).scalars().all()
-    assert len(props) == 1
+    domains = {p.uri: [c.uri for c in p.domain_classes] for p in props}
+    assert domains == {
+        "https://vocab.evidence-repository.org/name": [
+            "https://vocab.evidence-repository.org/Feature"
+        ],
+        "http://www.geonames.org/ontology#name": ["http://www.geonames.org/ontology#Feature"],
+    }
+
 
 @pytest.mark.asyncio
-async def test_preview_duplicate_property_identifier_skipped(
+async def test_preview_shared_local_name_lists_both(
     import_service: SKOSImportService, project: Project
 ) -> None:
-    """Preview shows only one property when two share the same identifier."""
-    result = await import_service.preview(
-        project.id, DUPLICATE_PROPERTY_ID_TTL, "test.ttl"
-    )
+    result = await import_service.preview(project.id, SHARED_LOCAL_NAME_TTL, "test.ttl")
 
-    assert result.properties_count == 1
+    assert {c.uri for c in result.classes} == SHARED_URIS["classes"]
+    assert result.properties_count == 2
+    assert result.warnings == []
+
+
+@pytest.mark.asyncio
+async def test_reimport_shared_local_name_is_noop(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    await import_service.execute(project.id, SHARED_LOCAL_NAME_TTL, "test.ttl")
+
+    preview = await import_service.preview(project.id, SHARED_LOCAL_NAME_TTL, "test.ttl")
+    assert preview.classes_count == 0
+    assert preview.properties_count == 0
+
+    result = await import_service.execute(project.id, SHARED_LOCAL_NAME_TTL, "test.ttl")
+    assert result.classes_created == []
+    assert result.properties_created == []
+    assert result.warnings == []
+
+
+@pytest.mark.asyncio
+async def test_import_shared_local_name_across_files(
+    import_service: SKOSImportService, project: Project
+) -> None:
+    """A later file can add a term whose local name is already taken."""
+    first = b"""
+@prefix evrepo: <https://vocab.evidence-repository.org/> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+evrepo:Feature a owl:Class .
+evrepo:name a owl:DatatypeProperty ; rdfs:domain evrepo:Feature ; rdfs:range xsd:string .
+"""
+    await import_service.execute(project.id, first, "first.ttl")
+
+    result = await import_service.execute(project.id, SHARED_LOCAL_NAME_TTL, "second.ttl")
+    assert [c.uri for c in result.classes_created] == ["http://www.geonames.org/ontology#Feature"]
+    assert [p.uri for p in result.properties_created] == [
+        "http://www.geonames.org/ontology#name"
+    ]
 
 # --- Ambiguous range resolution tests ---
 

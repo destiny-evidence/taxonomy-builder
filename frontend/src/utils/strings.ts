@@ -48,3 +48,12 @@ export function extractLocalName(uri: string): string {
   const index = Math.max(hashIndex, slashIndex);
   return index >= 0 ? uri.substring(index + 1) : uri;
 }
+
+/**
+ * Whether a URI belongs to a project namespace. A null URI counts as in-namespace.
+ * Normalises the namespace to one trailing slash, matching the backend snapshot.
+ */
+export function isInNamespace(uri: string | null, namespace: string): boolean {
+  if (uri === null) return true;
+  return uri.startsWith(namespace.replace(/\/+$/, "") + "/");
+}

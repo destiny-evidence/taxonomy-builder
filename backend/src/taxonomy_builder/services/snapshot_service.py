@@ -105,7 +105,36 @@ def validate_snapshot(snapshot: SnapshotVocabulary) -> ValidationResult:
             )
 
     errors.extend(_validate_references(snapshot))
+    errors.extend(_validate_ranges(snapshot))
     return ValidationResult(valid=len(errors) == 0, errors=errors)
+
+
+def _validate_ranges(snapshot: SnapshotVocabulary) -> list[ValidationError]:
+    """Require a range on object/datatype properties in the project namespace."""
+    errors: list[ValidationError] = []
+
+    for prop in snapshot.properties or []:
+        if prop.property_type == "rdf" or not snapshot.project.in_namespace(prop.uri):
+            continue
+        if not any((
+            prop.range_scheme_id,
+            prop.range_datatype, 
+            prop.range_class
+        )):
+            errors.append(
+                ValidationError(
+                    code="property_invalid_range",
+                    message=(
+                        f"Property '{prop.label}' must have exactly one of"
+                        " range scheme, range datatype, or range class."
+                    ),
+                    entity_type="property",
+                    entity_id=prop.id,
+                    entity_label=prop.label,
+                )
+            )
+
+    return errors
 
 
 def _validate_references(snapshot: SnapshotVocabulary) -> list[ValidationError]:

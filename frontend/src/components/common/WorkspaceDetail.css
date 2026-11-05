@@ -93,6 +93,13 @@
   color: var(--color-text-muted);
 }
 
+.workspace-detail__external {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
 .workspace-detail__link {
   background: none;
   border: none;

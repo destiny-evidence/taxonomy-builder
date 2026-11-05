@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     mcp_base_url: str = "http://localhost:8000"
     mcp_auth: bool = True  # Keycloak auth for MCP over HTTP (stdio always unauthenticated)
 
+    # Vocabulary whose terms are unprefixed in JSON-LD contexts ahead of other external terms
+    evrepo_namespace: str = "https://vocab.evidence-repository.org/"
+
     # CDN cache purge (Azure Front Door)
     cdn: CDNSettings | None = None
 

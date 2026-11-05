@@ -66,8 +66,6 @@ class ExistingProjectData:
     scheme_uri_to_title: dict[str, str] = field(default_factory=dict)
     class_uris: set[str] = field(default_factory=set)
     class_uri_to_id: dict[str, UUID] = field(default_factory=dict)
-    class_identifiers: set[str] = field(default_factory=set)
-    property_identifiers: set[str] = field(default_factory=set)
     property_uris: set[str] = field(default_factory=set)
     property_uri_to_id: dict[str, UUID] = field(default_factory=dict)
 
@@ -150,15 +148,12 @@ class SKOSImportService:
             analysis["concepts_by_scheme"],
             existing.scheme_uris,
         )
-        class_previews = self._preview_classes(
-            analysis["classes"], existing.class_uris, existing.class_identifiers
-        )
+        class_previews = self._preview_classes(analysis["classes"], existing.class_uris)
         # Build class_uris from existing + those that will actually be created
         class_uris = existing.class_uris | {cp.uri for cp in class_previews}
         property_previews, prop_warnings = self._preview_properties(
             g,
             analysis["properties"],
-            existing.property_identifiers,
             existing.property_uris,
             scheme_uris,
             scheme_uri_to_title,
@@ -212,8 +207,6 @@ class SKOSImportService:
             scheme_uri_to_title={s.uri: s.title for s in existing_schemes if s.uri},
             class_uris={c.uri for c in existing_classes},
             class_uri_to_id={c.uri: c.id for c in existing_classes if c.uri},
-            class_identifiers={c.identifier for c in existing_classes},
-            property_identifiers={p.identifier for p in existing_props},
             property_uris={p.uri for p in existing_props},
             property_uri_to_id={p.uri: p.id for p in existing_props},
         )
@@ -314,9 +307,8 @@ class SKOSImportService:
         self,
         class_metadata: list[dict],
         existing_class_uris: set[str],
-        existing_identifiers: set[str],
     ) -> list[ClassPreviewResponse]:
-        """Build class previews, skipping existing (by URI, with identifier fallback)."""
+        """Build class previews, skipping classes whose URI already exists."""
         return [
             ClassPreviewResponse(
                 identifier=cm["identifier"],
@@ -324,14 +316,13 @@ class SKOSImportService:
                 uri=cm["uri"],
             )
             for cm in class_metadata
-            if cm["uri"] not in existing_class_uris and cm["identifier"] not in existing_identifiers
+            if cm["uri"] not in existing_class_uris
         ]
 
     def _preview_properties(
         self,
         g: Graph,
         property_metadata: list[dict],
-        existing_identifiers: set[str],
         existing_uris: set[str],
         scheme_uris: set[str],
         scheme_uri_to_title: dict[str, str],
@@ -340,15 +331,14 @@ class SKOSImportService:
         """Build property previews with range resolution checks, skipping existing."""
         previews: list[PropertyPreviewResponse] = []
         warnings: list[str] = []
-        known_ids = set(existing_identifiers)
         known_uris = set(existing_uris)
 
         for pm in property_metadata:
-            if pm["uri"] in known_uris or pm["identifier"] in known_ids:
+            if pm["uri"] in known_uris:
                 continue
 
             if not pm["domain_uris"]:
-                warnings.append(f"Property '{pm['identifier']}' skipped: no rdfs:domain declared")
+                warnings.append(f"Property <{pm['uri']}> skipped: no rdfs:domain declared")
                 continue
 
             range_scheme_title = None
@@ -358,18 +348,19 @@ class SKOSImportService:
                         range_scheme_title = scheme_uri_to_title.get(scheme_uri)
                     case ("ambiguous", _):
                         warnings.append(
-                            f"Property '{pm['identifier']}' range '{pm['range_uri']}' "
+                            f"Property <{pm['uri']}> range '{pm['range_uri']}' "
                             f"matches multiple schemes \u2014 could not resolve"
                         )
                     case None:
                         warnings.append(
-                            f"Property '{pm['identifier']}' range '{pm['range_uri']}' "
+                            f"Property <{pm['uri']}> range '{pm['range_uri']}' "
                             f"not found in project"
                         )
 
             previews.append(
                 PropertyPreviewResponse(
                     identifier=pm["identifier"],
+                    uri=pm["uri"],
                     label=pm["label"],
                     property_type=pm["property_type"],
                     domain_class_uris=pm["domain_uris"],
@@ -377,7 +368,6 @@ class SKOSImportService:
                     range_scheme_title=range_scheme_title,
                 )
             )
-            known_ids.add(pm["identifier"])
             known_uris.add(pm["uri"])
 
         return previews, warnings
@@ -412,7 +402,6 @@ class SKOSImportService:
             project_id,
             analysis["classes"],
             existing.class_uris,
-            existing.class_identifiers,
             existing.class_uri_to_id,
         )
 
@@ -446,7 +435,6 @@ class SKOSImportService:
             g,
             project_id,
             analysis["properties"],
-            existing.property_identifiers,
             existing.property_uris,
             scheme_uri_to_id,
             class_uris,
@@ -487,7 +475,6 @@ class SKOSImportService:
         project_id: UUID,
         class_metadata: list[dict],
         existing_class_uris: set[str],
-        existing_identifiers: set[str],
         existing_class_uri_to_id: dict[str, UUID] | None = None,
     ) -> tuple[list[ClassCreatedResponse], list[str], dict[str, UUID]]:
         """Create OntologyClass records and ClassSuperclass join rows.
@@ -496,11 +483,10 @@ class SKOSImportService:
         class_uri_to_id map (existing + newly created).
         """
         known_uris = set(existing_class_uris)
-        known_identifiers = set(existing_identifiers)
 
         to_create: list[tuple[OntologyClass, dict]] = []
         for cm in class_metadata:
-            if cm["uri"] in known_uris or cm["identifier"] in known_identifiers:
+            if cm["uri"] in known_uris:
                 continue
 
             ont_class = OntologyClass(
@@ -513,7 +499,6 @@ class SKOSImportService:
             )
             self.db.add(ont_class)
             known_uris.add(cm["uri"])
-            known_identifiers.add(cm["identifier"])
             to_create.append((ont_class, cm))
 
         if to_create:
@@ -779,7 +764,6 @@ class SKOSImportService:
         g: Graph,
         project_id: UUID,
         property_metadata: list[dict],
-        existing_prop_ids: set[str],
         existing_prop_uris: set[str],
         scheme_uri_to_id: dict[str, UUID],
         class_uris: set[str],
@@ -788,7 +772,6 @@ class SKOSImportService:
     ) -> tuple[list[PropertyCreatedResponse], list[str]]:
         """Create Property records, skipping duplicates, resolving ranges."""
         warnings: list[str] = []
-        known_ids = set(existing_prop_ids)
         known_uris = set(existing_prop_uris)
         uri_to_id = class_uri_to_id or {}
         prop_uri_to_id = existing_prop_uri_to_id or {}
@@ -796,7 +779,7 @@ class SKOSImportService:
 
         for pm in property_metadata:
             identifier = pm["identifier"]
-            if pm["uri"] in known_uris or identifier in known_ids:
+            if pm["uri"] in known_uris:
                 # Re-import: update domain classes for existing property
                 if pm["uri"] in prop_uri_to_id:
                     domain_class_uris = sorted(pm["domain_uris"])
@@ -810,7 +793,7 @@ class SKOSImportService:
 
             domain_class_uris = sorted(pm["domain_uris"])
             if not domain_class_uris:
-                warnings.append(f"Property '{identifier}' skipped: no rdfs:domain declared")
+                warnings.append(f"Property <{pm['uri']}> skipped: no rdfs:domain declared")
                 continue
 
             range_uri = pm["range_uri"]
@@ -831,13 +814,13 @@ class SKOSImportService:
                     case ("ambiguous", _):
                         range_class = range_uri
                         warnings.append(
-                            f"Property '{identifier}' range '{range_uri}' "
+                            f"Property <{pm['uri']}> range '{range_uri}' "
                             f"matches multiple schemes \u2014 stored as unresolved URI"
                         )
                     case None:
                         range_class = range_uri
                         warnings.append(
-                            f"Property '{identifier}' range '{range_uri}' "
+                            f"Property <{pm['uri']}> range '{range_uri}' "
                             f"not found in project \u2014 stored as unresolved URI"
                         )
 
@@ -855,7 +838,6 @@ class SKOSImportService:
                 uri=pm["uri"],
             )
             self.db.add(prop)
-            known_ids.add(identifier)
             known_uris.add(pm["uri"])
             to_create.append((prop, domain_class_uris))
 
@@ -897,6 +879,7 @@ class SKOSImportService:
                 PropertyCreatedResponse(
                     id=prop.id,
                     identifier=prop.identifier,
+                    uri=prop.uri,
                     label=prop.label,
                     range_scheme_id=prop.range_scheme_id,
                     range_datatype=prop.range_datatype,

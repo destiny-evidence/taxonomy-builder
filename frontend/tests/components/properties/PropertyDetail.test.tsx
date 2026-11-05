@@ -5,6 +5,7 @@ import { propertiesApi } from "../../../src/api/properties";
 import { ApiError } from "../../../src/api/client";
 import { ontologyClasses } from "../../../src/state/classes";
 import { schemes } from "../../../src/state/schemes";
+import { currentProject } from "../../../src/state/projects";
 import type { Property } from "../../../src/types/models";
 
 vi.mock("../../../src/api/properties");
@@ -50,6 +51,18 @@ describe("PropertyDetail", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    currentProject.value = {
+      id: "proj-1",
+      name: "Example",
+      description: null,
+      namespace: "http://example.org/",
+      namespace_prefixes: {},
+      identifier_prefix: "EX",
+      identifier_counter: 0,
+      prefix_locked: false,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    };
     // Set up ontology classes for edit mode dropdowns
     ontologyClasses.value = [
       { id: "cls-1", project_id: "proj-1", identifier: "Person", uri: "http://example.org/Person", label: "Person", description: null, scope_note: null, superclass_uris: [], subclass_uris: [], restrictions: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
@@ -81,6 +94,7 @@ describe("PropertyDetail", () => {
   });
 
   afterEach(() => {
+    currentProject.value = null;
     ontologyClasses.value = [];
     schemes.value = [];
   });
@@ -160,6 +174,26 @@ describe("PropertyDetail", () => {
       render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
 
       expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+    });
+
+    it("enables Edit for a property in the project namespace", () => {
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      expect(screen.getByRole("button", { name: /edit/i })).toBeEnabled();
+      expect(screen.queryByText("External Property")).not.toBeInTheDocument();
+    });
+
+    it("replaces Edit with an External Property label for a property from an external vocabulary", () => {
+      const externalProperty = {
+        ...mockProperty,
+        uri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat",
+        range_datatype: null,
+      };
+      render(<PropertyDetail property={externalProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
+      expect(screen.getByText("External Property")).toBeVisible();
+      expect(screen.getByRole("button", { name: /delete/i })).toBeEnabled();
     });
 
     it("shows Delete button", () => {
@@ -320,6 +354,29 @@ describe("PropertyDetail", () => {
 
       const select = screen.getByRole("combobox", { name: /range scheme/i });
       expect(select).toHaveValue("scheme-1");
+    });
+
+    it("prefixes range class options from other vocabularies", () => {
+      currentProject.value = {
+        id: "proj-1", name: "P", description: null, namespace: "http://example.org",
+        namespace_prefixes: { gn: "http://www.geonames.org/ontology#" },
+        identifier_prefix: "P", identifier_counter: 0, prefix_locked: false,
+        created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z",
+      };
+      ontologyClasses.value = [
+        ...ontologyClasses.value,
+        { id: "cls-3", project_id: "proj-1", identifier: "Person", uri: "http://www.geonames.org/ontology#Person", label: "Person", description: null, scope_note: null, superclass_uris: [], subclass_uris: [], restrictions: [], created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+      ];
+      render(<PropertyDetail property={mockProperty} onRefresh={mockOnRefresh} onClose={mockOnClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+      fireEvent.click(screen.getByRole("radio", { name: /class/i }));
+
+      const select = screen.getByRole("combobox", { name: /range class/i });
+      const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
+      expect(options).toContain("Person");
+      expect(options).toContain("gn Person");
+      currentProject.value = null;
     });
 
     it("toggles between scheme and datatype range dropdowns", () => {

@@ -15,7 +15,6 @@ from taxonomy_builder.services.project_service import ProjectNotFoundError, Proj
 from taxonomy_builder.services.property_service import (
     DomainClassNotFoundError,
     InvalidRangeError,
-    PropertyIdentifierExistsError,
     PropertyService,
     PropertyURIExistsError,
     SchemeNotInProjectError,
@@ -295,7 +294,7 @@ class TestCreateProperty:
             range_datatype="xsd:integer",
             cardinality="single",
         )
-        with pytest.raises(PropertyIdentifierExistsError):
+        with pytest.raises(PropertyURIExistsError):
             await service.create_property(project.id, prop_in2)
 
     @pytest.mark.asyncio
@@ -760,27 +759,6 @@ class TestPropertyURI:
 
         assert prop.uri == "https://external.org/props/educationLevel"
 
-    @pytest.mark.asyncio
-    async def test_update_identifier_does_not_change_uri(
-        self, project: Project, property_service: PropertyService
-    ) -> None:
-        """URI is immutable — updating identifier does not change URI."""
-        prop_in = PropertyCreate(
-            identifier="educationLevel",
-            label="Education Level",
-            domain_class_uris=["https://example.org/vocab/Finding"],
-            range_datatype="xsd:string",
-            cardinality="single",
-        )
-        prop = await property_service.create_property(project.id, prop_in)
-        original_uri = prop.uri
-
-        update = PropertyUpdate(identifier="renamedProp")
-        updated = await property_service.update_property(prop.id, update)
-
-        assert updated is not None
-        assert updated.identifier == "renamedProp"
-        assert updated.uri == original_uri
 
 
 @pytest.mark.usefixtures("ontology_class")
@@ -788,12 +766,11 @@ class TestURICollision:
     """Tests for URI collision handling."""
 
     @pytest.mark.asyncio
-    async def test_duplicate_uri_different_identifier_raises_uri_error(
+    async def test_duplicate_explicit_uri_raises_uri_error(
         self, project: Project, property_service: PropertyService
     ) -> None:
-        """Two properties with different identifiers but same URI raises PropertyURIExistsError."""
         prop_in1 = PropertyCreate(
-            identifier="prop1",
+            identifier="sharedUri",
             label="Property 1",
             domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:string",
@@ -803,7 +780,7 @@ class TestURICollision:
         await property_service.create_property(project.id, prop_in1)
 
         prop_in2 = PropertyCreate(
-            identifier="prop2",
+            identifier="sharedUri",
             label="Property 2",
             domain_class_uris=["https://example.org/vocab/Finding"],
             range_datatype="xsd:integer",
@@ -812,38 +789,6 @@ class TestURICollision:
         )
         with pytest.raises(PropertyURIExistsError):
             await property_service.create_property(project.id, prop_in2)
-
-    @pytest.mark.asyncio
-    async def test_update_to_duplicate_identifier_raises(
-        self, project: Project, property_service: PropertyService
-    ) -> None:
-        """Renaming a property to an existing identifier raises PropertyIdentifierExistsError."""
-        prop1 = await property_service.create_property(
-            project.id,
-            PropertyCreate(
-                identifier="prop1",
-                label="Property 1",
-                domain_class_uris=["https://example.org/vocab/Finding"],
-                range_datatype="xsd:string",
-                cardinality="single",
-            ),
-        )
-        await property_service.create_property(
-            project.id,
-            PropertyCreate(
-                identifier="prop2",
-                label="Property 2",
-                domain_class_uris=["https://example.org/vocab/Finding"],
-                range_datatype="xsd:string",
-                cardinality="single",
-            ),
-        )
-
-        with pytest.raises(PropertyIdentifierExistsError):
-            await property_service.update_property(
-                prop1.id, PropertyUpdate(identifier="prop2")
-            )
-
 
 @pytest.mark.usefixtures("ontology_class")
 class TestChangeTracking:

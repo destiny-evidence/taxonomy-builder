@@ -511,7 +511,7 @@ class TestFromPropertyTypeColumn:
 
 
 class TestRequireValidRange:
-    """Range validation should be relaxed for rdf property type."""
+    """Range validation by property type and project namespace."""
 
     def test_rdf_type_allows_zero_ranges(self) -> None:
         """rdf:Property with no range should pass validation."""
@@ -545,39 +545,52 @@ class TestRequireValidRange:
         )
         assert prop.range_datatype == "xsd:string"
 
-    def test_object_type_requires_exactly_one_range(self) -> None:
-        """object property with no range should fail."""
-        with pytest.raises(PydanticValidationError):
-            SnapshotProperty(
-                id=uuid4(),
-                identifier="prop1",
-                uri="http://example.org/prop1",
-                label="Test Prop",
-                domain_class_uris=["http://example.org/Class"],
-                property_type="object",
-                range_scheme_id=None,
-                range_datatype=None,
-                range_class=None,
-                cardinality="single",
-                required=False,
-            )
+    @staticmethod
+    def _rangeless_property(property_type: str, uri: str) -> SnapshotProperty:
+        return SnapshotProperty(
+            id=uuid4(),
+            identifier="prop1",
+            uri=uri,
+            label="Test Prop",
+            domain_class_uris=["http://example.org/Class"],
+            property_type=property_type,
+            range_scheme_id=None,
+            range_datatype=None,
+            range_class=None,
+            cardinality="single",
+            required=False,
+        )
 
-    def test_datatype_type_requires_exactly_one_range(self) -> None:
-        """datatype property with no range should fail."""
-        with pytest.raises(PydanticValidationError):
-            SnapshotProperty(
-                id=uuid4(),
-                identifier="prop1",
-                uri="http://example.org/prop1",
-                label="Test Prop",
-                domain_class_uris=["http://example.org/Class"],
-                property_type="datatype",
-                range_scheme_id=None,
-                range_datatype=None,
-                range_class=None,
-                cardinality="single",
-                required=False,
-            )
+    @staticmethod
+    def _validate_with(prop: SnapshotProperty):
+        cls = _class("Class", uri="http://example.org/Class")
+        scheme = _scheme(concepts=[_concept("Term")])
+        return validate_snapshot(_vocab(scheme, properties=[prop], classes=[cls]))
+
+    @pytest.mark.parametrize("property_type", ["object", "datatype"])
+    def test_in_namespace_property_requires_a_range(self, property_type: str) -> None:
+        """object/datatype property in the project namespace with no range fails publish."""
+        prop = self._rangeless_property(property_type, "http://example.org/prop1")
+        result = self._validate_with(prop)
+        assert result.valid is False
+        errors = [e for e in result.errors if e.code == "property_invalid_range"]
+        assert len(errors) == 1
+        assert errors[0].entity_id == prop.id
+
+    @pytest.mark.parametrize("property_type", ["object", "datatype"])
+    def test_external_property_allows_zero_ranges(self, property_type: str) -> None:
+        """object/datatype property outside the project namespace may have no range."""
+        prop = self._rangeless_property(
+            property_type, "http://www.w3.org/2003/01/geo/wgs84_pos#lat"
+        )
+        result = self._validate_with(prop)
+        assert result.valid is True
+
+    def test_in_namespace_rdf_property_allows_zero_ranges(self) -> None:
+        """rdf:Property in the project namespace with no range passes publish."""
+        prop = self._rangeless_property("rdf", "http://example.org/prop1")
+        result = self._validate_with(prop)
+        assert result.valid is True
 
     def test_object_type_rejects_multiple_ranges(self) -> None:
         """object property with more than one range should fail."""

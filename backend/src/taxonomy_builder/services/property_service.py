@@ -58,17 +58,6 @@ class SchemeNotInProjectError(Exception):
             super().__init__("The specified concept scheme was not found")
 
 
-class PropertyIdentifierExistsError(Exception):
-    """Raised when a property identifier already exists in the project."""
-
-    def __init__(self, identifier: str, project_id: UUID) -> None:
-        self.identifier = identifier
-        self.project_id = project_id
-        super().__init__(
-            f"Property with identifier '{identifier}' already exists in project"
-        )
-
-
 class PropertyURIExistsError(Exception):
     """Raised when a property URI already exists in the project."""
 
@@ -184,7 +173,7 @@ class PropertyService:
             DomainClassNotFoundError: If the domain class is not in the project's classes
             InvalidRangeError: If range specification is invalid
             SchemeNotInProjectError: If the scheme doesn't belong to the project
-            PropertyIdentifierExistsError: If the identifier already exists
+            PropertyURIExistsError: If the URI already exists
         """
         # Verify project exists and get namespace for URI computation
         project = await self._project_service.get_project(project_id)
@@ -233,8 +222,6 @@ class PropertyService:
             constraint = get_constraint_name(e)
             if "uq_properties_project_uri" in constraint:
                 raise PropertyURIExistsError(uri, project_id)
-            if "uq_property_identifier_per_project" in constraint:
-                raise PropertyIdentifierExistsError(property_in.identifier, project_id)
             raise
 
         # Record change event
@@ -353,8 +340,6 @@ class PropertyService:
             constraint = get_constraint_name(e)
             if "uq_properties_project_uri" in constraint:
                 raise PropertyURIExistsError(prop.uri, prop.project_id)
-            if "uq_property_identifier_per_project" in constraint:
-                raise PropertyIdentifierExistsError(prop.identifier, prop.project_id)
             raise
 
         # Record change event

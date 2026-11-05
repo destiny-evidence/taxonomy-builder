@@ -1,9 +1,12 @@
+import { isInNamespace } from "../utils/strings";
+
 // ============ Projects ============
 export interface Project {
   id: string;
   name: string;
   description: string | null;
   namespace: string;
+  namespace_prefixes: Record<string, string>;
   identifier_prefix: string;
   identifier_counter: number;
   prefix_locked: boolean;
@@ -220,7 +223,6 @@ export interface PropertyCreate {
 }
 
 export interface PropertyUpdate {
-  identifier?: string;
   label?: string;
   description?: string | null;
   domain_class_uris?: string[];
@@ -243,6 +245,15 @@ export const DATATYPE_LABELS: Record<string, string> = {
 
 export function datatypeLabel(xsdType: string): string {
   return DATATYPE_LABELS[xsdType] ?? xsdType;
+}
+
+export const NO_RANGE_LABEL = "Any (no range declared)";
+export const MISSING_RANGE_LABEL = "No range set";
+
+/** Whether a property may be published without a range, matching backend snapshot validation. */
+export function isRangeOptional(property: Property, namespace: string | undefined): boolean {
+  if (property.property_type === "rdf") return true;
+  return namespace !== undefined && !isInNamespace(property.uri, namespace);
 }
 
 // ============ Feedback (Manager) ============
@@ -301,7 +312,6 @@ export interface OntologyClassCreate {
 }
 
 export interface OntologyClassUpdate {
-  identifier?: string;
   label?: string;
   description?: string | null;
   scope_note?: string | null;

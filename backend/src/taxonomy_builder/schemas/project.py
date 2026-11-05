@@ -62,6 +62,7 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None
     namespace: str
+    namespace_prefixes: dict[str, str] = Field(default_factory=dict)
     identifier_prefix: str
     identifier_counter: int
     prefix_locked: bool
