@@ -20,6 +20,7 @@ interface EditDraft {
   title: string;
   uri: string;
   description: string;
+  scope_note: string;
 }
 
 export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps) {
@@ -67,6 +68,7 @@ export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps
     title: scheme.title,
     uri: scheme.uri ?? "",
     description: scheme.description ?? "",
+    scope_note: scheme.scope_note ?? "",
   };
 
   function handleEditClick() {
@@ -74,6 +76,7 @@ export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps
       title: scheme.title,
       uri: scheme.uri ?? "",
       description: scheme.description ?? "",
+      scope_note: scheme.scope_note ?? "",
     });
     setValidationErrors({});
     setIsEditing(true);
@@ -96,6 +99,7 @@ export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps
       title: editDraft.title,
       uri: editDraft.uri || null,
       description: editDraft.description || null,
+      scope_note: editDraft.scope_note || null,
     };
 
     try {
@@ -196,6 +200,14 @@ export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps
               placeholder="A description of this concept scheme"
               multiline
             />
+            <Input
+              label="Scope Note"
+              name="scope_note"
+              value={displayValues.scope_note}
+              onChange={(value) => updateDraft("scope_note", value)}
+              placeholder="Clarify the intended use of this concept scheme"
+              multiline
+            />
             <div class="scheme-detail__actions">
               <Button variant="secondary" size="sm" onClick={handleCancel} disabled={loading}>
                 Cancel
@@ -218,6 +230,13 @@ export function SchemeDetail({ scheme, onRefresh, onDeleted }: SchemeDetailProps
               <div class="scheme-detail__field">
                 <label class="scheme-detail__label">Description</label>
                 <div class="scheme-detail__value">{scheme.description}</div>
+              </div>
+            )}
+
+            {scheme.scope_note && (
+              <div class="scheme-detail__field">
+                <label class="scheme-detail__label">Scope Note</label>
+                <div class="scheme-detail__value">{scheme.scope_note}</div>
               </div>
             )}
 
