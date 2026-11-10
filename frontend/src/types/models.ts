@@ -41,6 +41,7 @@ export interface ConceptScheme {
   project_id: string;
   title: string;
   description: string | null;
+  scope_note: string | null;
   uri: string | null;
   position: number;
   created_at: string;
@@ -50,12 +51,14 @@ export interface ConceptScheme {
 export interface ConceptSchemeCreate {
   title: string;
   description?: string | null;
+  scope_note?: string | null;
   uri?: string | null;
 }
 
 export interface ConceptSchemeUpdate {
   title?: string;
   description?: string | null;
+  scope_note?: string | null;
   uri?: string | null;
 }
 

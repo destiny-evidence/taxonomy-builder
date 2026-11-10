@@ -16,6 +16,7 @@ interface SchemeFormProps {
 export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFormProps) {
   const [title, setTitle] = useState(scheme?.title ?? "");
   const [description, setDescription] = useState(scheme?.description ?? "");
+  const [scopeNote, setScopeNote] = useState(scheme?.scope_note ?? "");
   const [uri, setUri] = useState(scheme?.uri ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
   useEffect(() => {
     setTitle(scheme?.title ?? "");
     setDescription(scheme?.description ?? "");
+    setScopeNote(scheme?.scope_note ?? "");
     setUri(scheme?.uri ?? "");
     setError(null);
   }, [scheme]);
@@ -36,6 +38,7 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
     const data = {
       title,
       description: description || null,
+      scope_note: scopeNote || null,
       uri: uri || null,
     };
 
@@ -77,6 +80,15 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
         placeholder="Optional description"
         multiline
         onChange={setDescription}
+      />
+
+      <Input
+        label="Scope Note"
+        name="scope_note"
+        value={scopeNote}
+        placeholder="Optional scope note"
+        multiline
+        onChange={setScopeNote}
       />
 
       <Input
