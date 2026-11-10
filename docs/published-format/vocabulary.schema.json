@@ -96,6 +96,10 @@
             "type": ["string", "null"],
             "description": "Vocabulary description."
           },
+          "scope_note": {
+            "type": ["string", "null"],
+            "description": "Scope note clarifying the intended use of the scheme."
+          },
           "uri": {
             "type": "string",
             "format": "uri",
