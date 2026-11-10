@@ -85,6 +85,7 @@ async def test_serialize_scheme_captures_all_fields(
         project_id=project.id,
         title="Animals",
         description="A taxonomy of animals",
+        scope_note="Use to classify the species studied, not the study setting",
         uri="http://example.org/animals",
     )
     db_session.add(scheme)
@@ -97,6 +98,7 @@ async def test_serialize_scheme_captures_all_fields(
     assert serialized["id"] == str(scheme.id)
     assert serialized["title"] == "Animals"
     assert serialized["description"] == "A taxonomy of animals"
+    assert serialized["scope_note"] == "Use to classify the species studied, not the study setting"
     assert serialized["uri"] == "http://example.org/animals"
 
 

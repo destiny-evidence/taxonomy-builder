@@ -103,6 +103,7 @@ class TestConceptSchemeRead:
             project_id=project_id,
             title="Test Scheme",
             description="A description",
+            scope_note="A scope note",
             uri="http://example.org/schemes/test",
             position=0,
             created_at=now,
@@ -112,6 +113,7 @@ class TestConceptSchemeRead:
         assert scheme.project_id == project_id
         assert scheme.title == "Test Scheme"
         assert scheme.description == "A description"
+        assert scheme.scope_note == "A scope note"
         assert scheme.uri == "http://example.org/schemes/test"
         assert scheme.created_at == now
         assert scheme.updated_at == now
@@ -129,10 +131,12 @@ class TestConceptSchemeRead:
             project_id=uuid4(),
             title="Minimal",
             description=None,
+            scope_note=None,
             uri=None,
             position=0,
             created_at=now,
             updated_at=now,
         )
         assert scheme.description is None
+        assert scheme.scope_note is None
         assert scheme.uri is None
