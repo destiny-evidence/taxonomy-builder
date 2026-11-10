@@ -387,6 +387,12 @@ def get_scheme_description(g: Graph, scheme_uri: URIRef) -> str | None:
     return None
 
 
+def get_scheme_scope_note(g: Graph, scheme_uri: URIRef) -> str | None:
+    """Get scheme scope note from skos:scopeNote."""
+    scope_note = g.value(scheme_uri, SKOS.scopeNote)
+    return str(scope_note) if scope_note else None
+
+
 def get_concept_scheme(g: Graph, concept_uri: URIRef) -> URIRef | None:
     """Get the scheme a concept belongs to via skos:inScheme or skos:topConceptOf."""
     scheme = g.value(concept_uri, SKOS.inScheme)

@@ -213,6 +213,8 @@ class SKOSExportService:
 
         if scheme_snapshot.description:
             g.add((scheme_uri, DCTERMS.description, Literal(scheme_snapshot.description)))
+        if scheme_snapshot.scope_note:
+            g.add((scheme_uri, SKOS.scopeNote, Literal(scheme_snapshot.scope_note)))
 
         # Build concept URI lookup keyed by ID
         concept_uris: dict[UUID, URIRef] = {}

@@ -87,6 +87,14 @@ class TestSnapshotScheme:
         s = SnapshotScheme(**_scheme(concepts=[_concept()]))  # no position key
         assert s.position == 0
 
+    def test_scope_note_captured(self) -> None:
+        s = SnapshotScheme(**_scheme(scope_note="Use carefully", concepts=[_concept()]))
+        assert s.scope_note == "Use carefully"
+
+    def test_scope_note_defaults_for_legacy_snapshots(self) -> None:
+        s = SnapshotScheme(**_scheme(concepts=[_concept()]))  # no scope_note key
+        assert s.scope_note is None
+
 
 class TestSnapshotProperty:
     def test_with_range_scheme(self) -> None:
