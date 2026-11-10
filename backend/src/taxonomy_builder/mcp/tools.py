@@ -197,6 +197,7 @@ async def create_scheme(
     project_id: str,
     title: str,
     description: str | None = None,
+    scope_note: str | None = None,
     uri: str | None = None,
     svc: ConceptSchemeService = Depends(get_scheme_service),
 ) -> str:
@@ -206,11 +207,14 @@ async def create_scheme(
         project_id: UUID of the project
         title: Title for the new scheme
         description: Optional description
+        scope_note: Optional scope note clarifying the intended use of the scheme
         uri: Optional base URI for concepts in this scheme
     """
     scheme = await svc.create_scheme(
         UUID(project_id),
-        ConceptSchemeCreate(title=title, description=description, uri=uri),
+        ConceptSchemeCreate(
+            title=title, description=description, scope_note=scope_note, uri=uri
+        ),
     )
     return f"Created scheme: {format_scheme(scheme)}"
 
@@ -417,10 +421,11 @@ async def update_scheme(
     scheme_id: str,
     title: str | None = None,
     description: str | None = None,
+    scope_note: str | None = None,
     uri: str | None = None,
     svc: ConceptSchemeService = Depends(get_scheme_service),
 ) -> str:
-    """Update a concept scheme's title, description, or URI.
+    """Update a concept scheme's title, description, scope note, or URI.
 
     Only provided fields are updated.
 
@@ -428,11 +433,14 @@ async def update_scheme(
         scheme_id: UUID of the concept scheme
         title: New title
         description: New description
+        scope_note: New scope note
         uri: New base URI
     """
     scheme = await svc.update_scheme(
         UUID(scheme_id),
-        ConceptSchemeUpdate(title=title, description=description, uri=uri),
+        ConceptSchemeUpdate(
+            title=title, description=description, scope_note=scope_note, uri=uri
+        ),
     )
     return f"Updated: {format_scheme(scheme)}"
 

@@ -90,6 +90,7 @@ class TestFormatScheme:
             "id": "019scheme",
             "title": "Evidence Types",
             "description": "Types of evidence",
+            "scope_note": "Use for primary studies",
             "uri": "http://example.org/evidence",
             "project_id": "019proj",
             "concepts": [],
@@ -97,6 +98,7 @@ class TestFormatScheme:
         result = format_scheme(scheme)
         assert "Evidence Types" in result
         assert "019scheme" in result
+        assert "Scope Note: Use for primary studies" in result
 
     def test_with_concepts(self):
         concepts = [FakeConcept(pref_label=f"Concept {i}") for i in range(5)]
@@ -104,6 +106,7 @@ class TestFormatScheme:
             "id": "019scheme",
             "title": "Test",
             "description": None,
+            "scope_note": None,
             "uri": "http://example.org/test",
             "project_id": "019proj",
             "concepts": concepts,

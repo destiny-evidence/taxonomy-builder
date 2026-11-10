@@ -11,6 +11,7 @@ class ConceptSchemeCreate(BaseModel):
 
     title: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
+    scope_note: str | None = None
     uri: str | None = Field(default=None, max_length=2048)
 
     @field_validator("title")
@@ -25,6 +26,7 @@ class ConceptSchemeUpdate(BaseModel):
 
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
+    scope_note: str | None = None
     uri: str | None = Field(default=None, max_length=2048)
 
     @field_validator("title")
@@ -45,6 +47,7 @@ class ConceptSchemeRead(BaseModel):
     project_id: UUID
     title: str
     description: str | None
+    scope_note: str | None
     uri: str | None
     position: int
     created_at: datetime

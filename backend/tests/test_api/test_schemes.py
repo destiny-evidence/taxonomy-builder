@@ -70,6 +70,7 @@ async def test_create_scheme(authenticated_client: AsyncClient, project: Project
         json={
             "title": "New Scheme",
             "description": "A new scheme",
+            "scope_note": "Use for new things",
             "uri": "http://example.org/new",
         },
     )
@@ -77,6 +78,7 @@ async def test_create_scheme(authenticated_client: AsyncClient, project: Project
     data = response.json()
     assert data["title"] == "New Scheme"
     assert data["description"] == "A new scheme"
+    assert data["scope_note"] == "Use for new things"
     assert data["uri"] == "http://example.org/new"
     assert data["project_id"] == str(project.id)
     assert "id" in data
@@ -174,12 +176,14 @@ async def test_update_scheme(authenticated_client: AsyncClient, scheme: ConceptS
         json={
             "title": "Updated Scheme",
             "description": "Updated description",
+            "scope_note": "Updated scope note",
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == "Updated Scheme"
     assert data["description"] == "Updated description"
+    assert data["scope_note"] == "Updated scope note"
     # Other fields should remain unchanged
     assert data["uri"] == "http://example.org/schemes/test"
 

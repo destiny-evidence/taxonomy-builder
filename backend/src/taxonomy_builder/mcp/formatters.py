@@ -35,6 +35,8 @@ def format_scheme(scheme) -> str:
     ]
     if scheme.description:
         lines.append(f"  Description: {scheme.description}")
+    if scheme.scope_note:
+        lines.append(f"  Scope Note: {scheme.scope_note}")
     if scheme.uri:
         lines.append(f"  URI: {scheme.uri}")
     concept_count = len(scheme.concepts) if scheme.concepts else 0
