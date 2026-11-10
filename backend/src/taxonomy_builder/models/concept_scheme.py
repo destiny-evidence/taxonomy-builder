@@ -36,6 +36,7 @@ class ConceptScheme(Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scope_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     uri: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     # Display order within the project, maintained as a gapless 0..n-1 sequence.
     position: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)

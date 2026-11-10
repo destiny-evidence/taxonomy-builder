@@ -369,6 +369,33 @@ async def test_execute_simple_scheme(
     assert len(concepts) == 2
 
 @pytest.mark.asyncio
+async def test_execute_imports_scheme_scope_note(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """skos:scopeNote on a concept scheme is stored on the imported scheme."""
+    ttl = b"""
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:TestScheme a skos:ConceptScheme ;
+    rdfs:label "Test Scheme" ;
+    skos:scopeNote "Use for study design only" .
+
+ex:Concept1 a skos:Concept ;
+    skos:inScheme ex:TestScheme ;
+    skos:prefLabel "First Concept" .
+"""
+    await import_service.execute(project.id, ttl, "test.ttl")
+
+    scheme = (
+        await db_session.execute(
+            select(ConceptScheme).where(ConceptScheme.project_id == project.id)
+        )
+    ).scalar_one()
+    assert scheme.scope_note == "Use for study design only"
+
+@pytest.mark.asyncio
 async def test_execute_multiple_schemes(
     db_session: AsyncSession, import_service: SKOSImportService, project: Project
 ) -> None:

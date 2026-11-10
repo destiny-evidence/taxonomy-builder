@@ -76,6 +76,7 @@ class SnapshotScheme(BaseModel):
     id: UUID
     title: str
     description: str | None = None
+    scope_note: str | None = None
     uri: str
     # Default 0 so snapshots stored before ordering was introduced still deserialize.
     position: int = 0
@@ -123,6 +124,7 @@ class SnapshotScheme(BaseModel):
             id=scheme.id,
             title=scheme.title,
             description=scheme.description,
+            scope_note=scheme.scope_note,
             uri=scheme.uri,
             position=scheme.position,
             concepts=[SnapshotConcept.from_concept(c) for c in scheme.concepts],

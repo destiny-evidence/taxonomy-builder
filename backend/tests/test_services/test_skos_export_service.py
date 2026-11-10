@@ -33,6 +33,7 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         project_id=project.id,
         title="Test Taxonomy",
         description="A test taxonomy",
+        scope_note="Use for test concepts only",
         uri="http://example.org/taxonomy",
     )
     db_session.add(scheme)
@@ -89,6 +90,7 @@ async def test_export_scheme_metadata(
     # Check all metadata fields
     assert str(g.value(scheme_uri, DCTERMS.title)) == "Test Taxonomy"
     assert str(g.value(scheme_uri, DCTERMS.description)) == "A test taxonomy"
+    assert str(g.value(scheme_uri, SKOS.scopeNote)) == "Use for test concepts only"
 
 
 # Single concept tests

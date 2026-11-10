@@ -40,6 +40,7 @@ async def scheme(db_session: AsyncSession, project: Project) -> ConceptScheme:
         project_id=project.id,
         title="Test Taxonomy",
         description="A test taxonomy",
+        scope_note="Use for test concepts only",
         uri="http://example.org/taxonomy",
     )
     db_session.add(scheme)
@@ -119,6 +120,7 @@ async def test_scheme_with_no_concepts(
     assert s.id == scheme.id
     assert s.title == "Test Taxonomy"
     assert s.description == "A test taxonomy"
+    assert s.scope_note == "Use for test concepts only"
     assert s.uri == "http://example.org/taxonomy"
     assert s.concepts == []
 
