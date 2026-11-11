@@ -105,7 +105,7 @@ async def test_create_project_duplicate_name_raises(db_session: AsyncSession) ->
         await service.create_project(
             ProjectCreate(
                 name="Duplicate",
-                namespace="https://example.org/vocab",
+                namespace="https://example.org/other-vocab",
                 identifier_prefix="TST",
             )
         )

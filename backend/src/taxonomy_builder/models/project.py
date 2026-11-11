@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid7
 
-from sqlalchemy import CheckConstraint, String, Text
+from sqlalchemy import CheckConstraint, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,7 +24,7 @@ class Project(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    namespace: Mapped[str] = mapped_column(UrlString(), unique=True, nullable=False)
+    namespace: Mapped[str] = mapped_column(UrlString(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
@@ -43,6 +43,7 @@ class Project(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint("namespace", name="uq_project_namespace"),
         CheckConstraint(
             r"identifier_prefix ~ '^[A-Z]{1,4}$'",
             name="ck_projects_identifier_prefix_format",
