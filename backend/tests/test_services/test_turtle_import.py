@@ -222,6 +222,42 @@ class TestExecute:
         assert outcome.scope_note == "Used in evidence synthesis"
 
     @pytest.mark.asyncio
+    async def test_dcterms_description_imported(
+        self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
+    ) -> None:
+        """Classes and properties read dcterms:description when rdfs:comment is absent."""
+        ttl = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Finding a owl:Class ;
+    rdfs:label "Finding" ;
+    dcterms:description "A research finding" .
+
+ex:sampleSize a owl:DatatypeProperty ;
+    rdfs:label "Sample Size" ;
+    dcterms:description "Number of participants" ;
+    rdfs:domain ex:Finding ;
+    rdfs:range xsd:integer .
+"""
+        await import_service.execute(project.id, ttl, "test.ttl")
+
+        finding = (
+            await db_session.execute(
+                select(OntologyClass).where(OntologyClass.project_id == project.id)
+            )
+        ).scalar_one()
+        assert finding.description == "A research finding"
+
+        sample_size = (
+            await db_session.execute(select(Property).where(Property.project_id == project.id))
+        ).scalar_one()
+        assert sample_size.description == "Number of participants"
+
+    @pytest.mark.asyncio
     async def test_duplicate_class_skipped(
         self, db_session: AsyncSession, import_service: SKOSImportService, project: Project
     ) -> None:

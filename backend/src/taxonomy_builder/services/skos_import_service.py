@@ -40,8 +40,8 @@ from taxonomy_builder.services.rdf_parser import (
     extract_concept_type_uris,
     find_named_individuals,
     get_concept_pref_label,
+    get_description,
     get_identifier_from_uri,
-    get_scheme_description,
     get_scheme_title,
     is_xsd_type,
     parse_rdf,
@@ -279,7 +279,7 @@ class SKOSImportService:
 
             concepts = concepts_by_scheme[scheme_uri]
             title = get_scheme_title(g, scheme_uri)
-            description = get_scheme_description(g, scheme_uri)
+            description = get_description(g, scheme_uri)
             relationships = count_broader_relationships(g, concepts)
 
             warnings: list[str] = []
@@ -645,7 +645,7 @@ class SKOSImportService:
             concepts = concepts_by_scheme[scheme_uri]
             base_title = get_scheme_title(g, scheme_uri)
             title = await self._get_unique_title(project_id, base_title)
-            description = get_scheme_description(g, scheme_uri)
+            description = get_description(g, scheme_uri)
 
             scheme = ConceptScheme(
                 project_id=project_id,
