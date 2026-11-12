@@ -12,6 +12,7 @@
 ##   - Equal-depth ancestor tie-breaking in diamond hierarchies
 ##   - Concept schemes with concepts (range targets)
 ##   - Concept-typed classes (rdfs:subClassOf skos:Concept)
+##   - Descriptions via rdfs:comment and dcterms:description
 ##
 ## Expected UI behaviour when imported into a project:
 ##
@@ -50,6 +51,7 @@
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
 
 
 # ──────────────────────────────────────────────
@@ -83,7 +85,7 @@ test:ObservationalStudy a owl:Class ;
 test:Finding a owl:Class ;
     rdfs:subClassOf test:Entity ;
     rdfs:label "Finding"@en ;
-    rdfs:comment "A result or conclusion from a study."@en .
+    dcterms:description "A result or conclusion from a study."@en .
 
 test:QuantitativeFinding a owl:Class ;
     rdfs:subClassOf test:Finding ;
@@ -154,7 +156,7 @@ test:effect_size a owl:DatatypeProperty ;
     rdfs:label "effect size"@en ;
     rdfs:domain test:Finding ;
     rdfs:range xsd:decimal ;
-    rdfs:comment "Standardised effect size estimate."@en .
+    dcterms:description "Standardised effect size estimate."@en .
 
 test:sample_size a owl:DatatypeProperty ;
     rdfs:label "sample size"@en ;
@@ -286,7 +288,7 @@ test:designQuasiExp a test:StudyDesignConcept , skos:Concept ;
 
 test:OutcomeDomainScheme a skos:ConceptScheme ;
     rdfs:label "Outcome Domains"@en ;
-    rdfs:comment "Broad categories of measured outcomes."@en ;
+    dcterms:description "Broad categories of measured outcomes."@en ;
     skos:hasTopConcept test:domainAcademic , test:domainBehavioural .
 
 test:domainAcademic a skos:Concept ;

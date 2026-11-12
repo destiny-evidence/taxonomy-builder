@@ -376,12 +376,12 @@ def get_scheme_title(g: Graph, scheme_uri: URIRef) -> str:
     return get_identifier_from_uri(scheme_uri)
 
 
-def get_scheme_description(g: Graph, scheme_uri: URIRef) -> str | None:
-    """Get scheme description from rdfs:comment or dcterms:description."""
-    desc = g.value(scheme_uri, RDFS.comment)
+def get_description(g: Graph, uri: URIRef) -> str | None:
+    """Get description from rdfs:comment or dcterms:description."""
+    desc = g.value(uri, RDFS.comment)
     if desc:
         return str(desc)
-    desc = g.value(scheme_uri, DCTERMS.description)
+    desc = g.value(uri, DCTERMS.description)
     if desc:
         return str(desc)
     return None
@@ -454,7 +454,7 @@ def extract_class_metadata(
     else:
         label = str(label)
 
-    description = g.value(class_uri, RDFS.comment)
+    description = get_description(g, class_uri)
     scope_note = g.value(class_uri, SKOS.scopeNote)
 
     # Collect superclass URIs, filtering out blank nodes and excluded URIs
@@ -469,7 +469,7 @@ def extract_class_metadata(
     return {
         "identifier": get_identifier_from_uri(class_uri),
         "label": str(label),
-        "description": str(description) if description else None,
+        "description": description,
         "scope_note": str(scope_note) if scope_note else None,
         "uri": uri_str,
         "superclass_uris": sorted(superclass_uris),
@@ -629,7 +629,7 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
     else:
         label = str(label)
 
-    description = g.value(prop_uri, RDFS.comment)
+    description = get_description(g, prop_uri)
     domain = g.value(prop_uri, RDFS.domain)
     range_val = g.value(prop_uri, RDFS.range)
 
@@ -651,7 +651,7 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
     return {
         "identifier": get_identifier_from_uri(prop_uri),
         "label": str(label),
-        "description": str(description) if description else None,
+        "description": description,
         "property_type": prop_type,
         "domain_uris": domain_uris,
         "range_uri": str(range_val) if isinstance(range_val, URIRef) else None,

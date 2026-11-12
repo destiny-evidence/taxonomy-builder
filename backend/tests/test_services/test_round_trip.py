@@ -1,6 +1,7 @@
 """Round-trip test: import TTL with restrictions and dual-typing, export, verify."""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
@@ -11,11 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.models.property import Property
 from taxonomy_builder.models.published_version import PublishedVersion
+from taxonomy_builder.schemas.snapshot import DiffResult, SnapshotVocabulary
 from taxonomy_builder.services.concept_service import ConceptService
 from taxonomy_builder.services.project_service import ProjectService
 from taxonomy_builder.services.skos_export_service import SKOSExportService
 from taxonomy_builder.services.skos_import_service import SKOSImportService
-from taxonomy_builder.services.snapshot_service import SnapshotService, validate_snapshot
+from taxonomy_builder.services.snapshot_service import (
+    SnapshotService,
+    compute_diff,
+    validate_snapshot,
+)
 
 ROUND_TRIP_TTL = b"""
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -321,3 +327,73 @@ async def test_round_trip_rangeless_external_property(
     assert prop.range_scheme_id is None
     assert prop.range_datatype is None
     assert prop.range_class is None
+
+
+EXPRESSIVITY_TTL = Path(__file__).parents[1] / "fixtures" / "ttl" / "ontology-expressivity.ttl"
+
+
+def _entities(snapshot: SnapshotVocabulary) -> list:
+    return [
+        *snapshot.concept_schemes,
+        *(c for s in snapshot.concept_schemes for c in s.concepts),
+        *snapshot.properties,
+        *snapshot.classes,
+    ]
+
+
+def _with_ids_of(snapshot: SnapshotVocabulary, original: SnapshotVocabulary) -> SnapshotVocabulary:
+    """
+    Copy of `snapshot` with entity IDs replaced by those of the same URI in `original`.
+    
+    Allows comparison of snapshots across projects for testing.
+    """
+    original_ids = {e.uri: e.id for e in _entities(original)}
+    data = snapshot.model_dump_json()
+    for e in _entities(snapshot):
+        if e.uri in original_ids:
+            data = data.replace(str(e.id), str(original_ids[e.uri]))
+    return SnapshotVocabulary.model_validate_json(data)
+
+
+@pytest.mark.asyncio
+async def test_export_reimport_preserves_vocabulary(
+    db_session: AsyncSession,
+    project: Project,
+):
+    """import → export → re-import into a fresh project yields the same vocabulary."""
+    project_service = ProjectService(db_session)
+    concept_service = ConceptService(db_session)
+    snapshot_service = SnapshotService(db_session, project_service, concept_service)
+
+    # 1. Import into project A and snapshot it
+    import_service = SKOSImportService(db_session, project_service=project_service)
+    await import_service.execute(project.id, EXPRESSIVITY_TTL.read_bytes(), EXPRESSIVITY_TTL.name)
+    db_session.expunge_all()
+    snapshot_a = await snapshot_service.build_snapshot(project.id)
+
+    # 2. Export project A
+    pv = PublishedVersion(
+        project_id=project.id,
+        version="1.0",
+        title="v1.0",
+        snapshot=snapshot_a.model_dump(mode="json"),
+        published_at=datetime.now(),
+    )
+    db_session.add(pv)
+    await db_session.flush()
+    turtle_output = await SKOSExportService(db_session).export_published_version(pv, "turtle")
+
+    # 3. Re-import the exported TTL into a fresh project B and snapshot it
+    project_b = Project(
+        name="Round Trip B",
+        namespace="http://example.org/b/",
+        identifier_prefix="TSU",
+    )
+    db_session.add(project_b)
+    await db_session.flush()
+    await db_session.refresh(project_b)
+    await import_service.execute(project_b.id, turtle_output.encode(), "reimport.ttl")
+    db_session.expunge_all()
+    snapshot_b = await snapshot_service.build_snapshot(project_b.id)
+
+    assert compute_diff(snapshot_a, _with_ids_of(snapshot_b, snapshot_a)) == DiffResult()
