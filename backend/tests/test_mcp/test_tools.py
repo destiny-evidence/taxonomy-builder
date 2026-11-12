@@ -204,6 +204,17 @@ class TestCreateScheme:
         )
         assert "URI Scheme" in result
 
+    async def test_with_scope_note(
+        self, project: Project, scheme_svc: ConceptSchemeService,
+    ):
+        result = await tools.create_scheme(
+            str(project.id),
+            "Scoped Scheme",
+            scope_note="Use for primary studies",
+            svc=scheme_svc,
+        )
+        assert "Use for primary studies" in result
+
 
 class TestCreateConcept:
     async def test_basic(
@@ -389,6 +400,14 @@ class TestUpdateScheme:
             str(scheme.id), description="New description", svc=scheme_svc,
         )
         assert "New description" in result
+
+    async def test_update_scope_note(
+        self, scheme: ConceptScheme, scheme_svc: ConceptSchemeService,
+    ):
+        result = await tools.update_scheme(
+            str(scheme.id), scope_note="New scope note", svc=scheme_svc,
+        )
+        assert "New scope note" in result
 
 
 class TestUpdateConcept:

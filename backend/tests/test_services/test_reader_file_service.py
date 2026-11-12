@@ -131,6 +131,7 @@ def _make_snapshot(
                 "id": str(SCHEME_ID),
                 "title": "Colors",
                 "description": "Color vocab.",
+                "scope_note": "Use for display colors, not risk ratings.",
                 "uri": "http://example.org/colors",
                 "concepts": concepts,
             }
@@ -320,6 +321,7 @@ class TestRenderVocabulary:
         assert scheme["id"] == str(SCHEME_ID)
         assert scheme["title"] == "Colors"
         assert scheme["description"] == "Color vocab."
+        assert scheme["scope_note"] == "Use for display colors, not risk ratings."
         assert scheme["uri"] == "http://example.org/colors"
 
     def test_scheme_position_emitted(self):

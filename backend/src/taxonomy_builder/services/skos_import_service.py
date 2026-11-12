@@ -42,6 +42,7 @@ from taxonomy_builder.services.rdf_parser import (
     get_concept_pref_label,
     get_identifier_from_uri,
     get_scheme_description,
+    get_scheme_scope_note,
     get_scheme_title,
     is_xsd_type,
     parse_rdf,
@@ -646,11 +647,13 @@ class SKOSImportService:
             base_title = get_scheme_title(g, scheme_uri)
             title = await self._get_unique_title(project_id, base_title)
             description = get_scheme_description(g, scheme_uri)
+            scope_note = get_scheme_scope_note(g, scheme_uri)
 
             scheme = ConceptScheme(
                 project_id=project_id,
                 title=title,
                 description=description,
+                scope_note=scope_note,
                 uri=str(scheme_uri),
                 position=position,
             )

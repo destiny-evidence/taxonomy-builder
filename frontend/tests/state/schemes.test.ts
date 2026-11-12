@@ -12,6 +12,7 @@ function makeScheme(
     project_id: projectId,
     title: id,
     description: null,
+    scope_note: null,
     uri: null,
     position,
     created_at: "2024-01-01T00:00:00Z",

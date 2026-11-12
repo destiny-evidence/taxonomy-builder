@@ -55,6 +55,13 @@ export function SchemeDetail({ schemeId }: SchemeDetailProps) {
         </div>
       )}
 
+      {scheme.scope_note && (
+        <div class="detail__section">
+          <div class="detail__label">Scope Note</div>
+          <div class="detail__text">{scheme.scope_note}</div>
+        </div>
+      )}
+
       <div class="detail__section">
         <div class="detail__label">Concepts</div>
         <div class="detail__text">{conceptCount} concept{conceptCount !== 1 ? "s" : ""}</div>

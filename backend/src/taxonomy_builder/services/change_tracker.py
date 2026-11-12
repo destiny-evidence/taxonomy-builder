@@ -85,6 +85,7 @@ class ChangeTracker:
             "id": str(scheme.id),
             "title": scheme.title,
             "description": scheme.description,
+            "scope_note": scheme.scope_note,
             "uri": scheme.uri,
         }
 

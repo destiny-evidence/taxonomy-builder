@@ -17,6 +17,7 @@
       "id": "01965a00-0000-7000-8000-000000000001",
       "title": "Colors",
       "description": "A simple color taxonomy.",
+      "scope_note": "Use for the perceived color of an object, not its pigment or dye.",
       "uri": "http://example.org/demo/colors",
       "top_concepts": [
         "01965a00-0000-7000-8000-000000000005",
