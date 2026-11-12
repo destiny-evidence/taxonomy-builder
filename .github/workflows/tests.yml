@@ -47,7 +47,7 @@ jobs:
         with:
           version: "0.13.7"
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: "backend/uv.lock"
           python-version: ${{ steps.python.outputs.python-version }}
 
       - name: Install the project
