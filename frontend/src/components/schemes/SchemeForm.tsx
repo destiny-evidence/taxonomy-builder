@@ -86,7 +86,7 @@ export function SchemeForm({ projectId, scheme, onSuccess, onCancel }: SchemeFor
         label="Scope Note"
         name="scope_note"
         value={scopeNote}
-        placeholder="Optional scope note"
+        placeholder="Clarify the intended use of this concept scheme"
         multiline
         onChange={setScopeNote}
       />
