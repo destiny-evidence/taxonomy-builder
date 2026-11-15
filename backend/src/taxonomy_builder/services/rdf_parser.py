@@ -387,9 +387,9 @@ def get_description(g: Graph, uri: URIRef) -> str | None:
     return None
 
 
-def get_scheme_scope_note(g: Graph, scheme_uri: URIRef) -> str | None:
-    """Get scheme scope note from skos:scopeNote."""
-    scope_note = g.value(scheme_uri, SKOS.scopeNote)
+def get_scope_note(g: Graph, uri: URIRef) -> str | None:
+    """Get scope note from skos:scopeNote."""
+    scope_note = g.value(uri, SKOS.scopeNote)
     return str(scope_note) if scope_note else None
 
 
@@ -461,7 +461,7 @@ def extract_class_metadata(
         label = str(label)
 
     description = get_description(g, class_uri)
-    scope_note = g.value(class_uri, SKOS.scopeNote)
+    scope_note = get_scope_note(g, class_uri)
 
     # Collect superclass URIs, filtering out blank nodes and excluded URIs
     superclass_uris: list[str] = []
@@ -476,7 +476,7 @@ def extract_class_metadata(
         "identifier": get_identifier_from_uri(class_uri),
         "label": str(label),
         "description": description,
-        "scope_note": str(scope_note) if scope_note else None,
+        "scope_note": scope_note,
         "uri": uri_str,
         "superclass_uris": sorted(superclass_uris),
     }
@@ -635,7 +635,6 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
     else:
         label = str(label)
 
-    description = get_description(g, prop_uri)
     domain = g.value(prop_uri, RDFS.domain)
     range_val = g.value(prop_uri, RDFS.range)
 
@@ -657,7 +656,7 @@ def extract_property_metadata(g: Graph, prop_uri: URIRef, prop_type: str) -> dic
     return {
         "identifier": get_identifier_from_uri(prop_uri),
         "label": str(label),
-        "description": description,
+        "description": get_description(g, prop_uri),
         "property_type": prop_type,
         "domain_uris": domain_uris,
         "range_uri": str(range_val) if isinstance(range_val, URIRef) else None,
