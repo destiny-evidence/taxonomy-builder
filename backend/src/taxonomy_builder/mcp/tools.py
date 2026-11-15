@@ -45,6 +45,11 @@ from taxonomy_builder.services.skos_export_service import SKOSExportService
 _auth = require_manager if settings.mcp_auth else None
 
 
+def _provided(**kwargs: object) -> dict[str, object]:
+    """Keep only the arguments that were given a value."""
+    return {key: value for key, value in kwargs.items() if value is not None}
+
+
 # --- Exploring tools ---
 
 
@@ -438,8 +443,8 @@ async def update_scheme(
     """
     scheme = await svc.update_scheme(
         UUID(scheme_id),
-        ConceptSchemeUpdate(
-            title=title, description=description, scope_note=scope_note, uri=uri
+        ConceptSchemeUpdate.model_validate(
+            _provided(title=title, description=description, scope_note=scope_note, uri=uri)
         ),
     )
     return f"Updated: {format_scheme(scheme)}"
@@ -467,11 +472,13 @@ async def update_concept(
     """
     concept = await svc.update_concept(
         UUID(concept_id),
-        ConceptUpdate(
-            pref_label=pref_label,
-            definition=definition,
-            scope_note=scope_note,
-            alt_labels=alt_labels,
+        ConceptUpdate.model_validate(
+            _provided(
+                pref_label=pref_label,
+                definition=definition,
+                scope_note=scope_note,
+                alt_labels=alt_labels,
+            )
         ),
     )
     return f"Updated: {format_concept(concept)}"
@@ -491,6 +498,9 @@ async def update_concepts_batch(
     - scope_note (optional): New scope note
     - alt_labels (optional): New alt labels list
 
+    Omitted keys are left unchanged. Set definition or scope_note to null
+    to clear it, and alt_labels to an empty list to clear them.
+
     Args:
         updates: List of update definitions
     """
@@ -506,11 +516,8 @@ async def update_concepts_batch(
     for u in updates:
         concept = await svc.update_concept(
             UUID(u["concept_id"]),
-            ConceptUpdate(
-                pref_label=u.get("pref_label"),
-                definition=u.get("definition"),
-                scope_note=u.get("scope_note"),
-                alt_labels=u.get("alt_labels"),
+            ConceptUpdate.model_validate(
+                {key: u[key] for key in ConceptUpdate.model_fields if key in u}
             ),
         )
         updated.append(concept)

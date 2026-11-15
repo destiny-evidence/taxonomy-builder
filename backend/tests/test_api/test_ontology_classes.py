@@ -242,6 +242,16 @@ class TestUpdateOntologyClass:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
+    async def test_update_ontology_class_null_label_rejected(
+        self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
+    ) -> None:
+        response = await authenticated_client.patch(
+            f"/api/classes/{ontology_class_obj.id}",
+            json={"label": None},
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_update_ontology_class_description(
         self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
     ) -> None:

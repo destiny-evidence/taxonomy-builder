@@ -205,6 +205,39 @@ async def test_update_scheme_partial(
 
 
 @pytest.mark.asyncio
+async def test_update_scheme_null_clears_optional_fields(
+    authenticated_client: AsyncClient,
+    scheme: ConceptScheme,
+) -> None:
+    """Explicit null clears optional fields and leaves omitted fields unchanged."""
+    await authenticated_client.patch(
+        f"/api/schemes/{scheme.id}", json={"scope_note": "To be cleared"}
+    )
+    response = await authenticated_client.patch(
+        f"/api/schemes/{scheme.id}",
+        json={"description": None, "scope_note": None, "uri": None},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Test Scheme"
+    assert data["description"] is None
+    assert data["scope_note"] is None
+    assert data["uri"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_scheme_null_title_rejected(
+    authenticated_client: AsyncClient,
+    scheme: ConceptScheme,
+) -> None:
+    """Explicit null on title is rejected."""
+    response = await authenticated_client.patch(
+        f"/api/schemes/{scheme.id}", json={"title": None}
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_update_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent scheme."""
     response = await authenticated_client.patch(

@@ -318,6 +318,29 @@ async def test_update_project_partial(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["name", "identifier_prefix"])
+async def test_update_project_null_non_nullable_rejected(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    field: str,
+) -> None:
+    """Explicit null on a non-nullable field is rejected."""
+    project = Project(
+        name="Original",
+        namespace="https://example.org/vocab",
+        identifier_prefix="TST",
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    response = await authenticated_client.patch(
+        f"/api/projects/{project.id}", json={field: None}
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_update_project_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent project returns 404."""
     response = await authenticated_client.patch(

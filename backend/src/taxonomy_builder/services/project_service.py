@@ -224,14 +224,15 @@ class ProjectService:
         project = await self.get_project(project_id)
         before = self._serialize_project(project)
 
-        if project_in.name is not None:
-            project.name = project_in.name
-        if "description" in project_in.model_fields_set:
-            project.description = project_in.description
-        if "identifier_prefix" in project_in.model_fields_set:
-            if project_in.identifier_prefix != project.identifier_prefix:
-                await self._check_prefix_mutable(project_id, project.identifier_prefix)
-            project.identifier_prefix = project_in.identifier_prefix
+        update_data = project_in.model_dump(exclude_unset=True)
+        if (
+            "identifier_prefix" in update_data
+            and update_data["identifier_prefix"] != project.identifier_prefix
+        ):
+            await self._check_prefix_mutable(project_id, project.identifier_prefix)
+
+        for key, value in update_data.items():
+            setattr(project, key, value)
 
         try:
             await self.db.flush()

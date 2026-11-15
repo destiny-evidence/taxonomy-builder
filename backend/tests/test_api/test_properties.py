@@ -342,6 +342,19 @@ class TestUpdateProperty:
         )
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "field", ["label", "domain_class_uris", "cardinality", "required"]
+    )
+    async def test_update_property_null_non_nullable_rejected(
+        self, authenticated_client: AsyncClient, property_obj: Property, field: str
+    ) -> None:
+        response = await authenticated_client.patch(
+            f"/api/properties/{property_obj.id}",
+            json={field: None},
+        )
+        assert response.status_code == 422
+
 
 @pytest.mark.usefixtures("ontology_class")
 class TestCreatePropertyDedup:

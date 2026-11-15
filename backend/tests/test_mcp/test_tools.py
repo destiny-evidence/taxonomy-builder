@@ -409,6 +409,20 @@ class TestUpdateScheme:
         )
         assert "New scope note" in result
 
+    async def test_omitted_fields_unchanged(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        scheme_svc: ConceptSchemeService,
+    ):
+        scheme.description = "Keep description"
+        scheme.scope_note = "Keep scope note"
+        await db_session.flush()
+
+        await tools.update_scheme(str(scheme.id), title="New Title", svc=scheme_svc)
+
+        updated = await scheme_svc.get_scheme(scheme.id)
+        assert updated.description == "Keep description"
+        assert updated.scope_note == "Keep scope note"
+
 
 class TestUpdateConcept:
     async def test_update_label(
@@ -447,6 +461,26 @@ class TestUpdateConceptsBatch:
             svc=concept_svc,
         )
         assert "Updated 2" in result
+
+    async def test_null_clears_and_omitted_unchanged(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        concept_svc: ConceptService,
+    ):
+        c1 = Concept(
+            scheme_id=scheme.id, pref_label="Dogs", identifier="b1",
+            definition="Canines", scope_note="Pets only",
+        )
+        db_session.add(c1)
+        await db_session.flush()
+
+        await tools.update_concepts_batch(
+            [{"concept_id": str(c1.id), "scope_note": None}],
+            svc=concept_svc,
+        )
+
+        updated = await concept_svc.get_concept(c1.id)
+        assert updated.scope_note is None
+        assert updated.definition == "Canines"
 
 
 class TestAddRelated:
