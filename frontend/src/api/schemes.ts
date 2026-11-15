@@ -90,7 +90,7 @@ export const schemesApi = {
     api.post<ConceptScheme>(`/projects/${projectId}/schemes`, data),
 
   update: (id: string, data: ConceptSchemeUpdate) =>
-    api.put<ConceptScheme>(`/schemes/${id}`, data),
+    api.patch<ConceptScheme>(`/schemes/${id}`, data),
 
   setPosition: (id: string, position: number) =>
     api.put<ConceptScheme>(`/schemes/${id}/position`, { position }),

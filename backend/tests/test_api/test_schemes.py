@@ -171,7 +171,7 @@ async def test_get_scheme_invalid_uuid(authenticated_client: AsyncClient) -> Non
 @pytest.mark.asyncio
 async def test_update_scheme(authenticated_client: AsyncClient, scheme: ConceptScheme) -> None:
     """Test updating a scheme."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/schemes/{scheme.id}",
         json={
             "title": "Updated Scheme",
@@ -194,7 +194,7 @@ async def test_update_scheme_partial(
     scheme: ConceptScheme,
 ) -> None:
     """Test partial update of a scheme."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/schemes/{scheme.id}",
         json={"description": "Only description changed"},
     )
@@ -207,7 +207,7 @@ async def test_update_scheme_partial(
 @pytest.mark.asyncio
 async def test_update_scheme_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent scheme."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/schemes/{uuid4()}",
         json={"title": "New Title"},
     )
@@ -228,7 +228,7 @@ async def test_update_scheme_duplicate_title(
     await db_session.flush()
 
     # Try to rename it to the same title as the first scheme
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/schemes/{scheme2.id}",
         json={"title": "Test Scheme"},
     )

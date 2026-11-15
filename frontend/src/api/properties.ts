@@ -11,7 +11,7 @@ export const propertiesApi = {
     api.post<Property>(`/projects/${projectId}/properties`, data),
 
   update: (id: string, data: PropertyUpdate) =>
-    api.put<Property>(`/properties/${id}`, data),
+    api.patch<Property>(`/properties/${id}`, data),
 
   delete: (id: string) => api.delete(`/properties/${id}`),
 };

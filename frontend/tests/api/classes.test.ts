@@ -140,7 +140,7 @@ describe("classesApi", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/classes/cls-1",
         expect.objectContaining({
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({
             label: "Person (Updated)",
             description: "Updated description",

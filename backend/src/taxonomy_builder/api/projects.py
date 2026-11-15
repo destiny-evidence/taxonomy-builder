@@ -76,7 +76,7 @@ async def get_project(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.put("/{project_id}", response_model=ProjectRead)
+@router.patch("/{project_id}", response_model=ProjectRead)
 async def update_project(
     project_id: UUID,
     project_in: ProjectUpdate,

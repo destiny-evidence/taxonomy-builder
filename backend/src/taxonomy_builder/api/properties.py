@@ -75,7 +75,7 @@ async def get_property(
     return PropertyRead.from_orm_model(prop)
 
 
-@properties_router.put("/{property_id}")
+@properties_router.patch("/{property_id}")
 async def update_property(
     property_id: UUID,
     property_in: PropertyUpdate,

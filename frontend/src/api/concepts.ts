@@ -18,7 +18,7 @@ export const conceptsApi = {
     api.post<Concept>(`/schemes/${schemeId}/concepts`, data),
 
   update: (id: string, data: ConceptUpdate) =>
-    api.put<Concept>(`/concepts/${id}`, data),
+    api.patch<Concept>(`/concepts/${id}`, data),
 
   delete: (id: string) => api.delete(`/concepts/${id}`),
 

@@ -99,7 +99,7 @@ describe("propertiesApi", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/properties/prop-1",
         expect.objectContaining({
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify(updates),
         })
       );

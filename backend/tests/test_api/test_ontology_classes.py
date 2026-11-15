@@ -222,7 +222,7 @@ class TestUpdateOntologyClass:
         self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
     ) -> None:
         """Test updating an ontology class's label."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/classes/{ontology_class_obj.id}",
             json={"label": "Updated Reference"},
         )
@@ -235,7 +235,7 @@ class TestUpdateOntologyClass:
     async def test_update_ontology_class_identifier_rejected(
         self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
     ) -> None:
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/classes/{ontology_class_obj.id}",
             json={"identifier": "Renamed"},
         )
@@ -246,7 +246,7 @@ class TestUpdateOntologyClass:
         self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
     ) -> None:
         """Test updating an ontology class's description."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/classes/{ontology_class_obj.id}",
             json={"description": "New description"},
         )
@@ -259,7 +259,7 @@ class TestUpdateOntologyClass:
         self, authenticated_client: AsyncClient, ontology_class_obj: OntologyClass
     ) -> None:
         """Test updating an ontology class's scope note."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/classes/{ontology_class_obj.id}",
             json={"scope_note": "Updated scope note"},
         )
@@ -272,7 +272,7 @@ class TestUpdateOntologyClass:
         self, authenticated_client: AsyncClient
     ) -> None:
         """Test updating a non-existent ontology class."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/classes/{uuid4()}",
             json={"label": "New Label"},
         )

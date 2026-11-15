@@ -138,7 +138,7 @@ class TestDataPersistence:
         project_id = create_response.json()["id"]
 
         # Update
-        update_response = await integration_client.put(
+        update_response = await integration_client.patch(
             f"/api/projects/{project_id}",
             json={"name": "Updated Name"},
         )

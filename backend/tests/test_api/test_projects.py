@@ -279,7 +279,7 @@ async def test_update_project(authenticated_client: AsyncClient, db_session: Asy
     await db_session.flush()
     await db_session.refresh(project)
 
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/projects/{project.id}",
         json={"name": "Updated", "description": "Updated description"},
     )
@@ -306,7 +306,7 @@ async def test_update_project_partial(
     await db_session.flush()
     await db_session.refresh(project)
 
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/projects/{project.id}",
         json={"name": "New Name"},
     )
@@ -320,7 +320,7 @@ async def test_update_project_partial(
 @pytest.mark.asyncio
 async def test_update_project_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent project returns 404."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         "/api/projects/01234567-89ab-7def-8123-456789abcdef", json={"name": "New Name"}
     )
     assert response.status_code == 404
@@ -469,7 +469,7 @@ async def test_update_project_namespace_rejected(
     await db_session.flush()
     await db_session.refresh(project)
 
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/projects/{project.id}",
         json={"namespace": "https://example.org/new-vocab"},
     )
@@ -625,7 +625,7 @@ async def test_update_project_prefix_locked_returns_409(
     db_session.add(concept)
     await db_session.flush()
 
-    resp = await authenticated_client.put(
+    resp = await authenticated_client.patch(
         f"/api/projects/{project.id}",
         json={"identifier_prefix": "NEW"},
     )
