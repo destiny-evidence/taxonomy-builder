@@ -150,14 +150,8 @@ class ConceptSchemeService:
         # Capture before state
         before_state = self._tracker.serialize_scheme(scheme)
 
-        if scheme_in.title is not None:
-            scheme.title = scheme_in.title
-        if scheme_in.description is not None:
-            scheme.description = scheme_in.description
-        if scheme_in.scope_note is not None:
-            scheme.scope_note = scheme_in.scope_note
-        if scheme_in.uri is not None:
-            scheme.uri = scheme_in.uri
+        for key, value in scheme_in.model_dump(exclude_unset=True).items():
+            setattr(scheme, key, value)
 
         try:
             await self.db.flush()

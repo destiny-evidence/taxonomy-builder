@@ -10,7 +10,7 @@ export const projectsApi = {
   create: (data: ProjectCreate) => api.post<Project>("/projects", data),
 
   update: (id: string, data: ProjectUpdate) =>
-    api.put<Project>(`/projects/${id}`, data),
+    api.patch<Project>(`/projects/${id}`, data),
 
   delete: (id: string) => api.delete(`/projects/${id}`),
 

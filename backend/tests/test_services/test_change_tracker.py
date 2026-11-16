@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 from taxonomy_builder.models.project import Project
 from taxonomy_builder.services.change_tracker import ChangeTracker
 
@@ -100,6 +101,36 @@ async def test_serialize_scheme_captures_all_fields(
     assert serialized["description"] == "A taxonomy of animals"
     assert serialized["scope_note"] == "Use to classify the species studied, not the study setting"
     assert serialized["uri"] == "http://example.org/animals"
+
+
+@pytest.mark.asyncio
+async def test_serialize_ontology_class_captures_all_fields(
+    db_session: AsyncSession, project: Project
+) -> None:
+    """Test that serialize_ontology_class() captures all ontology class fields."""
+    ontology_class = OntologyClass(
+        project_id=project.id,
+        identifier="Study",
+        label="Study",
+        description="A research study",
+        scope_note="Use for primary studies only",
+        uri="http://example.org/Study",
+    )
+    db_session.add(ontology_class)
+    await db_session.flush()
+    await db_session.refresh(ontology_class)
+
+    tracker = ChangeTracker(db_session)
+    serialized = tracker.serialize_ontology_class(ontology_class)
+
+    assert serialized == {
+        "id": str(ontology_class.id),
+        "identifier": "Study",
+        "label": "Study",
+        "description": "A research study",
+        "scope_note": "Use for primary studies only",
+        "uri": "http://example.org/Study",
+    }
 
 
 @pytest.mark.asyncio

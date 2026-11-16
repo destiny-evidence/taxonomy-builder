@@ -114,7 +114,7 @@ async def get_concept(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@concepts_router.put("/{concept_id}", response_model=ConceptRead)
+@concepts_router.patch("/{concept_id}", response_model=ConceptRead)
 async def update_concept(
     concept_id: UUID,
     concept_in: ConceptUpdate,

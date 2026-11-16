@@ -1,8 +1,10 @@
 """MCP tools for taxonomy builder."""
 
+from typing import Literal, get_args
 from uuid import UUID
 
 from fastmcp.dependencies import Depends
+from fastmcp.exceptions import ToolError
 from fastmcp.tools import ToolResult
 from mcp.types import TextContent
 
@@ -45,6 +47,31 @@ from taxonomy_builder.services.skos_export_service import SKOSExportService
 _auth = require_manager if settings.mcp_auth else None
 
 
+SchemeClearable = Literal["description", "scope_note", "uri"]
+ConceptClearable = Literal["definition", "scope_note", "alt_labels"]
+_CONCEPT_CLEARABLE = frozenset(get_args(ConceptClearable))
+
+
+def _reject_blank(**fields: object) -> None:
+    """Raise if any string argument is empty or only whitespace."""
+    if blank := [k for k, v in fields.items() if isinstance(v, str) and not v.strip()]:
+        raise ToolError(
+            f"{', '.join(blank)} cannot be blank. Omit the argument instead, "
+            "or on an update name the field in clear to clear it."
+        )
+
+
+def _update_fields(clear: set[str] | None, **values: object) -> dict[str, object]:
+    """Build an update payload from the given values and the fields to clear."""
+    provided = {key: value for key, value in values.items() if value is not None}
+    clear = clear or set()
+    if conflicting := provided.keys() & clear:
+        raise ToolError(f"{', '.join(conflicting)} cannot be both set and cleared.")
+    _reject_blank(**provided)
+    cleared = {name: [] if name == "alt_labels" else None for name in clear}
+    return {**provided, **cleared}
+
+
 # --- Exploring tools ---
 
 
@@ -73,12 +100,15 @@ async def create_project(
 ) -> str:
     """Create a new taxonomy project.
 
+    Omit the description rather than passing an empty string, which is rejected.
+
     Args:
         name: Project name (must be unique)
         namespace: Base URI namespace for the project (e.g. "https://example.org/vocab/")
         identifier_prefix: 1-4 uppercase letters used to prefix concept identifiers (e.g. "EVD")
         description: Optional project description
     """
+    _reject_blank(description=description)
     project = await svc.create_project(
         ProjectCreate(
             name=name,
@@ -203,6 +233,8 @@ async def create_scheme(
 ) -> str:
     """Create a new concept scheme in a project.
 
+    Omit optional fields rather than passing empty strings, which are rejected.
+
     Args:
         project_id: UUID of the project
         title: Title for the new scheme
@@ -210,6 +242,7 @@ async def create_scheme(
         scope_note: Optional scope note clarifying the intended use of the scheme
         uri: Optional base URI for concepts in this scheme
     """
+    _reject_blank(description=description, scope_note=scope_note, uri=uri)
     scheme = await svc.create_scheme(
         UUID(project_id),
         ConceptSchemeCreate(
@@ -233,7 +266,8 @@ async def create_concept(
     """Create a new concept in a scheme.
 
     Optionally place it under a parent concept via broader_concept_id.
-    An identifier is automatically allocated.
+    An identifier is automatically allocated. Omit optional fields rather
+    than passing empty strings, which are rejected.
 
     Args:
         scheme_id: UUID of the concept scheme
@@ -243,6 +277,7 @@ async def create_concept(
         alt_labels: Optional list of alternative labels
         broader_concept_id: Optional UUID of parent concept
     """
+    _reject_blank(definition=definition, scope_note=scope_note)
     scheme = await concept_svc.get_scheme(UUID(scheme_id))
     identifier = await project_svc.allocate_identifier(scheme.project_id)
 
@@ -286,6 +321,9 @@ async def create_concepts_batch(
     index of the concept in this batch. For example, "#0" refers to the
     first concept in the batch.
 
+    Omit optional fields rather than passing empty strings, which are rejected.
+    Every entry is checked before any concept is created.
+
     Args:
         scheme_id: UUID of the concept scheme
         concepts: List of concept definitions
@@ -293,6 +331,10 @@ async def create_concepts_batch(
     for i, c in enumerate(concepts):
         if "pref_label" not in c:
             return f"Invalid batch entry [{i}]: missing required field 'pref_label'."
+        try:
+            _reject_blank(definition=c.get("definition"), scope_note=c.get("scope_note"))
+        except ToolError as e:
+            return f"Invalid batch entry [{i}]: {e}"
         broader_ref = c.get("broader_concept_id")
         if broader_ref:
             if isinstance(broader_ref, str) and broader_ref.startswith("#"):
@@ -423,11 +465,13 @@ async def update_scheme(
     description: str | None = None,
     scope_note: str | None = None,
     uri: str | None = None,
+    clear: set[SchemeClearable] | None = None,
     svc: ConceptSchemeService = Depends(get_scheme_service),
 ) -> str:
     """Update a concept scheme's title, description, scope note, or URI.
 
-    Only provided fields are updated.
+    Omitted or null arguments are unchanged. To clear a field, name it in
+    clear. Blank strings are rejected.
 
     Args:
         scheme_id: UUID of the concept scheme
@@ -435,11 +479,14 @@ async def update_scheme(
         description: New description
         scope_note: New scope note
         uri: New base URI
+        clear: Fields to clear
     """
     scheme = await svc.update_scheme(
         UUID(scheme_id),
-        ConceptSchemeUpdate(
-            title=title, description=description, scope_note=scope_note, uri=uri
+        ConceptSchemeUpdate.model_validate(
+            _update_fields(
+                clear, title=title, description=description, scope_note=scope_note, uri=uri
+            )
         ),
     )
     return f"Updated: {format_scheme(scheme)}"
@@ -452,26 +499,32 @@ async def update_concept(
     definition: str | None = None,
     scope_note: str | None = None,
     alt_labels: list[str] | None = None,
+    clear: set[ConceptClearable] | None = None,
     svc: ConceptService = Depends(get_concept_service),
 ) -> str:
     """Update a concept's label, definition, scope note, or alt labels.
 
-    Only provided fields are updated. Pass an empty list for alt_labels to clear them.
+    Omitted or null arguments are unchanged. To clear a field, name it in
+    clear. Blank strings are rejected.
 
     Args:
         concept_id: UUID of the concept to update
         pref_label: New preferred label
         definition: New definition text
         scope_note: New scope note
-        alt_labels: New list of alternative labels (empty list clears)
+        alt_labels: New list of alternative labels
+        clear: Fields to clear
     """
     concept = await svc.update_concept(
         UUID(concept_id),
-        ConceptUpdate(
-            pref_label=pref_label,
-            definition=definition,
-            scope_note=scope_note,
-            alt_labels=alt_labels,
+        ConceptUpdate.model_validate(
+            _update_fields(
+                clear,
+                pref_label=pref_label,
+                definition=definition,
+                scope_note=scope_note,
+                alt_labels=alt_labels,
+            )
         ),
     )
     return f"Updated: {format_concept(concept)}"
@@ -490,10 +543,16 @@ async def update_concepts_batch(
     - definition (optional): New definition
     - scope_note (optional): New scope note
     - alt_labels (optional): New alt labels list
+    - clear (optional): Fields to clear, any of "definition", "scope_note",
+      "alt_labels"
+
+    Omitted or null keys are unchanged. To clear a field, name it in clear.
+    Blank strings are rejected. Every entry is checked before any is applied.
 
     Args:
         updates: List of update definitions
     """
+    payloads = []
     for i, u in enumerate(updates):
         if "concept_id" not in u:
             return f"Invalid update entry [{i}]: missing required field 'concept_id'."
@@ -501,18 +560,20 @@ async def update_concepts_batch(
             UUID(u["concept_id"])
         except ValueError:
             return f"Invalid concept_id {u['concept_id']!r} at [{i}]: not a valid UUID."
+        clear = set(u.get("clear") or ())
+        if unclearable := clear - _CONCEPT_CLEARABLE:
+            return f"Invalid update entry [{i}]: cannot clear {', '.join(unclearable)}."
+        try:
+            fields = _update_fields(
+                clear, **{key: u.get(key) for key in ConceptUpdate.model_fields}
+            )
+        except ToolError as e:
+            return f"Invalid update entry [{i}]: {e}"
+        payloads.append((UUID(u["concept_id"]), ConceptUpdate.model_validate(fields)))
 
     updated = []
-    for u in updates:
-        concept = await svc.update_concept(
-            UUID(u["concept_id"]),
-            ConceptUpdate(
-                pref_label=u.get("pref_label"),
-                definition=u.get("definition"),
-                scope_note=u.get("scope_note"),
-                alt_labels=u.get("alt_labels"),
-            ),
-        )
+    for concept_id, payload in payloads:
+        concept = await svc.update_concept(concept_id, payload)
         updated.append(concept)
 
     lines = [f"Updated {len(updated)} concept(s):"]

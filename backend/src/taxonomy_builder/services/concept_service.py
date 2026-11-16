@@ -237,14 +237,8 @@ class ConceptService:
         # Capture before state
         before_state = self._tracker.serialize_concept(concept)
 
-        if concept_in.pref_label is not None:
-            concept.pref_label = concept_in.pref_label
-        if concept_in.definition is not None:
-            concept.definition = concept_in.definition
-        if concept_in.scope_note is not None:
-            concept.scope_note = concept_in.scope_note
-        if concept_in.alt_labels is not None:
-            concept.alt_labels = concept_in.alt_labels
+        for key, value in concept_in.model_dump(exclude_unset=True).items():
+            setattr(concept, key, value)
 
         await self.db.flush()
 

@@ -13,7 +13,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   skipAuth?: boolean;
   isFormData?: boolean;
@@ -110,6 +110,8 @@ export const api = {
     request<T>(endpoint, { method: "POST", body: formData, isFormData: true }),
   put: <T>(endpoint: string, body: unknown) =>
     request<T>(endpoint, { method: "PUT", body }),
+  patch: <T>(endpoint: string, body: unknown) =>
+    request<T>(endpoint, { method: "PATCH", body }),
   delete: (endpoint: string) => request<void>(endpoint, { method: "DELETE" }),
   getBlob: (endpoint: string) => requestBlob(endpoint),
 };

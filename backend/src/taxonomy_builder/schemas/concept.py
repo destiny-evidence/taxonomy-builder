@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from taxonomy_builder.schemas.validators import UpdateSchema
+
 
 class ConceptCreate(BaseModel):
     """Schema for creating a new concept."""
@@ -36,15 +38,15 @@ class ConceptCreate(BaseModel):
         return result
 
 
-class ConceptUpdate(BaseModel):
+class ConceptUpdate(UpdateSchema):
     """Schema for updating an existing concept."""
 
-    model_config = ConfigDict(extra="forbid")
+    non_nullable = frozenset({"pref_label", "alt_labels"})
 
     pref_label: str | None = Field(default=None, min_length=1, max_length=255)
     definition: str | None = None
     scope_note: str | None = None
-    alt_labels: list[str] | None = None  # None = no change, [] = clear all
+    alt_labels: list[str] | None = None
 
     @field_validator("pref_label")
     @classmethod

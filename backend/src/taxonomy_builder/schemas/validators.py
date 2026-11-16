@@ -1,6 +1,28 @@
 """Shared validation utilities for Pydantic schemas."""
 
 import re
+from typing import ClassVar, Self
+
+from pydantic import BaseModel, ConfigDict, model_validator
+
+
+class UpdateSchema(BaseModel):
+    """Base for partial updates: omitted fields are unchanged, explicit null clears.
+
+    Fields listed in ``non_nullable`` may be omitted but not set to null.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    non_nullable: ClassVar[frozenset[str]] = frozenset()
+
+    @model_validator(mode="after")
+    def reject_null_on_non_nullable(self) -> Self:
+        set_to_null = {name for name in self.model_fields_set if getattr(self, name) is None}
+        if rejected := set_to_null & self.non_nullable:
+            raise ValueError(f"{', '.join(rejected)} cannot be set to null")
+        return self
+
 
 # Pattern for URI-safe identifiers: alphanumeric, underscores, hyphens, starting with letter
 IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]*$")

@@ -7,7 +7,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from taxonomy_builder.models.class_restriction import RestrictionType
-from taxonomy_builder.schemas.validators import check_uri_matches_identifier, validate_identifier
+from taxonomy_builder.schemas.validators import (
+    UpdateSchema,
+    check_uri_matches_identifier,
+    validate_identifier,
+)
 
 if TYPE_CHECKING:
     from taxonomy_builder.models.ontology_class import OntologyClass
@@ -42,10 +46,10 @@ class OntologyClassCreate(BaseModel):
         return self
 
 
-class OntologyClassUpdate(BaseModel):
+class OntologyClassUpdate(UpdateSchema):
     """Schema for updating an existing ontology class."""
 
-    model_config = ConfigDict(extra="forbid")
+    non_nullable = frozenset({"label"})
 
     label: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None

@@ -71,7 +71,7 @@ async def get_ontology_class(
     return OntologyClassRead.from_orm_model(ontology_class)
 
 
-@ontology_classes_router.put("/{class_id}")
+@ontology_classes_router.patch("/{class_id}")
 async def update_ontology_class(
     class_id: UUID,
     ontology_class_in: OntologyClassUpdate,

@@ -287,7 +287,7 @@ class TestUpdateProperty:
         self, authenticated_client: AsyncClient, property_obj: Property
     ) -> None:
         """Test updating a property's label."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/properties/{property_obj.id}",
             json={"label": "Updated Sample Size"},
         )
@@ -301,7 +301,7 @@ class TestUpdateProperty:
         self, authenticated_client: AsyncClient, property_obj: Property
     ) -> None:
         """Test updating a property's description."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/properties/{property_obj.id}",
             json={"description": "New description"},
         )
@@ -314,7 +314,7 @@ class TestUpdateProperty:
         self, authenticated_client: AsyncClient
     ) -> None:
         """Test updating a non-existent property."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/properties/{uuid4()}",
             json={"label": "New Label"},
         )
@@ -325,7 +325,7 @@ class TestUpdateProperty:
         self, authenticated_client: AsyncClient, property_obj: Property
     ) -> None:
         """Updating with invalid domain_class_uris returns 400."""
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/properties/{property_obj.id}",
             json={"domain_class_uris": ["https://example.org/vocab/NonExistent"]},
         )
@@ -336,9 +336,22 @@ class TestUpdateProperty:
     async def test_update_property_identifier_rejected(
         self, authenticated_client: AsyncClient, property_obj: Property,
     ) -> None:
-        response = await authenticated_client.put(
+        response = await authenticated_client.patch(
             f"/api/properties/{property_obj.id}",
             json={"identifier": "otherProp"},
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "field", ["label", "domain_class_uris", "cardinality", "required"]
+    )
+    async def test_update_property_null_non_nullable_rejected(
+        self, authenticated_client: AsyncClient, property_obj: Property, field: str
+    ) -> None:
+        response = await authenticated_client.patch(
+            f"/api/properties/{property_obj.id}",
+            json={field: None},
         )
         assert response.status_code == 422
 

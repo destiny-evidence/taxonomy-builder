@@ -11,7 +11,7 @@ export const classesApi = {
     api.post<OntologyClass>(`/projects/${projectId}/classes`, data),
 
   update: (id: string, data: OntologyClassUpdate) =>
-    api.put<OntologyClass>(`/classes/${id}`, data),
+    api.patch<OntologyClass>(`/classes/${id}`, data),
 
   delete: (id: string) => api.delete(`/classes/${id}`),
 };

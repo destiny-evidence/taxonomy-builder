@@ -11,6 +11,7 @@ that would normally be resolved by FastMCP's DI layer.
 from uuid import uuid4
 
 import pytest
+from fastmcp.exceptions import ToolError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taxonomy_builder.mcp import tools
@@ -61,6 +62,16 @@ class TestCreateProject:
         )
         assert "Described Project" in result
         assert "A project with a description" in result
+
+    async def test_blank_description_rejected(self, project_svc: ProjectService):
+        with pytest.raises(ToolError, match="description cannot be blank"):
+            await tools.create_project(
+                name="Blank Project",
+                namespace="https://example.org/blank/",
+                identifier_prefix="BLK",
+                description="",
+                svc=project_svc,
+            )
 
 
 class TestListSchemes:
@@ -215,6 +226,14 @@ class TestCreateScheme:
         )
         assert "Use for primary studies" in result
 
+    async def test_blank_rejected(
+        self, project: Project, scheme_svc: ConceptSchemeService,
+    ):
+        with pytest.raises(ToolError, match="scope_note cannot be blank"):
+            await tools.create_scheme(
+                str(project.id), "Blank Scheme", scope_note="  ", svc=scheme_svc,
+            )
+
 
 class TestCreateConcept:
     async def test_basic(
@@ -248,6 +267,16 @@ class TestCreateConcept:
         )
         assert "Dogs" in result
         assert "Animals" in result
+
+    async def test_blank_rejected(
+        self, scheme: ConceptScheme,
+        concept_svc: ConceptService, project_svc: ProjectService,
+    ):
+        with pytest.raises(ToolError, match="definition cannot be blank"):
+            await tools.create_concept(
+                str(scheme.id), "Dogs", definition="",
+                concept_svc=concept_svc, project_svc=project_svc,
+            )
 
 
 class TestCreateConceptsBatch:
@@ -283,6 +312,23 @@ class TestCreateConceptsBatch:
         )
         assert "Created 2" in result
         assert "Dogs" in result
+
+    async def test_blank_rejects_whole_batch(
+        self, scheme: ConceptScheme,
+        concept_svc: ConceptService, project_svc: ProjectService,
+    ):
+        result = await tools.create_concepts_batch(
+            str(scheme.id),
+            [
+                {"pref_label": "Animals"},
+                {"pref_label": "Dogs", "scope_note": ""},
+            ],
+            concept_svc=concept_svc,
+            project_svc=project_svc,
+        )
+        assert "Invalid batch entry [1]: scope_note cannot be blank" in result
+        tree = await tools.get_concept_tree(str(scheme.id), svc=concept_svc)
+        assert "empty" in tree.lower()
 
 
 class TestAddBroader:
@@ -409,6 +455,52 @@ class TestUpdateScheme:
         )
         assert "New scope note" in result
 
+    async def test_omitted_fields_unchanged(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        scheme_svc: ConceptSchemeService,
+    ):
+        scheme.description = "Keep description"
+        scheme.scope_note = "Keep scope note"
+        await db_session.flush()
+
+        await tools.update_scheme(str(scheme.id), title="New Title", svc=scheme_svc)
+
+        updated = await scheme_svc.get_scheme(scheme.id)
+        assert updated.description == "Keep description"
+        assert updated.scope_note == "Keep scope note"
+
+    async def test_clear(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        scheme_svc: ConceptSchemeService,
+    ):
+        scheme.description = "Old description"
+        scheme.scope_note = "Keep scope note"
+        scheme.uri = "http://example.org/old"
+        await db_session.flush()
+
+        await tools.update_scheme(
+            str(scheme.id), clear={"description", "uri"}, svc=scheme_svc,
+        )
+
+        updated = await scheme_svc.get_scheme(scheme.id)
+        assert updated.description is None
+        assert updated.uri is None
+        assert updated.scope_note == "Keep scope note"
+
+    async def test_set_and_clear_rejected(
+        self, scheme: ConceptScheme, scheme_svc: ConceptSchemeService,
+    ):
+        with pytest.raises(ToolError, match="description cannot be both set and cleared"):
+            await tools.update_scheme(
+                str(scheme.id), description="New", clear={"description"}, svc=scheme_svc,
+            )
+
+    async def test_blank_rejected(
+        self, scheme: ConceptScheme, scheme_svc: ConceptSchemeService,
+    ):
+        with pytest.raises(ToolError, match="description cannot be blank"):
+            await tools.update_scheme(str(scheme.id), description="  ", svc=scheme_svc)
+
 
 class TestUpdateConcept:
     async def test_update_label(
@@ -427,6 +519,37 @@ class TestUpdateConcept:
             str(concept.id), definition="A new definition", svc=concept_svc,
         )
         assert "A new definition" in result
+
+    async def test_clear(
+        self, db_session: AsyncSession, concept: Concept, concept_svc: ConceptService,
+    ):
+        concept.definition = "Old definition"
+        concept.scope_note = "Keep scope note"
+        concept.alt_labels = ["Old label"]
+        await db_session.flush()
+
+        await tools.update_concept(
+            str(concept.id), clear={"definition", "alt_labels"}, svc=concept_svc,
+        )
+
+        updated = await concept_svc.get_concept(concept.id)
+        assert updated.definition is None
+        assert updated.alt_labels == []
+        assert updated.scope_note == "Keep scope note"
+
+    async def test_set_and_clear_rejected(
+        self, concept: Concept, concept_svc: ConceptService,
+    ):
+        with pytest.raises(ToolError, match="scope_note cannot be both set and cleared"):
+            await tools.update_concept(
+                str(concept.id), scope_note="New", clear={"scope_note"}, svc=concept_svc,
+            )
+
+    async def test_blank_rejected(
+        self, concept: Concept, concept_svc: ConceptService,
+    ):
+        with pytest.raises(ToolError, match="definition cannot be blank"):
+            await tools.update_concept(str(concept.id), definition="", svc=concept_svc)
 
 
 class TestUpdateConceptsBatch:
@@ -447,6 +570,79 @@ class TestUpdateConceptsBatch:
             svc=concept_svc,
         )
         assert "Updated 2" in result
+
+    async def test_null_unchanged(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        concept_svc: ConceptService,
+    ):
+        c1 = Concept(
+            scheme_id=scheme.id, pref_label="Dogs", identifier="b1",
+            definition="Canines", scope_note="Pets only",
+        )
+        db_session.add(c1)
+        await db_session.flush()
+
+        await tools.update_concepts_batch(
+            [{"concept_id": str(c1.id), "scope_note": None, "definition": "Dogs"}],
+            svc=concept_svc,
+        )
+
+        updated = await concept_svc.get_concept(c1.id)
+        assert updated.scope_note == "Pets only"
+        assert updated.definition == "Dogs"
+
+    async def test_clear(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        concept_svc: ConceptService,
+    ):
+        c1 = Concept(
+            scheme_id=scheme.id, pref_label="Dogs", identifier="b1",
+            definition="Canines", scope_note="Pets only",
+        )
+        db_session.add(c1)
+        await db_session.flush()
+
+        await tools.update_concepts_batch(
+            [{"concept_id": str(c1.id), "clear": ["scope_note"]}],
+            svc=concept_svc,
+        )
+
+        updated = await concept_svc.get_concept(c1.id)
+        assert updated.scope_note is None
+        assert updated.definition == "Canines"
+
+    @pytest.mark.parametrize(
+        ("bad_entry", "message"),
+        [
+            ({"clear": ["pref_label"]}, "[1]: cannot clear pref_label"),
+            ({"definition": ""}, "[1]: definition cannot be blank"),
+            (
+                {"definition": "New", "clear": ["definition"]},
+                "[1]: definition cannot be both set and cleared",
+            ),
+        ],
+    )
+    async def test_invalid_entry_rejects_whole_batch(
+        self, db_session: AsyncSession, scheme: ConceptScheme,
+        concept_svc: ConceptService, bad_entry: dict, message: str,
+    ):
+        c1 = Concept(
+            scheme_id=scheme.id, pref_label="Dogs", identifier="b1", definition="Canines",
+        )
+        db_session.add(c1)
+        await db_session.flush()
+
+        result = await tools.update_concepts_batch(
+            [
+                {"concept_id": str(c1.id), "definition": "Changed"},
+                {"concept_id": str(c1.id), **bad_entry},
+            ],
+            svc=concept_svc,
+        )
+
+        assert message in result
+        updated = await concept_svc.get_concept(c1.id)
+        assert updated.definition == "Canines"
 
 
 class TestAddRelated:

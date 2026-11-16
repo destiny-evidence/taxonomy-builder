@@ -195,7 +195,7 @@ async def test_get_concept_not_found(authenticated_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_update_concept(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test updating a concept."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/concepts/{concept.id}",
         json={
             "pref_label": "Updated Concept",
@@ -211,7 +211,7 @@ async def test_update_concept(authenticated_client: AsyncClient, concept: Concep
 @pytest.mark.asyncio
 async def test_update_concept_partial(authenticated_client: AsyncClient, concept: Concept) -> None:
     """Test partial update of a concept."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/concepts/{concept.id}",
         json={"definition": "Only definition changed"},
     )
@@ -222,9 +222,37 @@ async def test_update_concept_partial(authenticated_client: AsyncClient, concept
 
 
 @pytest.mark.asyncio
+async def test_update_concept_null_clears_optional_fields(
+    authenticated_client: AsyncClient, concept: Concept
+) -> None:
+    """Explicit null clears optional fields and leaves omitted fields unchanged."""
+    response = await authenticated_client.patch(
+        f"/api/concepts/{concept.id}",
+        json={"definition": None, "scope_note": None},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["pref_label"] == "Test Concept"
+    assert data["definition"] is None
+    assert data["scope_note"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["pref_label", "alt_labels"])
+async def test_update_concept_null_non_nullable_rejected(
+    authenticated_client: AsyncClient, concept: Concept, field: str
+) -> None:
+    """Explicit null on a non-nullable field is rejected."""
+    response = await authenticated_client.patch(
+        f"/api/concepts/{concept.id}", json={field: None}
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_update_concept_not_found(authenticated_client: AsyncClient) -> None:
     """Test updating a non-existent concept."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/concepts/{uuid4()}",
         json={"pref_label": "New Label"},
     )
@@ -520,7 +548,7 @@ async def test_update_concept_alt_labels(
     concept: Concept,
 ) -> None:
     """Test updating concept alt labels."""
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/concepts/{concept.id}",
         json={"alt_labels": ["New Synonym", "Another Synonym"]},
     )
@@ -544,7 +572,7 @@ async def test_update_concept_clear_alt_labels(
     await db_session.flush()
     await db_session.refresh(concept)
 
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/concepts/{concept.id}",
         json={"alt_labels": []},
     )
@@ -568,7 +596,7 @@ async def test_update_concept_without_alt_labels_preserves_existing(
     await db_session.flush()
     await db_session.refresh(concept)
 
-    response = await authenticated_client.put(
+    response = await authenticated_client.patch(
         f"/api/concepts/{concept.id}",
         json={"definition": "New definition"},
     )

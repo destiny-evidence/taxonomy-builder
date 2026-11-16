@@ -1,10 +1,11 @@
 """Pydantic schemas for Project."""
 
 from datetime import datetime
-from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+
+from taxonomy_builder.schemas.validators import UpdateSchema
 
 
 class ProjectCreate(BaseModel):
@@ -30,10 +31,10 @@ class ProjectCreate(BaseModel):
         return v
 
 
-class ProjectUpdate(BaseModel):
+class ProjectUpdate(UpdateSchema):
     """Schema for updating an existing project."""
 
-    model_config = ConfigDict(extra="forbid")
+    non_nullable = frozenset({"name", "identifier_prefix"})
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
@@ -46,13 +47,6 @@ class ProjectUpdate(BaseModel):
         if v is not None:
             return v.strip()
         return v
-
-    @model_validator(mode="after")
-    def prevent_null_prefix(self) -> Self:
-        """Reject explicitly setting identifier_prefix to null."""
-        if "identifier_prefix" in self.model_fields_set and self.identifier_prefix is None:
-            raise ValueError("identifier_prefix cannot be set to null")
-        return self
 
 
 class ProjectRead(BaseModel):

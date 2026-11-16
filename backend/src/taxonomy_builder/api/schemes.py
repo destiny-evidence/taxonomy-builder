@@ -81,7 +81,7 @@ async def get_scheme(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@schemes_router.put("/{scheme_id}", response_model=ConceptSchemeRead)
+@schemes_router.patch("/{scheme_id}", response_model=ConceptSchemeRead)
 async def update_scheme(
     scheme_id: UUID,
     scheme_in: ConceptSchemeUpdate,
