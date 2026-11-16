@@ -432,7 +432,8 @@ async def update_scheme(
 ) -> str:
     """Update a concept scheme's title, description, scope note, or URI.
 
-    Only provided fields are updated.
+    Only the arguments you pass are changed. Omitted or null arguments leave
+    the existing value untouched, so this tool never clears a field.
 
     Args:
         scheme_id: UUID of the concept scheme
@@ -461,7 +462,10 @@ async def update_concept(
 ) -> str:
     """Update a concept's label, definition, scope note, or alt labels.
 
-    Only provided fields are updated. Pass an empty list for alt_labels to clear them.
+    Only the arguments you pass are changed. Omitted or null arguments leave
+    the existing value untouched. To clear alt labels, pass an empty list. To
+    clear a definition or scope note, use update_concepts_batch with that key
+    set to null.
 
     Args:
         concept_id: UUID of the concept to update
