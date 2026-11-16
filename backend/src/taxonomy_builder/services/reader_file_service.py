@@ -59,6 +59,7 @@ class ReaderFileService:
                     "id": str(scheme.id),
                     "title": scheme.title,
                     "description": scheme.description,
+                    "scope_note": scheme.scope_note,
                     "uri": scheme.uri,
                     "position": scheme.position,
                     "top_concepts": top_concepts,

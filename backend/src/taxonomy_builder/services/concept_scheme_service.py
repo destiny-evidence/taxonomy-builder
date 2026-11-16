@@ -105,6 +105,7 @@ class ConceptSchemeService:
             project_id=project_id,
             title=scheme_in.title,
             description=scheme_in.description,
+            scope_note=scheme_in.scope_note,
             uri=scheme_in.uri,
             position=next_position,
         )
@@ -153,6 +154,8 @@ class ConceptSchemeService:
             scheme.title = scheme_in.title
         if scheme_in.description is not None:
             scheme.description = scheme_in.description
+        if scheme_in.scope_note is not None:
+            scheme.scope_note = scheme_in.scope_note
         if scheme_in.uri is not None:
             scheme.uri = scheme_in.uri
 

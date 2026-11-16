@@ -43,6 +43,7 @@ from taxonomy_builder.services.rdf_parser import (
     get_description,
     get_identifier_from_uri,
     get_scheme_title,
+    get_scope_note,
     is_xsd_type,
     parse_rdf,
     resolve_object_range,
@@ -645,12 +646,12 @@ class SKOSImportService:
             concepts = concepts_by_scheme[scheme_uri]
             base_title = get_scheme_title(g, scheme_uri)
             title = await self._get_unique_title(project_id, base_title)
-            description = get_description(g, scheme_uri)
 
             scheme = ConceptScheme(
                 project_id=project_id,
                 title=title,
-                description=description,
+                description=get_description(g, scheme_uri),
+                scope_note=get_scope_note(g, scheme_uri),
                 uri=str(scheme_uri),
                 position=position,
             )
@@ -703,11 +704,6 @@ class SKOSImportService:
             if def_value:
                 definition = str(def_value)
 
-            scope_note = None
-            scope_value = g.value(concept_uri, SKOS.scopeNote)
-            if scope_value:
-                scope_note = str(scope_value)
-
             alt_labels: list[str] = []
             for alt in g.objects(concept_uri, SKOS.altLabel):
                 if isinstance(alt, Literal):
@@ -720,7 +716,7 @@ class SKOSImportService:
                 pref_label=pref_label,
                 identifier=identifier,
                 definition=definition,
-                scope_note=scope_note,
+                scope_note=get_scope_note(g, concept_uri),
                 alt_labels=alt_labels,
                 concept_type_uris=concept_types,
             )

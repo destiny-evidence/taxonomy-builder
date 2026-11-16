@@ -38,6 +38,7 @@ const mockScheme: ConceptScheme = {
   project_id: "proj-1",
   title: "Animal Taxonomy",
   description: "A taxonomy of animals",
+  scope_note: null,
   uri: "http://example.org/animals",
   position: 0,
   created_at: "2024-01-01T00:00:00Z",

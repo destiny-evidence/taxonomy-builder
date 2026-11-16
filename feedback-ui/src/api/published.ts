@@ -63,6 +63,7 @@ export interface VocabScheme {
   id: string;
   title: string;
   description: string | null;
+  scope_note?: string | null;
   uri: string;
   // Zero-based display order within the project. Optional for artifacts
   // published before scheme ordering was introduced.

@@ -13,6 +13,7 @@ const mockScheme: ConceptScheme = {
   project_id: "proj-1",
   title: "Animals",
   description: "Animal taxonomy",
+  scope_note: "Use to classify the species studied, not the study setting",
   uri: "http://example.org/animals",
   position: 0,
   created_at: "2024-01-01T00:00:00Z",
@@ -35,6 +36,10 @@ describe("SchemeDetail", () => {
     // Title is not shown in read-only mode to avoid repetition (it's in TreePane header)
     expect(screen.getByText("http://example.org/animals")).toBeInTheDocument();
     expect(screen.getByText("Animal taxonomy")).toBeInTheDocument();
+    expect(screen.getByText("Scope Note")).toBeInTheDocument();
+    expect(
+      screen.getByText("Use to classify the species studied, not the study setting"),
+    ).toBeInTheDocument();
   });
 
   it("displays all scheme fields including timestamps", () => {
@@ -152,7 +157,10 @@ describe("SchemeDetail", () => {
         screen.getByDisplayValue("http://example.org/animals"),
       ).toBeInTheDocument();
       expect(screen.getByDisplayValue("Animal taxonomy")).toBeInTheDocument();
-      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(3);
+      expect(
+        screen.getByDisplayValue("Use to classify the species studied, not the study setting"),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(4);
     });
 
     it("calls API with updated data when Save is clicked", async () => {
@@ -170,6 +178,7 @@ describe("SchemeDetail", () => {
           title: "Updated Animals",
           uri: "http://example.org/animals",
           description: "Animal taxonomy",
+          scope_note: "Use to classify the species studied, not the study setting",
         });
       });
     });
