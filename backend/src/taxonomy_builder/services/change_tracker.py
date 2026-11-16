@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
+from taxonomy_builder.models.ontology_class import OntologyClass
 
 
 class ChangeTracker:
@@ -87,6 +88,24 @@ class ChangeTracker:
             "description": scheme.description,
             "scope_note": scheme.scope_note,
             "uri": scheme.uri,
+        }
+
+    def serialize_ontology_class(self, ontology_class: OntologyClass) -> dict:
+        """Serialize an ontology class to a dictionary for storage in change events.
+
+        Args:
+            ontology_class: The ontology class to serialize
+
+        Returns:
+            Dictionary representation suitable for JSONB storage
+        """
+        return {
+            "id": str(ontology_class.id),
+            "identifier": ontology_class.identifier,
+            "label": ontology_class.label,
+            "description": ontology_class.description,
+            "scope_note": ontology_class.scope_note,
+            "uri": ontology_class.uri,
         }
 
     def serialize_broader(

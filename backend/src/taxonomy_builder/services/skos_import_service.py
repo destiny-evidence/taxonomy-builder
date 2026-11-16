@@ -562,11 +562,7 @@ class SKOSImportService:
                 entity_id=ont_class.id,
                 action="create",
                 before=None,
-                after={
-                    "id": str(ont_class.id),
-                    "identifier": ont_class.identifier,
-                    "label": ont_class.label,
-                },
+                after=self._tracker.serialize_ontology_class(ont_class),
             )
             created.append(
                 ClassCreatedResponse(

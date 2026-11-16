@@ -61,17 +61,6 @@ class OntologyClassService:
         self._project_service = project_service
         self._tracker = ChangeTracker(db, user_id)
 
-    def _serialize_ontology_class(self, ontology_class: OntologyClass) -> dict:
-        """Serialize an ontology class for change tracking."""
-        return {
-            "id": str(ontology_class.id),
-            "identifier": ontology_class.identifier,
-            "label": ontology_class.label,
-            "description": ontology_class.description,
-            "scope_note": ontology_class.scope_note,
-            "uri": ontology_class.uri,
-        }
-
     async def create_ontology_class(
         self, project_id: UUID, ontology_class_in: OntologyClassCreate
     ) -> OntologyClass:
@@ -122,7 +111,7 @@ class OntologyClassService:
             entity_id=ontology_class.id,
             action="create",
             before=None,
-            after=self._serialize_ontology_class(ontology_class),
+            after=self._tracker.serialize_ontology_class(ontology_class),
         )
 
         return ontology_class
@@ -188,7 +177,7 @@ class OntologyClassService:
         if ontology_class is None:
             return None
 
-        before = self._serialize_ontology_class(ontology_class)
+        before = self._tracker.serialize_ontology_class(ontology_class)
 
         update_data = ontology_class_in.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -212,7 +201,7 @@ class OntologyClassService:
             entity_id=ontology_class.id,
             action="update",
             before=before,
-            after=self._serialize_ontology_class(ontology_class),
+            after=self._tracker.serialize_ontology_class(ontology_class),
         )
 
         return ontology_class
@@ -249,7 +238,7 @@ class OntologyClassService:
         if result.first() is not None:
             raise OntologyClassReferencedByPropertyError(ontology_class_id, ontology_class.label)
 
-        before = self._serialize_ontology_class(ontology_class)
+        before = self._tracker.serialize_ontology_class(ontology_class)
         project_id = ontology_class.project_id
         entity_id = ontology_class.id
 

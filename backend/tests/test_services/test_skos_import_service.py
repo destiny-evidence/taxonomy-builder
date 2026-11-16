@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from taxonomy_builder.models.change_event import ChangeEvent
 from taxonomy_builder.models.class_restriction import ClassRestriction
 from taxonomy_builder.models.concept import Concept
 from taxonomy_builder.models.concept_scheme import ConceptScheme
@@ -394,6 +395,47 @@ ex:Concept1 a skos:Concept ;
         )
     ).scalar_one()
     assert scheme.scope_note == "Use for study design only"
+
+@pytest.mark.asyncio
+async def test_execute_records_full_ontology_class_in_create_event(
+    db_session: AsyncSession, import_service: SKOSImportService, project: Project
+) -> None:
+    """The change event for an imported class captures all class fields."""
+    ttl = b"""
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/> .
+
+ex:Study a owl:Class ;
+    rdfs:label "Study" ;
+    rdfs:comment "A research study" ;
+    skos:scopeNote "Use for primary studies only" .
+"""
+    await import_service.execute(project.id, ttl, "test.ttl")
+
+    ont_class = (
+        await db_session.execute(
+            select(OntologyClass).where(OntologyClass.project_id == project.id)
+        )
+    ).scalar_one()
+    event = (
+        await db_session.execute(
+            select(ChangeEvent).where(
+                ChangeEvent.entity_type == "ontology_class",
+                ChangeEvent.entity_id == ont_class.id,
+            )
+        )
+    ).scalar_one()
+    assert event.action == "create"
+    assert event.after_state == {
+        "id": str(ont_class.id),
+        "identifier": "Study",
+        "label": "Study",
+        "description": "A research study",
+        "scope_note": "Use for primary studies only",
+        "uri": "http://example.org/Study",
+    }
 
 @pytest.mark.asyncio
 async def test_execute_multiple_schemes(
