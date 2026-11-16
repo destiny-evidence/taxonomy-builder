@@ -63,6 +63,16 @@ class TestCreateProject:
         assert "Described Project" in result
         assert "A project with a description" in result
 
+    async def test_blank_description_rejected(self, project_svc: ProjectService):
+        with pytest.raises(ToolError, match="description cannot be blank"):
+            await tools.create_project(
+                name="Blank Project",
+                namespace="https://example.org/blank/",
+                identifier_prefix="BLK",
+                description="",
+                svc=project_svc,
+            )
+
 
 class TestListSchemes:
     async def test_empty(self, project: Project, scheme_svc: ConceptSchemeService):
@@ -216,6 +226,14 @@ class TestCreateScheme:
         )
         assert "Use for primary studies" in result
 
+    async def test_blank_rejected(
+        self, project: Project, scheme_svc: ConceptSchemeService,
+    ):
+        with pytest.raises(ToolError, match="scope_note cannot be blank"):
+            await tools.create_scheme(
+                str(project.id), "Blank Scheme", scope_note="  ", svc=scheme_svc,
+            )
+
 
 class TestCreateConcept:
     async def test_basic(
@@ -249,6 +267,16 @@ class TestCreateConcept:
         )
         assert "Dogs" in result
         assert "Animals" in result
+
+    async def test_blank_rejected(
+        self, scheme: ConceptScheme,
+        concept_svc: ConceptService, project_svc: ProjectService,
+    ):
+        with pytest.raises(ToolError, match="definition cannot be blank"):
+            await tools.create_concept(
+                str(scheme.id), "Dogs", definition="",
+                concept_svc=concept_svc, project_svc=project_svc,
+            )
 
 
 class TestCreateConceptsBatch:
@@ -284,6 +312,23 @@ class TestCreateConceptsBatch:
         )
         assert "Created 2" in result
         assert "Dogs" in result
+
+    async def test_blank_rejects_whole_batch(
+        self, scheme: ConceptScheme,
+        concept_svc: ConceptService, project_svc: ProjectService,
+    ):
+        result = await tools.create_concepts_batch(
+            str(scheme.id),
+            [
+                {"pref_label": "Animals"},
+                {"pref_label": "Dogs", "scope_note": ""},
+            ],
+            concept_svc=concept_svc,
+            project_svc=project_svc,
+        )
+        assert "Invalid batch entry [1]: scope_note cannot be blank" in result
+        tree = await tools.get_concept_tree(str(scheme.id), svc=concept_svc)
+        assert "empty" in tree.lower()
 
 
 class TestAddBroader:
