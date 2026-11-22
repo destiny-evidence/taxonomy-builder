@@ -12,14 +12,27 @@
 # Domain-agnostic structural model for evidence. Defines the core classes,
 # the CodingAnnotation pattern, and structural relationships shared across
 # sector vocabularies (education, health, climate, etc.).
+#
+# Version 2 (draft): Observation-centred model from the DESTINY Open Data
+# Format Hackathon. See README.md in this directory for the change log and
+# migration notes from the Finding-centred version 1.
 # =============================================================================
 
 evrepo: a owl:Ontology ;
+    owl:versionInfo "2.0.0-draft" ;
     rdfs:label "Evidence Repository Core Vocabulary"@en ;
-    rdfs:comment "Foundational infrastructure for evidence repositories. Defines the evidence graph structure and the CodingAnnotation provenance pattern."@en .
+    rdfs:comment "Foundational infrastructure for evidence repositories. Defines the evidence graph structure (Investigation → Arm → Observation, with Findings comparing Observations) and the CodingAnnotation provenance pattern."@en .
 
 # =============================================================================
 # Core Domain Classes
+#
+# The Observation is the core unit of data. Arms are first-class and own their
+# Observations; a Finding exists only where Observations are compared.
+#
+#   Investigation ─hasArm→ Arm ─hasObservation→ Observation ─hasContext→ Context
+#   Investigation ─hasFinding→ Finding ─compares→ Observation (2+)
+#   Finding ─hasEffectEstimate→ EffectEstimate ─hasAdjustment→ Adjustment
+#   Adjustment ─informedBy→ Context
 # =============================================================================
 
 evrepo:LinkedDataEnhancement a owl:Class ;
@@ -28,75 +41,63 @@ evrepo:LinkedDataEnhancement a owl:Class ;
 
 evrepo:Investigation a owl:Class ;
     rdfs:label "Investigation"@en ;
-    rdfs:comment "A study reported within a Reference. An Investigation produces one or more Findings."@en .
+    rdfs:comment "Research reported within a Reference (e.g. a study reported in a journal article). An Investigation has one or more Arms and may report Findings."@en .
 
-evrepo:Finding a owl:Class ;
-    rdfs:label "Finding"@en ;
-    rdfs:comment "The atomic unit of evidence — a single comparison for a specific outcome. A Finding evaluates one Condition compared to another, with Context describing the setting, Outcome describing what was measured, and ObservedResult/EffectEstimate carrying the quantitative data."@en .
+evrepo:Arm a owl:Class ;
+    rdfs:label "Arm"@en ;
+    rdfs:comment "A group of units (people, places, etc.) in an Investigation, e.g. a control group or an intervention group. An Arm is described once and owns its Observations, so the same group is not re-described for each comparison. Single-group designs (prevalence, qualitative, uncontrolled pre/post) have one Arm."@en .
+
+evrepo:Observation a owl:Class ;
+    rdfs:label "Observation"@en ;
+    rdfs:comment "The atomic unit of evidence — a single measurement on an Arm, situated in a Context. Quantitative Observations carry summary statistics (n, mean, sd, events, etc.); qualitative Observations are carried by description and supportingText. An Observation stands on its own and does not need to take part in a Finding."@en .
 
 evrepo:Context a owl:Class ;
     rdfs:label "Context"@en ;
-    rdfs:comment "The 'Given' component of a Finding — describes country, education level, setting, sample features, and participants."@en .
+    rdfs:comment "The population, setting and time of an Observation (e.g. 400 adults, UK, post-test at 6 weeks). Observations made under the same circumstances may reference the same Context."@en .
 
 evrepo:Outcome a owl:Class ;
     rdfs:label "Outcome"@en ;
-    rdfs:comment "What was measured — the educational or other outcome type and description. Orthogonal to the conditions being compared."@en .
+    rdfs:comment "What an Observation measured — the outcome (or exposure) type and description."@en .
 
-# =============================================================================
-# Condition Hierarchy
-#
-# A Condition represents the circumstances under which observations were made.
-# This unifies intervention arms, control conditions, and temporal measurement
-# occasions under a single type so that evaluates/comparedTo works uniformly
-# across RCTs, pre-post designs, interrupted time series, and DiD.
-# =============================================================================
+evrepo:Intervention a owl:Class ;
+    rdfs:label "Intervention"@en ;
+    rdfs:comment "An active treatment, programme, policy or exposure applied to an Arm. Carries coded properties describing its characteristics (theme, duration, fidelity, funder, etc.). An Arm with no Intervention is an untreated or business-as-usual group."@en .
 
-evrepo:Condition a owl:Class ;
-    rdfs:label "Condition"@en ;
-    rdfs:comment "A state or context in which measurements were taken — the circumstances under which observations were made."@en .
+evrepo:Finding a owl:Class ;
+    rdfs:label "Finding"@en ;
+    rdfs:comment "A comparison of two or more Observations. The Observations may come from different Arms (e.g. treatment vs control) or from the same Arm (e.g. pre vs post). Only needed when something is compared; non-comparative evidence is represented by Observations alone."@en .
+
+evrepo:EffectEstimate a owl:Class ;
+    rdfs:label "Effect Estimate"@en ;
+    rdfs:comment "The quantified comparison made by a Finding, computed from its Observations or extracted from the paper. Multiple EffectEstimates per Finding are permitted (e.g. unadjusted, adjusted, author-reported)."@en .
+
+evrepo:Adjustment a owl:Class ;
+    rdfs:label "Adjustment"@en ;
+    rdfs:comment "A characteristic an EffectEstimate was adjusted for (e.g. age, baseline score, population difference). May be linked to the Context that supplies the characteristic."@en .
+
+# --- Shared descriptive properties ---
 
 evrepo:name a owl:DatatypeProperty ;
     rdfs:label "name"@en ;
     rdfs:domain [ a owl:Class ;
-        owl:unionOf ( evrepo:Condition evrepo:Outcome )
+        owl:unionOf ( evrepo:Arm evrepo:Observation evrepo:Outcome evrepo:Intervention evrepo:Adjustment )
     ];
     rdfs:range xsd:string ;
-    rdfs:comment "Short name or title for this condition or outcome (e.g. intervention programme name, control label)."@en .
+    rdfs:comment "Short name or title (e.g. arm label, intervention programme name, adjustment characteristic)."@en .
 
 evrepo:description a owl:DatatypeProperty ;
     rdfs:label "description"@en ;
     rdfs:domain [ a owl:Class ;
-        owl:unionOf ( evrepo:Condition evrepo:Outcome )
+        owl:unionOf ( evrepo:Arm evrepo:Observation evrepo:Outcome evrepo:Intervention evrepo:Adjustment )
     ];
     rdfs:range xsd:string ;
-    rdfs:comment "Free-text description of this condition or outcome."@en .
+    rdfs:comment "Free-text description. For a qualitative Observation this carries the observation itself."@en .
 
-evrepo:Intervention a owl:Class ;
-    rdfs:subClassOf evrepo:Condition ;
-    rdfs:label "Intervention"@en ;
-    rdfs:comment "An active treatment or programme. Carries coded properties describing the intervention's characteristics (theme, duration, fidelity, funder, etc.)."@en .
-
-evrepo:ControlCondition a owl:Class ;
-    rdfs:subClassOf evrepo:Condition ;
-    rdfs:label "Control Condition"@en ;
-    rdfs:comment "A comparison state without the intervention of interest (e.g. business-as-usual, waitlist, active control, placebo)."@en .
-
-evrepo:TemporalCondition a owl:Class ;
-    rdfs:subClassOf evrepo:Condition ;
-    rdfs:label "Temporal Condition"@en ;
-    rdfs:comment "A time-defined measurement occasion (e.g. pre-test, post-test, follow-up, pre-policy period)."@en .
-
-# =============================================================================
-# ObservedResult and EffectEstimate
-# =============================================================================
-
-evrepo:ObservedResult a owl:Class ;
-    rdfs:label "Observed Result"@en ;
-    rdfs:comment "Raw summary statistics for a single arm/condition as reported in the study. Each ObservedResult is linked to its Condition via forCondition, making it self-describing. Provenance (codedBy, supportingText) is at the class level, not per-field."@en .
-
-evrepo:EffectEstimate a owl:Class ;
-    rdfs:label "Effect Estimate"@en ;
-    rdfs:comment "A computed or reported effect size estimate derived from ObservedResults or extracted from the paper. Multiple EffectEstimates per Finding are permitted (e.g. unadjusted, baseline-adjusted, author-reported)."@en .
+evrepo:timePoint a owl:DatatypeProperty ;
+    rdfs:label "time point"@en ;
+    rdfs:domain evrepo:Context ;
+    rdfs:range xsd:string ;
+    rdfs:comment "When the Observation was made, relative to the study (e.g. pre-test, post-test, 6-week follow-up, pre-policy period). Replaces the former TemporalCondition class."@en .
 
 # =============================================================================
 # Structural Relationships
@@ -107,45 +108,59 @@ evrepo:hasInvestigation a owl:ObjectProperty ;
     rdfs:domain evrepo:LinkedDataEnhancement ;
     rdfs:range evrepo:Investigation .
 
+evrepo:hasArm a owl:ObjectProperty ;
+    rdfs:label "has arm"@en ;
+    rdfs:domain evrepo:Investigation ;
+    rdfs:range evrepo:Arm ;
+    evrepo:allowMultiple true .
+
+evrepo:hasIntervention a owl:ObjectProperty ;
+    rdfs:label "has intervention"@en ;
+    rdfs:domain evrepo:Arm ;
+    rdfs:range evrepo:Intervention ;
+    rdfs:comment "The intervention(s) applied to this Arm. Absent for untreated or business-as-usual arms."@en ;
+    evrepo:allowMultiple true .
+
+evrepo:hasObservation a owl:ObjectProperty ;
+    rdfs:label "has observation"@en ;
+    rdfs:domain evrepo:Arm ;
+    rdfs:range evrepo:Observation ;
+    evrepo:allowMultiple true .
+
+evrepo:hasContext a owl:ObjectProperty ;
+    rdfs:label "has context"@en ;
+    rdfs:domain evrepo:Observation ;
+    rdfs:range evrepo:Context ;
+    rdfs:comment "The population, setting and time in which this Observation was made."@en .
+
+evrepo:hasOutcome a owl:ObjectProperty ;
+    rdfs:label "has outcome"@en ;
+    rdfs:domain evrepo:Observation ;
+    rdfs:range evrepo:Outcome ;
+    rdfs:comment "What this Observation measured."@en .
+
 evrepo:hasFinding a owl:ObjectProperty ;
     rdfs:label "has finding"@en ;
     rdfs:domain evrepo:Investigation ;
     rdfs:range evrepo:Finding ;
     evrepo:allowMultiple true .
 
-evrepo:hasContext a owl:ObjectProperty ;
-    rdfs:label "has context"@en ;
-    rdfs:domain evrepo:Finding ;
-    rdfs:range evrepo:Context .
-
-evrepo:hasOutcome a owl:ObjectProperty ;
-    rdfs:label "has outcome"@en ;
-    rdfs:domain evrepo:Finding ;
-    rdfs:range evrepo:Outcome .
-
-
 # --- Comparison structure ---
 
-evrepo:evaluates a owl:ObjectProperty ;
-    rdfs:label "evaluates"@en ;
+evrepo:compares a owl:ObjectProperty ;
+    rdfs:label "compares"@en ;
     rdfs:domain evrepo:Finding ;
-    rdfs:range evrepo:Condition ;
-    rdfs:comment "The condition being evaluated. A positive effect size means this condition outperformed the comparedTo condition."@en .
+    rdfs:range evrepo:Observation ;
+    rdfs:comment "The Observations this Finding compares. Lists every Observation taking part (two or more), including the reference Observation where one is identified with comparedTo."@en ;
+    evrepo:allowMultiple true .
 
 evrepo:comparedTo a owl:ObjectProperty ;
     rdfs:label "compared to"@en ;
     rdfs:domain evrepo:Finding ;
-    rdfs:range evrepo:Condition ;
-    rdfs:comment "The condition being compared against (control, pre-test, etc.)."@en .
+    rdfs:range evrepo:Observation ;
+    rdfs:comment "The reference Observation of a directional comparison (control, pre-test, unexposed, etc.). A positive effect size means the other compared Observation(s) exceeded this one. Omitted for comparisons with no direction (e.g. correlations)."@en .
 
 # --- Quantitative data ---
-
-evrepo:hasArmData a owl:ObjectProperty ;
-    rdfs:label "has arm data"@en ;
-    rdfs:domain evrepo:Finding ;
-    rdfs:range evrepo:ObservedResult ;
-    rdfs:comment "Links a Finding to per-arm summary statistics. A two-arm trial typically has two ObservedResults; multi-arm trials have more."@en ;
-    evrepo:allowMultiple true .
 
 evrepo:hasEffectEstimate a owl:ObjectProperty ;
     rdfs:label "has effect estimate"@en ;
@@ -156,15 +171,22 @@ evrepo:hasEffectEstimate a owl:ObjectProperty ;
 evrepo:derivedFrom a owl:ObjectProperty ;
     rdfs:label "derived from"@en ;
     rdfs:domain evrepo:EffectEstimate ;
-    rdfs:range evrepo:ObservedResult ;
-    rdfs:comment "Links an EffectEstimate back to the ObservedResult(s) it was computed from."@en ;
+    rdfs:range evrepo:Observation ;
+    rdfs:comment "Links an EffectEstimate back to the Observation(s) it was computed from."@en ;
     evrepo:allowMultiple true .
 
-evrepo:forCondition a owl:ObjectProperty ;
-    rdfs:label "for condition"@en ;
-    rdfs:domain evrepo:ObservedResult ;
-    rdfs:range evrepo:Condition ;
-    rdfs:comment "Which condition this arm data is for. Makes each ObservedResult self-describing without traversing back to the Finding."@en .
+evrepo:hasAdjustment a owl:ObjectProperty ;
+    rdfs:label "has adjustment"@en ;
+    rdfs:domain evrepo:EffectEstimate ;
+    rdfs:range evrepo:Adjustment ;
+    rdfs:comment "A characteristic this EffectEstimate was adjusted for."@en ;
+    evrepo:allowMultiple true .
+
+evrepo:informedBy a owl:ObjectProperty ;
+    rdfs:label "informed by"@en ;
+    rdfs:domain evrepo:Adjustment ;
+    rdfs:range evrepo:Context ;
+    rdfs:comment "The Context that supplies the characteristic being adjusted for."@en .
 
 # =============================================================================
 # CodingAnnotation Pattern — Base Class and Properties
@@ -189,7 +211,7 @@ evrepo:codedValue a rdf:Property ;
 evrepo:supportingText a rdf:Property ;
     rdfs:label "supporting text"@en ;
     rdfs:domain [ a owl:Class ;
-        owl:unionOf ( evrepo:CodingAnnotation evrepo:ObservedResult evrepo:EffectEstimate )
+        owl:unionOf ( evrepo:CodingAnnotation evrepo:Observation evrepo:EffectEstimate )
     ] ;
     rdfs:range xsd:string ;
     rdfs:comment "Verbatim or near-verbatim text from the source material that supports the coded value."@en .
@@ -197,14 +219,14 @@ evrepo:supportingText a rdf:Property ;
 evrepo:codedBy a rdf:Property ;
     rdfs:label "coded by"@en ;
     rdfs:domain [ a owl:Class ;
-        owl:unionOf ( evrepo:CodingAnnotation evrepo:ObservedResult evrepo:EffectEstimate )
+        owl:unionOf ( evrepo:CodingAnnotation evrepo:Observation evrepo:EffectEstimate )
     ] ;
     rdfs:comment "The agent (human coder or LLM) who performed the coding."@en .
 
 evrepo:sourceLocation a rdf:Property ;
     rdfs:label "source location"@en ;
     rdfs:domain [ a owl:Class ;
-        owl:unionOf ( evrepo:ObservedResult evrepo:EffectEstimate )
+        owl:unionOf ( evrepo:Observation evrepo:EffectEstimate )
     ] ;
     rdfs:range xsd:string ;
     rdfs:comment "Location in the source document where the data was found (e.g. table number, page reference)."@en .
@@ -262,81 +284,73 @@ evrepo:NumericCodingAnnotation a owl:Class ;
     ] .
 
 # =============================================================================
-# ObservedResult Properties — Per-Arm Summary Statistics
+# Observation Properties — Summary Statistics
 #
-# Each ObservedResult holds data for one arm/condition. Generic property names
-# (n, mean, sd) because the arm identity is carried by forCondition.
+# Each Observation holds data for one measurement on one Arm. Generic property
+# names (n, mean, sd) because the arm identity is carried by hasObservation.
+# Baseline values are a separate Observation with its own Context, not extra
+# properties on the post-test Observation.
 # =============================================================================
 
 evrepo:n a owl:DatatypeProperty ;
     rdfs:label "sample size"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer .
 
 evrepo:mean a owl:DatatypeProperty ;
     rdfs:label "mean"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:decimal .
 
 evrepo:sd a owl:DatatypeProperty ;
     rdfs:label "standard deviation"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:decimal .
 
 evrepo:se a owl:DatatypeProperty ;
     rdfs:label "standard error"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:decimal ;
     rdfs:comment "Standard error of the mean. Alternative to sd when that is what is reported."@en .
 
 evrepo:clusterCount a owl:DatatypeProperty ;
     rdfs:label "cluster count"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer ;
     rdfs:comment "Number of clusters (schools, classrooms, etc.) for cluster RCTs."@en .
 
 evrepo:icc a owl:DatatypeProperty ;
     rdfs:label "intraclass correlation coefficient"@en ;
-    rdfs:domain evrepo:ObservedResult ;
-    rdfs:range xsd:decimal .
-
-evrepo:preMean a owl:DatatypeProperty ;
-    rdfs:label "pre-test mean"@en ;
-    rdfs:domain evrepo:ObservedResult ;
-    rdfs:range xsd:decimal .
-
-evrepo:preSd a owl:DatatypeProperty ;
-    rdfs:label "pre-test standard deviation"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:decimal .
 
 evrepo:events a owl:DatatypeProperty ;
     rdfs:label "number of events"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer ;
     rdfs:comment "Number of events for binary outcomes."@en .
 
 evrepo:truePositive a owl:DatatypeProperty ;
     rdfs:label "true positive"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer ;
     rdfs:comment "Count of test-positive, reference-positive cases."@en .
 
 evrepo:falsePositive a owl:DatatypeProperty ;
     rdfs:label "false positive"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer ;
     rdfs:comment "Count of test-positive, reference-negative cases."@en .
 
 evrepo:falseNegative a owl:DatatypeProperty ;
     rdfs:label "false negative"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer ;
     rdfs:comment "Count of test-negative, reference-positive cases."@en .
 
 evrepo:trueNegative a owl:DatatypeProperty ;
     rdfs:label "true negative"@en ;
-    rdfs:domain evrepo:ObservedResult ;
+    rdfs:domain evrepo:Observation ;
     rdfs:range xsd:integer ;
     rdfs:comment "Count of test-negative, reference-negative cases."@en .
 
@@ -367,15 +381,15 @@ evrepo:confidenceLevel a owl:DatatypeProperty ;
 
 evrepo:confidenceIntervalLower a owl:DatatypeProperty ;
     rdfs:label "confidence interval lower bound"@en ;
-    rdfs:domain [ a owl:Class ; owl:unionOf ( evrepo:EffectEstimate evrepo:ObservedResult ) ] ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( evrepo:EffectEstimate evrepo:Observation ) ] ;
     rdfs:range xsd:decimal ;
-    rdfs:comment "Applies to EffectEstimate (effect size CI) and ObservedResult (group mean CI)."@en .
+    rdfs:comment "Applies to EffectEstimate (effect size CI) and Observation (group mean CI)."@en .
 
 evrepo:confidenceIntervalUpper a owl:DatatypeProperty ;
     rdfs:label "confidence interval upper bound"@en ;
-    rdfs:domain [ a owl:Class ; owl:unionOf ( evrepo:EffectEstimate evrepo:ObservedResult ) ] ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( evrepo:EffectEstimate evrepo:Observation ) ] ;
     rdfs:range xsd:decimal ;
-    rdfs:comment "Applies to EffectEstimate (effect size CI) and ObservedResult (group mean CI)."@en .
+    rdfs:comment "Applies to EffectEstimate (effect size CI) and Observation (group mean CI)."@en .
 
 evrepo:baselineAdjusted a owl:DatatypeProperty ;
     rdfs:label "baseline adjusted"@en ;

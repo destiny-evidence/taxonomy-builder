@@ -6,17 +6,18 @@ Domain vocabulary definitions for the evidence repository. These files are the c
 
 The vocabulary is split across two namespaces, layered so that sector-specific extensions build on a shared core:
 
-**[`evrepo-core/`](evrepo-core/)** — Sector-agnostic evidence synthesis foundation. Defines the evidence graph structure (Investigation → Finding → Intervention/Outcome/Context), the CodingAnnotation provenance pattern, ObservedResult, EffectEstimate, the Condition hierarchy (Intervention/ControlCondition/TemporalCondition), and the CodingStatus enumeration. Shared across education, health, and climate sectors.
+**[`evrepo-core/`](evrepo-core/)** — Sector-agnostic evidence synthesis foundation. Defines the evidence graph structure (Investigation → Arm → Observation → Context, with Findings comparing Observations and EffectEstimates carrying Adjustments), the CodingAnnotation provenance pattern, and the CodingStatus enumeration. Shared across education, health, and climate sectors.
 
 - Namespace: `https://vocab.evidence-repository.org/`
-- `evrepo-core.ttl` — OWL/Turtle ontology
+- `evrepo-core.ttl` — OWL/Turtle ontology (version 2 draft, Observation-centred)
+- `README.md` — model overview, change log, migration from version 1 and open questions
 
 **[`esea/`](esea/)** — Education Sector Evidence Architecture. Extends the core with education-specific concept schemes covering all 24 taxonomy fields (169 concepts), CodingAnnotation subclasses with OWL restrictions, and domain properties.
 
 - Namespace: `https://vocab.esea.education/` (working draft — may change)
 - `esea-vocab.ttl` — SKOS concept schemes, OWL classes, and properties
 - `esea-context.jsonld` — JSON-LD @context for serialising evidence data
-- `example-finding.jsonld` — Worked example: a cluster RCT with per-arm data
+- `example-finding.jsonld` — Worked example: a cluster RCT with two arms, baseline and post-test observations
 
 A health or climate domain would add a sibling directory (e.g. `health/`) that imports `evrepo-core/` and defines its own concept schemes.
 

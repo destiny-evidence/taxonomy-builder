@@ -13,15 +13,16 @@ async def test_seed_creates_class_superclass_rows(db_session: AsyncSession) -> N
     """Seed imports evrepo-core.ttl + ontology-expressivity.ttl and creates ClassSuperclass rows."""
     created = await create_seed_data(db_session)
 
-    # 17 from evrepo-core.ttl + 9 from ontology-expressivity.ttl
-    assert created["classes"] == 26
-    # 40 from evrepo-core.ttl + 15 from ontology-expressivity.ttl (forOutcome removed in #179)
-    assert created["properties"] == 55
+    # 16 from evrepo-core.ttl + 9 from ontology-expressivity.ttl
+    assert created["classes"] == 25
+    # 42 from evrepo-core.ttl + 15 from ontology-expressivity.ttl
+    assert created["properties"] == 57
 
     result = await db_session.execute(select(ClassSuperclass))
     edges = result.scalars().all()
-    # 5 from evrepo-core + 7 from expressivity (Study→Entity, RCT→Study,
+    # 2 from evrepo-core (String/NumericCodingAnnotation→CodingAnnotation)
+    # + 7 from expressivity (Study→Entity, RCT→Study,
     # ObservationalStudy→Study, Finding→Entity, QuantitativeFinding→Finding,
     # MeasuredOutcome→Outcome, MeasuredOutcome→Finding)
     # Note: StudyDesignConcept→skos:Concept is external, not stored
-    assert len(edges) == 12
+    assert len(edges) == 9
