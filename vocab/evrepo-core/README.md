@@ -127,3 +127,13 @@ confirming:
   version 1 terms (`ObservedResult`, the Condition hierarchy).
 - The SHACL shapes in destiny-repository (`evrepo-core-shapes.ttl`) and the
   core terms embedded in the published ESEA and HPV vocabularies.
+
+## Examples
+
+`examples/` holds a real ESEA record (a music therapy study with four outcomes)
+in both shapes, and the script that converts one to the other:
+
+- `music-therapy-v1.jsonld` — the record as stored under version 1
+- `music-therapy-v2.jsonld` — the same record re-mapped to version 2
+- `v1_to_v2.py` — mechanical, lossless conversion; adds nothing that is not in
+  the source, so `timePoint` and Arm names are left empty

@@ -1,0 +1,438 @@
+{
+  "@type": "LinkedDataEnhancement",
+  "@context": "https://vocab.evidence-repository.org/published/019d9463-2780-7243-b4de-e547386f2a90/1.1/context.jsonld",
+  "hasInvestigation": {
+    "@type": "Investigation",
+    "hasFinding": [
+      {
+        "@type": "Finding",
+        "attrition": {
+          "@id": "_:attrition",
+          "@type": "NumericCodingAnnotation",
+          "status": "evrepo:coded",
+          "codedValue": {
+            "@type": "xsd:integer",
+            "@value": 0
+          }
+        },
+        "evaluates": {
+          "@id": "_:intervention",
+          "@type": "Intervention",
+          "duration": {
+            "@type": "NumericCodingAnnotation",
+            "status": "evrepo:coded",
+            "codedValue": {
+              "@type": "xsd:integer",
+              "@value": 8
+            },
+            "supportingText": "Page 66: The study occurred in the beginning of the school year, between September and November"
+          },
+          "description": [
+            "Page 71: Music therapy sessions. Groups receiving music were seated in a circle on the floor of their classroom in an area designated for group learning (or “circle time”). Music group plans (see Appendix G) were developed by the researcher and material covered coincided with information/themes of the “Between the Lions” episodes. The primary letter sound and word family of the show being viewed by the children that day was incorporated into the music materials used. Groups lasted 25-30 minutes each and all sessions were conducted by the researcher. Music strategies included singing, movement, and instrument playing. Music strategies were paired with books or letter and word cards to practice letter naming, letter-sound correspondence, word building, rhyming and concepts of print.",
+            "Page 59: purpose of this study is to examine the effects of a music therapy program designed to teach reading skills versus the “Between the Lions” television show on the early literacy behaviors of Kindergarten children from a low socio-economic background"
+          ],
+          "educationTheme": [
+            {
+              "@type": "EducationThemeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:EducationThemeScheme/C00081"
+              }
+            }
+          ],
+          "implementerType": {
+            "@type": "ImplementerTypeCodingAnnotation",
+            "status": "evrepo:coded",
+            "codedValue": {
+              "@id": "esea:ImplementerTypeScheme/C00134"
+            }
+          },
+          "implementationFidelity": {
+            "@type": "ImplementationFidelityCodingAnnotation",
+            "status": "evrepo:notReported",
+            "codedValue": {
+              "@id": "esea:ImplementationFidelityScheme/C00142"
+            }
+          }
+        },
+        "comparedTo": {
+          "@id": "_:control",
+          "@type": "ControlCondition",
+          "description": "With business as usual"
+        },
+        "hasArmData": [
+          {
+            "n": 22,
+            "sd": 7.599,
+            "@id": "_:obs1_intervention",
+            "mean": 23.68,
+            "@type": "ObservedResult",
+            "forCondition": "_:intervention"
+          },
+          {
+            "n": 20,
+            "sd": 9.508,
+            "@id": "_:obs1_control",
+            "mean": 25.9,
+            "@type": "ObservedResult",
+            "forCondition": "_:control"
+          }
+        ],
+        "hasContext": {
+          "@id": "_:context",
+          "@type": "Context",
+          "country": [
+            {
+              "@type": "StringCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@type": "xsd:string",
+                "@value": "US"
+              },
+              "supportingText": "USA"
+            }
+          ],
+          "setting": [
+            {
+              "@type": "SettingCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:SettingScheme/C00145"
+              }
+            }
+          ],
+          "participants": [
+            {
+              "@type": "StringCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@type": "xsd:string",
+                "@value": "Students"
+              }
+            }
+          ],
+          "educationLevel": [
+            {
+              "@type": "EducationLevelCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:EducationLevelScheme/C00002"
+              }
+            }
+          ],
+          "sampleFeatures": [
+            {
+              "@type": "SampleFeaturesCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:SampleFeaturesScheme/C00189"
+              },
+              "supportingText": "50% | Page 60: The Federal Act provides school-wide services because at least 50% of the students enrolled qualify for free or reduced lunch"
+            }
+          ]
+        },
+        "hasOutcome": {
+          "name": "TERA-3 Total ",
+          "@type": "Outcome",
+          "outcome": [
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00123"
+              },
+              "supportingText": "Mathematics primary outcome"
+            },
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00122"
+              },
+              "supportingText": "Toolkit primary outcome"
+            }
+          ],
+          "description": "Posttest means and SD's for Music vs Control"
+        },
+        "sampleSize": {
+          "@id": "_:sampleSize",
+          "@type": "NumericCodingAnnotation",
+          "status": "evrepo:coded",
+          "codedValue": {
+            "@type": "xsd:integer",
+            "@value": 42
+          },
+          "supportingText": "Page 74: Music 22' 'Control' '20"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs1_intervention",
+              "_:obs1_control"
+            ],
+            "pointEstimate": -0.2544813036803896,
+            "standardError": 0.31033097984411717,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/hedgesG",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -0.8627300241748592,
+            "confidenceIntervalUpper": 0.35376741681408
+          },
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs1_intervention",
+              "_:obs1_control"
+            ],
+            "pointEstimate": -2.219999999999999,
+            "standardError": 2.672988380412115,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/meanDifference",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -7.459057225607744,
+            "confidenceIntervalUpper": 3.019057225607746
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "attrition": "_:attrition",
+        "evaluates": "_:intervention",
+        "comparedTo": "_:control",
+        "hasArmData": [
+          {
+            "n": 22,
+            "sd": 14.273,
+            "@id": "_:obs2_intervention",
+            "mean": 20.23,
+            "@type": "ObservedResult",
+            "forCondition": "_:intervention"
+          },
+          {
+            "n": 20,
+            "sd": 15.935,
+            "@id": "_:obs2_control",
+            "mean": 20.6,
+            "@type": "ObservedResult",
+            "forCondition": "_:control"
+          }
+        ],
+        "hasContext": "_:context",
+        "hasOutcome": {
+          "name": "DIBELS Letter Naming",
+          "@type": "Outcome",
+          "outcome": [
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00123"
+              }
+            },
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00122"
+              }
+            }
+          ],
+          "description": "Posttest means and SD's for music vs control"
+        },
+        "sampleSize": "_:sampleSize",
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs2_intervention",
+              "_:obs2_control"
+            ],
+            "pointEstimate": -0.02406441376819995,
+            "standardError": 0.30896950193631345,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/hedgesG",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -0.6296446375633743,
+            "confidenceIntervalUpper": 0.5815158100269745
+          },
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs2_intervention",
+              "_:obs2_control"
+            ],
+            "pointEstimate": -0.370000000000001,
+            "standardError": 4.685738403535097,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/meanDifference",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -9.55404727092879,
+            "confidenceIntervalUpper": 8.814047270928787
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "attrition": "_:attrition",
+        "evaluates": "_:intervention",
+        "comparedTo": "_:control",
+        "hasArmData": [
+          {
+            "n": 22,
+            "sd": 8.469,
+            "@id": "_:obs3_intervention",
+            "mean": 14.27,
+            "@type": "ObservedResult",
+            "forCondition": "_:intervention"
+          },
+          {
+            "n": 20,
+            "sd": 6.415,
+            "@id": "_:obs3_control",
+            "mean": 11.9,
+            "@type": "ObservedResult",
+            "forCondition": "_:control"
+          }
+        ],
+        "hasContext": "_:context",
+        "hasOutcome": {
+          "name": "DIBELS Initial Sounds Fluency",
+          "@type": "Outcome",
+          "outcome": [
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00123"
+              }
+            },
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00122"
+              }
+            }
+          ],
+          "description": "Posttest means and SD's means and SD's for music vs control"
+        },
+        "sampleSize": "_:sampleSize",
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs3_intervention",
+              "_:obs3_control"
+            ],
+            "pointEstimate": 0.3074459287314438,
+            "standardError": 0.3109603004378815,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/hedgesG",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -0.3020362601268039,
+            "confidenceIntervalUpper": 0.9169281175896915
+          },
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs3_intervention",
+              "_:obs3_control"
+            ],
+            "pointEstimate": 2.369999999999999,
+            "standardError": 2.3060336717954804,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/meanDifference",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -2.1498259967191418,
+            "confidenceIntervalUpper": 6.88982599671914
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "attrition": "_:attrition",
+        "evaluates": "_:intervention",
+        "comparedTo": "_:control",
+        "hasArmData": [
+          {
+            "n": 22,
+            "sd": 6.13,
+            "@id": "_:obs4_intervention",
+            "mean": 3.55,
+            "@type": "ObservedResult",
+            "forCondition": "_:intervention"
+          },
+          {
+            "n": 20,
+            "sd": 11.23,
+            "@id": "_:obs4_control",
+            "mean": 6.8,
+            "@type": "ObservedResult",
+            "forCondition": "_:control"
+          }
+        ],
+        "hasContext": "_:context",
+        "hasOutcome": {
+          "name": "Phonemic Segmentation",
+          "@type": "Outcome",
+          "outcome": [
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00123"
+              }
+            },
+            {
+              "@type": "OutcomeCodingAnnotation",
+              "status": "evrepo:coded",
+              "codedValue": {
+                "@id": "esea:OutcomeScheme/C00122"
+              }
+            }
+          ],
+          "description": "Means and SD's for music vs control"
+        },
+        "sampleSize": "_:sampleSize",
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs4_intervention",
+              "_:obs4_control"
+            ],
+            "pointEstimate": -0.3573291010250845,
+            "standardError": 0.3116599921210682,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/hedgesG",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -0.9681826855823781,
+            "confidenceIntervalUpper": 0.2535244835322092
+          },
+          {
+            "@type": "EffectEstimate",
+            "derivedFrom": [
+              "_:obs4_intervention",
+              "_:obs4_control"
+            ],
+            "pointEstimate": -3.25,
+            "standardError": 2.8308454406927464,
+            "baselineAdjusted": false,
+            "effectSizeMetric": "evrepo:EffectSizeMetricScheme/meanDifference",
+            "clusteringAdjusted": "no",
+            "confidenceIntervalLower": -8.798457063757784,
+            "confidenceIntervalUpper": 2.298457063757783
+          }
+        ]
+      }
+    ],
+    "documentType": {
+      "@type": "DocumentTypeCodingAnnotation",
+      "status": "evrepo:coded",
+      "codedValue": {
+        "@id": "esea:DocumentTypeScheme/C00012"
+      }
+    }
+  }
+}
