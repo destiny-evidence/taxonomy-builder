@@ -1,0 +1,1613 @@
+{
+  "@context": {
+    "@vocab": "https://vocab.evidence-repository.org/",
+    "_gap": null,
+    "_comment": null,
+    "_outcomes": "@nest",
+    "_contexts": "@nest"
+  },
+  "_comment": "Hand mapping of Ozor et al. (2026), Sustainability 18, 8996, doi:10.3390/su18178996, onto evrepo-core v2 (draft), core terms only. _gap keys mark where the model could not hold what the paper reports.",
+  "@type": "LinkedDataEnhancement",
+  "hasInvestigation": {
+    "@type": "Investigation",
+    "hasArm": [
+      {
+        "@id": "_:arm_ng1",
+        "@type": "Arm",
+        "name": "Nigeria Phase 1",
+        "description": "Aug 2025. 156 farmers, 91 extension agents, 60 researchers. Attendances, not unique individuals.",
+        "hasIntervention": {
+          "@id": "_:int_workshop",
+          "@type": "Intervention",
+          "name": "Brokered capacity-strengthening workshop",
+          "description": "Participatory workshop for farmers, extension agents and researchers on seven co-designed modules.",
+          "_gap": "One Intervention shared by four arms, although Phase 2 curricula differed. Sharing or splitting is the coder's call."
+        },
+        "hasObservation": [
+          {
+            "@id": "_:ng1_pre",
+            "@type": "Observation",
+            "name": "Pre-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 7,
+            "mean": 26.4,
+            "_gap": "n is the 7 knowledge areas (the paper's unit of analysis), not people. The arm had 307 attendances. Core has no way to state the unit of analysis, or the unit of the score (%).",
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:ng1_post",
+            "@type": "Observation",
+            "name": "Post-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 7,
+            "mean": 78.0,
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:ng1_women",
+            "@type": "Observation",
+            "name": "Women attending",
+            "hasOutcome": {
+              "@id": "_:o_women"
+            },
+            "hasContext": {
+              "@id": "_:c_event"
+            },
+            "n": 307,
+            "events": 184,
+            "sourceLocation": "Table 1"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_sn1",
+        "@type": "Arm",
+        "name": "Senegal Phase 1",
+        "description": "Podor, Oct 2025. 100 farmers, 44 extension agents, 34 researchers. Attendances, not unique individuals.",
+        "hasIntervention": {
+          "@id": "_:int_workshop"
+        },
+        "hasObservation": [
+          {
+            "@id": "_:sn1_pre",
+            "@type": "Observation",
+            "name": "Pre-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 7,
+            "mean": 23.0,
+            "_gap": "n is the 7 knowledge areas (the paper's unit of analysis), not people. The arm had 178 attendances. Core has no way to state the unit of analysis, or the unit of the score (%).",
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:sn1_post",
+            "@type": "Observation",
+            "name": "Post-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 7,
+            "mean": 85.0,
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:sn1_women",
+            "@type": "Observation",
+            "name": "Women attending",
+            "hasOutcome": {
+              "@id": "_:o_women"
+            },
+            "hasContext": {
+              "@id": "_:c_event"
+            },
+            "n": 178,
+            "events": 88,
+            "sourceLocation": "Table 1"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_ng2",
+        "@type": "Arm",
+        "name": "Nigeria Phase II",
+        "description": "Ebonyi and Enugu, Mar 2026. 175 farmers, 113 extension agents, 84 researchers. Attendances, not unique individuals.",
+        "hasIntervention": {
+          "@id": "_:int_workshop"
+        },
+        "hasObservation": [
+          {
+            "@id": "_:ng2_pre",
+            "@type": "Observation",
+            "name": "Pre-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 7,
+            "mean": 29.0,
+            "_gap": "n is the 7 knowledge areas (the paper's unit of analysis), not people. The arm had 372 attendances. Core has no way to state the unit of analysis, or the unit of the score (%).",
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:ng2_post",
+            "@type": "Observation",
+            "name": "Post-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 7,
+            "mean": 80.0,
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:ng2_women",
+            "@type": "Observation",
+            "name": "Women attending",
+            "hasOutcome": {
+              "@id": "_:o_women"
+            },
+            "hasContext": {
+              "@id": "_:c_event"
+            },
+            "n": 372,
+            "events": 224,
+            "sourceLocation": "Table 1"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_sn2",
+        "@type": "Arm",
+        "name": "Senegal Phase 2",
+        "description": "Podor, May 2026. 115 farmers, 46 extension agents, 24 researchers (online). Attendances, not unique individuals.",
+        "hasIntervention": {
+          "@id": "_:int_workshop"
+        },
+        "hasObservation": [
+          {
+            "@id": "_:sn2_pre",
+            "@type": "Observation",
+            "name": "Pre-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 7,
+            "mean": 27.6,
+            "_gap": "n is the 7 knowledge areas (the paper's unit of analysis), not people. The arm had 185 attendances. Core has no way to state the unit of analysis, or the unit of the score (%).",
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:sn2_post",
+            "@type": "Observation",
+            "name": "Post-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 7,
+            "mean": 78.4,
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:sn2_women",
+            "@type": "Observation",
+            "name": "Women attending",
+            "hasOutcome": {
+              "@id": "_:o_women"
+            },
+            "hasContext": {
+              "@id": "_:c_event"
+            },
+            "n": 185,
+            "events": 72,
+            "sourceLocation": "Table 1"
+          },
+          {
+            "@id": "_:sn2_gesi",
+            "@type": "Observation",
+            "name": "Reported better understanding of gender equality and social inclusion",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "description": "97% of participants.",
+            "_gap": "A bare percentage with no denominator. No core property holds it: mean and events/n both misstate it.",
+            "sourceLocation": "Section 4.3"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_pooled",
+        "@type": "Arm",
+        "name": "All rounds pooled",
+        "description": "1042 attendances across the four rounds.",
+        "_gap": "A union of the four round arms. Core cannot say an Arm is made of other Arms, so the pooled results look like a fifth independent group.",
+        "hasObservation": [
+          {
+            "@id": "_:all_pre",
+            "@type": "Observation",
+            "name": "Pre-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 28,
+            "mean": 26.5,
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:all_post",
+            "@type": "Observation",
+            "name": "Post-training score",
+            "hasOutcome": {
+              "@id": "_:o_knowledge"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 28,
+            "mean": 80.3,
+            "sourceLocation": "Table 3"
+          },
+          {
+            "@id": "_:all_women",
+            "@type": "Observation",
+            "name": "Women attending",
+            "hasOutcome": {
+              "@id": "_:o_women"
+            },
+            "hasContext": {
+              "@id": "_:c_event"
+            },
+            "n": 1042,
+            "events": 568,
+            "sourceLocation": "Table 1"
+          },
+          {
+            "@id": "_:A1_pre",
+            "@type": "Observation",
+            "name": "A1 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A1"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 26.2,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A1_post",
+            "@type": "Observation",
+            "name": "A1 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A1"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 83.7,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A7_pre",
+            "@type": "Observation",
+            "name": "A7 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A7"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 25.0,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A7_post",
+            "@type": "Observation",
+            "name": "A7 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A7"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 82.2,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A4_pre",
+            "@type": "Observation",
+            "name": "A4 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A4"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 27.4,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A4_post",
+            "@type": "Observation",
+            "name": "A4 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A4"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 82.7,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A6_pre",
+            "@type": "Observation",
+            "name": "A6 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A6"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 22.6,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A6_post",
+            "@type": "Observation",
+            "name": "A6 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A6"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 75.7,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A3_pre",
+            "@type": "Observation",
+            "name": "A3 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A3"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 29.0,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A3_post",
+            "@type": "Observation",
+            "name": "A3 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A3"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 81.7,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A5_pre",
+            "@type": "Observation",
+            "name": "A5 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A5"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 25.1,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A5_post",
+            "@type": "Observation",
+            "name": "A5 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A5"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 76.9,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A2_pre",
+            "@type": "Observation",
+            "name": "A2 pre-training",
+            "hasOutcome": {
+              "@id": "_:o_A2"
+            },
+            "hasContext": {
+              "@id": "_:c_pre"
+            },
+            "n": 4,
+            "mean": 30.4,
+            "sourceLocation": "Table 6"
+          },
+          {
+            "@id": "_:A2_post",
+            "@type": "Observation",
+            "name": "A2 post-training",
+            "hasOutcome": {
+              "@id": "_:o_A2"
+            },
+            "hasContext": {
+              "@id": "_:c_post"
+            },
+            "n": 4,
+            "mean": 79.5,
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_sn_diag",
+        "@type": "Arm",
+        "name": "Senegal diagnostic sample",
+        "description": "Podor needs assessment: key informant interviews with farmers, extension agents and researchers.",
+        "_gap": "Each Observation below is about a different subgroup (extension agents, researchers, farmers). Subgroup belongs to neither Arm nor core Context, so it is only in the Observation name.",
+        "hasObservation": [
+          {
+            "@id": "_:sn_fin_unaware",
+            "@type": "Observation",
+            "name": "Extension agents unaware of climate finance opportunities",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "92%",
+            "sourceLocation": "Section 4.2"
+          },
+          {
+            "@id": "_:sn_fin_access",
+            "@type": "Observation",
+            "name": "Extension agents with access to financial resources for adaptation",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "16.67%",
+            "sourceLocation": "Section 4.2"
+          },
+          {
+            "@id": "_:sn_women_agents",
+            "@type": "Observation",
+            "name": "Women among surveyed extension agents",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "8.33%",
+            "sourceLocation": "Section 4.2"
+          },
+          {
+            "@id": "_:sn_heard",
+            "@type": "Observation",
+            "name": "Farmers reporting that advisers listen to them",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "70%",
+            "sourceLocation": "Section 4.6"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_ng_diag",
+        "@type": "Arm",
+        "name": "Nigeria diagnostic sample",
+        "description": "Enugu and Ebonyi needs assessment and validation workshops.",
+        "hasObservation": [
+          {
+            "@id": "_:ng_fin_barrier",
+            "@type": "Observation",
+            "name": "Farmers citing poor awareness of climate finance as primary barrier",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "65.1%",
+            "sourceLocation": "Section 4.2"
+          },
+          {
+            "@id": "_:ng_prio_women",
+            "@type": "Observation",
+            "name": "Training priorities of female farmers",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "Financial literacy and organic, chemical-free pest and disease management to reduce input costs.",
+            "sourceLocation": "Section 4.2"
+          },
+          {
+            "@id": "_:ng_prio_men",
+            "@type": "Observation",
+            "name": "Training priorities of male farmers",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_diag"
+            },
+            "description": "Advanced agro-technologies such as push-pull systems, and ICT tools for real-time weather forecasts.",
+            "sourceLocation": "Section 4.2"
+          }
+        ]
+      },
+      {
+        "@id": "_:arm_ng_adopt",
+        "@type": "Arm",
+        "name": "Nigeria participants and partner bodies",
+        "_gap": "Overlaps the two Nigeria round arms to an unknown degree. The MoU is a result about an institution, not a measurement on a group of units; it is here because an Observation must belong to an Arm.",
+        "hasObservation": [
+          {
+            "@id": "_:ng_bottles",
+            "@type": "Observation",
+            "name": "Upcycled-bottle crop protection, Nwanyi Bu Ihe cooperative, Nsukka",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_project"
+            },
+            "description": "Deployed on 15 farms with 2000 devices; 100% crop protection reported; spontaneous adoption by neighbouring non-participants.",
+            "sourceLocation": "Section 4.3.2"
+          },
+          {
+            "@id": "_:ng_digital",
+            "@type": "Observation",
+            "name": "Participants trained on and adopting digital agricultural tools",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_project"
+            },
+            "n": 207,
+            "sourceLocation": "Section 4.3.2"
+          },
+          {
+            "@id": "_:ng_mou",
+            "@type": "Observation",
+            "name": "Five-year MoU with Enugu State Ministry of Agriculture",
+            "hasOutcome": {
+              "@id": "_:o_other"
+            },
+            "hasContext": {
+              "@id": "_:c_project"
+            },
+            "description": "Institutionalizes the project's locally led adaptation strategies and sets up a Joint Technical Working Group.",
+            "sourceLocation": "Section 4.5"
+          }
+        ]
+      }
+    ],
+    "hasFinding": [
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:ng1_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 51.6,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 48.2,
+            "confidenceIntervalUpper": 55.0,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:ng1_post"
+              },
+              {
+                "@id": "_:ng1_pre"
+              }
+            ],
+            "sourceLocation": "Table 3",
+            "_gap": "Paired t(6) and p < 0.001 have no home: core has no test statistic, degrees of freedom or p-value. Nothing marks the comparison as paired."
+          },
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 0.701,
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 3",
+            "_gap": "Normalized (Hake) gain. Not in EffectSizeMetricScheme, and EffectEstimate has no name, so this number is unlabelled."
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:sn1_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 62.0,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 59.2,
+            "confidenceIntervalUpper": 64.8,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:sn1_post"
+              },
+              {
+                "@id": "_:sn1_pre"
+              }
+            ],
+            "sourceLocation": "Table 3",
+            "_gap": "Paired t(6) and p < 0.001 have no home: core has no test statistic, degrees of freedom or p-value. Nothing marks the comparison as paired."
+          },
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 0.806,
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 3",
+            "_gap": "Normalized (Hake) gain. Not in EffectSizeMetricScheme, and EffectEstimate has no name, so this number is unlabelled."
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:ng2_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 51.0,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 46.9,
+            "confidenceIntervalUpper": 55.0,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:ng2_post"
+              },
+              {
+                "@id": "_:ng2_pre"
+              }
+            ],
+            "sourceLocation": "Table 3",
+            "_gap": "Paired t(6) and p < 0.001 have no home: core has no test statistic, degrees of freedom or p-value. Nothing marks the comparison as paired."
+          },
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 0.718,
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 3",
+            "_gap": "Normalized (Hake) gain. Not in EffectSizeMetricScheme, and EffectEstimate has no name, so this number is unlabelled."
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:sn2_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 50.8,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 45.3,
+            "confidenceIntervalUpper": 56.3,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:sn2_post"
+              },
+              {
+                "@id": "_:sn2_pre"
+              }
+            ],
+            "sourceLocation": "Table 3",
+            "_gap": "Paired t(6) and p < 0.001 have no home: core has no test statistic, degrees of freedom or p-value. Nothing marks the comparison as paired."
+          },
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 0.7,
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 3",
+            "_gap": "Normalized (Hake) gain. Not in EffectSizeMetricScheme, and EffectEstimate has no name, so this number is unlabelled."
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A1_post"
+          },
+          {
+            "@id": "_:A1_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A1_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 57.5,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A1_post"
+              },
+              {
+                "@id": "_:A1_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A7_post"
+          },
+          {
+            "@id": "_:A7_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A7_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 57.2,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A7_post"
+              },
+              {
+                "@id": "_:A7_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A4_post"
+          },
+          {
+            "@id": "_:A4_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A4_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 55.3,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A4_post"
+              },
+              {
+                "@id": "_:A4_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A6_post"
+          },
+          {
+            "@id": "_:A6_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A6_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 53.1,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A6_post"
+              },
+              {
+                "@id": "_:A6_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A3_post"
+          },
+          {
+            "@id": "_:A3_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A3_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 52.7,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A3_post"
+              },
+              {
+                "@id": "_:A3_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A5_post"
+          },
+          {
+            "@id": "_:A5_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A5_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 51.8,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A5_post"
+              },
+              {
+                "@id": "_:A5_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:A2_post"
+          },
+          {
+            "@id": "_:A2_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:A2_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 49.1,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:A2_post"
+              },
+              {
+                "@id": "_:A2_pre"
+              }
+            ],
+            "sourceLocation": "Table 6"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:all_post"
+          },
+          {
+            "@id": "_:all_pre"
+          }
+        ],
+        "comparedTo": {
+          "@id": "_:all_pre"
+        },
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 53.8,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 51.4,
+            "confidenceIntervalUpper": 56.3,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "derivedFrom": [
+              {
+                "@id": "_:all_post"
+              },
+              {
+                "@id": "_:all_pre"
+              }
+            ],
+            "sourceLocation": "Table 3"
+          }
+        ]
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          },
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 10.44,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 7.26,
+            "confidenceIntervalUpper": 13.62,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 5"
+          }
+        ],
+        "_gap": "A difference between two gains. compares lists four Observations but one comparedTo cannot say which arm is the reference or that pre is subtracted from post, so the sign of the estimate is not recoverable from the graph."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          },
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -11.06,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -14.69,
+            "confidenceIntervalUpper": -7.42,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 5"
+          }
+        ],
+        "_gap": "A difference between two gains. compares lists four Observations but one comparedTo cannot say which arm is the reference or that pre is subtracted from post, so the sign of the estimate is not recoverable from the graph."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          },
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -11.26,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -16.18,
+            "confidenceIntervalUpper": -6.34,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 5"
+          }
+        ],
+        "_gap": "A difference between two gains. compares lists four Observations but one comparedTo cannot say which arm is the reference or that pre is subtracted from post, so the sign of the estimate is not recoverable from the graph."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          },
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -0.61,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -6.41,
+            "confidenceIntervalUpper": 5.18,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 5"
+          }
+        ],
+        "_gap": "A difference between two gains. compares lists four Observations but one comparedTo cannot say which arm is the reference or that pre is subtracted from post, so the sign of the estimate is not recoverable from the graph."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          },
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -0.81,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -6.24,
+            "confidenceIntervalUpper": 4.61,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 5"
+          }
+        ],
+        "_gap": "A difference between two gains. compares lists four Observations but one comparedTo cannot say which arm is the reference or that pre is subtracted from post, so the sign of the estimate is not recoverable from the graph."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          },
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -0.2,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -5.4,
+            "confidenceIntervalUpper": 5.0,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 5"
+          }
+        ],
+        "_gap": "A difference between two gains. compares lists four Observations but one comparedTo cannot say which arm is the reference or that pre is subtracted from post, so the sign of the estimate is not recoverable from the graph."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          },
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          },
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          },
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 0.72,
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Table 4",
+            "_gap": "Partial eta-squared for the round effect, F(3,18) = 15.63, p < 0.001. Metric not in the scheme; F and p have no home."
+          }
+        ],
+        "_gap": "Omnibus ANOVA across four arms. The n-ary compares fits this."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          },
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          },
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          },
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": 5.12,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": 2.21,
+            "confidenceIntervalUpper": 8.03,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Section 4.3.1"
+          }
+        ],
+        "_gap": "Orthogonal contrast: country (Senegal - Nigeria). Identical in the graph to the omnibus Finding and the other two contrasts: Finding has no name or description and compares carries no weights or roles. This note is the only thing telling them apart."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          },
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          },
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          },
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -5.94,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -8.84,
+            "confidenceIntervalUpper": -3.03,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Section 4.3.1"
+          }
+        ],
+        "_gap": "Orthogonal contrast: phase (Phase 2 - Phase 1). Identical in the graph to the omnibus Finding and the other two contrasts: Finding has no name or description and compares carries no weights or roles. This note is the only thing telling them apart."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng1_post"
+          },
+          {
+            "@id": "_:ng1_pre"
+          },
+          {
+            "@id": "_:sn1_post"
+          },
+          {
+            "@id": "_:sn1_pre"
+          },
+          {
+            "@id": "_:ng2_post"
+          },
+          {
+            "@id": "_:ng2_pre"
+          },
+          {
+            "@id": "_:sn2_post"
+          },
+          {
+            "@id": "_:sn2_pre"
+          }
+        ],
+        "hasEffectEstimate": [
+          {
+            "@type": "EffectEstimate",
+            "pointEstimate": -5.32,
+            "confidenceLevel": 0.95,
+            "confidenceIntervalLower": -8.23,
+            "confidenceIntervalUpper": -2.41,
+            "effectSizeMetric": {
+              "@id": "https://vocab.evidence-repository.org/meanDifference"
+            },
+            "estimateSource": {
+              "@id": "https://vocab.evidence-repository.org/extractedFromPaper"
+            },
+            "sourceLocation": "Section 4.3.1"
+          }
+        ],
+        "_gap": "Orthogonal contrast: country x phase interaction. Identical in the graph to the omnibus Finding and the other two contrasts: Finding has no name or description and compares carries no weights or roles. This note is the only thing telling them apart."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:sn_heard"
+          }
+        ],
+        "_gap": "The paper reports that gender significantly influenced whether a farmer was heard, with no figures by gender. A Finding needs two or more Observations to compare; the paper gives none, so this Finding is invalid as written and the result itself has nowhere to be stated."
+      },
+      {
+        "@type": "Finding",
+        "compares": [
+          {
+            "@id": "_:ng_prio_women"
+          },
+          {
+            "@id": "_:ng_prio_men"
+          }
+        ],
+        "_gap": "A qualitative comparison with no effect estimate. This fits the model well."
+      }
+    ]
+  },
+  "@included": [
+    {
+      "@id": "_:o_knowledge",
+      "@type": "Outcome",
+      "name": "Knowledge assessment score",
+      "description": "Percentage of correct responses, averaged over seven co-designed knowledge areas."
+    },
+    {
+      "@id": "_:o_women",
+      "@type": "Outcome",
+      "name": "Women's share of attendances"
+    },
+    {
+      "@id": "_:o_A1",
+      "@type": "Outcome",
+      "name": "Knowledge: ICT tools and emerging technologies"
+    },
+    {
+      "@id": "_:o_A7",
+      "@type": "Outcome",
+      "name": "Knowledge: Gender equity, diversity and inclusion"
+    },
+    {
+      "@id": "_:o_A4",
+      "@type": "Outcome",
+      "name": "Knowledge: Community mobilization and engagement"
+    },
+    {
+      "@id": "_:o_A6",
+      "@type": "Outcome",
+      "name": "Knowledge: Climate financing"
+    },
+    {
+      "@id": "_:o_A3",
+      "@type": "Outcome",
+      "name": "Knowledge: Agroecology and agroforestry"
+    },
+    {
+      "@id": "_:o_A5",
+      "@type": "Outcome",
+      "name": "Knowledge: Research and policy advocacy"
+    },
+    {
+      "@id": "_:o_A2",
+      "@type": "Outcome",
+      "name": "Knowledge: Smart agriculture and value addition"
+    },
+    {
+      "@id": "_:o_other",
+      "@type": "Outcome",
+      "name": "Other reported results",
+      "_gap": "Catch-all. hasOutcome is the only way to say what an Observation measured, so one-off results each need an Outcome node."
+    },
+    {
+      "@id": "_:c_pre",
+      "@type": "Context",
+      "timePoint": "pre-training"
+    },
+    {
+      "@id": "_:c_post",
+      "@type": "Context",
+      "timePoint": "post-training"
+    },
+    {
+      "@id": "_:c_event",
+      "@type": "Context",
+      "timePoint": "at workshop"
+    },
+    {
+      "@id": "_:c_diag",
+      "@type": "Context",
+      "timePoint": "diagnostic needs assessment, Jan-Aug 2024"
+    },
+    {
+      "@id": "_:c_project",
+      "@type": "Context",
+      "timePoint": "during project, Aug 2025-May 2026",
+      "_gap": "Core Context holds only timePoint. Country, place and population have no core property, so they sit in Arm free text and five Contexts serve all 40 Observations."
+    }
+  ]
+}
